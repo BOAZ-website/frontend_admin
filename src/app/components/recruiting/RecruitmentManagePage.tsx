@@ -507,7 +507,7 @@ export function RecruitmentManagePage({
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto" style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif" }}>
+    <div className="space-y-6 w-full" style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif" }}>
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-70 bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-2xl shadow-2xl text-xs font-semibold flex items-center gap-2.5 border border-slate-700/80 animate-in fade-in slide-in-from-bottom-4 duration-200">

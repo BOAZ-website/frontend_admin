@@ -20,6 +20,7 @@ import { RecruitmentManagePage } from "./components/recruiting/RecruitmentManage
 import { EvaluationManagePage } from "./components/recruiting/EvaluationManagePage";
 import { SystemAccountsPage } from "./components/system/SystemAccountsPage";
 import { EventAttendanceManagePage } from "./components/attendance/EventAttendanceManagePage";
+import { InternalCategoryAttendancePage } from "./components/attendance/InternalCategoryAttendancePage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -79,7 +80,7 @@ interface ExceptionRequest {
   from: AttendanceStatus; to: AttendanceStatus; reason: string;
 }
 
-interface ScoreRule {
+export interface ScoreRule {
   version: number; status: "ACTIVE" | "INACTIVE" | "DRAFT";
   activatedAt: string | null; createdBy: string;
   present: number; late: number; absent: number;
@@ -1607,97 +1608,534 @@ function ScoresPage({
 
 // ─── Page: 점수 규칙 ──────────────────────────────────────────────────────────
 
-function RulesPage() {
-  const [rules, setRules] = useState<ScoreRule[]>(INITIAL_RULES);
-  const [showDraft, setShowDraft] = useState(false);
+interface RulesPageProps {
+  rules: ScoreRule[];
+  onUpdateRules: (newRules: ScoreRule[]) => void;
+}
 
-  const activeRule = rules.find(r => r.status === "ACTIVE");
+function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
+  const activeRule = rules.find(r => r.status === "ACTIVE") || rules[0];
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  const [editingValues, setEditingValues] = useState({
+    absentPenalty: activeRule?.absentPenalty ?? -3,
+    unexcusedAbsentPenalty: activeRule?.unexcusedAbsentPenalty ?? -4,
+    latePenalty: activeRule?.latePenalty ?? -1,
+    earlyLeavePenalty: activeRule?.earlyLeavePenalty ?? -1,
+    unexcusedLatePenalty: activeRule?.unexcusedLatePenalty ?? -4,
+    presentScore: activeRule?.presentScore ?? 0,
+    studyFailPenalty: activeRule?.studyFailPenalty ?? -5,
+    studyPerfectBonus: activeRule?.studyPerfectBonus ?? 3,
+    studyPassBonus: activeRule?.studyPassBonus ?? 1,
+    studyLeaderBonus: activeRule?.studyLeaderBonus ?? 1,
+  });
+
+  const [showDraft, setShowDraft] = useState(false);
+  const [draftValues, setDraftValues] = useState({
+    absentPenalty: -3,
+    unexcusedAbsentPenalty: -4,
+    latePenalty: -1,
+    earlyLeavePenalty: -1,
+    unexcusedLatePenalty: -4,
+    presentScore: 0,
+    studyFailPenalty: -5,
+    studyPerfectBonus: 3,
+    studyPassBonus: 1,
+    studyLeaderBonus: 1,
+  });
+
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    if (activeRule) {
+      setEditingValues({
+        absentPenalty: activeRule.absentPenalty ?? -3,
+        unexcusedAbsentPenalty: activeRule.unexcusedAbsentPenalty ?? -4,
+        latePenalty: activeRule.latePenalty ?? -1,
+        earlyLeavePenalty: activeRule.earlyLeavePenalty ?? -1,
+        unexcusedLatePenalty: activeRule.unexcusedLatePenalty ?? -4,
+        presentScore: activeRule.presentScore ?? 0,
+        studyFailPenalty: activeRule.studyFailPenalty ?? -5,
+        studyPerfectBonus: activeRule.studyPerfectBonus ?? 3,
+        studyPassBonus: activeRule.studyPassBonus ?? 1,
+        studyLeaderBonus: activeRule.studyLeaderBonus ?? 1,
+      });
+    }
+  }, [activeRule]);
+
+  const handleSaveActiveRule = () => {
+    const updated = rules.map(r => {
+      if (r.status === "ACTIVE") {
+        return {
+          ...r,
+          absentPenalty: Number(editingValues.absentPenalty),
+          unexcusedAbsentPenalty: Number(editingValues.unexcusedAbsentPenalty),
+          latePenalty: Number(editingValues.latePenalty),
+          earlyLeavePenalty: Number(editingValues.earlyLeavePenalty),
+          unexcusedLatePenalty: Number(editingValues.unexcusedLatePenalty),
+          presentScore: Number(editingValues.presentScore),
+          studyFailPenalty: Number(editingValues.studyFailPenalty),
+          studyPerfectBonus: Number(editingValues.studyPerfectBonus),
+          studyPassBonus: Number(editingValues.studyPassBonus),
+          studyLeaderBonus: Number(editingValues.studyLeaderBonus),
+          present: Number(editingValues.presentScore),
+          absent: Number(editingValues.absentPenalty),
+        };
+      }
+      return r;
+    });
+    onUpdateRules(updated);
+    setIsEditMode(false);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const handleCreateDraft = () => {
+    const newVersion = Math.max(...rules.map(r => r.version), 0) + 1;
+    const newDraft: ScoreRule = {
+      version: newVersion,
+      status: "DRAFT",
+      activatedAt: null,
+      createdBy: "차기대표진",
+      absentPenalty: Number(draftValues.absentPenalty),
+      unexcusedAbsentPenalty: Number(draftValues.unexcusedAbsentPenalty),
+      latePenalty: Number(draftValues.latePenalty),
+      earlyLeavePenalty: Number(draftValues.earlyLeavePenalty),
+      unexcusedLatePenalty: Number(draftValues.unexcusedLatePenalty),
+      presentScore: Number(draftValues.presentScore),
+      studyFailPenalty: Number(draftValues.studyFailPenalty),
+      studyPerfectBonus: Number(draftValues.studyPerfectBonus),
+      studyPassBonus: Number(draftValues.studyPassBonus),
+      studyLeaderBonus: Number(draftValues.studyLeaderBonus),
+      present: Number(draftValues.presentScore),
+      absent: Number(draftValues.absentPenalty),
+    };
+    onUpdateRules([newDraft, ...rules]);
+    setShowDraft(false);
+  };
+
+  const handleActivateRule = (targetVersion: number) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const updated = rules.map(r => {
+      if (r.version === targetVersion) {
+        return { ...r, status: "ACTIVE" as const, activatedAt: today };
+      }
+      if (r.status === "ACTIVE") {
+        return { ...r, status: "INACTIVE" as const };
+      }
+      return r;
+    });
+    onUpdateRules(updated);
+  };
 
   return (
-    <div className="space-y-4">
-      {activeRule && (
-        <SectionCard>
-          <CardHeader title={`현재 활성 규칙 — v${activeRule.version}`}
-            sub={`활성화: ${activeRule.activatedAt} · 작성: ${activeRule.createdBy}`}
-            right={<Tag label="RULE_ACTIVATE" color="#34d399" bg="rgba(52,211,153,0.12)" />} />
-          <div className="flex items-center gap-4 px-5 py-4">
-            {[
-              { label:"출석", pts:activeRule.present, color:"#34d399", bg:"rgba(52,211,153,0.12)" },
-              { label:"지각", pts:activeRule.late,    color:"#fbbf24", bg:"rgba(251,191,36,0.12)" },
-              { label:"결석", pts:activeRule.absent,  color:"#f87171", bg:"rgba(248,113,113,0.12)" },
-            ].map(r => (
-              <div key={r.label} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                style={{ background:r.bg, border:`1px solid ${r.color}25` }}>
-                <span className="text-sm font-medium" style={{ color:r.color }}>{r.label}</span>
-                <span className="text-2xl font-bold font-mono" style={{ color:r.color }}>+{r.pts}</span>
-                <span className="text-xs text-muted-foreground">점</span>
-              </div>
-            ))}
+    <div className="w-full space-y-6">
+      {/* Toast Alert */}
+      {savedSuccess && (
+        <div className="p-3 rounded-lg bg-slate-900 text-white flex items-center justify-between text-xs font-semibold shadow-sm">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+            <span>점수 규칙이 저장되었습니다. 전체 출결 표와 시트 수식에 반영되었습니다.</span>
           </div>
-        </SectionCard>
+          <span className="font-mono text-slate-300 text-[11px]">저장 완료</span>
+        </div>
       )}
 
-      <SectionCard>
-        <CardHeader title="규칙 이력"
-          right={
-            <div className="flex items-center gap-2">
-              <Tag label="RULE_EDIT (차기대표진)" color="#5b7fff" bg="rgba(91,127,255,0.12)" />
-              <Btn onClick={() => setShowDraft(v=>!v)}><Plus size={12} />DRAFT 작성</Btn>
+      {/* Main Container */}
+      {activeRule && (
+        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6 shadow-2xs w-full">
+          {/* Header */}
+          <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">출결 및 스터디 점수 규칙</h2>
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                  v{activeRule.version} ACTIVE
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                정규 활동(세션/ADV) 및 스터디 출결 점수 산출 기준
+              </p>
             </div>
-          } />
+
+            <div className="flex items-center gap-2">
+              {isEditMode ? (
+                <>
+                  <button
+                    onClick={() => setIsEditMode(false)}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs transition-colors cursor-pointer"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleSaveActiveRule}
+                    className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Save size={13} />
+                    <span>저장</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  className="px-3.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Edit3 size={13} />
+                  <span>수치 수정</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 2-Column Tables */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full items-start">
+            {/* ─── 1. 정규 활동 (세션 / ADV) ─── */}
+            <div className="space-y-3">
+              {/* Formula Bar (Excel fx style) */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700">
+                <span className="font-serif italic font-bold text-slate-400 shrink-0">fx</span>
+                <span className="text-slate-400">|</span>
+                <span className="truncate font-sans font-medium text-[11.5px] text-slate-700">
+                  총점 = (사유결석 × {editingValues.absentPenalty}) + (무단결석 × {editingValues.unexcusedAbsentPenalty}) + (지각·조퇴 × {editingValues.latePenalty})
+                </span>
+              </div>
+
+              {/* Table */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                <div className="bg-slate-50 border-b border-slate-200 px-4 py-2.5 font-bold text-slate-800 text-xs flex items-center justify-between">
+                  <span>출석 (정규 활동)</span>
+                  <span className="text-[11px] font-normal text-slate-500">감점</span>
+                </div>
+
+                <table className="w-full text-xs border-collapse">
+                  <tbody className="divide-y divide-slate-100">
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">지각 (세션 시작 후 ~ 15분까지)</td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.latePenalty}
+                            onChange={e => setEditingValues(v => ({ ...v, latePenalty: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-rose-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-rose-600 text-sm">{editingValues.latePenalty}</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">무단지각 3회</td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.unexcusedLatePenalty}
+                            onChange={e => setEditingValues(v => ({ ...v, unexcusedLatePenalty: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-rose-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-rose-600 text-sm">{editingValues.unexcusedLatePenalty}</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">조퇴</td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.earlyLeavePenalty}
+                            onChange={e => setEditingValues(v => ({ ...v, earlyLeavePenalty: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-rose-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-rose-600 text-sm">{editingValues.earlyLeavePenalty}</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">사유결석</td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.absentPenalty}
+                            onChange={e => setEditingValues(v => ({ ...v, absentPenalty: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-rose-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-rose-600 text-sm">{editingValues.absentPenalty}</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">
+                        <span>무단결석</span>
+                        <span className="text-[11px] text-slate-400 ml-1.5">(3회 시 동아리 제명)</span>
+                      </td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.unexcusedAbsentPenalty}
+                            onChange={e => setEditingValues(v => ({ ...v, unexcusedAbsentPenalty: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-rose-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-rose-600 text-sm">{editingValues.unexcusedAbsentPenalty}</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">
+                        <span>불가피한 상황 또는 운영진 인정 사유결석</span>
+                        <span className="text-[11px] text-slate-400 ml-1.5">(증빙 필요)</span>
+                      </td>
+                      <td className="px-4 py-2 text-right w-24 font-medium text-slate-400 text-xs">
+                        변동 없음
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Subtitle / Footnote */}
+                <div className="bg-slate-50/50 py-2 px-4 text-center text-[11px] text-slate-500 border-t border-slate-100">
+                  * (1Term 기준) '연속 4주 결석' 또는 '총 6회 이상 결석' 시 동아리에서 제명될 수 있음
+                </div>
+              </div>
+            </div>
+
+            {/* ─── 2. 스터디 ─── */}
+            <div className="space-y-3">
+              {/* Formula Bar (Excel fx style) */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700">
+                <span className="font-serif italic font-bold text-slate-400 shrink-0">fx</span>
+                <span className="text-slate-400">|</span>
+                <span className="truncate font-sans font-medium text-[11.5px] text-slate-700">
+                  =SUM( IF(출석 ≤ 4, {editingValues.studyFailPenalty}, IF(출석 &lt; 7, {editingValues.studyPassBonus}, {editingValues.studyPerfectBonus})), 스터디장 )
+                </span>
+              </div>
+
+              {/* Table */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                <div className="bg-slate-50 border-b border-slate-200 px-4 py-2.5 font-bold text-slate-800 text-xs flex items-center justify-between">
+                  <span>스터디</span>
+                  <span className="text-[11px] font-normal text-slate-500">배점</span>
+                </div>
+
+                <table className="w-full text-xs border-collapse">
+                  <tbody className="divide-y divide-slate-100">
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">각 Term 방학 기간에 스터디를 하나도 이수하지 못할 경우</td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.studyFailPenalty}
+                            onChange={e => setEditingValues(v => ({ ...v, studyFailPenalty: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-rose-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-rose-600 text-sm">{editingValues.studyFailPenalty}</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">각 Term 방학 기간에 스터디 출석률이 70% 미만일 경우 (4회 이하)</td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.studyFailPenalty}
+                            onChange={e => setEditingValues(v => ({ ...v, studyFailPenalty: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-rose-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-rose-600 text-sm">{editingValues.studyFailPenalty}</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">스터디 100% 출석률 회원 (7~8회 성실 출석)</td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.studyPerfectBonus}
+                            onChange={e => setEditingValues(v => ({ ...v, studyPerfectBonus: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-blue-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-blue-600 text-sm">+{editingValues.studyPerfectBonus}</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">스터디 70% 이상 100% 미만 출석률 회원 (5~6회 정규 수료)</td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.studyPassBonus}
+                            onChange={e => setEditingValues(v => ({ ...v, studyPassBonus: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-blue-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-blue-600 text-sm">+{editingValues.studyPassBonus}</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-4 py-2.5 text-slate-700">스터디 팀장 (스터디장 가산점)</td>
+                      <td className="px-4 py-2 text-right w-24">
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={editingValues.studyLeaderBonus}
+                            onChange={e => setEditingValues(v => ({ ...v, studyLeaderBonus: Number(e.target.value) }))}
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-blue-600 bg-white"
+                          />
+                        ) : (
+                          <span className="font-mono font-bold text-blue-600 text-sm">+{editingValues.studyLeaderBonus}</span>
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Subtitle / Footnote */}
+                <div className="bg-slate-50/50 py-2 px-4 text-center text-[11px] text-slate-500 border-t border-slate-100">
+                  * 8주 기준 70%(5회) 이상 출석 시 수료(+{editingValues.studyPassBonus}점), 100%(7회 이상) 출석 시 우수(+{editingValues.studyPerfectBonus}점), 팀장 +{editingValues.studyLeaderBonus}점
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rules History Card */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4 shadow-2xs w-full">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">규칙 버전 관리</h3>
+            <p className="text-xs text-slate-500 mt-0.5">역대 점수 규칙 버전 기록 및 차기 대표진 DRAFT 작성</p>
+          </div>
+          <button
+            onClick={() => setShowDraft(v => !v)}
+            className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Plus size={13} />
+            <span>신규 DRAFT 작성</span>
+          </button>
+        </div>
 
         {showDraft && (
-          <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom:"1px solid rgba(0,0,0,0.06)", background:"rgba(91,127,255,0.05)" }}>
-            <span className="text-xs text-muted-foreground">새 DRAFT</span>
-            {["출석","지각","결석"].map(l => (
-              <div key={l} className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">{l}</span>
-                <input type="number" step="0.5" defaultValue={l==="출석"?1:l==="지각"?0.5:0}
-                  className="w-16 px-2 py-1 text-xs text-center rounded-lg font-mono outline-none"
-                  style={{ background:"#f1f5f9", border:"1px solid rgba(0,0,0,0.08)", color:"#0f172a" }} />
-                <span className="text-xs text-muted-foreground">점</span>
+          <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-3 text-xs">
+            <div className="font-bold text-slate-900 flex items-center justify-between">
+              <span>새로운 DRAFT 규칙 작성</span>
+              <span className="font-mono text-slate-500 text-[11px]">v{Math.max(...rules.map(r => r.version), 0) + 1} 생성 예정</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="text-[11px] text-slate-600 block mb-1">지각/조퇴 (점)</label>
+                <input
+                  type="number"
+                  value={draftValues.latePenalty}
+                  onChange={e => setDraftValues(v => ({ ...v, latePenalty: Number(e.target.value), earlyLeavePenalty: Number(e.target.value) }))}
+                  className="w-full px-2.5 py-1 text-xs text-center rounded border border-slate-300 bg-white"
+                />
               </div>
-            ))}
-            <Btn onClick={() => {
-              setRules(prev => [{ version:prev.length+1, status:"DRAFT", activatedAt:null, createdBy:"차기대표진", present:1, late:0.5, absent:0 }, ...prev]);
-              setShowDraft(false);
-            }}>저장</Btn>
-            <Btn variant="ghost" onClick={() => setShowDraft(false)}>취소</Btn>
+              <div>
+                <label className="text-[11px] text-slate-600 block mb-1">사유결석 (점)</label>
+                <input
+                  type="number"
+                  value={draftValues.absentPenalty}
+                  onChange={e => setDraftValues(v => ({ ...v, absentPenalty: Number(e.target.value) }))}
+                  className="w-full px-2.5 py-1 text-xs text-center rounded border border-slate-300 bg-white"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-600 block mb-1">무단결석 (점)</label>
+                <input
+                  type="number"
+                  value={draftValues.unexcusedAbsentPenalty}
+                  onChange={e => setDraftValues(v => ({ ...v, unexcusedAbsentPenalty: Number(e.target.value) }))}
+                  className="w-full px-2.5 py-1 text-xs text-center rounded border border-slate-300 bg-white"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-600 block mb-1">스터디 미이수 (점)</label>
+                <input
+                  type="number"
+                  value={draftValues.studyFailPenalty}
+                  onChange={e => setDraftValues(v => ({ ...v, studyFailPenalty: Number(e.target.value) }))}
+                  className="w-full px-2.5 py-1 text-xs text-center rounded border border-slate-300 bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setShowDraft(false)}
+                className="px-3 py-1 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleCreateDraft}
+                className="px-3 py-1 text-xs bg-slate-900 text-white rounded font-bold hover:bg-slate-800 cursor-pointer"
+              >
+                DRAFT 저장
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="divide-y" style={{ borderColor:"#f1f5f9" }}>
+        <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
           {rules.map(rule => (
-            <div key={rule.version} className="flex items-center justify-between px-5 py-3.5">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-mono font-semibold text-foreground">v{rule.version}</span>
-                <Tag
-                  label={rule.status}
-                  color={rule.status==="ACTIVE"?"#34d399":rule.status==="DRAFT"?"#fbbf24":"#6b7494"}
-                  bg={rule.status==="ACTIVE"?"rgba(52,211,153,0.12)":rule.status==="DRAFT"?"rgba(251,191,36,0.12)":"rgba(107,116,148,0.12)"} />
-                <span className="text-xs text-muted-foreground">
-                  {rule.activatedAt ? `활성화: ${rule.activatedAt}` : "미활성화"}
+            <div key={rule.version} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 text-xs">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="font-mono font-bold text-slate-900">v{rule.version}</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                  rule.status === "ACTIVE"
+                    ? "bg-slate-900 text-white"
+                    : rule.status === "DRAFT"
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-slate-100 text-slate-600"
+                }`}>
+                  {rule.status}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  출석 {rule.present}점 · 지각 {rule.late}점 · 결석 {rule.absent}점
+                <span className="text-slate-500 text-[11px]">
+                  {rule.activatedAt ? `활성: ${rule.activatedAt}` : "미활성"} · 작성: {rule.createdBy}
+                </span>
+                <span className="text-slate-600 text-[11px] font-mono">
+                  정규: 결석 {rule.absentPenalty ?? -3} / 무단 {rule.unexcusedAbsentPenalty ?? -4} / 지각 {rule.latePenalty ?? -1} · 스터디: 미이수 {rule.studyFailPenalty ?? -5} / 100% +{rule.studyPerfectBonus ?? 3}
                 </span>
               </div>
+
               {rule.status === "DRAFT" && (
-                <div className="flex gap-2">
-                  <Tag label="대표진 활성화 권한" color="#fb923c" bg="rgba(251,146,60,0.12)" />
-                  <Btn variant="success" size="xs" onClick={() => {
-                    setRules(prev => prev.map(r =>
-                      r.version===rule.version ? { ...r, status:"ACTIVE" as const, activatedAt:"2025-03-18" }
-                      : r.status==="ACTIVE" ? { ...r, status:"INACTIVE" as const }
-                      : r
-                    ));
-                  }}><Check size={11} />활성화 (대표진)</Btn>
-                </div>
+                <button
+                  onClick={() => handleActivateRule(rule.version)}
+                  className="px-2.5 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded font-semibold cursor-pointer"
+                >
+                  활성화
+                </button>
               )}
             </div>
           ))}
         </div>
-      </SectionCard>
+      </div>
     </div>
   );
 }
@@ -2771,57 +3209,146 @@ function LoginModal({
 
 const SIDEBAR_NAV = [
   {
-    id:"content", label:"1. 콘텐츠 관리", icon:BookOpen, permission:"CONTENT_MANAGE",
-    pages:[
-      { id:"content-archive",    label:"아카이빙 (프로젝트·블로그·사진)" },
-      { id:"content-faq",        label:"자주 묻는 질문 (FAQ)" },
-      { id:"content-curriculum", label:"커리큘럼 관리" },
-      { id:"content-reviews",    label:"수료자 후기 관리" },
+    id: "content",
+    label: "콘텐츠 관리",
+    icon: BookOpen,
+    permission: "CONTENT_MANAGE",
+    groups: [
+      {
+        title: "아카이브",
+        pages: [
+          { id: "content-archive", label: "아카이빙 (프로젝트·블로그·사진)" },
+          { id: "content-reviews", label: "수료자 후기 관리" },
+        ],
+      },
+      {
+        title: "소개 및 안내",
+        pages: [
+          { id: "content-curriculum", label: "커리큘럼 관리" },
+          { id: "content-faq", label: "자주 묻는 질문 (FAQ)" },
+        ],
+      },
     ],
   },
   {
-    id:"recruiting", label:"2. 리크루팅 공고", icon:Megaphone, permission:"RECRUITMENT_MANAGE",
-    pages:[
-      { id:"recruiting-posts",     label:"모집 공고 관리" },
-      { id:"recruiting-questions", label:"지원서 문항 설정" },
-      { id:"recruiting-preview",   label:"지원자 화면 미리보기" },
-      { id:"recruiting-csv",       label:"지원서 CSV 추출" },
-      { id:"recruiting-leads",     label:"사전 알림 명단" },
+    id: "recruiting",
+    label: "리크루팅 공고",
+    icon: Megaphone,
+    permission: "RECRUITMENT_MANAGE",
+    groups: [
+      {
+        title: "공고 및 문항",
+        pages: [
+          { id: "recruiting-posts", label: "모집 공고 관리" },
+          { id: "recruiting-questions", label: "지원서 문항 설정" },
+          { id: "recruiting-preview", label: "지원자 화면 미리보기" },
+        ],
+      },
+      {
+        title: "지원자 데이터",
+        pages: [
+          { id: "recruiting-csv", label: "지원서 CSV 추출" },
+          { id: "recruiting-leads", label: "사전 알림 명단" },
+        ],
+      },
     ],
   },
   {
-    id:"evaluation", label:"3. 서류 평가", icon:FileText, permission:"EVALUATION",
-    pages:[
-      { id:"evaluation-evals",      label:"서류 평가 대시보드 (SUBMITTED)" },
-      { id:"evaluation-applicants", label:"전체 지원자 현황 (DRAFT 포함)" },
-      { id:"evaluation-promote",    label:"최종 합불 & 정회원 승격" },
+    id: "evaluation",
+    label: "서류 평가",
+    icon: FileText,
+    permission: "EVALUATION",
+    groups: [
+      {
+        title: "서류 심사",
+        pages: [
+          { id: "evaluation-evals", label: "서류 평가 대시보드 (SUBMITTED)" },
+          { id: "evaluation-applicants", label: "전체 지원자 현황 (DRAFT 포함)" },
+        ],
+      },
+      {
+        title: "합격 및 승격",
+        pages: [
+          { id: "evaluation-promote", label: "최종 합불 & 정회원 승격" },
+        ],
+      },
     ],
   },
   {
-    id:"attendance", label:"4. 출결 & 점수 시스템", icon:ClipboardList, permission:"ATTENDANCE_*",
-    pages:[
-      { id:"att-dashboard", label:"출결 대시보드 (운영지원팀)" },
-      { id:"att-events",    label:"행사·세션·컨퍼런스 출석 (양식/외부인)" },
-      { id:"att-input",     label:"출결 입력 & 사진 (스터디장)" },
-      { id:"att-hosts",     label:"HOST 계정·팀 연결 (ID/PW 발급)" },
-      { id:"att-scores",    label:"활동 점수 집계" },
-      { id:"att-rules",     label:"점수 규칙" },
+    id: "attendance",
+    label: "출결 & 점수 시스템",
+    icon: ClipboardList,
+    permission: "ATTENDANCE_*",
+    groups: [
+      {
+        title: "출결 관리",
+        pages: [
+          { id: "att-session", label: "BASE Term 출결 관리" },
+          { id: "att-adv", label: "ADV Term 출결 관리" },
+          { id: "att-study", label: "스터디 출결 관리" },
+          { id: "att-events", label: "행사 출결 관리" },
+          { id: "att-scores", label: "출결 점수 집계" },
+        ],
+      },
+      {
+        title: "출결 입력",
+        pages: [
+          { id: "att-input-adv", label: "ADV 입력 및 증빙 (팀장용)" },
+          { id: "att-input-study", label: "스터디 입력 및 증빙 (팀장용)" },
+        ],
+      },
+      {
+        title: "설정",
+        pages: [
+          { id: "att-hosts", label: "HOST 계정·팀 연결 (ID/PW 발급)" },
+          { id: "att-rules", label: "점수 규칙" },
+        ],
+      },
     ],
   },
   {
-    id:"system", label:"5. 시스템·계정", icon:Settings, permission:"ACCOUNT_MANAGE",
-    pages:[
-      { id:"system-accounts",    label:"운영진 계정 관리 (CRUD)" },
-      { id:"system-permissions", label:"권한 매트릭스 (10대 Permission)" },
-      { id:"system-audit",       label:"보안 감사 로그" },
+    id: "system",
+    label: "시스템·계정",
+    icon: Settings,
+    permission: "ACCOUNT_MANAGE",
+    groups: [
+      {
+        title: "계정 및 권한",
+        pages: [
+          { id: "system-accounts", label: "운영진 계정 관리 (CRUD)" },
+          { id: "system-permissions", label: "권한 매트릭스 (10대 Permission)" },
+        ],
+      },
+      {
+        title: "보안",
+        pages: [
+          { id: "system-audit", label: "보안 감사 로그" },
+        ],
+      },
     ],
   },
 ];
 
-function Sidebar({ activePage, onChange, open, onClose, currentRole, onToggleRole, onOpenLogin, loggedHostTeam, loggedUsername }: {
-  activePage:ActivePage; onChange:(p:ActivePage)=>void; open:boolean; onClose:()=>void;
-  currentRole: UserRole; onToggleRole: () => void;
-  onOpenLogin: () => void; loggedHostTeam?: string; loggedUsername?: string;
+function Sidebar({
+  activePage,
+  onChange,
+  open,
+  onClose,
+  currentRole,
+  onToggleRole,
+  onOpenLogin,
+  loggedHostTeam,
+  loggedUsername,
+}: {
+  activePage: ActivePage;
+  onChange: (p: ActivePage) => void;
+  open: boolean;
+  onClose: () => void;
+  currentRole: UserRole;
+  onToggleRole: () => void;
+  onOpenLogin: () => void;
+  loggedHostTeam?: string;
+  loggedUsername?: string;
 }) {
   const [expanded, setExpanded] = useState<string>("recruiting");
   const [navSearch, setNavSearch] = useState("");
@@ -2829,7 +3356,8 @@ function Sidebar({ activePage, onChange, open, onClose, currentRole, onToggleRol
   const filteredNav = SIDEBAR_NAV.filter(section => {
     if (!navSearch.trim()) return true;
     const q = navSearch.toLowerCase();
-    return section.label.toLowerCase().includes(q) || section.pages.some(p => p.label.toLowerCase().includes(q));
+    const allPages = section.groups.flatMap(g => g.pages);
+    return section.label.toLowerCase().includes(q) || allPages.some(p => p.label.toLowerCase().includes(q));
   });
 
   return (
@@ -2876,89 +3404,99 @@ function Sidebar({ activePage, onChange, open, onClose, currentRole, onToggleRol
           </div>
         </div>
 
-        {/* Role Pill Card */}
-        <div className="px-4 py-2">
-          <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-slate-500 font-semibold">로그인 권한</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
-                {currentRole === "SUPER" ? "차기대표진" : currentRole === "HOST" ? `HOST (${loggedHostTeam || "A팀"})` : currentRole === "CONTENT_ADMIN" ? "서비스운영팀" : "운영지원팀"}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                onClick={onToggleRole}
-                className="py-1 text-[11px] font-semibold rounded-lg bg-white hover:bg-slate-100 text-slate-700 transition-all flex items-center justify-center gap-1 cursor-pointer border border-slate-200 shadow-2xs"
-              >
-                <RefreshCw size={10} className="text-slate-400" /> 역할 전환
-              </button>
-              <button
-                onClick={onOpenLogin}
-                className="py-1 text-[11px] font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 transition-all flex items-center justify-center gap-1 cursor-pointer border border-blue-200/80 shadow-2xs"
-              >
-                <LogIn size={10} /> 계정 변경
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Navigation List */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5" style={{ scrollbarWidth: "none" }}>
-          {filteredNav.map(section => {
+        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1" style={{ scrollbarWidth: "none" }}>
+          {filteredNav.map((section, sIdx) => {
             const Icon = section.icon;
             const isExpanded = expanded === section.id || navSearch.trim().length > 0;
             const isSelected = activePage.startsWith(section.id) || (section.id === "attendance" && activePage.startsWith("att-"));
+            const isSystem = section.id === "system";
 
             return (
               <div key={section.id} className="space-y-1">
+                {/* System Section Divider */}
+                {isSystem && (
+                  <div className="pt-3 mt-3.5 mb-1.5 border-t border-slate-200/80">
+                    <p className="px-3 text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
+                      시스템 설정
+                    </p>
+                  </div>
+                )}
+
+                {/* Top-level Category Button */}
                 <button
                   onClick={() => {
                     setExpanded(isExpanded && !navSearch ? "" : section.id);
                     if (section.id === "recruiting") onChange("recruiting-posts");
                     if (section.id === "evaluation") onChange("evaluation-evals");
+                    if (section.id === "attendance") onChange("att-session");
+                    if (section.id === "content") onChange("content-archive");
+                    if (section.id === "system") onChange("system-accounts");
                   }}
-                  className={`flex items-center gap-2.5 w-full p-2 rounded-xl text-left transition-all cursor-pointer group ${
+                  className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-left transition-all cursor-pointer group ${
                     isSelected
-                      ? "bg-blue-50/70 text-blue-900 font-bold"
-                      : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                      ? "bg-blue-50/90 text-blue-900 font-bold shadow-2xs"
+                      : "text-slate-800 hover:bg-slate-100/70 hover:text-slate-950 font-bold"
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0 shadow-2xs ${
-                    isSelected
-                      ? "bg-blue-600 text-white shadow-blue-500/20"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-slate-200/80 group-hover:text-slate-800"
-                  }`}>
-                    <Icon size={15} />
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon
+                      size={15}
+                      strokeWidth={isSelected ? 2.2 : 1.8}
+                      className={`shrink-0 transition-colors ${
+                        isSelected
+                          ? "text-blue-600"
+                          : "text-slate-500 group-hover:text-slate-800"
+                      }`}
+                    />
+                    <span className="text-[12.5px] font-bold tracking-tight truncate">{section.label}</span>
                   </div>
-                  <span className="flex-1 text-xs truncate">{section.label}</span>
-                  {isExpanded ? <ChevronDown size={14} className="text-slate-400"/> : <ChevronRight size={14} className="text-slate-400"/>}
+                  {isExpanded ? (
+                    <ChevronDown size={14} className={isSelected ? "text-blue-600" : "text-slate-400"} />
+                  ) : (
+                    <ChevronRight size={14} className="text-slate-400" />
+                  )}
                 </button>
 
+                {/* Expanded Submenu */}
                 {isExpanded && (
-                  <div className="ml-5 space-y-0.5 border-l-2 border-slate-100 pl-3 py-0.5">
-                    {section.pages.map(page => {
-                      const isActive = activePage === page.id;
-                      return (
-                        <button
-                          key={page.id}
-                          onClick={() => { onChange(page.id as ActivePage); onClose(); }}
-                          className={`flex items-center w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold transition-all cursor-pointer ${
-                            isActive
-                              ? "bg-blue-600 text-white shadow-xs font-bold"
-                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
-                          }`}
-                        >
-                          <span className="truncate">{page.label}</span>
-                        </button>
-                      );
-                    })}
+                  <div className="ml-2 pt-1 pb-2.5 mb-1 space-y-3 border-b border-slate-100">
+                    {section.groups.map((grp, gIdx) => (
+                      <div key={gIdx} className="space-y-1">
+                        {grp.title && (
+                          <div className="text-[11.5px] font-bold text-slate-800 px-2 pt-1 pb-0.5 tracking-tight flex items-center justify-between">
+                            <span>{grp.title}</span>
+                          </div>
+                        )}
+                        <div className="ml-2.5 pl-2.5 border-l-2 border-slate-100 space-y-0.5">
+                          {grp.pages.map(page => {
+                            const isActive = activePage === page.id;
+                            return (
+                              <button
+                                key={page.id}
+                                onClick={() => {
+                                  onChange(page.id as ActivePage);
+                                  onClose();
+                                }}
+                                className={`flex items-center w-full px-2.5 py-1.5 rounded-lg text-left text-xs transition-all cursor-pointer ${
+                                  isActive
+                                    ? "bg-blue-600 text-white shadow-xs font-bold"
+                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 font-medium"
+                                }`}
+                              >
+                                <span className="truncate">{page.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             );
           })}
         </nav>
-
         {/* User Footer Card */}
         <div className="p-3 border-t border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2.5 px-2">
@@ -3001,12 +3539,18 @@ const PAGE_LABELS: Record<ActivePage, string> = {
   "evaluation-evals":   "서류 평가 대시보드 (SUBMITTED)",
   "evaluation-applicants": "전체 지원자 현황 (DRAFT 포함)",
   "evaluation-promote": "최종 합불 & 정회원 승격",
-  "att-dashboard":      "출결 대시보드 & 인증 검토",
-  "att-events":         "행사·세션·컨퍼런스 출석 (양식/외부인 관리)",
+  "att-session":        "BASE Term 출결 관리",
+  "att-adv":            "ADV Term 출결 관리",
+  "att-events":         "행사 출결 관리",
+  "att-study":          "스터디 출결 관리",
+  "att-input-adv":      "ADV 출결 입력 및 증빙 (팀장용)",
+  "att-input-study":    "스터디 출결 입력 및 증빙 (팀장용)",
+  "att-input":          "출결 입력 및 증빙 등록 (팀장용)",
   "att-hosts":          "HOST 계정·팀 연결 (ID/PW 발급)",
-  "att-scores":         "활동 점수 집계",
+  "att-scores":         "출결 점수 집계",
   "att-rules":          "점수 규칙",
-  "att-input":          "출결 입력 & 사진 인증 (스터디장)",
+  "att-dashboard":      "출결 대시보드 & 인증 검토",
+  "att-internal":       "정규 출결 관리",
   "system":             "시스템·계정",
   "system-accounts":    "운영진 계정 관리 (CRUD)",
   "system-permissions": "권한 매트릭스 (10대 Permission)",
@@ -3014,6 +3558,25 @@ const PAGE_LABELS: Record<ActivePage, string> = {
 };
 
 export default function App() {
+  const [scoreRules, setScoreRules] = useState<ScoreRule[]>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_score_rules");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_RULES;
+  });
+
+  const handleUpdateScoreRules = (newRules: ScoreRule[]) => {
+    setScoreRules(newRules);
+    try {
+      localStorage.setItem("boaz_score_rules", JSON.stringify(newRules));
+      window.dispatchEvent(new Event("storage"));
+    } catch (e) {}
+  };
+
   const [activePage, setActivePage] = useState<ActivePage>("recruiting");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [studyTeams, setStudyTeams] = useState<StudyTeamInfo[]>(INITIAL_STUDY_TEAMS);
@@ -3308,21 +3871,18 @@ export default function App() {
           {activePage === "content-reviews" && <ReviewsSection />}
 
           {/* 4. Attendance Management */}
-          {activePage === "att-dashboard" && (
-            <DashboardPage
+          {activePage === "att-session" && <InternalCategoryAttendancePage category="SESSION" activeScoreRule={scoreRules.find(r => r.status === "ACTIVE")} />}
+          {activePage === "att-adv" && <InternalCategoryAttendancePage category="ADV" activeScoreRule={scoreRules.find(r => r.status === "ACTIVE")} />}
+          {activePage === "att-study" && <InternalCategoryAttendancePage category="STUDY" activeScoreRule={scoreRules.find(r => r.status === "ACTIVE")} />}
+          {activePage === "att-events" && <EventAttendanceManagePage />}
+          {activePage === "att-scores" && (
+            <ScoresPage
               attendance={attendance}
-              exceptions={exceptions}
               studyTeams={studyTeams}
               membersMap={membersMap}
-              onApprove={approveException}
-              onReject={rejectException}
-              onDirectEdit={handleDirectEdit}
-              onConfirmAdmin={handleConfirmAdmin}
-              onOpenAddStudy={() => setActivePage("att-hosts")}
             />
           )}
-          {activePage === "att-events" && <EventAttendanceManagePage />}
-          {activePage === "att-input" && (
+          {(activePage === "att-input" || activePage === "att-input-adv" || activePage === "att-input-study") && (
             <InputPage
               attendance={attendance}
               setAttendance={setAttendance}
@@ -3343,14 +3903,20 @@ export default function App() {
               onRegisterStudyTeam={handleRegisterStudyTeam}
             />
           )}
-          {activePage === "att-scores" && (
-            <ScoresPage
+          {activePage === "att-rules" && <RulesPage rules={scoreRules} onUpdateRules={handleUpdateScoreRules} />}
+          {activePage === "att-dashboard" && (
+            <DashboardPage
               attendance={attendance}
+              exceptions={exceptions}
               studyTeams={studyTeams}
               membersMap={membersMap}
+              onApprove={approveException}
+              onReject={rejectException}
+              onDirectEdit={handleDirectEdit}
+              onConfirmAdmin={handleConfirmAdmin}
+              onOpenAddStudy={() => setActivePage("att-hosts")}
             />
           )}
-          {activePage === "att-rules" && <RulesPage />}
 
           {/* 5. System Section */}
           {(activePage.startsWith("system") || activePage === "system") && (

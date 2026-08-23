@@ -13,7 +13,7 @@ import {
 export type EventType = "SESSION" | "HACKATHON" | "CONFERENCE" | "SEMINAR" | "STUDY" | "ETC";
 export type EventStatus = "UPCOMING" | "IN_PROGRESS" | "FINISHED";
 export type CheckinMethod = "QR_CODE" | "CODE" | "MANUAL" | "OPEN_LINK";
-export type AttendStatus = "present" | "late" | "absent" | "unmarked";
+export type AttendStatus = "present" | "late" | "absent" | "excusedAbsent" | "unexcusedLate" | "unexcusedAbsent" | "unmarked";
 
 export interface CustomFormField {
   id: string;
@@ -88,10 +88,14 @@ const STATUS_CFG: Record<EventStatus, { label: string; color: string; bg: string
 };
 
 const ATTEND_STATUS_CFG: Record<AttendStatus, { label: string; code: string; color: string; bg: string; border: string; activeBg: string; activeText: string }> = {
-  present:  { label: "출석", code: "0", color: "#0f5132", bg: "#def2e6", border: "#b6e3c9", activeBg: "#def2e6", activeText: "#0f5132" },
-  late:     { label: "지각", code: "1", color: "#7c4a03", bg: "#fceed2", border: "#f5d5a4", activeBg: "#fceed2", activeText: "#7c4a03" },
-  absent:   { label: "결석", code: "2", color: "#8a1c32", bg: "#fce4e6", border: "#f8b4bc", activeBg: "#fce4e6", activeText: "#8a1c32" },
-  unmarked: { label: "미체크", code: "-", color: "#334155", bg: "#e9eef4", border: "#cbd5e1", activeBg: "#e9eef4", activeText: "#334155" },
+  present:         { label: "출석", code: "0", color: "#0f5132", bg: "#def2e6", border: "#b6e3c9", activeBg: "#def2e6", activeText: "#0f5132" },
+  late:            { label: "지각", code: "1", color: "#7c4a03", bg: "#fceed2", border: "#f5d5a4", activeBg: "#fceed2", activeText: "#7c4a03" },
+  earlyLeave:      { label: "조퇴", code: "1E", color: "#7c4a03", bg: "#fef3c7", border: "#fde68a", activeBg: "#fef3c7", activeText: "#7c4a03" },
+  absent:          { label: "결석", code: "2", color: "#8a1c32", bg: "#fce4e6", border: "#f8b4bc", activeBg: "#fce4e6", activeText: "#8a1c32" },
+  excusedAbsent:   { label: "인정결석", code: "3", color: "#1e40af", bg: "#eff6ff", border: "#bfdbfe", activeBg: "#eff6ff", activeText: "#1e40af" },
+  unexcusedLate:   { label: "무단지각", code: "4", color: "#c2410c", bg: "#fff7ed", border: "#fed7aa", activeBg: "#fff7ed", activeText: "#c2410c" },
+  unexcusedAbsent: { label: "무단결석", code: "5", color: "#991b1b", bg: "#fee2e2", border: "#fca5a5", activeBg: "#fee2e2", activeText: "#991b1b" },
+  unmarked:        { label: "미체크", code: "-", color: "#334155", bg: "#e9eef4", border: "#cbd5e1", activeBg: "#e9eef4", activeText: "#334155" },
 };
 
 const ATTEND_STATUS_STYLES: Record<AttendStatus, { active: string; inactive: string }> = {
@@ -103,9 +107,25 @@ const ATTEND_STATUS_STYLES: Record<AttendStatus, { active: string; inactive: str
     active: "bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs",
     inactive: "text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium",
   },
+  earlyLeave: {
+    active: "bg-[#fef3c7] text-[#7c4a03] font-bold border border-[#fde68a] shadow-2xs",
+    inactive: "text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium",
+  },
   absent: {
     active: "bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs",
     inactive: "text-slate-400 hover:text-[#8a1c32] hover:bg-white/60 border border-transparent font-medium",
+  },
+  excusedAbsent: {
+    active: "bg-[#eff6ff] text-[#1e40af] font-bold border border-[#bfdbfe] shadow-2xs",
+    inactive: "text-slate-400 hover:text-[#1e40af] hover:bg-white/60 border border-transparent font-medium",
+  },
+  unexcusedLate: {
+    active: "bg-[#fff7ed] text-[#c2410c] font-bold border border-[#fed7aa] shadow-2xs",
+    inactive: "text-slate-400 hover:text-[#c2410c] hover:bg-white/60 border border-transparent font-medium",
+  },
+  unexcusedAbsent: {
+    active: "bg-[#fee2e2] text-[#991b1b] font-bold border border-[#fca5a5] shadow-2xs",
+    inactive: "text-slate-400 hover:text-[#991b1b] hover:bg-white/60 border border-transparent font-medium",
   },
   unmarked: {
     active: "bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs",
@@ -403,6 +423,73 @@ export function EventAttendanceManagePage() {
   const [isTableEditMode, setIsTableEditMode] = useState(false);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
+  // Table Column Resizing State
+  const [colWidths, setColWidths] = useState<Record<string, number>>({
+    index: 50,
+    name: 120,
+    status: 400,
+    memo: 200,
+  });
+
+  const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const resizingCol = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
+  const [activeHoverCol, setActiveHoverCol] = useState<string | null>(null);
+  const [resizingColKey, setResizingColKey] = useState<string | null>(null);
+  const [guidelineX, setGuidelineX] = useState<number | null>(null);
+  const activeThRef = useRef<HTMLElement | null>(null);
+
+  const updateGuidelinePos = (targetEl?: HTMLElement | null) => {
+    const cell = targetEl ? (targetEl.closest("th") || targetEl.closest("td")) as HTMLElement | null : activeThRef.current;
+    if (!cell || !tableContainerRef.current) return;
+    activeThRef.current = cell;
+    const containerRect = tableContainerRef.current.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    const scrollLeft = tableContainerRef.current.scrollLeft;
+    const x = cellRect.right - containerRect.left + scrollLeft;
+    setGuidelineX(x);
+  };
+
+  const handleResizeStart = (e: React.MouseEvent, key: string, minWidth = 50) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const cell = (e.currentTarget.closest("th") || e.currentTarget.closest("td")) as HTMLElement | null;
+    activeThRef.current = cell;
+    const startX = e.clientX;
+    const startWidth = cell ? cell.offsetWidth : (colWidths[key] || minWidth);
+    resizingCol.current = { key, startX, startWidth };
+    setResizingColKey(key);
+    updateGuidelinePos(e.currentTarget);
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!resizingCol.current) return;
+      moveEvent.preventDefault();
+      const deltaX = moveEvent.clientX - resizingCol.current.startX;
+      const targetWidth = Math.max(minWidth, resizingCol.current.startWidth + deltaX);
+      const activeKey = resizingCol.current.key;
+      setColWidths(prev => ({ ...prev, [activeKey]: targetWidth }));
+      if (activeThRef.current) {
+        updateGuidelinePos(activeThRef.current);
+      }
+    };
+
+    const handleMouseUp = () => {
+      resizingCol.current = null;
+      setResizingColKey(null);
+      setGuidelineX(null);
+      activeThRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
   // 최신 활동일자순 (날짜 내림차순 -> 생성일 내림차순) 정렬
   const sortedEvents = [...events].sort((a, b) => {
     const diff = new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -410,8 +497,30 @@ export function EventAttendanceManagePage() {
     return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
   });
 
-  const selectedEvent = events.find(e => e.id === selectedEventId) || sortedEvents[0] || events[0];
-  const currentEventAttendees = attendees.filter(a => a.eventId === selectedEvent.id);
+  const fallbackEvent: AttendanceEvent = {
+    id: "evt_fallback",
+    title: "행사",
+    type: "SESSION",
+    status: "IN_PROGRESS",
+    date: "2026-08-20",
+    startTime: "14:00",
+    endTime: "18:00",
+    location: "-",
+    description: "",
+    allowExternal: false,
+    checkinMethod: "CODE",
+    checkinCode: "1234",
+    customFields: [],
+    targetTerms: [28],
+    targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+    totalTargetCount: 0,
+    internalAttendedCount: 0,
+    externalAttendedCount: 0,
+    createdAt: "2026-08-20",
+  };
+
+  const selectedEvent = events.find(e => e.id === selectedEventId) || sortedEvents[0] || events[0] || fallbackEvent;
+  const currentEventAttendees = attendees.filter(a => a.eventId === (selectedEvent?.id || ""));
 
   // Close dropdown when clicked outside
   useEffect(() => {
@@ -471,14 +580,18 @@ export function EventAttendanceManagePage() {
   const totalRosterCount = currentEventAttendees.length;
   const presentCount = currentEventAttendees.filter(a => a.status === "present").length;
   const lateCount = currentEventAttendees.filter(a => a.status === "late").length;
+  const earlyLeaveCount = currentEventAttendees.filter(a => a.status === "earlyLeave").length;
   const absentCount = currentEventAttendees.filter(a => a.status === "absent").length;
+  const excusedAbsentCount = currentEventAttendees.filter(a => a.status === "excusedAbsent").length;
+  const unexcusedLateCount = currentEventAttendees.filter(a => a.status === "unexcusedLate").length;
+  const unexcusedAbsentCount = currentEventAttendees.filter(a => a.status === "unexcusedAbsent").length;
   const unmarkedCount = currentEventAttendees.filter(a => a.status === "unmarked").length;
 
-  const attendanceRate = totalRosterCount > 0 ? Math.round(((presentCount + lateCount) / totalRosterCount) * 100) : 0;
+  const attendanceRate = totalRosterCount > 0 ? Math.round(((presentCount + lateCount + earlyLeaveCount) / totalRosterCount) * 100) : 0;
   const internalPresent = currentEventAttendees.filter(a => !a.isExternal && a.status === "present").length;
   const externalPresent = currentEventAttendees.filter(a => a.isExternal && a.status === "present").length;
 
-  // ─── Keyboard Hotkeys (0: 출석, 1: 지각, 2: 결석, ↑/↓ 이동) ───
+  // ─── Keyboard Hotkeys (0: 출석, 1: 지각, 2: 조퇴, 3: 결석, 4: 인정결석, 5: 무단지각, 6: 무단결석, ↑/↓ 이동) ───
   useEffect(() => {
     if (subTab !== "live" || !isKeyboardModeActive || showImportModal || editingEvent || showQuickAddDrawer || isDropdownOpen || editingTemplate) return;
 
@@ -499,7 +612,19 @@ export function EventAttendanceManagePage() {
         changeStatusAndMoveNext(currentTarget.id, "late");
       } else if (e.key === "2") {
         e.preventDefault();
+        changeStatusAndMoveNext(currentTarget.id, "earlyLeave");
+      } else if (e.key === "3") {
+        e.preventDefault();
         changeStatusAndMoveNext(currentTarget.id, "absent");
+      } else if (e.key === "4") {
+        e.preventDefault();
+        changeStatusAndMoveNext(currentTarget.id, "excusedAbsent");
+      } else if (e.key === "5") {
+        e.preventDefault();
+        changeStatusAndMoveNext(currentTarget.id, "unexcusedLate");
+      } else if (e.key === "6") {
+        e.preventDefault();
+        changeStatusAndMoveNext(currentTarget.id, "unexcusedAbsent");
       } else if (e.key === "ArrowDown" || e.key === "j") {
         e.preventDefault();
         setFocusedIndex(prev => Math.min(prev + 1, filteredAttendees.length - 1));
@@ -518,7 +643,7 @@ export function EventAttendanceManagePage() {
     setAttendees(prev => prev.map(a => a.id === attendeeId ? {
       ...a,
       status,
-      checkedInAt: status === "present" || status === "late" ? (a.checkedInAt === "-" ? timeNow : a.checkedInAt) : "-"
+      checkedInAt: status === "present" || status === "late" || status === "unexcusedLate" ? (a.checkedInAt === "-" ? timeNow : a.checkedInAt) : "-"
     } : a));
 
     setFocusedIndex(prev => Math.min(prev + 1, filteredAttendees.length - 1));
@@ -1027,34 +1152,37 @@ export function EventAttendanceManagePage() {
   const selectedTypeMeta = EVENT_TYPE_META[selectedEvent.type];
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto" style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif" }}>
+    <div className="space-y-5 w-full" style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif" }}>
       {/* ─── 1. Top Breadcrumb & Navigation Bar ─── */}
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-3">
-        {/* Breadcrumb Hierarchy - Identical root element across all states */}
-        <div className="flex items-center gap-2 text-sm">
-          <button
-            type="button"
-            onClick={() => setSubTab("events")}
-            className="text-slate-700 hover:text-slate-900 font-bold flex items-center gap-1.5 transition-colors cursor-pointer text-sm"
-          >
-            <Calendar size={16} className="text-slate-500" />
-            <span>전체 목록</span>
-          </button>
-
-          {subTab === "live" && (
+        {/* Breadcrumb Hierarchy - Standardized matching all pages */}
+        <div className="flex items-center gap-2.5">
+          {subTab === "events" ? (
+            <h2 className="text-slate-950 font-black text-lg sm:text-xl tracking-tight">
+              행사 전체 목록
+            </h2>
+          ) : (
             <>
-              <span className="text-slate-300 font-bold text-sm">/</span>
+              <button
+                type="button"
+                onClick={() => setSubTab("events")}
+                className="text-slate-500 hover:text-slate-900 font-bold transition-colors cursor-pointer text-lg sm:text-xl tracking-tight"
+              >
+                행사 전체 목록
+              </button>
+
+              <span className="text-slate-300 font-bold text-base">/</span>
 
               {/* Click-Only Event Switcher Popover */}
               <div className="relative" ref={breadcrumbDropdownRef}>
                 <button
                   type="button"
                   onClick={() => setIsBreadcrumbMenuOpen(prev => !prev)}
-                  className="font-bold text-slate-900 hover:text-slate-700 flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer text-sm group"
+                  className="font-black text-slate-950 hover:text-slate-700 flex items-center gap-1.5 px-1.5 py-0.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer text-lg sm:text-xl tracking-tight group"
                 >
-                  <span className="max-w-[320px] truncate">{selectedEvent.title}</span>
+                  <span className="max-w-[320px] sm:max-w-[450px] truncate">{selectedEvent.title}</span>
                   <ChevronDown
-                    size={14}
+                    size={16}
                     className={`text-slate-400 group-hover:text-slate-700 transition-transform duration-200 ${
                       isBreadcrumbMenuOpen ? "rotate-180" : ""
                     }`}
@@ -1066,27 +1194,27 @@ export function EventAttendanceManagePage() {
                   <div className="absolute top-full left-0 mt-1 z-50 w-96 rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                     <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 text-xs">
                       {sortedEvents.map(evt => {
-                          const isCur = evt.id === selectedEvent.id;
+                        const isCur = evt.id === selectedEvent.id;
 
-                          return (
-                            <div
-                              key={evt.id}
-                              onClick={() => {
-                                setSelectedEventId(evt.id);
-                                setFocusedIndex(0);
-                                setIsBreadcrumbMenuOpen(false);
-                              }}
-                              className={`px-3.5 py-2.5 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
-                                isCur ? "bg-slate-100 font-bold" : "hover:bg-slate-50"
-                              }`}
-                            >
-                              <p className={`text-sm truncate min-w-0 ${isCur ? "text-slate-950 font-bold" : "text-slate-700 font-medium"}`}>
-                                {evt.title}
-                              </p>
-                              <span className="text-[11px] font-mono text-slate-400 shrink-0 font-medium">{evt.date}</span>
-                            </div>
-                          );
-                        })}
+                        return (
+                          <div
+                            key={evt.id}
+                            onClick={() => {
+                              setSelectedEventId(evt.id);
+                              setFocusedIndex(0);
+                              setIsBreadcrumbMenuOpen(false);
+                            }}
+                            className={`px-3.5 py-2.5 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
+                              isCur ? "bg-slate-100 font-bold" : "hover:bg-slate-50"
+                            }`}
+                          >
+                            <p className={`text-sm truncate min-w-0 ${isCur ? "text-slate-950 font-bold" : "text-slate-700 font-medium"}`}>
+                              {evt.title}
+                            </p>
+                            <span className="text-[11px] font-mono text-slate-400 shrink-0 font-medium">{evt.date}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1136,36 +1264,64 @@ export function EventAttendanceManagePage() {
       {subTab === "live" && (
         <div className="space-y-4">
           {/* Clean Inline Stats Text */}
-          <div className="flex items-center gap-3 sm:gap-5 py-1 px-1 text-xs text-slate-500 flex-wrap border-b border-slate-100 pb-3 font-medium">
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 py-1 px-1 text-xs text-slate-500 flex-wrap border-b border-slate-100 pb-3 font-medium">
+            <div className="flex items-center gap-1">
               <span>총 등록</span>
               <span className="font-bold text-slate-900 font-mono text-sm">{totalRosterCount}명</span>
             </div>
 
             <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <span>출석</span>
               <span className="font-bold text-slate-900 font-mono text-sm">{presentCount}명</span>
             </div>
 
             <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <span>지각</span>
               <span className="font-bold text-slate-900 font-mono text-sm">{lateCount}명</span>
             </div>
 
             <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
+              <span>조퇴</span>
+              <span className="font-bold text-slate-900 font-mono text-sm">{earlyLeaveCount}명</span>
+            </div>
+
+            <span className="text-slate-200 select-none">·</span>
+
+            <div className="flex items-center gap-1">
               <span>결석</span>
               <span className="font-bold text-slate-900 font-mono text-sm">{absentCount}명</span>
             </div>
 
             <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
+              <span>인정결석</span>
+              <span className="font-bold text-slate-900 font-mono text-sm">{excusedAbsentCount}명</span>
+            </div>
+
+            <span className="text-slate-200 select-none">·</span>
+
+            <div className="flex items-center gap-1">
+              <span>무단지각</span>
+              <span className="font-bold text-slate-900 font-mono text-sm">{unexcusedLateCount}명</span>
+            </div>
+
+            <span className="text-slate-200 select-none">·</span>
+
+            <div className="flex items-center gap-1">
+              <span>무단결석</span>
+              <span className="font-bold text-slate-900 font-mono text-sm">{unexcusedAbsentCount}명</span>
+            </div>
+
+            <span className="text-slate-200 select-none">·</span>
+
+            <div className="flex items-center gap-1">
               <span>출석률</span>
               <span className="font-bold text-slate-900 font-mono text-sm">{attendanceRate}%</span>
             </div>
@@ -1188,6 +1344,29 @@ export function EventAttendanceManagePage() {
                   <option value="28">28기</option>
                   <option value="27">27기</option>
                   <option value="26">26기</option>
+                </select>
+                <ChevronDown size={12} className="absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
+              </div>
+
+              {/* 출결 상태 필터 드롭다운 (기수 바로 옆 배치) */}
+              <div className="relative">
+                <select
+                  value={attendStatusFilter}
+                  onChange={e => {
+                    setAttendStatusFilter(e.target.value as "ALL" | AttendStatus);
+                    setFocusedIndex(0);
+                  }}
+                  className="appearance-none pl-3 pr-7 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-800 text-xs font-semibold shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
+                >
+                  <option value="ALL">출결 (전체)</option>
+                  <option value="present">출석</option>
+                  <option value="late">지각</option>
+                  <option value="earlyLeave">조퇴</option>
+                  <option value="absent">결석</option>
+                  <option value="excusedAbsent">인정결석</option>
+                  <option value="unexcusedLate">무단지각</option>
+                  <option value="unexcusedAbsent">무단결석</option>
+                  <option value="unmarked">미체크</option>
                 </select>
                 <ChevronDown size={12} className="absolute right-2.5 top-2.5 text-slate-400 pointer-events-none" />
               </div>
@@ -1216,22 +1395,6 @@ export function EventAttendanceManagePage() {
                     </button>
                   );
                 })}
-              </div>
-
-              <div className="flex items-center gap-1">
-                {(["ALL", "unmarked", "present", "late", "absent"] as const).map(st => (
-                  <button
-                    key={st}
-                    onClick={() => { setAttendStatusFilter(st); setFocusedIndex(0); }}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                      attendStatusFilter === st
-                        ? "bg-slate-900 text-white font-semibold shadow-2xs"
-                        : "bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50"
-                    }`}
-                  >
-                    {st === "ALL" ? "전체 상태" : ATTEND_STATUS_CFG[st].label}
-                  </button>
-                ))}
               </div>
             </div>
 
@@ -1286,36 +1449,86 @@ export function EventAttendanceManagePage() {
 
           {/* Table Container */}
           <div className="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs min-w-[800px] table-fixed">
-                <thead>
-                  <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-600 font-semibold text-xs whitespace-nowrap">
-                    <th className="text-center px-3 py-3 w-12 text-slate-400"></th>
-                    <th className="text-left px-3 py-3 text-slate-900 font-bold w-36">
-                      <div className="px-2.5 border border-transparent">이름</div>
+            <div ref={tableContainerRef} className="overflow-x-auto select-none relative">
+              <table className="text-xs min-w-full w-max table-fixed border-collapse">
+                <colgroup>
+                  <col style={{ width: `${colWidths.index || 48}px` }} />
+                  <col style={{ width: `${colWidths.name || 130}px` }} />
+                  {(selectedEvent.customFields || [])
+                    .filter(f => f.label !== "이름" && f.label !== "비고" && f.label !== "출석 상태" && f.label !== "출석상태")
+                    .map(cf => (
+                      <col key={cf.id} style={{ width: `${colWidths[`custom_${cf.id}`] || 140}px` }} />
+                    ))}
+                  <col style={{ width: `${colWidths.status || 400}px` }} />
+                  <col style={{ width: `${colWidths.memo || 240}px`, minWidth: "220px" }} />
+                  <col style={{ width: "80px", minWidth: "80px", maxWidth: "80px" }} />
+                </colgroup>
+                <thead className="bg-slate-50/80 select-none">
+                  <tr className="border-b border-slate-200/70 divide-x divide-slate-200/70 text-slate-700 font-semibold text-[11px] whitespace-nowrap">
+                    <th style={{ width: `${colWidths.index || 48}px`, minWidth: "48px" }} className="relative text-center px-2 py-2.5 text-slate-400 font-bold">
+                      #
+                      <div
+                        onMouseDown={e => handleResizeStart(e, "index", 40)}
+                        onMouseEnter={e => { if (!resizingColKey) { setActiveHoverCol("index"); updateGuidelinePos(e.currentTarget); } }}
+                        onMouseLeave={() => { if (!resizingColKey) { setActiveHoverCol(null); setGuidelineX(null); } }}
+                        className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                        title="열 너비 조절"
+                      />
+                    </th>
+                    <th style={{ width: `${colWidths.name || 130}px`, minWidth: "110px" }} className="relative text-center px-2 py-2.5 text-slate-900 font-bold">
+                      이름
+                      <div
+                        onMouseDown={e => handleResizeStart(e, "name", 70)}
+                        onMouseEnter={e => { if (!resizingColKey) { setActiveHoverCol("name"); updateGuidelinePos(e.currentTarget); } }}
+                        onMouseLeave={() => { if (!resizingColKey) { setActiveHoverCol(null); setGuidelineX(null); } }}
+                        className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                        title="열 너비 조절"
+                      />
                     </th>
                     {(selectedEvent.customFields || [])
                       .filter(f => f.label !== "이름" && f.label !== "비고" && f.label !== "출석 상태" && f.label !== "출석상태")
-                      .map(cf => (
-                        <th key={cf.id} className="text-left px-3 py-3 text-slate-800 font-bold w-44">
-                          <div className="px-2.5 border border-transparent">{cf.label}</div>
-                        </th>
-                      ))}
-                    <th className="text-center px-3 py-3 text-slate-900 font-bold w-56">
+                      .map(cf => {
+                        const colKey = `custom_${cf.id}`;
+                        return (
+                          <th
+                            key={cf.id}
+                            style={{ width: `${colWidths[colKey] || 140}px`, minWidth: "120px" }}
+                            className="relative text-center px-2 py-2.5 text-slate-800 font-bold"
+                          >
+                            {cf.label}
+                            <div
+                              onMouseDown={e => handleResizeStart(e, colKey, 70)}
+                              onMouseEnter={e => { if (!resizingColKey) { setActiveHoverCol(colKey); updateGuidelinePos(e.currentTarget); } }}
+                              onMouseLeave={() => { if (!resizingColKey) { setActiveHoverCol(null); setGuidelineX(null); } }}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
+                          </th>
+                        );
+                      })}
+                    <th style={{ width: `${colWidths.status || 400}px`, minWidth: "395px" }} className="relative text-center px-2 py-2.5 text-slate-900 font-bold">
                       출결
+                      <div
+                        onMouseDown={e => handleResizeStart(e, "status", 395)}
+                        onMouseEnter={e => { if (!resizingColKey) { setActiveHoverCol("status"); updateGuidelinePos(e.currentTarget); } }}
+                        onMouseLeave={() => { if (!resizingColKey) { setActiveHoverCol(null); setGuidelineX(null); } }}
+                        className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                        title="열 너비 조절"
+                      />
                     </th>
-                    <th className="text-left px-3 py-3 text-slate-700 font-semibold w-56">
-                      <div className="px-2.5 border border-transparent">비고</div>
+                    <th style={{ width: `${colWidths.memo || 240}px`, minWidth: "220px" }} className="relative text-center px-3 py-2.5 text-slate-700 font-semibold">
+                      비고
                     </th>
-                    <th className="text-right px-3 py-3 w-20">
-                      <div className="flex items-center justify-end">
+                    {/* Fixed Sticky Right Action Column */}
+                    <th style={{ width: "80px", minWidth: "80px", maxWidth: "80px" }} className="sticky right-0 top-0 bg-slate-50 z-20 px-2 py-3 w-20 min-w-[80px] max-w-[80px] text-center select-none border-l border-slate-200 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]">
+                      <div className="flex items-center justify-center mx-auto">
                         <button
                           type="button"
                           onClick={() => handleOpenColumnSettings(selectedEvent)}
-                          className="p-1 rounded-lg hover:bg-slate-200/60 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
+                          className="p-1 rounded-lg hover:bg-slate-200/70 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
                           title="출석 명단 표 컬럼 설정"
                         >
-                          <Settings size={13} />
+                          <Settings size={14} />
                         </button>
                       </div>
                     </th>
@@ -1339,18 +1552,25 @@ export function EventAttendanceManagePage() {
                       return (
                         <tr
                           key={att.id}
-                          className={`transition-colors ${
+                          className={`transition-colors divide-x divide-slate-200/70 ${
                             isRowEditing
                               ? "bg-slate-50/90"
                               : "hover:bg-slate-50/60"
                           }`}
                         >
-                          <td className="text-center px-3 py-2 h-[50px] text-slate-400 text-xs w-12">
+                          <td className="relative text-center px-3 py-2 h-[50px] text-slate-400 text-xs">
                             <div className="h-8 flex items-center justify-center">{idx + 1}</div>
+                            <div
+                              onMouseDown={e => handleResizeStart(e, "index", 40)}
+                              onMouseEnter={e => { if (!resizingColKey) { setActiveHoverCol("index"); updateGuidelinePos(e.currentTarget); } }}
+                              onMouseLeave={() => { if (!resizingColKey) { setActiveHoverCol(null); setGuidelineX(null); } }}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
                           </td>
 
                           {/* Default Fixed Column: 이름 */}
-                          <td className="text-left px-3 py-2 h-[50px] text-slate-900 font-sans w-36" onClick={e => e.stopPropagation()}>
+                          <td className="relative text-center px-2 py-1.5 h-[50px] text-slate-900 font-sans" onClick={e => e.stopPropagation()}>
                             {isRowEditing ? (
                               <input
                                 value={att.name}
@@ -1359,21 +1579,29 @@ export function EventAttendanceManagePage() {
                                   setAttendees(prev => prev.map(a => a.id === att.id ? { ...a, name: newVal } : a));
                                 }}
                                 placeholder="이름"
-                                className="w-full h-8 px-2.5 text-xs font-bold rounded-lg outline-none bg-white border border-slate-400 focus:border-slate-900 text-slate-900 font-sans placeholder:text-slate-400 shadow-2xs"
+                                className="w-full text-center h-8 px-2.5 text-xs font-bold rounded-lg outline-none bg-white border border-slate-400 focus:border-slate-900 text-slate-900 font-sans placeholder:text-slate-400 shadow-2xs"
                               />
                             ) : (
-                              <div className="w-full h-8 px-2.5 border border-transparent flex items-center text-xs font-bold text-slate-900 truncate font-sans">
+                              <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs font-bold text-slate-900 truncate font-sans">
                                 {att.name || "-"}
                               </div>
                             )}
+                            <div
+                              onMouseDown={e => handleResizeStart(e, "name", 70)}
+                              onMouseEnter={e => { if (!resizingColKey) { setActiveHoverCol("name"); updateGuidelinePos(e.currentTarget); } }}
+                              onMouseLeave={() => { if (!resizingColKey) { setActiveHoverCol(null); setGuidelineX(null); } }}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
                           </td>
 
                           {/* Dynamic Extra User-Defined Columns */}
                           {extraCols.map(cf => {
                             const val = getAttendeeFieldValue(att, cf.label, cf.id);
+                            const colKey = `custom_${cf.id}`;
 
                             return (
-                              <td key={cf.id} className="text-left px-3 py-2 h-[50px] text-slate-700 font-sans w-44" onClick={e => e.stopPropagation()}>
+                              <td key={cf.id} className="relative text-center px-2 py-1.5 h-[50px] text-slate-700 font-sans" onClick={e => e.stopPropagation()}>
                                 {isRowEditing ? (
                                   <input
                                     value={val}
@@ -1389,24 +1617,31 @@ export function EventAttendanceManagePage() {
                                       } : a));
                                     }}
                                     placeholder={`${cf.label}`}
-                                    className="w-full h-8 px-2.5 text-xs rounded-lg outline-none bg-white border border-slate-300 focus:border-slate-900 text-slate-800 font-sans placeholder:text-slate-400 shadow-2xs font-medium"
+                                    className="w-full text-center h-8 px-2.5 text-xs rounded-lg outline-none bg-white border border-slate-300 focus:border-slate-900 text-slate-800 font-sans placeholder:text-slate-400 shadow-2xs font-medium"
                                   />
                                 ) : (
-                                  <div className="w-full h-8 px-2.5 border border-transparent flex items-center text-xs text-slate-700 font-medium truncate font-sans">
+                                  <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs text-slate-700 font-medium truncate font-sans">
                                     {val || <span className="text-slate-300">-</span>}
                                   </div>
                                 )}
+                                <div
+                                  onMouseDown={e => handleResizeStart(e, colKey, 70)}
+                                  onMouseEnter={e => { if (!resizingColKey) { setActiveHoverCol(colKey); updateGuidelinePos(e.currentTarget); } }}
+                                  onMouseLeave={() => { if (!resizingColKey) { setActiveHoverCol(null); setGuidelineX(null); } }}
+                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                  title="열 너비 조절"
+                                />
                               </td>
                             );
                           })}
 
-                          {/* Action Buttons: Fixed Equal Width Grid Segmented Switcher (Zero Layout Shift) */}
-                          <td className="text-center px-3 py-2 h-[50px] w-56">
+                          {/* Action Buttons: 7-Button Capsule Group */}
+                          <td className="relative text-center px-2 py-1.5 h-[50px]">
                             <div className="h-8 flex items-center justify-center font-sans">
-                              <div className="grid grid-cols-3 w-[156px] p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60">
-                                {(["present", "late", "absent"] as AttendStatus[]).map(st => {
+                              <div className="grid grid-cols-7 w-[390px] shrink-0 p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
+                                {(["present", "late", "earlyLeave", "absent", "excusedAbsent", "unexcusedLate", "unexcusedAbsent"] as AttendStatus[]).map(st => {
                                   const isCurrent = att.status === st;
-                                  const label = ATTEND_STATUS_CFG[st].label;
+                                  const label = ATTEND_STATUS_CFG[st]?.label || "";
                                   const styleCfg = ATTEND_STATUS_STYLES[st];
 
                                   return (
@@ -1417,22 +1652,29 @@ export function EventAttendanceManagePage() {
                                         e.stopPropagation();
                                         changeStatusAndMoveNext(att.id, st);
                                       }}
-                                      className={`h-6 w-full flex items-center justify-center rounded-md text-xs transition-all cursor-pointer ${
+                                      className={`py-1 text-[10px] rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
                                         isCurrent
-                                          ? styleCfg.active
-                                          : styleCfg.inactive
+                                          ? styleCfg?.active || ""
+                                          : styleCfg?.inactive || ""
                                       }`}
                                     >
-                                      <span>{label}</span>
+                                      {label}
                                     </button>
                                   );
                                 })}
                               </div>
                             </div>
+                            <div
+                              onMouseDown={e => handleResizeStart(e, "status", 395)}
+                              onMouseEnter={e => { if (!resizingColKey) { setActiveHoverCol("status"); updateGuidelinePos(e.currentTarget); } }}
+                              onMouseLeave={() => { if (!resizingColKey) { setActiveHoverCol(null); setGuidelineX(null); } }}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
                           </td>
 
                           {/* Remarks / Memo Input */}
-                          <td className="text-left px-3 py-2 h-[50px] w-56" onClick={e => e.stopPropagation()}>
+                          <td className="relative text-center px-3 py-2 h-[50px]" onClick={e => e.stopPropagation()}>
                             {isRowEditing ? (
                               <input
                                 value={att.memo || ""}
@@ -1441,17 +1683,18 @@ export function EventAttendanceManagePage() {
                                   setAttendees(prev => prev.map(a => a.id === att.id ? { ...a, memo: val } : a));
                                 }}
                                 placeholder="비고 입력 (선택)"
-                                className="w-full h-8 px-2.5 text-xs rounded-lg outline-none bg-white border border-slate-300 focus:border-slate-900 text-slate-800 font-sans placeholder:text-slate-400 shadow-2xs"
+                                className="w-full text-center h-8 px-2.5 text-xs rounded-lg outline-none bg-white border border-slate-300 focus:border-slate-900 text-slate-800 font-sans placeholder:text-slate-400 shadow-2xs"
                               />
                             ) : (
-                              <div className="w-full h-8 px-2.5 border border-transparent flex items-center text-xs text-slate-600 truncate font-sans">
+                              <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs text-slate-600 truncate font-sans">
                                 {att.memo ? att.memo : <span className="text-slate-300">-</span>}
                               </div>
                             )}
                           </td>
 
-                          <td className="text-right px-3 py-2 h-[50px] font-sans w-20" onClick={e => e.stopPropagation()}>
-                            <div className="h-8 w-16 ml-auto flex items-center justify-end gap-1">
+                          {/* Fixed Sticky Right Action Cell */}
+                          <td className="sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 w-20 min-w-[80px] max-w-[80px] px-2 py-2 h-[50px] font-sans text-center border-l border-slate-200 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]" onClick={e => e.stopPropagation()}>
+                            <div className="h-8 flex items-center justify-center mx-auto gap-1.5">
                               {editingRowId === att.id ? (
                                 <button
                                   type="button"
@@ -1480,7 +1723,7 @@ export function EventAttendanceManagePage() {
                                     setAttendees(prev => prev.filter(a => a.id !== att.id));
                                   }
                                 }}
-                                className="w-7 h-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors cursor-pointer"
+                                className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer"
                                 title="삭제"
                               >
                                 <Trash2 size={13} />
@@ -1493,6 +1736,14 @@ export function EventAttendanceManagePage() {
                   )}
                 </tbody>
               </table>
+
+              {/* Seamless Full-Height Guideline Overlay */}
+              {(resizingColKey || activeHoverCol) && guidelineX !== null && (
+                <div
+                  className="absolute top-0 bottom-0 w-[2px] bg-slate-400 pointer-events-none z-30 -translate-x-1/2"
+                  style={{ left: `${guidelineX}px` }}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -1791,7 +2042,7 @@ export function EventAttendanceManagePage() {
               <div>
                 <label className="text-slate-700 block mb-1.5 font-semibold">출석 상태</label>
                 <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/60">
-                  {(["present", "late", "absent", "unmarked"] as AttendStatus[]).map(st => {
+                  {(["present", "late", "earlyLeave", "absent", "excusedAbsent", "unexcusedLate", "unexcusedAbsent"] as AttendStatus[]).map(st => {
                     const cfg = ATTEND_STATUS_CFG[st];
                     const isSelected = quickAdd.status === st;
                     const styleCfg = ATTEND_STATUS_STYLES[st];
