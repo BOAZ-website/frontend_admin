@@ -1,0 +1,6 @@
+/* stylelint-disable no-invalid-position-at-import-rule -- @source is a Tailwind v4 build directive, not a CSS at-rule; both @import statements are still processed correctly by the Tailwind Vite plugin */
+@import 'tailwindcss' source(none);
+
+@source '../../**/*.{js,ts,jsx,tsx}';
+
+@import 'tw-animate-css';
