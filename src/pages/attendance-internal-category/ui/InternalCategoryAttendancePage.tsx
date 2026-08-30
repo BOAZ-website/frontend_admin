@@ -776,8 +776,8 @@ const CATEGORY_CONFIG: Record<
         name: "고준서",
         term: 27,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:20",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_1_2",
@@ -787,8 +787,8 @@ const CATEGORY_CONFIG: Record<
         name: "김서하",
         term: 28,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:25",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_1_3",
@@ -798,8 +798,8 @@ const CATEGORY_CONFIG: Record<
         name: "이민준",
         term: 28,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:28",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_1_4",
@@ -809,8 +809,8 @@ const CATEGORY_CONFIG: Record<
         name: "정채원",
         term: 28,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:30",
+        status: "unmarked",
+        checkedInAt: "-",
       },
 
       {
@@ -821,8 +821,8 @@ const CATEGORY_CONFIG: Record<
         name: "박지훈",
         term: 28,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:15",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_2_2",
@@ -844,8 +844,8 @@ const CATEGORY_CONFIG: Record<
         name: "도현진",
         term: 27,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:22",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_2_4",
@@ -855,8 +855,8 @@ const CATEGORY_CONFIG: Record<
         name: "마지원",
         term: 28,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:35",
+        status: "unmarked",
+        checkedInAt: "-",
       },
 
       {
@@ -867,8 +867,8 @@ const CATEGORY_CONFIG: Record<
         name: "박성준",
         term: 27,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:18",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_3_2",
@@ -878,8 +878,8 @@ const CATEGORY_CONFIG: Record<
         name: "신유진",
         term: 28,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:24",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_3_3",
@@ -889,8 +889,8 @@ const CATEGORY_CONFIG: Record<
         name: "안서연",
         term: 28,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:29",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_3_4",
@@ -900,8 +900,8 @@ const CATEGORY_CONFIG: Record<
         name: "조민규",
         term: 28,
         track: "분석",
-        status: "present",
-        checkedInAt: "13:32",
+        status: "unmarked",
+        checkedInAt: "-",
       },
 
       {
@@ -912,8 +912,8 @@ const CATEGORY_CONFIG: Record<
         name: "최민혁",
         term: 28,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:20",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_4_2",
@@ -923,8 +923,8 @@ const CATEGORY_CONFIG: Record<
         name: "한예린",
         term: 28,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:24",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_4_3",
@@ -934,8 +934,8 @@ const CATEGORY_CONFIG: Record<
         name: "문지훈",
         term: 27,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:28",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_4_4",
@@ -945,8 +945,8 @@ const CATEGORY_CONFIG: Record<
         name: "장나연",
         term: 28,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:30",
+        status: "unmarked",
+        checkedInAt: "-",
       },
 
       {
@@ -957,8 +957,8 @@ const CATEGORY_CONFIG: Record<
         name: "윤재혁",
         term: 28,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:19",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_5_2",
@@ -968,8 +968,8 @@ const CATEGORY_CONFIG: Record<
         name: "송하늘",
         term: 27,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:23",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_5_3",
@@ -979,8 +979,8 @@ const CATEGORY_CONFIG: Record<
         name: "노유진",
         term: 27,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:27",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_5_4",
@@ -1003,8 +1003,8 @@ const CATEGORY_CONFIG: Record<
         name: "배준호",
         term: 28,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:21",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_6_2",
@@ -1014,8 +1014,8 @@ const CATEGORY_CONFIG: Record<
         name: "권나현",
         term: 28,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:25",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_6_3",
@@ -1025,8 +1025,8 @@ const CATEGORY_CONFIG: Record<
         name: "서진우",
         term: 27,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:29",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_6_4",
@@ -1036,8 +1036,8 @@ const CATEGORY_CONFIG: Record<
         name: "하예원",
         term: 28,
         track: "시각화",
-        status: "present",
-        checkedInAt: "13:33",
+        status: "unmarked",
+        checkedInAt: "-",
       },
 
       {
@@ -1048,8 +1048,8 @@ const CATEGORY_CONFIG: Record<
         name: "강태양",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:15",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_7_2",
@@ -1059,8 +1059,8 @@ const CATEGORY_CONFIG: Record<
         name: "이도현",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:18",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_7_3",
@@ -1070,8 +1070,8 @@ const CATEGORY_CONFIG: Record<
         name: "임수진",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:22",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_7_4",
@@ -1094,8 +1094,8 @@ const CATEGORY_CONFIG: Record<
         name: "박성훈",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:19",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_8_2",
@@ -1105,8 +1105,8 @@ const CATEGORY_CONFIG: Record<
         name: "백민혁",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:23",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_8_3",
@@ -1116,8 +1116,8 @@ const CATEGORY_CONFIG: Record<
         name: "류현우",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:27",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_8_4",
@@ -1127,8 +1127,8 @@ const CATEGORY_CONFIG: Record<
         name: "조영준",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:31",
+        status: "unmarked",
+        checkedInAt: "-",
       },
 
       {
@@ -1139,8 +1139,8 @@ const CATEGORY_CONFIG: Record<
         name: "황지수",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:17",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_9_2",
@@ -1150,8 +1150,8 @@ const CATEGORY_CONFIG: Record<
         name: "김동현",
         term: 27,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:21",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_9_3",
@@ -1161,8 +1161,8 @@ const CATEGORY_CONFIG: Record<
         name: "문가영",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:26",
+        status: "unmarked",
+        checkedInAt: "-",
       },
       {
         id: "att_adv_9_4",
@@ -1172,8 +1172,8 @@ const CATEGORY_CONFIG: Record<
         name: "유재성",
         term: 28,
         track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:34",
+        status: "unmarked",
+        checkedInAt: "-",
       },
     ],
   },
@@ -1209,7 +1209,7 @@ const ATTEND_STATUS_CFG: Record<
     bg: "#fee2e2",
     border: "#fca5a5",
   },
-  unmarked: { label: "미체크", code: "-", color: "#334155", bg: "#e9eef4", border: "#cbd5e1" },
+  unmarked: { label: "미정", code: "-", color: "#334155", bg: "#e9eef4", border: "#cbd5e1" },
 };
 
 const ATTEND_STATUS_STYLES: Record<AttendStatus, { active: string; inactive: string }> = {
@@ -1583,7 +1583,7 @@ export function InternalCategoryAttendancePage({
     teamName: 160,
     name: 100,
     term: 70,
-    status: category === "SESSION" ? 360 : 110,
+    status: 445,
     memo: 240,
     matrix_index: 42,
     matrix_term: 52,
@@ -1886,7 +1886,7 @@ export function InternalCategoryAttendancePage({
                 ? "late"
                 : isAbsentThisWeek
                   ? "absent"
-                  : "present";
+                  : "unmarked";
 
               return {
                 ...a,
@@ -1895,12 +1895,7 @@ export function InternalCategoryAttendancePage({
                 weekNum: currentWeekNum,
                 weekLabel: w.label,
                 status,
-                checkedInAt:
-                  status === "present" || status === "late"
-                    ? status === "late"
-                      ? "14:15"
-                      : "13:50"
-                    : "-",
+                checkedInAt: status === "late" ? "14:15" : "-",
                 memo: isAbsentThisWeek
                   ? "방학 개인 사정 (사전 공결 신청 승인)"
                   : status === "late"
@@ -1922,7 +1917,7 @@ export function InternalCategoryAttendancePage({
                 ? "late"
                 : isAbsentThisWeek
                   ? "absent"
-                  : "present";
+                  : "unmarked";
 
               return {
                 ...a,
@@ -1931,12 +1926,7 @@ export function InternalCategoryAttendancePage({
                 weekNum: currentWeekNum,
                 weekLabel: w.label,
                 status,
-                checkedInAt:
-                  status === "present" || status === "late"
-                    ? status === "late"
-                      ? "14:15"
-                      : "13:50"
-                    : "-",
+                checkedInAt: status === "late" ? "14:15" : "-",
                 memo: isAbsentThisWeek
                   ? "학기 과제/시험 일정 결석"
                   : status === "late"
@@ -1992,7 +1982,7 @@ export function InternalCategoryAttendancePage({
               ? "late"
               : isAbsentThisWeek
                 ? "absent"
-                : "present";
+                : "unmarked";
 
             return {
               ...a,
@@ -2000,12 +1990,7 @@ export function InternalCategoryAttendancePage({
               weekNum: selectedWeek,
               weekLabel: `${selectedWeek}주차`,
               status,
-              checkedInAt:
-                status === "present" || status === "late"
-                  ? status === "late"
-                    ? "14:15"
-                    : "13:50"
-                  : "-",
+              checkedInAt: status === "late" ? "14:15" : "-",
               memo: isAbsentThisWeek
                 ? "방학 개인 사정 (사전 공결 신청 승인)"
                 : status === "late"
@@ -2027,7 +2012,7 @@ export function InternalCategoryAttendancePage({
               ? "late"
               : isAbsentThisWeek
                 ? "absent"
-                : "present";
+                : "unmarked";
 
             return {
               ...a,
@@ -2035,12 +2020,7 @@ export function InternalCategoryAttendancePage({
               weekNum: selectedWeek,
               weekLabel: `${selectedWeek}주차`,
               status,
-              checkedInAt:
-                status === "present" || status === "late"
-                  ? status === "late"
-                    ? "14:15"
-                    : "13:50"
-                  : "-",
+              checkedInAt: status === "late" ? "14:15" : "-",
               memo: isAbsentThisWeek
                 ? "학기 과제/시험 일정 결석"
                 : status === "late"
@@ -2157,8 +2137,8 @@ export function InternalCategoryAttendancePage({
     displayedMatrixWeeks.forEach((w) => {
       const isEditable = isWeekDirectEditable(w.weekNum) && selectedWeek !== 0;
       const colKey = `matrix_w_${w.weekNum}`;
-      const minColWidth = isEditable ? 385 : 55;
-      const defaultColWidth = isEditable ? 395 : 72;
+      const minColWidth = isEditable ? 435 : 55;
+      const defaultColWidth = isEditable ? 445 : 72;
       const effectiveWidth = Math.max(colWidths[colKey] || defaultColWidth, minColWidth);
       sum += effectiveWidth;
     });
@@ -2170,8 +2150,8 @@ export function InternalCategoryAttendancePage({
           ? 850
           : 750
         : selectedTrackFilter === "ALL"
-          ? 500
-          : 440
+          ? 550
+          : 490
     );
   }, [category, colWidths, displayedMatrixWeeks, selectedWeek, selectedTrackFilter, termPeriod]);
 
@@ -2180,11 +2160,11 @@ export function InternalCategoryAttendancePage({
     const isSingleTeamEditable =
       category === "SESSION" ||
       (category === "ADV" && isWeekDirectEditable(selectedWeek) && selectedWeek !== 0);
-    const statusMinWidth = isSingleTeamEditable ? 385 : 70;
-    const statusEffectiveWidth = Math.max(
-      colWidths.status || (isSingleTeamEditable ? 390 : 70),
-      statusMinWidth
-    );
+    const statusMinWidth = isSingleTeamEditable ? 435 : 70;
+    const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
+    const statusEffectiveWidth = isSingleTeamEditable
+      ? Math.max(colWidths.status || statusDefaultWidth, statusMinWidth)
+      : (colWidths.status && colWidths.status < 200 ? colWidths.status : statusDefaultWidth);
 
     let sum =
       (colWidths.name || 70) +
@@ -2206,7 +2186,7 @@ export function InternalCategoryAttendancePage({
     if (isTableEditMode) {
       sum += 40;
     }
-    return Math.max(sum, 600);
+    return Math.max(sum, 690);
   }, [category, selectedWeek, isAllSelected, isTableEditMode, colWidths, termPeriod]);
 
   // 전체 스터디 표 최소 너비 계산 (각 컬럼이 정확히 합산되어 테이블 우측 여백이 남지 않도록)
@@ -2264,9 +2244,9 @@ export function InternalCategoryAttendancePage({
         const overrideKey = `${category}_${termPeriod}_${currentWeekNum}_${member.id}`;
         const override = attendanceOverrides[overrideKey];
 
-        let status: AttendStatus = "present";
+        let status: AttendStatus = "unmarked";
         let memo: string | undefined = member.memo;
-        let checkedInAt: string | undefined = "14:00";
+        let checkedInAt: string | undefined = "-";
 
         if (override && override.status) {
           status = override.status;
@@ -2306,8 +2286,8 @@ export function InternalCategoryAttendancePage({
                 memo = "비대면 참여 승인";
                 checkedInAt = "14:00 (온라인)";
               } else {
-                status = "present";
-                checkedInAt = "13:50";
+                status = "unmarked";
+                checkedInAt = "-";
               }
             }
           } else {
@@ -2341,8 +2321,8 @@ export function InternalCategoryAttendancePage({
                 memo = "비대면 참여 승인";
                 checkedInAt = "14:00 (온라인)";
               } else {
-                status = "present";
-                checkedInAt = "13:50";
+                status = "unmarked";
+                checkedInAt = "-";
               }
             }
           }
@@ -4654,8 +4634,8 @@ export function InternalCategoryAttendancePage({
                           const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
                           const hasDate = Boolean(rawDate && rawDate !== "-");
                           const colKey = `matrix_w_${w.weekNum}`;
-                          const minColWidth = isEditable ? 385 : 55;
-                          const defaultColWidth = isEditable ? 395 : 72;
+                          const minColWidth = isEditable ? 435 : 55;
+                          const defaultColWidth = isEditable ? 445 : 72;
                           const effectiveColWidth = Math.max(
                             colWidths[colKey] || defaultColWidth,
                             minColWidth
@@ -4859,6 +4839,7 @@ export function InternalCategoryAttendancePage({
                             "excusedAbsent",
                             "unexcusedLate",
                             "unexcusedAbsent",
+                            "unmarked",
                           ];
 
                           const editDropdownStatuses: AttendStatus[] = [
@@ -4934,7 +4915,7 @@ export function InternalCategoryAttendancePage({
                                   return (
                                     <td key={w.id} className="relative px-2 py-1.5 text-center">
                                       <div className="flex items-center justify-center w-full px-1">
-                                        <div className="grid grid-cols-7 w-full max-w-[390px] p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
+                                        <div className="grid grid-cols-8 w-full max-w-[445px] min-w-[425px] p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
                                           {availableStatuses.map((s) => {
                                             const active = st === s;
                                             return (
@@ -4944,7 +4925,7 @@ export function InternalCategoryAttendancePage({
                                                 onClick={() =>
                                                   handleStatusChange(row.id, s, w.weekNum)
                                                 }
-                                                className={`py-1 text-[10px] sm:text-[11px] font-medium rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
+                                                className={`py-1 text-[10.5px] font-semibold rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
                                                   active
                                                     ? ATTEND_STATUS_STYLES[s].active
                                                     : ATTEND_STATUS_STYLES[s].inactive
@@ -5259,42 +5240,53 @@ export function InternalCategoryAttendancePage({
                               />
                             </th>
                           )}
-                        <th
-                          style={{
-                            width: `${colWidths.status || (category === "SESSION" || (category === "ADV" && isWeekDirectEditable(selectedWeek) && selectedWeek !== 0) ? 355 : 70)}px`,
-                          }}
-                          className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-50/80"
-                        >
-                          <div className="h-9 flex items-center justify-center">출결</div>
-                          <div
-                            onMouseDown={(e) =>
-                              handleResizeStart(
-                                e,
-                                "status",
-                                category === "SESSION" ||
-                                  (category === "ADV" &&
-                                    isWeekDirectEditable(selectedWeek) &&
-                                    selectedWeek !== 0)
-                                  ? 350
-                                  : 55
-                              )
-                            }
-                            onMouseEnter={(e) => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol("status");
-                                updateGuidelinePos(e.currentTarget);
-                              }
-                            }}
-                            onMouseLeave={() => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol(null);
-                                setGuidelineX(null);
-                              }
-                            }}
-                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                            title="열 너비 조절"
-                          />
-                        </th>
+                        {(() => {
+                          const isSingleTeamEditable =
+                            category === "SESSION" ||
+                            (category === "ADV" &&
+                              isWeekDirectEditable(selectedWeek) &&
+                              selectedWeek !== 0);
+                          const statusMinWidth = isSingleTeamEditable ? 435 : 70;
+                          const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
+                          const effectiveStatusWidth = isSingleTeamEditable
+                            ? Math.max(colWidths.status || statusDefaultWidth, statusMinWidth)
+                            : (colWidths.status && colWidths.status < 200 ? colWidths.status : statusDefaultWidth);
+
+                          return (
+                            <th
+                              style={{
+                                width: `${effectiveStatusWidth}px`,
+                                minWidth: `${statusMinWidth}px`,
+                              }}
+                              className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-50/80"
+                            >
+                              <div className="h-9 flex items-center justify-center">출결</div>
+                              <div
+                                onMouseDown={(e) =>
+                                  handleResizeStart(
+                                    e,
+                                    "status",
+                                    statusMinWidth
+                                  )
+                                }
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol("status");
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                          );
+                        })()}
                         <th
                           style={{ width: `${colWidths.memo || 240}px`, minWidth: "220px" }}
                           className="relative text-center px-3 py-1 text-slate-700 font-semibold"
@@ -5340,6 +5332,7 @@ export function InternalCategoryAttendancePage({
                             "excusedAbsent",
                             "unexcusedLate",
                             "unexcusedAbsent",
+                            "unmarked",
                           ];
 
                           const editDropdownStatuses: AttendStatus[] =
@@ -5413,7 +5406,7 @@ export function InternalCategoryAttendancePage({
                               {isDirectEditable && !isTableEditMode ? (
                                 <td className="relative px-2 py-1.5 text-center">
                                   <div className="flex items-center justify-center w-full px-1">
-                                    <div className="grid grid-cols-7 w-full max-w-[390px] p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
+                                    <div className="grid grid-cols-8 w-full max-w-[445px] min-w-[425px] p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
                                       {availableStatuses.map((s) => {
                                         const active = att.status === s;
                                         return (
@@ -5427,7 +5420,7 @@ export function InternalCategoryAttendancePage({
                                                 att.weekNum
                                               )
                                             }
-                                            className={`py-1 text-[10px] sm:text-[11px] font-medium rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
+                                            className={`py-1 text-[10.5px] font-semibold rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
                                               active
                                                 ? ATTEND_STATUS_STYLES[s].active
                                                 : ATTEND_STATUS_STYLES[s].inactive
