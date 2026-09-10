@@ -26,3 +26,5 @@ yarn-error.log*
 
 # Claude
 .CLAUDE.md
+.omc/
+.serena/
