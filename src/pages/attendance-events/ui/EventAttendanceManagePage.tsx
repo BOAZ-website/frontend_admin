@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
+  ChevronLeft,
   Copy,
   Download,
   Edit3,
@@ -95,39 +96,39 @@ const EVENT_TYPE_META: Record<
   CONFERENCE: {
     label: "컨퍼런스 (빅콘)",
     short: "컨퍼런스",
-    color: "#7e22ce",
-    bg: "#faf5ff",
-    border: "#e9d5ff",
+    color: "#334155",
+    bg: "#f8fafc",
+    border: "#e2e8f0",
   },
   HACKATHON: {
     label: "해커톤 / 데이터톤",
     short: "해커톤",
-    color: "#c2410c",
-    bg: "#fff7ed",
-    border: "#fed7aa",
+    color: "#334155",
+    bg: "#f8fafc",
+    border: "#e2e8f0",
   },
   SESSION: {
     label: "정기 세션 / 특강",
     short: "정기세션",
-    color: "#1d4ed8",
-    bg: "#eff6ff",
-    border: "#bfdbfe",
+    color: "#334155",
+    bg: "#f8fafc",
+    border: "#e2e8f0",
   },
   SEMINAR: {
     label: "분과 세미나",
     short: "세미나",
-    color: "#047857",
-    bg: "#ecfdf5",
-    border: "#a7f3d0",
+    color: "#334155",
+    bg: "#f8fafc",
+    border: "#e2e8f0",
   },
   STUDY: {
     label: "정규 스터디",
     short: "스터디",
-    color: "#0369a1",
-    bg: "#f0f9ff",
-    border: "#bae6fd",
+    color: "#334155",
+    bg: "#f8fafc",
+    border: "#e2e8f0",
   },
-  ETC: { label: "기타 행사", short: "기타", color: "#475569", bg: "#f8fafc", border: "#e2e8f0" },
+  ETC: { label: "기타 행사", short: "기타", color: "#334155", bg: "#f8fafc", border: "#e2e8f0" },
 };
 
 const ATTEND_STATUS_CFG: Record<
@@ -958,11 +959,140 @@ function getAttendeeFieldValue(att: AttendeeRecord, label: string, id: string): 
 }
 
 export function EventAttendanceManagePage() {
-  const [subTab, setSubTab] = useState<"events" | "live" | "forms" | "stats">("events");
-  const [events, setEvents] = useState<AttendanceEvent[]>(INITIAL_EVENTS);
-  const [attendees, setAttendees] = useState<AttendeeRecord[]>(INITIAL_ATTENDEES);
-  const [templates, setTemplates] = useState<FormTemplate[]>(INITIAL_TEMPLATES);
-  const [selectedEventId, setSelectedEventId] = useState<string>("evt_conf_28");
+  const [subTab, setSubTab] = useState<"events" | "live" | "forms" | "stats">(() => {
+    try {
+      const saved = localStorage.getItem("boaz_event_subtab");
+      if (saved && ["events", "live", "forms", "stats"].includes(saved)) {
+        return saved as "events" | "live" | "forms" | "stats";
+      }
+    } catch {}
+    return "events";
+  });
+
+  const [selectedEventId, setSelectedEventId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_event_selected_id");
+      if (saved) return saved;
+    } catch {}
+    return "evt_conf_28";
+  });
+
+  const [events, setEvents] = useState<AttendanceEvent[]>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_event_events");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_EVENTS;
+  });
+
+  const [attendees, setAttendees] = useState<AttendeeRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_event_attendees");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_ATTENDEES;
+  });
+
+  const [templates, setTemplates] = useState<FormTemplate[]>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_event_templates");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_TEMPLATES;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boaz_event_subtab", subTab);
+    } catch {}
+  }, [subTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boaz_event_selected_id", selectedEventId);
+    } catch {}
+  }, [selectedEventId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boaz_event_events", JSON.stringify(events));
+    } catch {}
+  }, [events]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boaz_event_attendees", JSON.stringify(attendees));
+    } catch {}
+  }, [attendees]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boaz_event_templates", JSON.stringify(templates));
+    } catch {}
+  }, [templates]);
+
+  // ─── Browser History: 뒤로가기 시 행사 세부 탭 -> 행사 전체 목록 이동 연동 ───
+  useEffect(() => {
+    // 마운트 시 초기 history state 동기화
+    if (subTab !== "events") {
+      if (!window.history.state || window.history.state.subTab !== "detail") {
+        window.history.replaceState({ page: "att-events", subTab: "events" }, "", window.location.href);
+        window.history.pushState(
+          { page: "att-events", subTab: "detail", eventId: selectedEventId, tab: subTab },
+          "",
+          window.location.href
+        );
+      }
+    } else {
+      if (!window.history.state || window.history.state.subTab !== "events") {
+        window.history.replaceState({ page: "att-events", subTab: "events" }, "", window.location.href);
+      }
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      const state = e.state;
+      if (state && state.subTab === "detail") {
+        setSubTab(state.tab || "live");
+        if (state.eventId) {
+          setSelectedEventId(state.eventId);
+        }
+      } else {
+        // 브라우저 뒤로가기 누를 시 행사 세부 탭에서 행사 전체 목록으로 이동
+        setSubTab("events");
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  function handleSelectEvent(eventId: string, tab: "live" | "forms" | "stats" = "live") {
+    setSelectedEventId(eventId);
+    setSubTab(tab);
+    window.history.pushState(
+      { page: "att-events", subTab: "detail", eventId, tab },
+      "",
+      window.location.href
+    );
+  }
+
+  function handleGoBackToList() {
+    if (window.history.state && window.history.state.subTab === "detail") {
+      window.history.back();
+    } else {
+      setSubTab("events");
+      window.history.replaceState({ page: "att-events", subTab: "events" }, "", window.location.href);
+    }
+  }
 
   // Dropdown selector state
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -1976,10 +2106,15 @@ export function EventAttendanceManagePage() {
             <>
               <button
                 type="button"
-                onClick={() => setSubTab("events")}
-                className="text-slate-500 hover:text-slate-900 font-bold transition-colors cursor-pointer text-lg sm:text-xl tracking-tight"
+                onClick={handleGoBackToList}
+                className="text-slate-500 hover:text-slate-900 font-bold transition-colors cursor-pointer text-lg sm:text-xl tracking-tight flex items-center gap-1 group"
+                title="행사 전체 목록으로 돌아가기"
               >
-                행사 전체 목록
+                <ChevronLeft
+                  size={20}
+                  className="text-slate-400 group-hover:text-slate-900 transition-colors stroke-[2.5]"
+                />
+                <span>행사 전체 목록</span>
               </button>
 
               <span className="text-slate-300 font-bold text-base">/</span>
@@ -2016,6 +2151,11 @@ export function EventAttendanceManagePage() {
                               setSelectedEventId(evt.id);
                               setFocusedIndex(0);
                               setIsBreadcrumbMenuOpen(false);
+                              window.history.replaceState(
+                                { page: "att-events", subTab: "detail", eventId: evt.id, tab: subTab },
+                                "",
+                                window.location.href
+                              );
                             }}
                             className={`px-3.5 py-2.5 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
                               isCur ? "bg-slate-100 font-bold" : "hover:bg-slate-50"
@@ -2716,7 +2856,7 @@ export function EventAttendanceManagePage() {
                                   <button
                                     type="button"
                                     onClick={() => setEditingRowId(att.id)}
-                                    className="w-7 h-7 rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 flex items-center justify-center transition-colors cursor-pointer"
+                                    className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
                                     title="수정"
                                   >
                                     <Edit3 size={13} />
@@ -2772,14 +2912,11 @@ export function EventAttendanceManagePage() {
               return (
                 <div
                   key={evt.id}
-                  onClick={() => {
-                    setSelectedEventId(evt.id);
-                    setSubTab("live");
-                  }}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white hover:border-orange-500 hover:shadow-xs px-6 py-5 transition-all cursor-pointer group"
+                  onClick={() => handleSelectEvent(evt.id, "live")}
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white hover:border-slate-400 hover:shadow-xs px-6 py-5 transition-all cursor-pointer group"
                 >
                   <div className="space-y-1 min-w-0 flex-1 pr-4">
-                    <h3 className="text-base font-bold text-slate-900 group-hover:text-orange-600 transition-colors truncate">
+                    <h3 className="text-base font-bold text-slate-900 group-hover:text-slate-950 transition-colors truncate">
                       {evt.title}
                     </h3>
                     <p className="text-xs text-slate-500">
@@ -2797,7 +2934,7 @@ export function EventAttendanceManagePage() {
                     <button
                       type="button"
                       onClick={() => handleExportEventCsv(evt)}
-                      className="p-2.5 rounded-xl text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all cursor-pointer"
+                      className="p-2.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer"
                       title="출석부 CSV 다운로드"
                     >
                       <Download size={20} />
@@ -2849,7 +2986,7 @@ export function EventAttendanceManagePage() {
 
             <button
               onClick={handleOpenCreateTemplate}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-orange-600 hover:bg-orange-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
             >
               <Plus size={14} />
               <span>+ 새 양식 템플릿 생성</span>
@@ -2878,11 +3015,11 @@ export function EventAttendanceManagePage() {
                           {typeMeta.label}
                         </span>
                         {tmpl.allowExternal ? (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
                             외부인 허용
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
                             부원 전용
                           </span>
                         )}
@@ -2975,7 +3112,7 @@ export function EventAttendanceManagePage() {
               </div>
               <button
                 onClick={handleExportCsv}
-                className="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
               >
                 <Download size={13} />
                 <span>출석부 CSV 다운로드</span>
@@ -3179,11 +3316,11 @@ export function EventAttendanceManagePage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Upload size={16} className="text-blue-600" />
+                  <Upload size={16} className="text-slate-700" />
                   <span>참가자 명단 넣기</span>
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  대상: <strong className="text-orange-600">{selectedEvent.title}</strong>
+                  대상: <strong className="text-slate-900">{selectedEvent.title}</strong>
                 </p>
               </div>
               <button
@@ -3225,7 +3362,7 @@ export function EventAttendanceManagePage() {
                     <span className="font-semibold text-slate-700">CSV 명단 파일 첨부</span>
                     <button
                       onClick={handleDownloadSampleCsv}
-                      className="text-xs text-blue-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                      className="text-xs text-slate-600 hover:text-slate-900 hover:underline flex items-center gap-1 cursor-pointer font-medium"
                     >
                       <Download size={11} /> 샘플 양식 받기
                     </button>
@@ -3241,9 +3378,9 @@ export function EventAttendanceManagePage() {
 
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-200 hover:border-blue-500 rounded-2xl p-6 text-center cursor-pointer transition-all bg-slate-50 hover:bg-blue-50/20 space-y-1.5"
+                    className="border-2 border-dashed border-slate-200 hover:border-slate-500 rounded-2xl p-6 text-center cursor-pointer transition-all bg-slate-50 hover:bg-slate-100/50 space-y-1.5"
                   >
-                    <FileUp size={24} className="mx-auto text-blue-600" />
+                    <FileUp size={24} className="mx-auto text-slate-700" />
                     <p className="font-bold text-slate-900 text-xs">
                       {uploadedFileName ? `선택됨: ${uploadedFileName}` : "클릭하여 CSV 파일 선택"}
                     </p>
@@ -3267,7 +3404,7 @@ export function EventAttendanceManagePage() {
                       parseTextContent(e.target.value);
                     }}
                     placeholder={`홍길동\t카카오\thong@kakao.com\t010-1234-5678\n김철수\t연세대학교\tcheol@yonsei.ac.kr\t010-9876-5432`}
-                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs outline-none focus:border-blue-500"
+                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs outline-none focus:border-slate-800"
                   />
                 </div>
               )}
@@ -3312,7 +3449,7 @@ export function EventAttendanceManagePage() {
                           {(selectedEvent.customFields || []).map((cf) => (
                             <th
                               key={cf.id}
-                              className="text-left px-2 py-1 text-orange-800 bg-orange-100/70 font-bold"
+                              className="text-left px-2 py-1 text-slate-800 bg-slate-200/80 font-bold"
                             >
                               {cf.label}
                             </th>
@@ -3332,7 +3469,7 @@ export function EventAttendanceManagePage() {
                             {(selectedEvent.customFields || []).map((cf) => (
                               <td
                                 key={cf.id}
-                                className="px-2 py-1 text-slate-700 font-sans bg-orange-50/40 font-medium"
+                                className="px-2 py-1 text-slate-700 font-sans bg-slate-50 font-medium"
                               >
                                 {item.customAnswers?.[cf.id] ||
                                   item.customAnswers?.[cf.label] ||
@@ -3361,7 +3498,7 @@ export function EventAttendanceManagePage() {
                   disabled={parsedPreview.length === 0}
                   className={`px-4 py-1.5 rounded-lg text-xs font-semibold text-white shadow-xs cursor-pointer ${
                     parsedPreview.length > 0
-                      ? "bg-blue-600 hover:bg-blue-700"
+                      ? "bg-slate-900 hover:bg-slate-800"
                       : "bg-slate-200 text-slate-400 cursor-not-allowed"
                   }`}
                 >
@@ -3749,7 +3886,7 @@ export function EventAttendanceManagePage() {
                         prev ? { ...prev, allowExternal: e.target.checked } : null
                       )
                     }
-                    className="rounded accent-orange-600 w-4 h-4"
+                    className="rounded accent-slate-900 w-4 h-4"
                   />
                   <span className="font-semibold text-slate-900">
                     외부인 (게스트/참관객) 출석 허용
@@ -3796,7 +3933,7 @@ export function EventAttendanceManagePage() {
                         prev ? { ...prev, customFields: [...prev.customFields, newField] } : null
                       );
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     <Plus size={12} />
                     <span>+ 필드 추가</span>
@@ -3911,7 +4048,7 @@ export function EventAttendanceManagePage() {
                                   prev ? { ...prev, customFields: updated } : null
                                 );
                               }}
-                              className="rounded accent-orange-600"
+                              className="rounded accent-slate-900"
                             />
                             <span>필수 입력</span>
                           </label>
@@ -3957,7 +4094,7 @@ export function EventAttendanceManagePage() {
               </button>
               <button
                 onClick={handleSaveTemplate}
-                className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 cursor-pointer shadow-xs"
+                className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 cursor-pointer shadow-xs"
               >
                 양식 템플릿 저장
               </button>
