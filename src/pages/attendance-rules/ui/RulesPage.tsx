@@ -433,10 +433,10 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                                 studyPerfectBonus: Number(e.target.value),
                               }))
                             }
-                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-blue-600 bg-white"
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-slate-800 bg-white"
                           />
                         ) : (
-                          <span className="font-mono font-bold text-blue-600 text-sm">
+                          <span className="font-mono font-bold text-slate-800 text-sm">
                             +{editingValues.studyPerfectBonus}
                           </span>
                         )}
@@ -458,10 +458,10 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                                 studyPassBonus: Number(e.target.value),
                               }))
                             }
-                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-blue-600 bg-white"
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-slate-800 bg-white"
                           />
                         ) : (
-                          <span className="font-mono font-bold text-blue-600 text-sm">
+                          <span className="font-mono font-bold text-slate-800 text-sm">
                             +{editingValues.studyPassBonus}
                           </span>
                         )}
@@ -481,10 +481,10 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                                 studyLeaderBonus: Number(e.target.value),
                               }))
                             }
-                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-blue-600 bg-white"
+                            className="w-14 text-center font-mono font-bold border border-slate-300 rounded py-0.5 text-xs text-slate-800 bg-white"
                           />
                         ) : (
-                          <span className="font-mono font-bold text-blue-600 text-sm">
+                          <span className="font-mono font-bold text-slate-800 text-sm">
                             +{editingValues.studyLeaderBonus}
                           </span>
                         )}

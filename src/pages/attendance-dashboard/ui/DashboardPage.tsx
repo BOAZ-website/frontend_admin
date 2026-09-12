@@ -94,7 +94,7 @@ export function DashboardPage({
                 <span className="text-xs font-bold text-slate-500">
                   기수 활동 순차 주기 (Serial Timeline)
                 </span>
-                <span className="px-2 py-0.2 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="px-2 py-0.2 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                   {currentSeason === "학기 스터디" ? "2단계 진행 중" : "1단계 완료 기록"}
                 </span>
               </div>
@@ -142,7 +142,7 @@ export function DashboardPage({
               <span
                 className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
                   currentSeason === "학기 스터디"
-                    ? "bg-blue-600 text-white"
+                    ? "bg-slate-900 text-white"
                     : "bg-slate-200 text-slate-600"
                 }`}
               >
@@ -195,8 +195,8 @@ export function DashboardPage({
               <span
                 className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border shadow-2xs ${
                   currentSeason === "학기 스터디"
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : "bg-amber-50 text-amber-800 border-amber-200"
+                    ? "bg-slate-100 text-slate-800 border-slate-200"
+                    : "bg-slate-100 text-slate-800 border-slate-200"
                 }`}
               >
                 {currentSeason}
@@ -214,7 +214,7 @@ export function DashboardPage({
             {onOpenAddStudy && (
               <button
                 onClick={onOpenAddStudy}
-                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus size={13} />
                 <span>스터디 등록</span>
@@ -282,7 +282,7 @@ export function DashboardPage({
                                 {hasPhoto && (
                                   <Camera
                                     size={11}
-                                    className="text-blue-600"
+                                    className="text-slate-700"
                                     {...({
                                       title: "인증사진 첨부됨",
                                     } as React.SVGProps<SVGSVGElement>)}
