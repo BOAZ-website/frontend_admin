@@ -1,17 +1,15 @@
-import { useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import {
   BookOpen,
   ChevronDown,
   ChevronRight,
   ClipboardList,
   FileText,
-  LogOut,
   Megaphone,
-  Search,
   Settings,
-  X,
 } from "lucide-react";
 
+import boazLogo from "@/shared/assets/boaz-logo.png";
 import type { UserRole } from "@/entities/user/model/types";
 import type { ActivePage } from "@/shared/config/activePage";
 
@@ -99,15 +97,15 @@ const SIDEBAR_NAV = [
       {
         title: "출결 입력",
         pages: [
-          { id: "att-input-adv", label: "ADV 입력 및 증빙 (팀장용)" },
-          { id: "att-input-study", label: "스터디 입력 및 증빙 (팀장용)" },
+          { id: "att-input-adv", label: "ADV Term 출결 입력" },
+          { id: "att-input-study", label: "스터디 출결 입력" },
         ],
       },
       {
         title: "설정",
         pages: [
-          { id: "att-hosts", label: "HOST 계정·팀 연결 (ID/PW 발급)" },
-          { id: "att-rules", label: "점수 규칙" },
+          { id: "att-hosts", label: "HOST 계정 관리" },
+          { id: "att-rules", label: "출결 규정 관리" },
         ],
       },
     ],
@@ -122,7 +120,7 @@ const SIDEBAR_NAV = [
         title: "계정 및 권한",
         pages: [
           { id: "system-accounts", label: "운영진 계정 관리 (CRUD)" },
-          { id: "system-permissions", label: "권한 매트릭스 (10대 Permission)" },
+          { id: "system-permissions", label: "권한 매트릭스" },
         ],
       },
       {
@@ -140,247 +138,309 @@ export function Sidebar({
   onClose,
   currentRole,
   onToggleRole: _onToggleRole,
-  onOpenLogin,
-  loggedHostTeam,
-  loggedUsername,
+  onOpenLogin: _onOpenLogin,
+  loggedHostTeam: _loggedHostTeam,
+  loggedUsername: _loggedUsername,
 }: {
   activePage: ActivePage;
   onChange: (p: ActivePage) => void;
   open: boolean;
   onClose: () => void;
   currentRole: UserRole;
-  onToggleRole: () => void;
-  onOpenLogin: () => void;
+  onToggleRole?: () => void;
+  onOpenLogin?: () => void;
   loggedHostTeam?: string;
   loggedUsername?: string;
 }) {
-  const [expanded, setExpanded] = useState<string>("recruiting");
-  const [navSearch, setNavSearch] = useState("");
+  const getSectionIdFromPage = (page?: string): string => {
+    if (!page || typeof page !== "string") return "recruiting";
+    if (page.startsWith("content")) return "content";
+    if (page.startsWith("recruiting")) return "recruiting";
+    if (page.startsWith("evaluation")) return "evaluation";
+    if (page.startsWith("att-")) return "attendance";
+    if (page.startsWith("system")) return "system";
+    return "recruiting";
+  };
 
-  const filteredNav = SIDEBAR_NAV.filter((section) => {
-    if (!navSearch.trim()) {
-      return true;
-    }
-    const q = navSearch.toLowerCase();
-    const allPages = section.groups.flatMap((g) => g.pages);
-    return (
-      section.label.toLowerCase().includes(q) ||
-      allPages.some((p) => p.label.toLowerCase().includes(q))
-    );
+  const [expandedSection, setExpandedSection] = useState<string>(() => {
+    return getSectionIdFromPage(activePage);
   });
 
+  useEffect(() => {
+    const currentSection = getSectionIdFromPage(activePage);
+    setExpandedSection(currentSection);
+  }, [activePage]);
+
+  const toggleSection = (sectionId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setExpandedSection((prev) => (prev === sectionId ? "" : sectionId));
+  };
+
+  // Notion-style Resizable Sidebar Width (Stored in localStorage)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_sidebar_width");
+      return saved ? Math.max(180, Math.min(480, Number(saved))) : 260;
+    } catch {
+      return 260;
+    }
+  });
+
+  const [isResizing, setIsResizing] = useState(false);
+  const dragStartRef = useRef<{ x: number; isDrag: boolean }>({ x: 0, isDrag: false });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    dragStartRef.current = { x: e.clientX, isDrag: false };
+    setIsResizing(true);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      dragStartRef.current = { x: e.touches[0].clientX, isDrag: false };
+      setIsResizing(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (Math.abs(e.clientX - dragStartRef.current.x) > 3) {
+        dragStartRef.current.isDrag = true;
+      }
+      const newWidth = Math.max(180, Math.min(480, e.clientX));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        if (Math.abs(e.touches[0].clientX - dragStartRef.current.x) > 3) {
+          dragStartRef.current.isDrag = true;
+        }
+        const newWidth = Math.max(180, Math.min(480, e.touches[0].clientX));
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      if (!dragStartRef.current.isDrag) {
+        onClose();
+      } else {
+        try {
+          localStorage.setItem("boaz_sidebar_width", String(sidebarWidth));
+        } catch {}
+      }
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("touchmove", handleTouchMove);
+    window.addEventListener("touchend", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing, sidebarWidth, onClose]);
+
+  useEffect(() => {
+    if (currentRole === "HOST") {
+      setExpandedSection("attendance");
+    } else if (currentRole === "CONTENT_ADMIN") {
+      setExpandedSection("content");
+    }
+  }, [currentRole]);
+
+  const filteredNav = SIDEBAR_NAV.filter((section) => {
+    if (currentRole === "HOST") {
+      return section.id === "attendance";
+    }
+    if (currentRole === "CONTENT_ADMIN") {
+      return section.id === "content";
+    }
+    return true;
+  }).map((section) => {
+    if (currentRole === "HOST" && section.id === "attendance") {
+      return {
+        ...section,
+        groups: section.groups.filter((g) => g.title === "출결 입력"),
+      };
+    }
+    return section;
+  });
+
+  if (!open) {
+    return null;
+  }
+
   return (
-    <>
-      {open && (
-        <div
-          className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-20 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-      <aside
-        className={`fixed top-0 left-0 h-full z-30 w-72 flex flex-col transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto bg-white border-r border-slate-200/80 shadow-[0_0_15px_rgba(0,0,0,0.03)] ${open ? "translate-x-0" : "-translate-x-full"}`}
-        style={{ fontFamily: "'Pretendard', 'Noto Sans KR', -apple-system, sans-serif" }}
+    <aside
+      style={{
+        width: `${sidebarWidth}px`,
+        fontFamily: "'Pretendard', 'Noto Sans KR', -apple-system, sans-serif",
+      }}
+      className={`relative shrink-0 h-full flex flex-col bg-white border-r border-slate-200/40 shadow-[0_0_15px_rgba(0,0,0,0.02)] select-none z-20 transition-[width] ${
+        isResizing ? "transition-none" : "duration-75"
+      }`}
+    >
+      {/* Brand Header */}
+      <div className="h-14 shrink-0 px-4 flex items-center justify-between border-b border-slate-100 bg-white">
+        <div className="flex items-center gap-2.5">
+          <img
+            src={boazLogo}
+            alt="bigdata BOAZ"
+            className="w-8 h-8 rounded-full object-contain shrink-0 select-none border border-slate-100/80 shadow-2xs"
+          />
+          <span className="text-sm font-semibold text-slate-900 tracking-tight whitespace-nowrap">
+            bigdata BOAZ
+          </span>
+        </div>
+      </div>
+
+      {/* Navigation List */}
+      <nav
+        className="flex-1 overflow-y-auto px-3 py-3 space-y-1"
+        style={{ scrollbarWidth: "none" }}
       >
-        {/* Brand Header */}
-        <div className="p-5 flex items-center justify-between border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 flex items-center justify-center text-white font-black text-base shadow-md shadow-blue-500/20 tracking-tighter">
-              B
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-extrabold text-slate-900 tracking-tight">
-                  BOAZ Console
-                </span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-blue-50 text-blue-600 border border-blue-200/60">
-                  v28
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-600 font-medium">빅데이터 동아리 관리 시스템</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="lg:hidden text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        {filteredNav.map((section) => {
+          const Icon = section.icon;
+          const isExpanded = expandedSection === section.id;
+          const isSelected = Boolean(
+            activePage &&
+              (activePage.startsWith(section.id) ||
+                (section.id === "attendance" && activePage.startsWith("att-")))
+          );
 
-        {/* Search Toolbar */}
-        <div className="px-4 pt-3.5 pb-2">
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-2.5 text-slate-400" />
-            <input
-              value={navSearch}
-              onChange={(e) => setNavSearch(e.target.value)}
-              placeholder="메뉴 및 기능 검색..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-slate-50 border border-slate-200/80 text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs font-medium"
-            />
-            {navSearch && (
-              <button
-                onClick={() => setNavSearch("")}
-                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+          return (
+            <div key={section.id} className="space-y-0.5">
+              {/* Top-level Section Category Button */}
+              <div
+                onClick={() => {
+                  toggleSection(section.id);
+                  if (section.id === "recruiting") {
+                    onChange("recruiting-posts");
+                  } else if (section.id === "evaluation") {
+                    onChange("evaluation-evals");
+                  } else if (section.id === "attendance") {
+                    onChange(currentRole === "HOST" ? "att-input-study" : "att-session");
+                  } else if (section.id === "content") {
+                    onChange("content-archive");
+                  } else if (section.id === "system") {
+                    onChange("system-accounts");
+                  }
+                }}
+                className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-left transition-all cursor-pointer group select-none ${
+                  isSelected
+                    ? "bg-slate-100/90 text-slate-950 font-bold shadow-2xs"
+                    : "text-slate-700 hover:bg-slate-100/60 hover:text-slate-950 font-semibold"
+                }`}
               >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Navigation List */}
-        <nav
-          className="flex-1 overflow-y-auto px-3 py-2 space-y-1"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {filteredNav.map((section, _sIdx) => {
-            const Icon = section.icon;
-            const isExpanded = expanded === section.id || navSearch.trim().length > 0;
-            const isSelected =
-              activePage.startsWith(section.id) ||
-              (section.id === "attendance" && activePage.startsWith("att-"));
-            const isSystem = section.id === "system";
-
-            return (
-              <div key={section.id} className="space-y-1">
-                {/* System Section Divider */}
-                {isSystem && (
-                  <div className="pt-3 mt-3.5 mb-1.5 border-t border-slate-200/80">
-                    <p className="px-3 text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
-                      시스템 설정
-                    </p>
-                  </div>
-                )}
-
-                {/* Top-level Category Button */}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon
+                    size={15}
+                    strokeWidth={isSelected ? 2.2 : 1.8}
+                    className={`shrink-0 transition-colors ${
+                      isSelected ? "text-sky-500" : "text-slate-400 group-hover:text-slate-600"
+                    }`}
+                  />
+                  <span className="text-[12.5px] font-bold tracking-tight truncate">
+                    {section.label}
+                  </span>
+                </div>
                 <button
-                  onClick={() => {
-                    setExpanded(isExpanded && !navSearch ? "" : section.id);
-                    if (section.id === "recruiting") {
-                      onChange("recruiting-posts");
-                    }
-                    if (section.id === "evaluation") {
-                      onChange("evaluation-evals");
-                    }
-                    if (section.id === "attendance") {
-                      onChange("att-session");
-                    }
-                    if (section.id === "content") {
-                      onChange("content-archive");
-                    }
-                    if (section.id === "system") {
-                      onChange("system-accounts");
-                    }
-                  }}
-                  className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-left transition-all cursor-pointer group ${
-                    isSelected
-                      ? "bg-blue-50/90 text-blue-900 font-bold shadow-2xs"
-                      : "text-slate-800 hover:bg-slate-100/70 hover:text-slate-950 font-bold"
-                  }`}
+                  type="button"
+                  onClick={(e) => toggleSection(section.id, e)}
+                  className="p-1 -mr-1 rounded-md hover:bg-slate-200/70 transition-colors text-slate-400 hover:text-slate-700 cursor-pointer"
+                  title={isExpanded ? "접기" : "펼치기"}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Icon
-                      size={15}
-                      strokeWidth={isSelected ? 2.2 : 1.8}
-                      className={`shrink-0 transition-colors ${
-                        isSelected ? "text-blue-600" : "text-slate-500 group-hover:text-slate-800"
-                      }`}
-                    />
-                    <span className="text-[12.5px] font-bold tracking-tight truncate">
-                      {section.label}
-                    </span>
-                  </div>
                   {isExpanded ? (
-                    <ChevronDown
-                      size={14}
-                      className={isSelected ? "text-blue-600" : "text-slate-400"}
-                    />
+                    <ChevronDown size={14} className="text-slate-500" />
                   ) : (
                     <ChevronRight size={14} className="text-slate-400" />
                   )}
                 </button>
-
-                {/* Expanded Submenu */}
-                {isExpanded && (
-                  <div className="ml-2 pt-1 pb-2.5 mb-1 space-y-3 border-b border-slate-100">
-                    {section.groups.map((grp, gIdx) => (
-                      <div key={gIdx} className="space-y-1">
-                        {grp.title && (
-                          <div className="text-[11.5px] font-bold text-slate-800 px-2 pt-1 pb-0.5 tracking-tight flex items-center justify-between">
-                            <span>{grp.title}</span>
-                          </div>
-                        )}
-                        <div className="ml-2.5 pl-2.5 border-l-2 border-slate-100 space-y-0.5">
-                          {grp.pages.map((page) => {
-                            const isActive = activePage === page.id;
-                            return (
-                              <button
-                                key={page.id}
-                                onClick={() => {
-                                  onChange(page.id as ActivePage);
-                                  onClose();
-                                }}
-                                className={`flex items-center w-full px-2.5 py-1.5 rounded-lg text-left text-xs transition-all cursor-pointer ${
-                                  isActive
-                                    ? "bg-blue-600 text-white shadow-xs font-bold"
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 font-medium"
-                                }`}
-                              >
-                                <span className="truncate">{page.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            );
-          })}
-        </nav>
-        {/* User Footer Card */}
-        <div className="p-3 border-t border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-2.5 px-2">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shadow-2xs text-white bg-slate-900">
-              {currentRole === "SUPER"
-                ? "대표"
-                : currentRole === "CONTENT_ADMIN"
-                  ? "운영"
-                  : currentRole === "HOST"
-                    ? "팀장"
-                    : "지원"}
+
+              {/* Submenu Accordion */}
+              {isExpanded && (
+                <div className="ml-2 pl-2.5 py-1 space-y-2 border-l border-slate-100 animate-in fade-in duration-100">
+                  {section.groups.map((grp, gIdx) => (
+                    <div key={gIdx} className="space-y-0.5">
+                      {grp.title && (
+                        <p className="text-[10.5px] font-bold text-slate-400 px-2 pt-1 pb-0.5 tracking-tight uppercase select-none">
+                          {grp.title}
+                        </p>
+                      )}
+                      <div className="space-y-0.5">
+                        {grp.pages.map((page) => {
+                          const isActive = activePage === page.id;
+                          return (
+                            <button
+                              key={page.id}
+                              onClick={() => onChange(page.id as ActivePage)}
+                              className={`flex items-center w-full px-2.5 py-1.5 rounded-lg text-left text-xs transition-all cursor-pointer ${
+                                isActive
+                                  ? "bg-sky-50 text-sky-600 font-bold shadow-2xs"
+                                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-medium"
+                              }`}
+                            >
+                              <span className="truncate">{page.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-slate-800 truncate">
-                {currentRole === "SUPER"
-                  ? "차기대표진 (SUPER)"
-                  : currentRole === "CONTENT_ADMIN"
-                    ? "서비스운영팀"
-                    : currentRole === "HOST"
-                      ? `${loggedHostTeam || "A팀"} (${loggedUsername || "host_a"})`
-                      : "운영지원팀 (admin)"}
-              </p>
-              <p className="text-[10px] text-slate-400 font-mono truncate">
-                {currentRole === "SUPER"
-                  ? "전 부문 총괄 승격 권한"
-                  : currentRole === "CONTENT_ADMIN"
-                    ? "콘텐츠 관리 권한"
-                    : currentRole === "HOST"
-                      ? "출결 입력 권한"
-                      : "출결 관리/승인 권한"}
-              </p>
+          );
+        })}
+      </nav>
+
+      {/* Notion-style Right Resizer Drag & Close Handle */}
+      <div
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        className="absolute top-0 -right-1 w-2.5 h-full cursor-col-resize select-none z-30 group flex items-center justify-center"
+      >
+        {/* Extremely faint guide line on hover / drag */}
+        <div
+          className={`w-[1px] h-full transition-colors duration-150 ${
+            isResizing ? "bg-slate-300" : "bg-transparent group-hover:bg-slate-300/40"
+          }`}
+        />
+
+        {/* Notion-style Floating Toast / Tooltip */}
+        <div
+          className={`absolute top-20 left-3.5 z-50 pointer-events-none transition-all duration-150 ease-out whitespace-nowrap ${
+            isResizing
+              ? "opacity-0 scale-95"
+              : "opacity-0 group-hover:opacity-100 group-hover:translate-x-0 -translate-x-1"
+          }`}
+        >
+          <div className="bg-[#2b2d31] text-white px-2.5 py-1.5 rounded-[6px] shadow-lg border border-white/5 flex flex-col gap-0.5 text-[12px] leading-snug tracking-tight">
+            <div className="flex items-center gap-1.5">
+              <span className="font-medium text-white">닫기</span>
+              <span className="text-[#9b9ea4] font-normal">클릭하거나 Ctrl+\ 사용</span>
             </div>
-            <button
-              onClick={onOpenLogin}
-              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
-              title="로그아웃 / 계정 변경"
-            >
-              <LogOut size={14} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <span className="font-medium text-white">크기 조정</span>
+              <span className="text-[#9b9ea4] font-normal">드래그</span>
+            </div>
           </div>
         </div>
-      </aside>
-    </>
+      </div>
+    </aside>
   );
 }

@@ -2,6 +2,7 @@ export interface Member {
   id: string;
   name: string;
   year: string;
+  track?: string;
 }
 
 export type StudyPeriodType = "방학 스터디" | "학기 스터디";

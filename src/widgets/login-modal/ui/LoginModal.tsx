@@ -70,6 +70,16 @@ export function LoginModal({
       return;
     }
 
+    // 4. ADV 팀장 계정 테스트 지원 (host_adv1, adv1 등)
+    if (
+      (u === "host_adv" || u === "host_adv1" || u === "adv1") &&
+      (p === "boaz2026!a" || p === "1234")
+    ) {
+      onLoginSuccess("HOST", "분석 1팀", u);
+      onClose();
+      return;
+    }
+
     setErrorMsg("아이디 또는 비밀번호가 일치하지 않습니다. (아래 퀵 로그인 버튼을 이용해 보세요)");
   }
 
@@ -151,17 +161,21 @@ export function LoginModal({
               onClick={() => {
                 const targetTeam = selectedQuickHostTeam;
                 const h = hosts.find((item) => item.team === targetTeam);
+                const isAdvTarget =
+                  targetTeam.startsWith("분석") ||
+                  targetTeam.startsWith("시각화") ||
+                  targetTeam.startsWith("엔지");
                 onLoginSuccess(
                   "HOST",
                   targetTeam,
-                  h?.username || `host_${targetTeam.toLowerCase()}`
+                  h?.username || (isAdvTarget ? "host_adv1" : `host_${targetTeam.toLowerCase()}`)
                 );
                 onClose();
               }}
               className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-left cursor-pointer transition-colors"
             >
-              <div className="flex items-center justify-between">
-                <p className="font-bold">{selectedQuickHostTeam} 스터디장</p>
+              <div className="flex items-center justify-between gap-1">
+                <p className="font-bold truncate">{selectedQuickHostTeam} 팀장</p>
                 <select
                   value={selectedQuickHostTeam}
                   onChange={(e) => {
@@ -169,17 +183,25 @@ export function LoginModal({
                     setSelectedQuickHostTeam(e.target.value);
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-[10px] bg-white border border-emerald-300 rounded px-1 py-0.5 font-sans"
+                  className="text-[10px] bg-white border border-emerald-300 rounded px-1 py-0.5 font-sans shrink-0"
                 >
-                  {studyTeams.map((t) => (
-                    <option key={t.teamName} value={t.teamName}>
-                      {t.teamName}
-                    </option>
-                  ))}
+                  <optgroup label="스터디 팀">
+                    {studyTeams.map((t) => (
+                      <option key={t.teamName} value={t.teamName}>
+                        {t.teamName}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="ADV 프로젝트 팀">
+                    <option value="분석 1팀">분석 1팀</option>
+                    <option value="분석 2팀">분석 2팀</option>
+                    <option value="시각화 1팀">시각화 1팀</option>
+                    <option value="엔지니어링 1팀">엔지니어링 1팀</option>
+                  </optgroup>
                 </select>
               </div>
               <p className="text-[10px] text-emerald-600 font-mono">
-                {currentSelectedHost?.username || `host_${selectedQuickHostTeam.toLowerCase()}`}{" "}
+                {currentSelectedHost?.username || (selectedQuickHostTeam.startsWith("분석") || selectedQuickHostTeam.startsWith("시각화") || selectedQuickHostTeam.startsWith("엔지") ? "host_adv" : `host_${selectedQuickHostTeam.toLowerCase()}`)}{" "}
                 (HOST)
               </p>
             </button>

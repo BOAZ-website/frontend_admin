@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Bell, KeyRound, LogIn, Menu, ShieldCheck, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronRight, KeyRound, PanelLeft, ShieldCheck, User, X } from "lucide-react";
 
 import { DashboardPage } from "@/pages/attendance-dashboard/ui/DashboardPage";
 import { EventAttendanceManagePage } from "@/pages/attendance-events/ui/EventAttendanceManagePage";
@@ -32,6 +32,56 @@ import type { UserRole } from "@/entities/user/model/types";
 import type { ActivePage } from "@/shared/config/activePage";
 import { PAGE_LABELS } from "@/shared/config/pageLabels";
 
+const VALID_ACTIVE_PAGES = new Set<string>([
+  "att-dashboard",
+  "att-events",
+  "att-hosts",
+  "att-scores",
+  "att-rules",
+  "att-input",
+  "att-input-adv",
+  "att-input-study",
+  "att-session",
+  "att-adv",
+  "att-study",
+  "att-internal",
+  "content-archive",
+  "content-faq",
+  "content-curriculum",
+  "content-reviews",
+  "content",
+  "recruiting",
+  "recruiting-posts",
+  "recruiting-questions",
+  "recruiting-preview",
+  "recruiting-csv",
+  "recruiting-leads",
+  "evaluation",
+  "evaluation-evals",
+  "evaluation-applicants",
+  "evaluation-promote",
+  "system",
+  "system-accounts",
+  "system-permissions",
+  "system-audit",
+]);
+
+function getInitialActivePage(): ActivePage {
+  try {
+    const hash = window.location.hash.replace(/^#/, "");
+    if (hash && VALID_ACTIVE_PAGES.has(hash)) {
+      return hash as ActivePage;
+    }
+    const saved = localStorage.getItem("boaz_active_page");
+    if (saved && VALID_ACTIVE_PAGES.has(saved)) {
+      return saved as ActivePage;
+    }
+  } catch {
+    // ignore
+  }
+  return "recruiting-posts";
+}
+
 export default function App() {
   const [scoreRules, setScoreRules] = useState<ScoreRule[]>(() => {
     try {
@@ -58,17 +108,135 @@ export default function App() {
     }
   };
 
-  const [activePage, setActivePage] = useState<ActivePage>("recruiting");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activePage, setActivePage] = useState<ActivePage>(getInitialActivePage);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boaz_active_page", activePage);
+      if (window.location.hash.replace(/^#/, "") !== activePage) {
+        window.history.replaceState(null, "", `#${activePage}`);
+      }
+    } catch {
+      // ignore
+    }
+  }, [activePage]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (hash && VALID_ACTIVE_PAGES.has(hash)) {
+        setActivePage(hash as ActivePage);
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_sidebar_open_v2");
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("boaz_sidebar_open_v2", String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  // Notion-style Ctrl+\ (or Cmd+\) shortcut to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "\\") {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
   const [studyTeams, setStudyTeams] = useState<StudyTeamInfo[]>(INITIAL_STUDY_TEAMS);
   const [membersMap, setMembersMap] = useState<Record<string, Member[]>>(MEMBERS);
   const [attendance, setAttendance] = useState<AttendanceState>(buildInitialAttendance);
   const [hosts, setHosts] = useState<HostAccount[]>(INITIAL_HOSTS);
   const [exceptions, setExceptions] = useState<ExceptionRequest[]>(INITIAL_EXCEPTIONS);
-  const [currentRole, setCurrentRole] = useState<UserRole>("SUPER");
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_user_role");
+      if (saved && ["TEAM", "HOST", "CONTENT_ADMIN", "SUPER"].includes(saved)) {
+        return saved as UserRole;
+      }
+    } catch {}
+    return "SUPER";
+  });
 
-  const [loggedHostTeam, setLoggedHostTeam] = useState<string>("A팀");
-  const [loggedUsername, setLoggedUsername] = useState<string>("super");
+  const [loggedHostTeam, setLoggedHostTeam] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_host_team");
+      if (saved) return saved;
+    } catch {}
+    return "A팀";
+  });
+
+  const [loggedUsername, setLoggedUsername] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem("boaz_username");
+      if (saved) return saved;
+    } catch {}
+    return "super";
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boaz_user_role", currentRole);
+    } catch {}
+  }, [currentRole]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boaz_host_team", loggedHostTeam);
+    } catch {}
+  }, [loggedHostTeam]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("boaz_username", loggedUsername);
+    } catch {}
+  }, [loggedUsername]);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("boaz_is_logged_in") !== "false";
+    } catch {
+      return true;
+    }
+  });
+
+  const displayName = useMemo(() => {
+    if (currentRole === "HOST") {
+      return loggedUsername || `${loggedHostTeam} 팀장`;
+    }
+    return "남민서";
+  }, [currentRole, loggedHostTeam, loggedUsername]);
+
+  function handleLogout() {
+    if (window.confirm("로그아웃 하시겠습니까?")) {
+      setIsLoggedIn(false);
+      try {
+        localStorage.setItem("boaz_is_logged_in", "false");
+      } catch {}
+      setLoginModalOpen(true);
+    }
+  }
+
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [myCurrentPw, setMyCurrentPw] = useState("");
@@ -273,11 +441,20 @@ export default function App() {
   }
 
   function handleLoginSuccess(role: UserRole, hostTeam?: string, username?: string) {
+    setIsLoggedIn(true);
+    try {
+      localStorage.setItem("boaz_is_logged_in", "true");
+    } catch {}
     setCurrentRole(role);
     if (role === "HOST") {
-      setLoggedHostTeam(hostTeam || studyTeams[0]?.teamName || "A팀");
+      const chosenTeam = hostTeam || studyTeams[0]?.teamName || "A팀";
+      setLoggedHostTeam(chosenTeam);
       setLoggedUsername(username || "host_a");
-      setActivePage("att-input");
+      const isAdvTeam =
+        chosenTeam.startsWith("분석") ||
+        chosenTeam.startsWith("시각화") ||
+        chosenTeam.startsWith("엔지");
+      setActivePage(isAdvTeam ? "att-input-adv" : "att-input-study");
     } else if (role === "CONTENT_ADMIN") {
       setLoggedUsername("content");
       setActivePage("content-archive");
@@ -313,10 +490,10 @@ export default function App() {
     setShowMyProfileModal(false);
   }
 
-  const isRecruiting = activePage.startsWith("recruiting");
-  const isEvaluation = activePage.startsWith("evaluation");
-  const isContentPage = activePage.startsWith("content");
-  const isAttendancePage = activePage.startsWith("att-");
+  const isRecruiting = Boolean(activePage?.startsWith("recruiting"));
+  const isEvaluation = Boolean(activePage?.startsWith("evaluation"));
+  const isContentPage = Boolean(activePage?.startsWith("content"));
+  const isAttendancePage = Boolean(activePage?.startsWith("att-"));
 
   return (
     <div
@@ -330,7 +507,12 @@ export default function App() {
         activePage={activePage}
         onChange={setActivePage}
         open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        onClose={() => {
+          setSidebarOpen(false);
+          try {
+            localStorage.setItem("boaz_sidebar_open_v2", "false");
+          } catch {}
+        }}
         currentRole={currentRole}
         onToggleRole={handleToggleRole}
         onOpenLogin={() => setLoginModalOpen(true)}
@@ -340,67 +522,87 @@ export default function App() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f8fafc]">
         {/* Topbar */}
-        <header className="h-14 shrink-0 flex items-center justify-between px-8 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] z-10">
-          <div className="flex items-center gap-3">
+        <header className="h-14 shrink-0 flex items-center justify-between px-6 bg-white border-b border-slate-200/80 select-none z-10">
+          <div className="flex items-center gap-2.5">
             <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-slate-500 hover:text-slate-900 cursor-pointer p-1 rounded-lg hover:bg-slate-100"
+              onClick={toggleSidebar}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+              title={sidebarOpen ? "사이드바 접기" : "사이드바 열기"}
             >
-              <Menu size={18} />
+              <PanelLeft size={16} />
             </button>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              {isRecruiting && (
-                <>
-                  <span>리크루팅</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              {isEvaluation && (
-                <>
-                  <span>서류 평가</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              {isContentPage && (
-                <>
-                  <span>콘텐츠 관리</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              {isAttendancePage && (
-                <>
-                  <span>출결 관리</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              <span className="text-slate-900 font-bold tracking-tight">
-                {PAGE_LABELS[activePage] || "관리자 콘솔"}
-              </span>
-            </div>
+
+            {!sidebarOpen && (
+              <>
+                <div className="w-[1px] h-3.5 bg-slate-200" />
+
+                <div className="flex items-center gap-1.5 text-xs">
+                  {isRecruiting && (
+                    <>
+                      <span className="font-medium text-slate-500">리크루팅</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  {isEvaluation && (
+                    <>
+                      <span className="font-medium text-slate-500">서류 평가</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  {isContentPage && (
+                    <>
+                      <span className="font-medium text-slate-500">콘텐츠 관리</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  {isAttendancePage && (
+                    <>
+                      <span className="font-medium text-slate-500">출결 관리</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  <span className="text-slate-900 font-semibold tracking-tight">
+                    {PAGE_LABELS[activePage] || "관리자 콘솔"}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] px-3 py-1 rounded-full font-mono font-semibold hidden sm:inline-block bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
-              {currentRole === "SUPER"
-                ? "차기대표진 (SUPER)"
-                : currentRole === "HOST"
-                  ? `HOST (${loggedHostTeam || "A팀"})`
-                  : currentRole === "CONTENT_ADMIN"
-                    ? "서비스운영팀"
-                    : "운영지원팀"}
-            </span>
-            <button
-              onClick={() => setLoginModalOpen(true)}
-              className="text-xs px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 flex items-center gap-1.5 cursor-pointer shadow-2xs font-semibold transition-colors"
-            >
-              <LogIn size={12} className="text-slate-500" />
-              <span>계정 전환</span>
-            </button>
-            <button className="relative p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors">
-              <Bell size={16} />
-              {exceptions.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 ring-2 ring-white" />
-              )}
-            </button>
+
+          {/* Right User Auth Area (media_1789198942116 style) */}
+          <div className="flex items-center">
+            {isLoggedIn ? (
+              <div className="flex items-center gap-4 text-sm select-none">
+                <button
+                  type="button"
+                  onClick={() => setShowMyProfileModal(true)}
+                  className="flex items-center gap-1.5 font-semibold text-slate-900 hover:text-slate-700 transition-colors cursor-pointer group"
+                  title="내 프로필 정보 확인"
+                >
+                  <User
+                    size={14}
+                    className="text-slate-800 fill-slate-800 group-hover:text-slate-950 group-hover:fill-slate-950 transition-colors"
+                  />
+                  <span>{displayName}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-sm text-slate-500 hover:text-slate-900 font-normal transition-colors cursor-pointer"
+                >
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setLoginModalOpen(true)}
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                <User size={14} className="text-slate-700 fill-slate-700" />
+                <span>로그인</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -449,18 +651,21 @@ export default function App() {
             <InternalCategoryAttendancePage
               category="SESSION"
               activeScoreRule={scoreRules.find((r) => r.status === "ACTIVE")}
+              attendance={attendance}
             />
           )}
           {activePage === "att-adv" && (
             <InternalCategoryAttendancePage
               category="ADV"
               activeScoreRule={scoreRules.find((r) => r.status === "ACTIVE")}
+              attendance={attendance}
             />
           )}
           {activePage === "att-study" && (
             <InternalCategoryAttendancePage
               category="STUDY"
               activeScoreRule={scoreRules.find((r) => r.status === "ACTIVE")}
+              attendance={attendance}
             />
           )}
           {activePage === "att-events" && <EventAttendanceManagePage />}
@@ -471,11 +676,17 @@ export default function App() {
             activePage === "att-input-adv" ||
             activePage === "att-input-study") && (
             <InputPage
+              pageTitle={
+                activePage === "att-input-study"
+                  ? "스터디 출결 입력"
+                  : "ADV Term 출결 입력"
+              }
               attendance={attendance}
               setAttendance={setAttendance}
               onRequestException={handleRequestException}
               currentHostTeam={loggedHostTeam}
               studyTeams={studyTeams}
+              setStudyTeams={setStudyTeams}
               membersMap={membersMap}
               setMembersMap={setMembersMap}
               currentRole={currentRole}
