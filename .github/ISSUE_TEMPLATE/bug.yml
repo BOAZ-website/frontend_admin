@@ -1,0 +1,62 @@
+name: 버그 신고
+description: 재현 가능한 오류나 예상과 다른 동작을 신고합니다.
+title: 'fix: '
+labels:
+  - bug
+body:
+  - type: checkboxes
+    id: duplicate-check
+    attributes:
+      label: 중복 확인
+      options:
+        - label: 기존 이슈에 같은 오류가 없는지 확인했습니다.
+          required: true
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: 현재 동작
+      description: 실제로 발생한 문제를 작성해 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: 기대 동작
+      description: 정상이라면 어떻게 동작해야 하는지 작성해 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 재현 방법
+      description: 다른 사람이 같은 문제를 확인할 수 있도록 순서대로 작성해 주세요.
+      placeholder: |
+        1. ... 페이지로 이동한다.
+        2. ... 버튼을 누른다.
+        3. ... 오류를 확인한다.
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: 실행 환경
+      description: 브라우저, 운영체제, 계정 권한 등 문제와 관련된 환경을 작성해 주세요.
+      placeholder: 예) Chrome 140, Windows 11, HOST 권한
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 로그 및 화면 자료
+      description: 오류 로그, 스크린샷 또는 영상을 첨부해 주세요. 민감한 정보는 제거해 주세요.
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 추가 정보
+      description: 발생 빈도, 임시 해결 방법 또는 관련 이슈가 있다면 작성해 주세요.
