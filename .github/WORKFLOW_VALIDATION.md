@@ -1,6 +1,18 @@
 # 워크플로우 검증 기록
 
-원격 적용 전 상태와 검증 증거를 구분해 기록합니다. 로컬 통과는 실제 GitHub 실행 성공을 의미하지 않습니다.
+로컬 검증과 실제 GitHub 실행 증거를 구분해 기록합니다.
+
+## 도입 PR
+
+- [PR #19 → dev](https://github.com/BOAZ-website/frontend_admin/pull/19), 구현 커밋 `e76e645`.
+- GitHub Actions 네 검사 모두 성공:
+  [lint](https://github.com/BOAZ-website/frontend_admin/actions/runs/34739562706),
+  [format](https://github.com/BOAZ-website/frontend_admin/actions/runs/34739562699),
+  [typecheck](https://github.com/BOAZ-website/frontend_admin/actions/runs/34739562708),
+  [build](https://github.com/BOAZ-website/frontend_admin/actions/runs/34739562737).
+- 실제 check 이름은 각각 `lint`, `format`, `typecheck`, `build`임을 확인.
+- 확인 시점 CodeRabbit check/review 없음. 앱 설치·접근 범위·플랜과 자동 리뷰 작동은 관리자 확인 필요.
+- PR 미병합. 보호 규칙은 도입 PR 병합과 팀 정책 확정 후 적용.
 
 ## 원격 확인 (2026-09-13)
 
@@ -24,18 +36,18 @@
 
 ## 실제 PR 검증표
 
-| 시나리오        | 기대 결과                       | 상태 / PR·실행 URL |
-| --------------- | ------------------------------- | ------------------ |
-| 정상 변경 → dev | 네 검사 성공, 일반 PR 자동 리뷰 | 원격 실행 전       |
-| 포맷 위반       | format 실패                     | 원격 실행 전       |
-| ESLint 위반     | lint 실패                       | 원격 실행 전       |
-| 타입 오류       | typecheck 실패                  | 원격 실행 전       |
-| 번들 오류       | 타입 통과 후 build 실패         | 원격 실행 전       |
-| 수정 후 push    | 최신 SHA의 네 검사 성공         | 원격 실행 전       |
-| 문서만 변경     | 네 검사 완료, Pending 없음      | 원격 실행 전       |
-| dev → main      | 네 검사와 리뷰 확인             | 원격 실행 전       |
-| 보호 후 실패 PR | 병합 차단                       | 보호 적용 전       |
-| 보호 후 정상 PR | 사람 승인 후 병합 가능          | 보호 적용 전       |
+| 시나리오        | 기대 결과                       | 상태 / PR·실행 URL                     |
+| --------------- | ------------------------------- | -------------------------------------- |
+| 정상 변경 → dev | 네 검사 성공, 일반 PR 자동 리뷰 | PR #19 네 검사 성공 / 자동 리뷰 미확인 |
+| 포맷 위반       | format 실패                     | 원격 실행 전                           |
+| ESLint 위반     | lint 실패                       | 원격 실행 전                           |
+| 타입 오류       | typecheck 실패                  | 원격 실행 전                           |
+| 번들 오류       | 타입 통과 후 build 실패         | 원격 실행 전                           |
+| 수정 후 push    | 최신 SHA의 네 검사 성공         | 원격 실행 전                           |
+| 문서만 변경     | 네 검사 완료, Pending 없음      | 원격 실행 전                           |
+| dev → main      | 네 검사와 리뷰 확인             | 원격 실행 전                           |
+| 보호 후 실패 PR | 병합 차단                       | 보호 적용 전                           |
+| 보호 후 정상 PR | 사람 승인 후 병합 가능          | 보호 적용 전                           |
 
 최소 실패 재현 예시는 포맷이 틀린 TS 파일, 사용하지 않는 지역 변수,
 문자열 변수에 숫자 대입, index.html의 module 진입 경로를 존재하지 않는 파일로 변경하는 것입니다.
