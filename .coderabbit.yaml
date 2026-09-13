@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: ko-KR
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    base_branches:
+      - '^main$'
+      - '^dev$'
+  path_filters:
+    - '!dist/**'
+    - '!build/**'
+    - '!coverage/**'
+    - '!node_modules/**'
+    - '!package-lock.json'
+    - '!src/imports/**'
+  path_instructions:
+    - path: 'src/**/*.{ts,tsx}'
+      instructions: >-
+        한국어로 리뷰하세요. TypeScript 타입 안전성, React Hooks 호출 순서와 의존성,
+        사용자 입력 검증, 오류 처리, 접근성을 확인하세요.
+        의존 방향은 app → pages → widgets → features → entities → shared를 따릅니다.
+        하위 계층에서 상위 계층을 가져오는 의존과 불필요한 같은 계층 간 결합을 확인하세요.
+    - path: '.github/workflows/*.{yml,yaml}'
+      instructions: >-
+        main/dev 대상 PR에서 네 검사가 항상 실행되는지 확인하세요.
+        읽기 전용 권한, 시간 제한, 워크플로우별 동시 실행 그룹,
+        lockfile 설치와 비밀정보 노출 여부를 확인하세요.

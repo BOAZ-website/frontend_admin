@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import {
   BellRing,
   BookOpen,
@@ -27,11 +27,11 @@ import {
   Trash2,
   UserPlus,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-export type QuestionCategory = "COMMON" | "ANALYSIS" | "ENGINEERING" | "VISUALIZATION";
-export type QuestionType = "SHORT_TEXT" | "LONG_TEXT" | "TABLE";
-export type TrackType = "ANALYSIS" | "ENGINEERING" | "VISUALIZATION";
+export type QuestionCategory = 'COMMON' | 'ANALYSIS' | 'ENGINEERING' | 'VISUALIZATION';
+export type QuestionType = 'SHORT_TEXT' | 'LONG_TEXT' | 'TABLE';
+export type TrackType = 'ANALYSIS' | 'ENGINEERING' | 'VISUALIZATION';
 
 export interface ScheduleStep {
   step: string;
@@ -53,7 +53,7 @@ export interface RecruitmentPost {
 export interface LocalApplicant {
   id: number;
   term: number;
-  status: "DRAFT" | "SUBMITTED";
+  status: 'DRAFT' | 'SUBMITTED';
   track: TrackType;
   name: string;
 }
@@ -93,33 +93,33 @@ const INITIAL_POSTS: RecruitmentPost[] = [
   {
     id: 1,
     term: 28,
-    start_date: "2026-08-01T00:00:00",
-    end_date: "2026-08-25T23:59:59",
+    start_date: '2026-08-01T00:00:00',
+    end_date: '2026-08-25T23:59:59',
     is_active: true,
-    created_at: "2026-07-20",
+    created_at: '2026-07-20',
     brochure_url:
-      "https://boaz-bucket.s3.ap-northeast-2.amazonaws.com/brochures/28th_boaz_recruit.pdf",
+      'https://boaz-bucket.s3.ap-northeast-2.amazonaws.com/brochures/28th_boaz_recruit.pdf',
     schedule: [
-      { step: "서류 접수", startDate: "2026-08-01", endDate: "2026-08-25" },
-      { step: "1차 서류 발표", startDate: "2026-08-28", endDate: "2026-08-28" },
-      { step: "2차 면접 전형", startDate: "2026-08-30", endDate: "2026-09-02" },
-      { step: "최종 합격자 발표", startDate: "2026-09-04", endDate: "2026-09-04" },
+      { step: '서류 접수', startDate: '2026-08-01', endDate: '2026-08-25' },
+      { step: '1차 서류 발표', startDate: '2026-08-28', endDate: '2026-08-28' },
+      { step: '2차 면접 전형', startDate: '2026-08-30', endDate: '2026-09-02' },
+      { step: '최종 합격자 발표', startDate: '2026-09-04', endDate: '2026-09-04' },
     ],
   },
   {
     id: 2,
     term: 27,
-    start_date: "2026-01-05T00:00:00",
-    end_date: "2026-01-28T23:59:59",
+    start_date: '2026-01-05T00:00:00',
+    end_date: '2026-01-28T23:59:59',
     is_active: false,
-    created_at: "2025-12-20",
+    created_at: '2025-12-20',
     brochure_url:
-      "https://boaz-bucket.s3.ap-northeast-2.amazonaws.com/brochures/27th_boaz_recruit.pdf",
+      'https://boaz-bucket.s3.ap-northeast-2.amazonaws.com/brochures/27th_boaz_recruit.pdf',
     schedule: [
-      { step: "서류 접수", startDate: "2026-01-05", endDate: "2026-01-28" },
-      { step: "1차 서류 발표", startDate: "2026-01-31", endDate: "2026-01-31" },
-      { step: "2차 면접 전형", startDate: "2026-02-02", endDate: "2026-02-05" },
-      { step: "최종 합격자 발표", startDate: "2026-02-07", endDate: "2026-02-07" },
+      { step: '서류 접수', startDate: '2026-01-05', endDate: '2026-01-28' },
+      { step: '1차 서류 발표', startDate: '2026-01-31', endDate: '2026-01-31' },
+      { step: '2차 면접 전형', startDate: '2026-02-02', endDate: '2026-02-05' },
+      { step: '최종 합격자 발표', startDate: '2026-02-07', endDate: '2026-02-07' },
     ],
   },
 ];
@@ -128,67 +128,67 @@ const INITIAL_LOCAL_APPLICANTS: LocalApplicant[] = [
   ...Array.from({ length: 52 }, (_, i) => ({
     id: 100 + i,
     term: 28,
-    status: "SUBMITTED" as const,
-    track: (i % 3 === 0 ? "ANALYSIS" : i % 3 === 1 ? "ENGINEERING" : "VISUALIZATION") as TrackType,
+    status: 'SUBMITTED' as const,
+    track: (i % 3 === 0 ? 'ANALYSIS' : i % 3 === 1 ? 'ENGINEERING' : 'VISUALIZATION') as TrackType,
     name: `지원자_${i + 1}`,
   })),
   ...Array.from({ length: 24 }, (_, i) => ({
     id: 200 + i,
     term: 28,
-    status: "DRAFT" as const,
-    track: (i % 3 === 0 ? "ANALYSIS" : i % 3 === 1 ? "ENGINEERING" : "VISUALIZATION") as TrackType,
+    status: 'DRAFT' as const,
+    track: (i % 3 === 0 ? 'ANALYSIS' : i % 3 === 1 ? 'ENGINEERING' : 'VISUALIZATION') as TrackType,
     name: `작성중_${i + 1}`,
   })),
   ...Array.from({ length: 110 }, (_, i) => ({
     id: 300 + i,
     term: 27,
-    status: "SUBMITTED" as const,
-    track: (i % 3 === 0 ? "ANALYSIS" : i % 3 === 1 ? "ENGINEERING" : "VISUALIZATION") as TrackType,
+    status: 'SUBMITTED' as const,
+    track: (i % 3 === 0 ? 'ANALYSIS' : i % 3 === 1 ? 'ENGINEERING' : 'VISUALIZATION') as TrackType,
     name: `27기수료_${i + 1}`,
   })),
 ];
 
 const INITIAL_QUESTIONS: ApplicationQuestion[] = [
   {
-    id: "q1",
+    id: 'q1',
     recruitment_id: 28,
-    label: "공통1",
-    category: "COMMON",
-    type: "LONG_TEXT",
-    content: "BOAZ에 지원하게 된 동기와 입부 후 활동 목표를 구체적으로 서술해 주세요.",
+    label: '공통1',
+    category: 'COMMON',
+    type: 'LONG_TEXT',
+    content: 'BOAZ에 지원하게 된 동기와 입부 후 활동 목표를 구체적으로 서술해 주세요.',
     limit_length: 800,
     order_num: 1,
     is_required: true,
     has_answers: true,
   },
   {
-    id: "q2",
+    id: 'q2',
     recruitment_id: 28,
-    label: "공통2",
-    category: "COMMON",
-    type: "LONG_TEXT",
+    label: '공통2',
+    category: 'COMMON',
+    type: 'LONG_TEXT',
     content:
-      "협업 또는 팀 프로젝트 과정에서 발생한 의견 충돌이나 어려움을 주도적으로 해결한 경험을 작성해 주세요.",
+      '협업 또는 팀 프로젝트 과정에서 발생한 의견 충돌이나 어려움을 주도적으로 해결한 경험을 작성해 주세요.',
     limit_length: 800,
     order_num: 2,
     is_required: true,
     has_answers: true,
   },
   {
-    id: "q3",
+    id: 'q3',
     recruitment_id: 28,
-    label: "분석1",
-    category: "ANALYSIS",
-    type: "TABLE",
-    content: "데이터 분석 관련 수강 이력 또는 다뤄본 라이브러리 목록을 입력해 주세요.",
-    description: "과목/라이브러리명, 숙련도, 활용 프로젝트 내용을 행 단위로 작성",
+    label: '분석1',
+    category: 'ANALYSIS',
+    type: 'TABLE',
+    content: '데이터 분석 관련 수강 이력 또는 다뤄본 라이브러리 목록을 입력해 주세요.',
+    description: '과목/라이브러리명, 숙련도, 활용 프로젝트 내용을 행 단위로 작성',
     metadata: {
       multiple: true,
-      columns: ["과목/라이브러리명", "숙련도 (상/중/하)", "활용 경험 및 프로젝트"],
+      columns: ['과목/라이브러리명', '숙련도 (상/중/하)', '활용 경험 및 프로젝트'],
       rows: [
-        "1. 기초 통계학 / 머신러닝",
-        "2. 딥러닝 프레임워크 (PyTorch/TensorFlow)",
-        "3. 데이터 전처리 / SQL",
+        '1. 기초 통계학 / 머신러닝',
+        '2. 딥러닝 프레임워크 (PyTorch/TensorFlow)',
+        '3. 데이터 전처리 / SQL',
       ],
     },
     limit_length: null,
@@ -197,38 +197,38 @@ const INITIAL_QUESTIONS: ApplicationQuestion[] = [
     has_answers: true,
   },
   {
-    id: "q4",
+    id: 'q4',
     recruitment_id: 28,
-    label: "분석2",
-    category: "ANALYSIS",
-    type: "LONG_TEXT",
+    label: '분석2',
+    category: 'ANALYSIS',
+    type: 'LONG_TEXT',
     content:
-      "머신러닝/딥러닝 모델링 프로젝트 중 가설 설정부터 성능 검증까지의 전 과정을 구체적으로 설명해 주세요.",
+      '머신러닝/딥러닝 모델링 프로젝트 중 가설 설정부터 성능 검증까지의 전 과정을 구체적으로 설명해 주세요.',
     limit_length: 1000,
     order_num: 2,
     is_required: true,
     has_answers: false,
   },
   {
-    id: "q5",
+    id: 'q5',
     recruitment_id: 28,
-    label: "엔지니어링1",
-    category: "ENGINEERING",
-    type: "LONG_TEXT",
-    content: "데이터 파이프라인 구축 또는 백엔드/클라우드 인프라 운영 경험을 기술해 주세요.",
+    label: '엔지니어링1',
+    category: 'ENGINEERING',
+    type: 'LONG_TEXT',
+    content: '데이터 파이프라인 구축 또는 백엔드/클라우드 인프라 운영 경험을 기술해 주세요.',
     limit_length: 1000,
     order_num: 1,
     is_required: true,
     has_answers: true,
   },
   {
-    id: "q6",
+    id: 'q6',
     recruitment_id: 28,
-    label: "시각화1",
-    category: "VISUALIZATION",
-    type: "LONG_TEXT",
+    label: '시각화1',
+    category: 'VISUALIZATION',
+    type: 'LONG_TEXT',
     content:
-      "데이터를 효과적으로 전달하기 위해 UI/UX 또는 대시보드를 직접 기획/개발한 경험을 기술해 주세요.",
+      '데이터를 효과적으로 전달하기 위해 UI/UX 또는 대시보드를 직접 기획/개발한 경험을 기술해 주세요.',
     limit_length: 1000,
     order_num: 1,
     is_required: true,
@@ -239,47 +239,47 @@ const INITIAL_QUESTIONS: ApplicationQuestion[] = [
 const INITIAL_LEADS: PreNotificationLead[] = [
   {
     id: 1,
-    name: "이민석",
-    email: "ms.lee@yonsei.ac.kr",
-    phone: "010-4491-0021",
-    interestedTrack: "ANALYSIS",
-    registeredAt: "2026-07-25 14:20",
+    name: '이민석',
+    email: 'ms.lee@yonsei.ac.kr',
+    phone: '010-4491-0021',
+    interestedTrack: 'ANALYSIS',
+    registeredAt: '2026-07-25 14:20',
     notifySent: true,
   },
   {
     id: 2,
-    name: "박지수",
-    email: "jisu.park@korea.ac.kr",
-    phone: "010-8812-9930",
-    interestedTrack: "ENGINEERING",
-    registeredAt: "2026-07-28 19:10",
+    name: '박지수',
+    email: 'jisu.park@korea.ac.kr',
+    phone: '010-8812-9930',
+    interestedTrack: 'ENGINEERING',
+    registeredAt: '2026-07-28 19:10',
     notifySent: true,
   },
   {
     id: 3,
-    name: "최은우",
-    email: "eunwoo@snu.ac.kr",
-    phone: "010-3391-7712",
-    interestedTrack: "VISUALIZATION",
-    registeredAt: "2026-07-30 11:45",
+    name: '최은우',
+    email: 'eunwoo@snu.ac.kr',
+    phone: '010-3391-7712',
+    interestedTrack: 'VISUALIZATION',
+    registeredAt: '2026-07-30 11:45',
     notifySent: true,
   },
   {
     id: 4,
-    name: "김태형",
-    email: "th.kim@hanyang.ac.kr",
-    phone: "010-6629-1829",
-    interestedTrack: "ANALYSIS",
-    registeredAt: "2026-08-01 09:15",
+    name: '김태형',
+    email: 'th.kim@hanyang.ac.kr',
+    phone: '010-6629-1829',
+    interestedTrack: 'ANALYSIS',
+    registeredAt: '2026-08-01 09:15',
     notifySent: false,
   },
   {
     id: 5,
-    name: "정다은",
-    email: "daeun.j@snu.ac.kr",
-    phone: "010-7712-4490",
-    interestedTrack: "ENGINEERING",
-    registeredAt: "2026-08-02 16:30",
+    name: '정다은',
+    email: 'daeun.j@snu.ac.kr',
+    phone: '010-7712-4490',
+    interestedTrack: 'ENGINEERING',
+    registeredAt: '2026-08-02 16:30',
     notifySent: false,
   },
 ];
@@ -310,41 +310,41 @@ function getRecruitmentStatusInfo(post: RecruitmentPost): {
 
   if (now < start) {
     return {
-      label: "모집 예정",
-      subLabel: "UPCOMING",
+      label: '모집 예정',
+      subLabel: 'UPCOMING',
       isActive: false,
-      color: "#d97706",
-      bg: "#fffbeb",
-      border: "#fde68a",
+      color: '#d97706',
+      bg: '#fffbeb',
+      border: '#fde68a',
     };
   } else if (now > end || post.is_active === false) {
     return {
-      label: "모집 마감",
-      subLabel: "CLOSED",
+      label: '모집 마감',
+      subLabel: 'CLOSED',
       isActive: false,
-      color: "#64748b",
-      bg: "#f1f5f9",
-      border: "#cbd5e1",
+      color: '#64748b',
+      bg: '#f1f5f9',
+      border: '#cbd5e1',
     };
   } else {
     return {
-      label: "모집 진행중",
-      subLabel: "ACTIVE",
+      label: '모집 진행중',
+      subLabel: 'ACTIVE',
       isActive: true,
-      color: "#059669",
-      bg: "#ecfdf5",
-      border: "#a7f3d0",
+      color: '#059669',
+      bg: '#ecfdf5',
+      border: '#a7f3d0',
     };
   }
 }
 
 function getLocalApplicantCounts(
   term: number,
-  applicants: LocalApplicant[]
+  applicants: LocalApplicant[],
 ): { draft: number; submitted: number; total: number } {
   const termApplicants = applicants.filter((a) => a.term === term);
-  const draft = termApplicants.filter((a) => a.status === "DRAFT").length;
-  const submitted = termApplicants.filter((a) => a.status === "SUBMITTED").length;
+  const draft = termApplicants.filter((a) => a.status === 'DRAFT').length;
+  const submitted = termApplicants.filter((a) => a.status === 'SUBMITTED').length;
   return { draft, submitted, total: termApplicants.length };
 }
 
@@ -353,65 +353,65 @@ const CATEGORY_META: Record<
   { label: string; short: string; color: string; bg: string; border: string }
 > = {
   COMMON: {
-    label: "전체 공통 문항",
-    short: "공통",
-    color: "#334155",
-    bg: "#f1f5f9",
-    border: "#cbd5e1",
+    label: '전체 공통 문항',
+    short: '공통',
+    color: '#334155',
+    bg: '#f1f5f9',
+    border: '#cbd5e1',
   },
   ANALYSIS: {
-    label: "데이터 분석 트랙",
-    short: "분석",
-    color: "#0f172a",
-    bg: "#f8fafc",
-    border: "#cbd5e1",
+    label: '데이터 분석 트랙',
+    short: '분석',
+    color: '#0f172a',
+    bg: '#f8fafc',
+    border: '#cbd5e1',
   },
   ENGINEERING: {
-    label: "데이터 엔지니어링 트랙",
-    short: "엔지니어링",
-    color: "#0f172a",
-    bg: "#f8fafc",
-    border: "#cbd5e1",
+    label: '데이터 엔지니어링 트랙',
+    short: '엔지니어링',
+    color: '#0f172a',
+    bg: '#f8fafc',
+    border: '#cbd5e1',
   },
   VISUALIZATION: {
-    label: "데이터 시각화 트랙",
-    short: "시각화",
-    color: "#0f172a",
-    bg: "#f8fafc",
-    border: "#cbd5e1",
+    label: '데이터 시각화 트랙',
+    short: '시각화',
+    color: '#0f172a',
+    bg: '#f8fafc',
+    border: '#cbd5e1',
   },
 };
 
 const FIXED_CSV_HEADERS = [
-  "지원자 식별자(user_id)",
-  "지원 트랙",
-  "이름",
-  "이메일",
-  "전화번호",
-  "1차 합불결과",
-  "대학교",
-  "전공",
-  "복수전공",
-  "재학 학기",
-  "병역",
-  "생년월일",
-  "졸업예정연월",
-  "향후계획",
-  "제출일시",
+  '지원자 식별자(user_id)',
+  '지원 트랙',
+  '이름',
+  '이메일',
+  '전화번호',
+  '1차 합불결과',
+  '대학교',
+  '전공',
+  '복수전공',
+  '재학 학기',
+  '병역',
+  '생년월일',
+  '졸업예정연월',
+  '향후계획',
+  '제출일시',
 ];
 
 function sanitizeCsvValue(val: any): string {
   if (val === null || val === undefined) {
-    return "";
+    return '';
   }
   let str = String(val).trim();
   if (
-    str.startsWith("=") ||
-    str.startsWith("+") ||
-    str.startsWith("-") ||
-    str.startsWith("@") ||
-    str.startsWith("\t") ||
-    str.startsWith("\r")
+    str.startsWith('=') ||
+    str.startsWith('+') ||
+    str.startsWith('-') ||
+    str.startsWith('@') ||
+    str.startsWith('\t') ||
+    str.startsWith('\r')
   ) {
     str = "'" + str;
   }
@@ -419,55 +419,55 @@ function sanitizeCsvValue(val: any): string {
 }
 
 export function RecruitmentManagePage({
-  initialTab = "posts",
+  initialTab = 'posts',
   onTabChange,
 }: {
-  initialTab?: "posts" | "questions" | "preview" | "csv" | "notifications" | "leads";
+  initialTab?: 'posts' | 'questions' | 'preview' | 'csv' | 'notifications' | 'leads';
   onTabChange?: (tab: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState<
-    "posts" | "questions" | "preview" | "csv" | "notifications" | "leads"
-  >((initialTab === "leads" ? "notifications" : initialTab) as any);
+    'posts' | 'questions' | 'preview' | 'csv' | 'notifications' | 'leads'
+  >((initialTab === 'leads' ? 'notifications' : initialTab) as any);
   const [posts, setPosts] = useState<RecruitmentPost[]>(INITIAL_POSTS);
   const [localApplicants] = useState<LocalApplicant[]>(INITIAL_LOCAL_APPLICANTS);
   const [questions, setQuestions] = useState<ApplicationQuestion[]>(INITIAL_QUESTIONS);
-  const [selectedCat, setSelectedCat] = useState<"ALL" | QuestionCategory>("ALL");
-  const [previewTrack, setPreviewTrack] = useState<TrackType>("ANALYSIS");
+  const [selectedCat, setSelectedCat] = useState<'ALL' | QuestionCategory>('ALL');
+  const [previewTrack, setPreviewTrack] = useState<TrackType>('ANALYSIS');
 
   // Leads & Notification Template State with Default Custom Persistence
   const [leads, setLeads] = useState<PreNotificationLead[]>(INITIAL_LEADS);
   const [savedDefaultTemplate, setSavedDefaultTemplate] = useState<string>(() => {
-    return localStorage.getItem("boaz_custom_notify_template") || DEFAULT_NOTIFY_TEMPLATE;
+    return localStorage.getItem('boaz_custom_notify_template') || DEFAULT_NOTIFY_TEMPLATE;
   });
   const [notifyTemplate, setNotifyTemplate] = useState<string>(() => {
-    return localStorage.getItem("boaz_custom_notify_template") || DEFAULT_NOTIFY_TEMPLATE;
+    return localStorage.getItem('boaz_custom_notify_template') || DEFAULT_NOTIFY_TEMPLATE;
   });
   const [copiedLeadId, setCopiedLeadId] = useState<number | null>(null);
   const [copiedAllTemplate, setCopiedAllTemplate] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedLeadForPreview, setSelectedLeadForPreview] = useState<PreNotificationLead>(
-    INITIAL_LEADS[0]
+    INITIAL_LEADS[0],
   );
 
   // Reference-style Table Filters & Multi-Selection
-  const [leadSearchQuery, setLeadSearchQuery] = useState("");
-  const [leadTrackFilter, setLeadTrackFilter] = useState<"ALL" | TrackType>("ALL");
-  const [leadStatusFilter, setLeadStatusFilter] = useState<"ALL" | "SENT" | "PENDING">("ALL");
+  const [leadSearchQuery, setLeadSearchQuery] = useState('');
+  const [leadTrackFilter, setLeadTrackFilter] = useState<'ALL' | TrackType>('ALL');
+  const [leadStatusFilter, setLeadStatusFilter] = useState<'ALL' | 'SENT' | 'PENDING'>('ALL');
   const [selectedLeadIds, setSelectedLeadIds] = useState<number[]>([]);
 
   // Quick Add Lead Modal
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
   const [newLead, setNewLead] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    interestedTrack: "ANALYSIS" as TrackType,
+    name: '',
+    email: '',
+    phone: '',
+    interestedTrack: 'ANALYSIS' as TrackType,
   });
 
   // Sync initialTab when sidebar navigates
   useEffect(() => {
     if (initialTab) {
-      setActiveTab((initialTab === "leads" ? "notifications" : initialTab) as any);
+      setActiveTab((initialTab === 'leads' ? 'notifications' : initialTab) as any);
     }
   }, [initialTab]);
 
@@ -481,7 +481,7 @@ export function RecruitmentManagePage({
 
   // CSV Extraction State
   const [csvTerm] = useState<number>(28);
-  const [csvDecision] = useState<"ALL" | "PASS" | "FAIL" | "PENDING">("ALL");
+  const [csvDecision] = useState<'ALL' | 'PASS' | 'FAIL' | 'PENDING'>('ALL');
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
 
   const activePost = posts.find((p) => p.is_active) || posts[0];
@@ -491,19 +491,19 @@ export function RecruitmentManagePage({
     setTimeout(() => setToastMessage(null), 3000);
   }
 
-  function handleTabClick(tab: "posts" | "questions" | "preview" | "csv" | "notifications") {
+  function handleTabClick(tab: 'posts' | 'questions' | 'preview' | 'csv' | 'notifications') {
     setActiveTab(tab);
     if (onTabChange) {
       onTabChange(
-        tab === "posts"
-          ? "recruiting-posts"
-          : tab === "questions"
-            ? "recruiting-questions"
-            : tab === "preview"
-              ? "recruiting-preview"
-              : tab === "csv"
-                ? "recruiting-csv"
-                : "recruiting-leads"
+        tab === 'posts'
+          ? 'recruiting-posts'
+          : tab === 'questions'
+            ? 'recruiting-questions'
+            : tab === 'preview'
+              ? 'recruiting-preview'
+              : tab === 'csv'
+                ? 'recruiting-csv'
+                : 'recruiting-leads',
       );
     }
   }
@@ -518,7 +518,7 @@ export function RecruitmentManagePage({
       setPosts((prev) => prev.map((p) => (p.id === editingPost.id ? editingPost : p)));
     }
     setEditingPost(null);
-    showToast("모집 공고가 성공적으로 저장되었습니다.");
+    showToast('모집 공고가 성공적으로 저장되었습니다.');
   }
 
   function handleDeletePost(post: RecruitmentPost) {
@@ -533,23 +533,23 @@ export function RecruitmentManagePage({
       return;
     }
     if (!editingQuestion.content.trim()) {
-      alert("문항 내용을 입력하세요.");
+      alert('문항 내용을 입력하세요.');
       return;
     }
 
     const qToSave = { ...editingQuestion };
-    if (qToSave.type === "TABLE") {
+    if (qToSave.type === 'TABLE') {
       qToSave.limit_length = null;
       if (
         !qToSave.metadata ||
         (!qToSave.metadata.columns.length && !qToSave.metadata.rows.length)
       ) {
         qToSave.metadata = {
-          columns: ["과목/라이브러리명", "숙련도", "활용 경험"],
+          columns: ['과목/라이브러리명', '숙련도', '활용 경험'],
           rows: [
-            "1. 기초 통계학 / 머신러닝",
-            "2. 딥러닝 프레임워크 (PyTorch)",
-            "3. 데이터 전처리 / SQL",
+            '1. 기초 통계학 / 머신러닝',
+            '2. 딥러닝 프레임워크 (PyTorch)',
+            '3. 데이터 전처리 / SQL',
           ],
           multiple: true,
         };
@@ -567,13 +567,13 @@ export function RecruitmentManagePage({
       setQuestions((prev) => prev.map((q) => (q.id === qToSave.id ? qToSave : q)));
     }
     setEditingQuestion(null);
-    showToast("지원서 문항이 성공적으로 저장되었습니다.");
+    showToast('지원서 문항이 성공적으로 저장되었습니다.');
   }
 
   function handleDeleteQuestion(q: ApplicationQuestion) {
     if (q.has_answers) {
       alert(
-        `[삭제 불가] 해당 문항은 이미 지원자가 답변을 작성하여 삭제할 수 없습니다. (QUESTION_HAS_ANSWERS)`
+        `[삭제 불가] 해당 문항은 이미 지원자가 답변을 작성하여 삭제할 수 없습니다. (QUESTION_HAS_ANSWERS)`,
       );
       return;
     }
@@ -583,7 +583,7 @@ export function RecruitmentManagePage({
     }
   }
 
-  function handleMoveQuestionOrder(qId: string, direction: "UP" | "DOWN") {
+  function handleMoveQuestionOrder(qId: string, direction: 'UP' | 'DOWN') {
     const targetQ = questions.find((q) => q.id === qId);
     if (!targetQ) {
       return;
@@ -592,12 +592,12 @@ export function RecruitmentManagePage({
       .filter((q) => q.category === targetQ.category)
       .sort((a, b) => a.order_num - b.order_num);
     const idx = catList.findIndex((q) => q.id === qId);
-    if (direction === "UP" && idx > 0) {
+    if (direction === 'UP' && idx > 0) {
       const prevQ = catList[idx - 1];
       const tmp = targetQ.order_num;
       targetQ.order_num = prevQ.order_num;
       prevQ.order_num = tmp;
-    } else if (direction === "DOWN" && idx < catList.length - 1) {
+    } else if (direction === 'DOWN' && idx < catList.length - 1) {
       const nextQ = catList[idx + 1];
       const tmp = targetQ.order_num;
       targetQ.order_num = nextQ.order_num;
@@ -608,7 +608,7 @@ export function RecruitmentManagePage({
 
   function handleDownloadTrackCsv(track: TrackType) {
     const commonQuestions = questions
-      .filter((q) => q.category === "COMMON")
+      .filter((q) => q.category === 'COMMON')
       .sort((a, b) => a.order_num - b.order_num);
     const trackQuestions = questions
       .filter((q) => q.category === track)
@@ -618,65 +618,65 @@ export function RecruitmentManagePage({
       ...commonQuestions.map((q) => q.label),
       ...trackQuestions.map((q) => q.label),
     ];
-    const headerRow = allHeaders.map((h) => `"${sanitizeCsvValue(h)}"`).join(",");
+    const headerRow = allHeaders.map((h) => `"${sanitizeCsvValue(h)}"`).join(',');
 
     const mockRows = [
       [
-        "usr_101",
+        'usr_101',
         track,
-        "이도현",
-        "dohyun@snu.ac.kr",
-        "010-3819-2910",
-        "합격",
-        "서울대학교",
-        "통계학과",
-        "컴퓨터공학 복전",
-        "4학년 1학기",
-        "군필",
-        "2001-05-14",
-        "2027-02",
-        "미정",
-        "2026-08-15 19:20",
-        "통계적 가설 검정과 ML을 응용한 데이터 분석가가 되고 싶어 지원했습니다.",
-        "해커톤에서 결측치 처리 기준 갈등을 EDA 차트로 설득하여 최우수상을 수상했습니다.",
-        track === "ANALYSIS"
-          ? "과목/라이브러리명: Scikit-learn, PyTorch\n프로젝트 내용: 뉴스 텍스트 감성 분류"
-          : "RDBMS 인덱스 최적화 및 데이터 파이프라인 구축",
-        "가설 설정부터 LightGBM 모델링, A/B 테스트 검증까지 진행했습니다.",
+        '이도현',
+        'dohyun@snu.ac.kr',
+        '010-3819-2910',
+        '합격',
+        '서울대학교',
+        '통계학과',
+        '컴퓨터공학 복전',
+        '4학년 1학기',
+        '군필',
+        '2001-05-14',
+        '2027-02',
+        '미정',
+        '2026-08-15 19:20',
+        '통계적 가설 검정과 ML을 응용한 데이터 분석가가 되고 싶어 지원했습니다.',
+        '해커톤에서 결측치 처리 기준 갈등을 EDA 차트로 설득하여 최우수상을 수상했습니다.',
+        track === 'ANALYSIS'
+          ? '과목/라이브러리명: Scikit-learn, PyTorch\n프로젝트 내용: 뉴스 텍스트 감성 분류'
+          : 'RDBMS 인덱스 최적화 및 데이터 파이프라인 구축',
+        '가설 설정부터 LightGBM 모델링, A/B 테스트 검증까지 진행했습니다.',
       ],
       [
-        "usr_102",
+        'usr_102',
         track,
-        "김서하",
-        "seoha@yonsei.ac.kr",
-        "010-5519-8821",
-        csvDecision === "FAIL" ? "불합격" : "합격",
-        "연세대학교",
-        "경영학과",
-        "빅데이터 응용",
-        "3학년 2학기",
-        "해당없음",
-        "2002-09-22",
-        "2027-08",
-        "진학 예정",
-        "2026-08-16 11:30",
-        "비즈니스 관점의 그로스 데이터 분석가가 되고 싶습니다.",
-        "홍보 예산 집행 시 A/B 테스트로 전환율 개선 경험",
-        track === "ANALYSIS"
-          ? "과목/라이브러리: Pandas, SQL\n프로젝트 경험: 코호트 분석"
-          : "Docker 컨테이너 인프라 관리",
-        "이커머스 고객 이탈 예측 모델링 수행",
+        '김서하',
+        'seoha@yonsei.ac.kr',
+        '010-5519-8821',
+        csvDecision === 'FAIL' ? '불합격' : '합격',
+        '연세대학교',
+        '경영학과',
+        '빅데이터 응용',
+        '3학년 2학기',
+        '해당없음',
+        '2002-09-22',
+        '2027-08',
+        '진학 예정',
+        '2026-08-16 11:30',
+        '비즈니스 관점의 그로스 데이터 분석가가 되고 싶습니다.',
+        '홍보 예산 집행 시 A/B 테스트로 전환율 개선 경험',
+        track === 'ANALYSIS'
+          ? '과목/라이브러리: Pandas, SQL\n프로젝트 경험: 코호트 분석'
+          : 'Docker 컨테이너 인프라 관리',
+        '이커머스 고객 이탈 예측 모델링 수행',
       ],
     ];
 
     const dataRows = mockRows.map((row) =>
-      row.map((v) => `"${sanitizeCsvValue(v).replace(/"/g, '""')}"`).join(",")
+      row.map((v) => `"${sanitizeCsvValue(v).replace(/"/g, '""')}"`).join(','),
     );
-    const csvContent = "\uFEFF" + [headerRow, ...dataRows].join("\n");
+    const csvContent = '\uFEFF' + [headerRow, ...dataRows].join('\n');
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = url;
     link.download = `applicants_${track}_${csvDecision}_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
@@ -684,7 +684,7 @@ export function RecruitmentManagePage({
     document.body.removeChild(link);
 
     setDownloadSuccess(
-      `${CATEGORY_META[track].short} 트랙 지원서 CSV가 성공적으로 다운로드되었습니다.`
+      `${CATEGORY_META[track].short} 트랙 지원서 CSV가 성공적으로 다운로드되었습니다.`,
     );
     setTimeout(() => setDownloadSuccess(null), 4000);
   }
@@ -692,7 +692,7 @@ export function RecruitmentManagePage({
   // ─── Personalized Notification Formatting & Copy ───
   function formatPersonalizedMessage(lead: PreNotificationLead): string {
     const post = activePost;
-    const trackLabel = CATEGORY_META[lead.interestedTrack]?.label || "데이터 분석";
+    const trackLabel = CATEGORY_META[lead.interestedTrack]?.label || '데이터 분석';
     const startDate = post.start_date.slice(0, 10);
     const endDate = post.end_date.slice(0, 10);
 
@@ -716,26 +716,26 @@ export function RecruitmentManagePage({
   function handleCopyAllTemplate() {
     navigator.clipboard.writeText(notifyTemplate);
     setCopiedAllTemplate(true);
-    showToast("알림 템플릿 기본 문구가 클립보드에 복사되었습니다.");
+    showToast('알림 템플릿 기본 문구가 클립보드에 복사되었습니다.');
     setTimeout(() => setCopiedAllTemplate(false), 2500);
   }
 
   // Save current edited text as the new custom default template
   function handleSaveAsDefaultTemplate() {
     setSavedDefaultTemplate(notifyTemplate);
-    localStorage.setItem("boaz_custom_notify_template", notifyTemplate);
+    localStorage.setItem('boaz_custom_notify_template', notifyTemplate);
     showToast("현재 수정한 문구가 '새 기본 양식'으로 저장되었습니다.");
   }
 
   // Reset to the custom default template or system template
   function handleResetToSavedDefault() {
     setNotifyTemplate(savedDefaultTemplate);
-    showToast("저장된 기본 양식으로 복원되었습니다.");
+    showToast('저장된 기본 양식으로 복원되었습니다.');
   }
 
   function handleAddLead() {
     if (!newLead.name.trim()) {
-      alert("이름을 입력하세요.");
+      alert('이름을 입력하세요.');
       return;
     }
     const item: PreNotificationLead = {
@@ -744,11 +744,11 @@ export function RecruitmentManagePage({
       email: newLead.email.trim(),
       phone: newLead.phone.trim(),
       interestedTrack: newLead.interestedTrack,
-      registeredAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+      registeredAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
       notifySent: false,
     };
     setLeads((prev) => [item, ...prev]);
-    setNewLead({ name: "", email: "", phone: "", interestedTrack: "ANALYSIS" });
+    setNewLead({ name: '', email: '', phone: '', interestedTrack: 'ANALYSIS' });
     setShowAddLeadModal(false);
     showToast(`[${item.name}] 님이 사전 알림 명단에 추가되었습니다.`);
   }
@@ -763,7 +763,7 @@ export function RecruitmentManagePage({
   function handleMarkAllSent() {
     if (
       confirm(
-        `미발송 상태인 ${leads.filter((l) => !l.notifySent).length}명의 발송 상태를 '발송 완료'로 일괄 변경하시겠습니까?`
+        `미발송 상태인 ${leads.filter((l) => !l.notifySent).length}명의 발송 상태를 '발송 완료'로 일괄 변경하시겠습니까?`,
       )
     ) {
       setLeads((prev) => prev.map((l) => ({ ...l, notifySent: true })));
@@ -772,11 +772,11 @@ export function RecruitmentManagePage({
   }
 
   const filteredQuestions = questions
-    .filter((q) => selectedCat === "ALL" || q.category === selectedCat)
+    .filter((q) => selectedCat === 'ALL' || q.category === selectedCat)
     .sort((a, b) => a.order_num - b.order_num);
 
   const previewQuestions = [
-    ...questions.filter((q) => q.category === "COMMON").sort((a, b) => a.order_num - b.order_num),
+    ...questions.filter((q) => q.category === 'COMMON').sort((a, b) => a.order_num - b.order_num),
     ...questions
       .filter((q) => q.category === previewTrack)
       .sort((a, b) => a.order_num - b.order_num),
@@ -802,11 +802,11 @@ export function RecruitmentManagePage({
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-3">
         <div className="flex items-center gap-1.5 p-1 bg-slate-200/60 rounded-xl border border-slate-300/50">
           {[
-            { id: "posts", label: "모집 공고 관리", icon: Megaphone },
-            { id: "questions", label: "지원서 문항 설정", icon: HelpCircle },
-            { id: "preview", label: "지원자 화면 미리보기", icon: Eye },
-            { id: "csv", label: "지원서 CSV 추출", icon: Download },
-            { id: "notifications", label: "사전 알림 명단 & 발송", icon: BellRing },
+            { id: 'posts', label: '모집 공고 관리', icon: Megaphone },
+            { id: 'questions', label: '지원서 문항 설정', icon: HelpCircle },
+            { id: 'preview', label: '지원자 화면 미리보기', icon: Eye },
+            { id: 'csv', label: '지원서 CSV 추출', icon: Download },
+            { id: 'notifications', label: '사전 알림 명단 & 발송', icon: BellRing },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -816,11 +816,11 @@ export function RecruitmentManagePage({
                 onClick={() => handleTabClick(tab.id as any)}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   isActive
-                    ? "bg-white text-slate-950 shadow-xs font-bold"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/40"
+                    ? 'bg-white text-slate-950 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/40'
                 }`}
               >
-                <Icon size={14} className={isActive ? "text-red-600" : "text-slate-400"} />
+                <Icon size={14} className={isActive ? 'text-red-600' : 'text-slate-400'} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -829,7 +829,7 @@ export function RecruitmentManagePage({
       </div>
 
       {/* ─── TAB 1: 모집 공고 관리 (Posts) ─── */}
-      {activeTab === "posts" && (
+      {activeTab === 'posts' && (
         <div className="space-y-5">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
@@ -844,20 +844,20 @@ export function RecruitmentManagePage({
                 setEditingPost({
                   id: Date.now(),
                   term: 29,
-                  start_date: new Date().toISOString().slice(0, 10) + "T00:00:00",
+                  start_date: new Date().toISOString().slice(0, 10) + 'T00:00:00',
                   end_date:
-                    new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10) + "T23:59:59",
+                    new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10) + 'T23:59:59',
                   is_active: true,
                   created_at: new Date().toISOString().slice(0, 10),
-                  brochure_url: "",
+                  brochure_url: '',
                   schedule: [
                     {
-                      step: "서류 접수",
+                      step: '서류 접수',
                       startDate: new Date().toISOString().slice(0, 10),
                       endDate: new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10),
                     },
                     {
-                      step: "1차 서류 발표",
+                      step: '1차 서류 발표',
                       startDate: new Date(Date.now() + 23 * 86400000).toISOString().slice(0, 10),
                       endDate: new Date(Date.now() + 23 * 86400000).toISOString().slice(0, 10),
                     },
@@ -879,7 +879,7 @@ export function RecruitmentManagePage({
                 <div
                   key={post.id}
                   className={`rounded-2xl border bg-white p-6 space-y-5 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md ${
-                    post.is_active ? "border-red-200 ring-1 ring-red-500/10" : "border-slate-200"
+                    post.is_active ? 'border-red-200 ring-1 ring-red-500/10' : 'border-slate-200'
                   }`}
                 >
                   <div className="flex items-start justify-between flex-wrap gap-3">
@@ -910,9 +910,9 @@ export function RecruitmentManagePage({
                       <div className="flex items-center gap-2 text-xs text-slate-600">
                         <Calendar size={13} className="text-red-500" />
                         <span>
-                          접수 기간:{" "}
+                          접수 기간:{' '}
                           <strong className="text-slate-900 font-mono">
-                            {post.start_date.replace("T", " ")} ~ {post.end_date.replace("T", " ")}
+                            {post.start_date.replace('T', ' ')} ~ {post.end_date.replace('T', ' ')}
                           </strong>
                         </span>
                       </div>
@@ -973,7 +973,7 @@ export function RecruitmentManagePage({
                     <div>
                       <p className="text-slate-500 text-[11px] font-medium">홍보 브로슈어</p>
                       <p className="text-slate-700 mt-0.5 font-mono text-[11px] truncate">
-                        {post.brochure_url ? "S3 등록 완료" : "미등록"}
+                        {post.brochure_url ? 'S3 등록 완료' : '미등록'}
                       </p>
                     </div>
                   </div>
@@ -1008,7 +1008,7 @@ export function RecruitmentManagePage({
       )}
 
       {/* ─── TAB 2: 지원서 문항 관리 (Questions) ─── */}
-      {activeTab === "questions" && (
+      {activeTab === 'questions' && (
         <div className="space-y-5">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
@@ -1020,16 +1020,16 @@ export function RecruitmentManagePage({
             </div>
             <button
               onClick={() => {
-                const targetCat = selectedCat === "ALL" ? "COMMON" : selectedCat;
+                const targetCat = selectedCat === 'ALL' ? 'COMMON' : selectedCat;
                 const nextOrder = questions.filter((q) => q.category === targetCat).length + 1;
                 setIsNewQuestion(true);
                 setEditingQuestion({
-                  id: "q_" + Date.now(),
+                  id: 'q_' + Date.now(),
                   recruitment_id: 28,
                   label: `${CATEGORY_META[targetCat].short}${nextOrder}`,
                   category: targetCat,
-                  type: "LONG_TEXT",
-                  content: "",
+                  type: 'LONG_TEXT',
+                  content: '',
                   order_num: nextOrder,
                   is_required: true,
                   limit_length: 800,
@@ -1046,16 +1046,16 @@ export function RecruitmentManagePage({
           {/* Category Filter Pills */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
-              onClick={() => setSelectedCat("ALL")}
+              onClick={() => setSelectedCat('ALL')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                selectedCat === "ALL"
-                  ? "bg-slate-900 text-white shadow-xs"
-                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                selectedCat === 'ALL'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
               }`}
             >
               전체 문항 ({questions.length})
             </button>
-            {(["COMMON", "ANALYSIS", "ENGINEERING", "VISUALIZATION"] as QuestionCategory[]).map(
+            {(['COMMON', 'ANALYSIS', 'ENGINEERING', 'VISUALIZATION'] as QuestionCategory[]).map(
               (cat) => {
                 const meta = CATEGORY_META[cat];
                 const count = questions.filter((q) => q.category === cat).length;
@@ -1066,14 +1066,14 @@ export function RecruitmentManagePage({
                     className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border shadow-2xs"
                     style={
                       selectedCat === cat
-                        ? { background: meta.color, color: "#ffffff", borderColor: meta.color }
+                        ? { background: meta.color, color: '#ffffff', borderColor: meta.color }
                         : { background: meta.bg, color: meta.color, borderColor: meta.border }
                     }
                   >
                     {meta.label} ({count})
                   </button>
                 );
-              }
+              },
             )}
           </div>
 
@@ -1114,14 +1114,14 @@ export function RecruitmentManagePage({
 
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => handleMoveQuestionOrder(q.id, "UP")}
+                        onClick={() => handleMoveQuestionOrder(q.id, 'UP')}
                         className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer transition-colors"
                         title="위로 이동"
                       >
                         <MoveUp size={13} />
                       </button>
                       <button
-                        onClick={() => handleMoveQuestionOrder(q.id, "DOWN")}
+                        onClick={() => handleMoveQuestionOrder(q.id, 'DOWN')}
                         className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer transition-colors"
                         title="아래로 이동"
                       >
@@ -1161,7 +1161,7 @@ export function RecruitmentManagePage({
                   </p>
 
                   {/* Table Question Metadata Summary (Rows & Columns) */}
-                  {q.type === "TABLE" && q.metadata && (
+                  {q.type === 'TABLE' && q.metadata && (
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
                       <div className="flex items-center gap-2">
                         <Table size={14} className="text-blue-600" />
@@ -1213,19 +1213,19 @@ export function RecruitmentManagePage({
 
                   <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-100 font-mono">
                     <span>
-                      유형:{" "}
-                      {q.type === "TABLE"
-                        ? "테이블 입력형 (TABLE)"
-                        : q.type === "LONG_TEXT"
-                          ? "장문형 (LONG_TEXT)"
-                          : "단문형 (SHORT_TEXT)"}
+                      유형:{' '}
+                      {q.type === 'TABLE'
+                        ? '테이블 입력형 (TABLE)'
+                        : q.type === 'LONG_TEXT'
+                          ? '장문형 (LONG_TEXT)'
+                          : '단문형 (SHORT_TEXT)'}
                     </span>
                     <span>
-                      {q.type === "TABLE"
-                        ? "테이블 행/열 응답"
+                      {q.type === 'TABLE'
+                        ? '테이블 행/열 응답'
                         : q.limit_length
                           ? `${q.limit_length}자 이내`
-                          : "제한 없음"}
+                          : '제한 없음'}
                     </span>
                   </div>
                 </div>
@@ -1236,7 +1236,7 @@ export function RecruitmentManagePage({
       )}
 
       {/* ─── TAB 3: 지원자 화면 미리보기 (Preview) ─── */}
-      {activeTab === "preview" && (
+      {activeTab === 'preview' && (
         <div className="space-y-4 max-w-4xl mx-auto">
           <div className="flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
             <div>
@@ -1251,14 +1251,14 @@ export function RecruitmentManagePage({
 
             {/* Track Selector for Preview */}
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-              {(["ANALYSIS", "ENGINEERING", "VISUALIZATION"] as TrackType[]).map((t) => (
+              {(['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'] as TrackType[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => setPreviewTrack(t)}
                   className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                     previewTrack === t
-                      ? "bg-white text-slate-900 shadow-xs"
-                      : "text-slate-500 hover:text-slate-800"
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   {CATEGORY_META[t].short} 트랙 뷰
@@ -1348,7 +1348,7 @@ export function RecruitmentManagePage({
                       {q.content}
                     </p>
 
-                    {q.type === "TABLE" ? (
+                    {q.type === 'TABLE' ? (
                       <div className="space-y-2 overflow-x-auto">
                         <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden bg-white">
                           <thead>
@@ -1369,7 +1369,7 @@ export function RecruitmentManagePage({
                           <tbody className="divide-y divide-slate-200 font-mono">
                             {(q.metadata?.rows && q.metadata.rows.length > 0
                               ? q.metadata.rows
-                              : ["항목 1"]
+                              : ['항목 1']
                             ).map((rowLabel, rIdx) => (
                               <tr key={rIdx} className="hover:bg-slate-50/70">
                                 <td className="px-3 py-2 border-r border-slate-200 bg-slate-50 font-bold text-slate-800 text-[11px] font-sans">
@@ -1416,7 +1416,7 @@ export function RecruitmentManagePage({
       )}
 
       {/* ─── TAB 4: 지원서 CSV 추출 (CSV Download) ─── */}
-      {activeTab === "csv" && (
+      {activeTab === 'csv' && (
         <div className="space-y-5">
           <div>
             <h2 className="text-lg font-bold text-slate-900 tracking-tight">지원서 CSV 추출</h2>
@@ -1434,10 +1434,10 @@ export function RecruitmentManagePage({
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {(["ANALYSIS", "ENGINEERING", "VISUALIZATION"] as TrackType[]).map((track) => {
+            {(['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'] as TrackType[]).map((track) => {
               const meta = CATEGORY_META[track];
               const applicants = localApplicants.filter(
-                (a) => a.track === track && a.term === csvTerm
+                (a) => a.track === track && a.term === csvTerm,
               );
               return (
                 <div
@@ -1475,7 +1475,7 @@ export function RecruitmentManagePage({
       )}
 
       {/* ─── TAB 5: 사전 알림 명단 & 발송 안내 템플릿 (Notifications & Leads) ─── */}
-      {activeTab === "notifications" && (
+      {activeTab === 'notifications' && (
         <div className="space-y-6">
           {/* Header Controls */}
           <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1556,7 +1556,7 @@ export function RecruitmentManagePage({
                     ) : (
                       <Copy size={12} />
                     )}
-                    <span>{copiedAllTemplate ? "복사 완료!" : "양식 복사"}</span>
+                    <span>{copiedAllTemplate ? '복사 완료!' : '양식 복사'}</span>
                   </button>
                 </div>
               </div>
@@ -1565,11 +1565,11 @@ export function RecruitmentManagePage({
               <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
                 <span className="text-slate-500 font-semibold">자동 치환 변수:</span>
                 {[
-                  { tag: "{name}", desc: "이름" },
-                  { tag: "{term}", desc: "기수" },
-                  { tag: "{track}", desc: "트랙" },
-                  { tag: "{start_date}", desc: "시작일" },
-                  { tag: "{end_date}", desc: "마감일" },
+                  { tag: '{name}', desc: '이름' },
+                  { tag: '{term}', desc: '기수' },
+                  { tag: '{track}', desc: '트랙' },
+                  { tag: '{start_date}', desc: '시작일' },
+                  { tag: '{end_date}', desc: '마감일' },
                 ].map((v) => (
                   <button
                     key={v.tag}
@@ -1601,7 +1601,7 @@ export function RecruitmentManagePage({
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-mono border border-blue-500/30">
                   수신자: {selectedLeadForPreview.name} (
-                  {CATEGORY_META[selectedLeadForPreview.interestedTrack]?.short || "분석"})
+                  {CATEGORY_META[selectedLeadForPreview.interestedTrack]?.short || '분석'})
                 </span>
               </div>
 
@@ -1641,11 +1641,11 @@ export function RecruitmentManagePage({
                     onClick={() => {
                       const selectedSet = new Set(selectedLeadIds);
                       setLeads((prev) =>
-                        prev.map((l) => (selectedSet.has(l.id) ? { ...l, notifySent: true } : l))
+                        prev.map((l) => (selectedSet.has(l.id) ? { ...l, notifySent: true } : l)),
                       );
                       setSelectedLeadIds([]);
                       showToast(
-                        `${selectedSet.size}명의 발송 상태가 '발송 완료'로 일괄 변경되었습니다.`
+                        `${selectedSet.size}명의 발송 상태가 '발송 완료'로 일괄 변경되었습니다.`,
                       );
                     }}
                     className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all"
@@ -1679,7 +1679,7 @@ export function RecruitmentManagePage({
                   />
                   {leadSearchQuery && (
                     <button
-                      onClick={() => setLeadSearchQuery("")}
+                      onClick={() => setLeadSearchQuery('')}
                       className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
                     >
                       <X size={12} />
@@ -1718,17 +1718,17 @@ export function RecruitmentManagePage({
               </div>
 
               <div className="text-[11px] text-slate-500 font-mono">
-                검색 결과:{" "}
+                검색 결과:{' '}
                 <strong className="text-slate-900">
                   {
                     leads.filter((l) => {
-                      if (leadTrackFilter !== "ALL" && l.interestedTrack !== leadTrackFilter) {
+                      if (leadTrackFilter !== 'ALL' && l.interestedTrack !== leadTrackFilter) {
                         return false;
                       }
-                      if (leadStatusFilter === "SENT" && !l.notifySent) {
+                      if (leadStatusFilter === 'SENT' && !l.notifySent) {
                         return false;
                       }
-                      if (leadStatusFilter === "PENDING" && l.notifySent) {
+                      if (leadStatusFilter === 'PENDING' && l.notifySent) {
                         return false;
                       }
                       if (leadSearchQuery.trim()) {
@@ -1742,7 +1742,7 @@ export function RecruitmentManagePage({
                       return true;
                     }).length
                   }
-                </strong>{" "}
+                </strong>{' '}
                 / {leads.length}명
               </div>
             </div>
@@ -1782,13 +1782,13 @@ export function RecruitmentManagePage({
                 <tbody className="divide-y divide-slate-100">
                   {leads
                     .filter((l) => {
-                      if (leadTrackFilter !== "ALL" && l.interestedTrack !== leadTrackFilter) {
+                      if (leadTrackFilter !== 'ALL' && l.interestedTrack !== leadTrackFilter) {
                         return false;
                       }
-                      if (leadStatusFilter === "SENT" && !l.notifySent) {
+                      if (leadStatusFilter === 'SENT' && !l.notifySent) {
                         return false;
                       }
-                      if (leadStatusFilter === "PENDING" && l.notifySent) {
+                      if (leadStatusFilter === 'PENDING' && l.notifySent) {
                         return false;
                       }
                       if (leadSearchQuery.trim()) {
@@ -1812,10 +1812,10 @@ export function RecruitmentManagePage({
                           onClick={() => setSelectedLeadForPreview(lead)}
                           className={`transition-colors cursor-pointer ${
                             isSelected
-                              ? "bg-blue-50/50"
+                              ? 'bg-blue-50/50'
                               : isChecked
-                                ? "bg-slate-50/80"
-                                : "hover:bg-slate-50/60"
+                                ? 'bg-slate-50/80'
+                                : 'hover:bg-slate-50/60'
                           }`}
                         >
                           {/* Row Checkbox */}
@@ -1830,7 +1830,7 @@ export function RecruitmentManagePage({
                                 setSelectedLeadIds((prev) =>
                                   prev.includes(lead.id)
                                     ? prev.filter((x) => x !== lead.id)
-                                    : [...prev, lead.id]
+                                    : [...prev, lead.id],
                                 );
                               }}
                               className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
@@ -1849,28 +1849,28 @@ export function RecruitmentManagePage({
                                 className="w-2 h-2 rounded-full shrink-0"
                                 style={{
                                   background:
-                                    lead.interestedTrack === "ANALYSIS"
-                                      ? "#10b981"
-                                      : lead.interestedTrack === "ENGINEERING"
-                                        ? "#3b82f6"
-                                        : "#a855f7",
+                                    lead.interestedTrack === 'ANALYSIS'
+                                      ? '#10b981'
+                                      : lead.interestedTrack === 'ENGINEERING'
+                                        ? '#3b82f6'
+                                        : '#a855f7',
                                 }}
                               />
                               <span className="text-slate-700">
-                                {lead.interestedTrack === "ANALYSIS"
-                                  ? "데이터 분석"
-                                  : lead.interestedTrack === "ENGINEERING"
-                                    ? "데이터 엔지니어링"
-                                    : "데이터 시각화"}
+                                {lead.interestedTrack === 'ANALYSIS'
+                                  ? '데이터 분석'
+                                  : lead.interestedTrack === 'ENGINEERING'
+                                    ? '데이터 엔지니어링'
+                                    : '데이터 시각화'}
                               </span>
                             </span>
                           </td>
 
                           {/* Contact Info */}
                           <td className="px-4 py-4 text-slate-600">
-                            <div className="font-bold text-slate-800">{lead.phone || "-"}</div>
+                            <div className="font-bold text-slate-800">{lead.phone || '-'}</div>
                             <div className="text-[11px] text-slate-400 font-mono">
-                              {lead.email || "-"}
+                              {lead.email || '-'}
                             </div>
                           </td>
 
@@ -1888,8 +1888,8 @@ export function RecruitmentManagePage({
                               onClick={() => {
                                 setLeads((prev) =>
                                   prev.map((l) =>
-                                    l.id === lead.id ? { ...l, notifySent: !l.notifySent } : l
-                                  )
+                                    l.id === lead.id ? { ...l, notifySent: !l.notifySent } : l,
+                                  ),
                                 );
                               }}
                               className="cursor-pointer inline-flex items-center justify-center transition-transform hover:scale-105"
@@ -1917,12 +1917,12 @@ export function RecruitmentManagePage({
                               }}
                               className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs whitespace-nowrap ${
                                 isCopied
-                                  ? "bg-emerald-600 text-white shadow-emerald-600/20"
-                                  : "bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80"
+                                  ? 'bg-emerald-600 text-white shadow-emerald-600/20'
+                                  : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80'
                               }`}
                             >
                               {isCopied ? <Check size={12} /> : <Copy size={12} />}
-                              <span>{isCopied ? "복사 완료!" : "메시지 복사"}</span>
+                              <span>{isCopied ? '복사 완료!' : '메시지 복사'}</span>
                             </button>
                           </td>
 
@@ -2049,7 +2049,7 @@ export function RecruitmentManagePage({
           <div className="w-full max-w-lg rounded-2xl p-6 bg-white border border-slate-200 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900">
-                {isNewPost ? "새 모집 공고 등록" : "모집 공고 수정"}
+                {isNewPost ? '새 모집 공고 등록' : '모집 공고 수정'}
               </h3>
               <button
                 onClick={() => setEditingPost(null)}
@@ -2067,7 +2067,7 @@ export function RecruitmentManagePage({
                   value={editingPost.term}
                   onChange={(e) =>
                     setEditingPost((prev) =>
-                      prev ? { ...prev, term: Number(e.target.value) } : null
+                      prev ? { ...prev, term: Number(e.target.value) } : null,
                     )
                   }
                   className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold"
@@ -2082,7 +2082,7 @@ export function RecruitmentManagePage({
                     value={editingPost.start_date.slice(0, 10)}
                     onChange={(e) =>
                       setEditingPost((prev) =>
-                        prev ? { ...prev, start_date: e.target.value + "T00:00:00" } : null
+                        prev ? { ...prev, start_date: e.target.value + 'T00:00:00' } : null,
                       )
                     }
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-mono"
@@ -2095,7 +2095,7 @@ export function RecruitmentManagePage({
                     value={editingPost.end_date.slice(0, 10)}
                     onChange={(e) =>
                       setEditingPost((prev) =>
-                        prev ? { ...prev, end_date: e.target.value + "T23:59:59" } : null
+                        prev ? { ...prev, end_date: e.target.value + 'T23:59:59' } : null,
                       )
                     }
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-mono"
@@ -2108,10 +2108,10 @@ export function RecruitmentManagePage({
                   홍보 책자 PDF URL (S3)
                 </label>
                 <input
-                  value={editingPost.brochure_url || ""}
+                  value={editingPost.brochure_url || ''}
                   onChange={(e) =>
                     setEditingPost((prev) =>
-                      prev ? { ...prev, brochure_url: e.target.value } : null
+                      prev ? { ...prev, brochure_url: e.target.value } : null,
                     )
                   }
                   placeholder="https://..."
@@ -2126,7 +2126,7 @@ export function RecruitmentManagePage({
                     checked={editingPost.is_active !== false}
                     onChange={(e) =>
                       setEditingPost((prev) =>
-                        prev ? { ...prev, is_active: e.target.checked } : null
+                        prev ? { ...prev, is_active: e.target.checked } : null,
                       )
                     }
                     className="rounded accent-red-600 w-4 h-4"
@@ -2161,7 +2161,7 @@ export function RecruitmentManagePage({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">
-                  {isNewQuestion ? "새 지원서 문항 추가" : "문항 수정"}
+                  {isNewQuestion ? '새 지원서 문항 추가' : '문항 수정'}
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   질문 유형과 제약사항, 테이블 행/열 메타데이터를 설정합니다.
@@ -2183,7 +2183,7 @@ export function RecruitmentManagePage({
                     value={editingQuestion.category}
                     onChange={(e) =>
                       setEditingQuestion((prev) =>
-                        prev ? { ...prev, category: e.target.value as QuestionCategory } : null
+                        prev ? { ...prev, category: e.target.value as QuestionCategory } : null,
                       )
                     }
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900"
@@ -2203,7 +2203,7 @@ export function RecruitmentManagePage({
                     value={editingQuestion.label}
                     onChange={(e) =>
                       setEditingQuestion((prev) =>
-                        prev ? { ...prev, label: e.target.value } : null
+                        prev ? { ...prev, label: e.target.value } : null,
                       )
                     }
                     placeholder="예: 공통1, 분석2"
@@ -2221,7 +2221,7 @@ export function RecruitmentManagePage({
                   value={editingQuestion.content}
                   onChange={(e) =>
                     setEditingQuestion((prev) =>
-                      prev ? { ...prev, content: e.target.value } : null
+                      prev ? { ...prev, content: e.target.value } : null,
                     )
                   }
                   placeholder="지원자가 읽고 답변할 질문을 입력하세요..."
@@ -2234,10 +2234,10 @@ export function RecruitmentManagePage({
                   문항 보조 설명 (선택)
                 </label>
                 <input
-                  value={editingQuestion.description || ""}
+                  value={editingQuestion.description || ''}
                   onChange={(e) =>
                     setEditingQuestion((prev) =>
-                      prev ? { ...prev, description: e.target.value } : null
+                      prev ? { ...prev, description: e.target.value } : null,
                     )
                   }
                   placeholder="지원자가 답변 작성 시 참고할 안내 가이드..."
@@ -2256,17 +2256,17 @@ export function RecruitmentManagePage({
                         if (!prev) {
                           return null;
                         }
-                        if (newType === "TABLE") {
+                        if (newType === 'TABLE') {
                           return {
                             ...prev,
                             type: newType,
                             limit_length: null,
                             metadata: prev.metadata || {
-                              columns: ["과목/라이브러리명", "숙련도", "활용 경험"],
+                              columns: ['과목/라이브러리명', '숙련도', '활용 경험'],
                               rows: [
-                                "1. 기초 통계학 / 머신러닝",
-                                "2. 딥러닝 프레임워크",
-                                "3. 데이터 전처리 / SQL",
+                                '1. 기초 통계학 / 머신러닝',
+                                '2. 딥러닝 프레임워크',
+                                '3. 데이터 전처리 / SQL',
                               ],
                               multiple: true,
                             },
@@ -2289,14 +2289,14 @@ export function RecruitmentManagePage({
                   </select>
                 </div>
 
-                {editingQuestion.type !== "TABLE" ? (
+                {editingQuestion.type !== 'TABLE' ? (
                   <div>
                     <label className="text-slate-700 block mb-1 font-semibold">
                       글자수 제한 (limitLength)
                     </label>
                     <input
                       type="number"
-                      value={editingQuestion.limit_length || ""}
+                      value={editingQuestion.limit_length || ''}
                       onChange={(e) =>
                         setEditingQuestion((prev) =>
                           prev
@@ -2304,7 +2304,7 @@ export function RecruitmentManagePage({
                                 ...prev,
                                 limit_length: e.target.value ? Number(e.target.value) : null,
                               }
-                            : null
+                            : null,
                         )
                       }
                       placeholder="예: 800"
@@ -2324,12 +2324,12 @@ export function RecruitmentManagePage({
                               ? {
                                   ...prev,
                                   metadata: {
-                                    columns: prev.metadata?.columns || ["열 1"],
-                                    rows: prev.metadata?.rows || ["행 1"],
+                                    columns: prev.metadata?.columns || ['열 1'],
+                                    rows: prev.metadata?.rows || ['행 1'],
                                     multiple: isMultiple,
                                   },
                                 }
-                              : null
+                              : null,
                           );
                         }}
                         className="rounded accent-red-600 w-4 h-4"
@@ -2341,7 +2341,7 @@ export function RecruitmentManagePage({
               </div>
 
               {/* ─── TABLE Metadata Configuration: 행(Rows) & 열(Columns) 편집기 ─── */}
-              {editingQuestion.type === "TABLE" && (
+              {editingQuestion.type === 'TABLE' && (
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <span className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
@@ -2370,12 +2370,12 @@ export function RecruitmentManagePage({
                               ? {
                                   ...prev,
                                   metadata: {
-                                    rows: prev.metadata?.rows || ["행 1"],
+                                    rows: prev.metadata?.rows || ['행 1'],
                                     columns: updated,
                                     multiple: prev.metadata?.multiple ?? true,
                                   },
                                 }
-                              : null
+                              : null,
                           );
                         }}
                         className="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
@@ -2400,12 +2400,12 @@ export function RecruitmentManagePage({
                                   ? {
                                       ...prev,
                                       metadata: {
-                                        rows: prev.metadata?.rows || ["행 1"],
+                                        rows: prev.metadata?.rows || ['행 1'],
                                         columns: newCols,
                                         multiple: prev.metadata?.multiple ?? true,
                                       },
                                     }
-                                  : null
+                                  : null,
                               );
                             }}
                             placeholder="열 이름 입력..."
@@ -2422,12 +2422,12 @@ export function RecruitmentManagePage({
                                   ? {
                                       ...prev,
                                       metadata: {
-                                        rows: prev.metadata?.rows || ["행 1"],
+                                        rows: prev.metadata?.rows || ['행 1'],
                                         columns: newCols,
                                         multiple: prev.metadata?.multiple ?? true,
                                       },
                                     }
-                                  : null
+                                  : null,
                               );
                             }}
                             className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
@@ -2459,12 +2459,12 @@ export function RecruitmentManagePage({
                               ? {
                                   ...prev,
                                   metadata: {
-                                    columns: prev.metadata?.columns || ["열 1"],
+                                    columns: prev.metadata?.columns || ['열 1'],
                                     rows: updated,
                                     multiple: prev.metadata?.multiple ?? true,
                                   },
                                 }
-                              : null
+                              : null,
                           );
                         }}
                         className="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
@@ -2489,12 +2489,12 @@ export function RecruitmentManagePage({
                                   ? {
                                       ...prev,
                                       metadata: {
-                                        columns: prev.metadata?.columns || ["열 1"],
+                                        columns: prev.metadata?.columns || ['열 1'],
                                         rows: newRows,
                                         multiple: prev.metadata?.multiple ?? true,
                                       },
                                     }
-                                  : null
+                                  : null,
                               );
                             }}
                             placeholder="행 항목 라벨 입력..."
@@ -2510,12 +2510,12 @@ export function RecruitmentManagePage({
                                   ? {
                                       ...prev,
                                       metadata: {
-                                        columns: prev.metadata?.columns || ["열 1"],
+                                        columns: prev.metadata?.columns || ['열 1'],
                                         rows: newRows,
                                         multiple: prev.metadata?.multiple ?? true,
                                       },
                                     }
-                                  : null
+                                  : null,
                               );
                             }}
                             className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
@@ -2580,7 +2580,7 @@ export function RecruitmentManagePage({
                     checked={editingQuestion.is_required}
                     onChange={(e) =>
                       setEditingQuestion((prev) =>
-                        prev ? { ...prev, is_required: e.target.checked } : null
+                        prev ? { ...prev, is_required: e.target.checked } : null,
                       )
                     }
                     className="rounded accent-red-600 w-4 h-4"

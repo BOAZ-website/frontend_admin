@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 
-import { WEEKS } from "@/entities/attendance/model/constants";
-import { calcScore, sessionKey } from "@/entities/attendance/model/lib";
-import type { AttendanceState } from "@/entities/attendance/model/types";
-import type { Member, StudyPeriodType, StudyTeamInfo } from "@/entities/study-team/model/types";
-import { CardHeader } from "@/shared/ui/CardHeader";
-import { SectionCard } from "@/shared/ui/SectionCard";
-import { Tag } from "@/shared/ui/Tag";
+import { WEEKS } from '@/entities/attendance/model/constants';
+import { calcScore, sessionKey } from '@/entities/attendance/model/lib';
+import type { AttendanceState } from '@/entities/attendance/model/types';
+import type { Member, StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
+import { CardHeader } from '@/shared/ui/CardHeader';
+import { SectionCard } from '@/shared/ui/SectionCard';
+import { Tag } from '@/shared/ui/Tag';
 
 export function ScoresPage({
   attendance,
@@ -18,14 +18,14 @@ export function ScoresPage({
   studyTeams: StudyTeamInfo[];
   membersMap: Record<string, Member[]>;
 }) {
-  const [periodFilter, setPeriodFilter] = useState<StudyPeriodType>("학기 스터디");
+  const [periodFilter, setPeriodFilter] = useState<StudyPeriodType>('학기 스터디');
   const filteredTeams = studyTeams.filter((t) => t.studyType === periodFilter);
   const [selectedTeam, setSelectedTeam] = useState(
-    studyTeams.find((t) => t.studyType === "학기 스터디")?.teamName ||
+    studyTeams.find((t) => t.studyType === '학기 스터디')?.teamName ||
       studyTeams[0]?.teamName ||
-      "A팀"
+      'A팀',
   );
-  const actId = "study";
+  const actId = 'study';
   const members = membersMap[selectedTeam] ?? [];
   const currentStudy = studyTeams.find((s) => s.teamName === selectedTeam);
 
@@ -37,7 +37,7 @@ export function ScoresPage({
         if (!rec?.submitted) {
           return null;
         }
-        const pts = calcScore(rec.statuses[m.id] ?? "present");
+        const pts = calcScore(rec.statuses[m.id] ?? 'present');
         total += pts;
         return pts;
       });
@@ -51,7 +51,7 @@ export function ScoresPage({
         <div className="flex items-center gap-2 flex-wrap">
           {/* Serial Season Toggle */}
           <div className="flex gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200">
-            {(["방학 스터디", "학기 스터디"] as const).map((p) => (
+            {(['방학 스터디', '학기 스터디'] as const).map((p) => (
               <button
                 key={p}
                 onClick={() => {
@@ -63,8 +63,8 @@ export function ScoresPage({
                 }}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   periodFilter === p
-                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/80"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
+                    : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {p}
@@ -109,20 +109,20 @@ export function ScoresPage({
 
       <SectionCard>
         <CardHeader
-          title={`${currentStudy?.studyName || "스터디"} · 활동 점수 집계`}
-          sub={`구분: ${currentStudy?.studyType || "스터디"} · 담당 팀장: ${currentStudy?.leaderName || ""} · 출결 기반 자동 계산`}
+          title={`${currentStudy?.studyName || '스터디'} · 활동 점수 집계`}
+          sub={`구분: ${currentStudy?.studyType || '스터디'} · 담당 팀장: ${currentStudy?.leaderName || ''} · 출결 기반 자동 계산`}
           right={
             <Tag
-              label={currentStudy?.studyType || "점수 집계"}
-              color={currentStudy?.studyType === "방학 스터디" ? "#d97706" : "#2563eb"}
-              bg={currentStudy?.studyType === "방학 스터디" ? "#fef3c7" : "#eff6ff"}
+              label={currentStudy?.studyType || '점수 집계'}
+              color={currentStudy?.studyType === '방학 스터디' ? '#d97706' : '#2563eb'}
+              bg={currentStudy?.studyType === '방학 스터디' ? '#fef3c7' : '#eff6ff'}
             />
           }
         />
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
             <thead>
-              <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <th className="text-left px-5 py-2.5 text-xs font-semibold text-muted-foreground w-8"></th>
                 <th className="text-left px-2 py-2.5 text-xs font-semibold text-muted-foreground">
                   이름
@@ -137,7 +137,7 @@ export function ScoresPage({
                 ))}
                 <th
                   className="text-center px-4 py-2.5 text-xs font-semibold"
-                  style={{ color: "#8ba5ff" }}
+                  style={{ color: '#8ba5ff' }}
                 >
                   합계
                 </th>
@@ -148,14 +148,14 @@ export function ScoresPage({
                 <tr
                   key={row.id}
                   className="hover:bg-white/[0.015] transition-colors"
-                  style={{ borderBottom: i < rows.length - 1 ? "1px solid #f1f5f9" : "none" }}
+                  style={{ borderBottom: i < rows.length - 1 ? '1px solid #f1f5f9' : 'none' }}
                 >
                   <td className="px-5 py-3 text-xs text-muted-foreground">{i + 1}</td>
                   <td className="px-2 py-3">
                     <div className="flex items-center gap-2">
                       <div
                         className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
-                        style={{ background: "rgba(91,127,255,0.2)", color: "#8ba5ff" }}
+                        style={{ background: 'rgba(91,127,255,0.2)', color: '#8ba5ff' }}
                       >
                         {row.name[0]}
                       </div>
@@ -170,7 +170,7 @@ export function ScoresPage({
                       ) : (
                         <span
                           style={{
-                            color: pts === 1 ? "#34d399" : pts === 0.5 ? "#fbbf24" : "#f87171",
+                            color: pts === 1 ? '#34d399' : pts === 0.5 ? '#fbbf24' : '#f87171',
                           }}
                         >
                           {pts}
@@ -181,7 +181,7 @@ export function ScoresPage({
                   <td
                     className="px-4 py-3 text-center font-mono font-bold"
                     style={{
-                      color: row.total >= 3 ? "#34d399" : row.total >= 1.5 ? "#fbbf24" : "#f87171",
+                      color: row.total >= 3 ? '#34d399' : row.total >= 1.5 ? '#fbbf24' : '#f87171',
                     }}
                   >
                     {row.total}

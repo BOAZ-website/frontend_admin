@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 import {
   BookOpen,
   Calendar,
@@ -16,20 +16,20 @@ import {
   UserCheck,
   UserPlus,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-export type InternalActivityType = "SESSION" | "STUDY" | "ADV" | "ETC";
-export type EventStatus = "UPCOMING" | "IN_PROGRESS" | "FINISHED";
-export type CheckinMethod = "QR_CODE" | "CODE" | "MANUAL" | "OPEN_LINK";
-export type AttendStatus = "present" | "late" | "absent" | "unmarked";
+export type InternalActivityType = 'SESSION' | 'STUDY' | 'ADV' | 'ETC';
+export type EventStatus = 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED';
+export type CheckinMethod = 'QR_CODE' | 'CODE' | 'MANUAL' | 'OPEN_LINK';
+export type AttendStatus = 'present' | 'late' | 'absent' | 'unmarked';
 
 export interface CustomFormField {
   id: string;
   label: string;
-  type: "TEXT" | "SELECT" | "PHONE" | "EMAIL";
+  type: 'TEXT' | 'SELECT' | 'PHONE' | 'EMAIL';
   options?: string[];
   isRequired: boolean;
-  target: "ALL" | "INTERNAL_ONLY" | "EXTERNAL_ONLY";
+  target: 'ALL' | 'INTERNAL_ONLY' | 'EXTERNAL_ONLY';
 }
 
 export interface AttendanceEvent {
@@ -74,35 +74,35 @@ const ACTIVITY_TYPE_META: Record<
   { label: string; short: string; color: string; bg: string; border: string; icon: any }
 > = {
   SESSION: {
-    label: "정규 세션",
-    short: "세션",
-    color: "#1d4ed8",
-    bg: "#eff6ff",
-    border: "#bfdbfe",
+    label: '정규 세션',
+    short: '세션',
+    color: '#1d4ed8',
+    bg: '#eff6ff',
+    border: '#bfdbfe',
     icon: Calendar,
   },
   STUDY: {
-    label: "스터디",
-    short: "스터디",
-    color: "#0369a1",
-    bg: "#f0f9ff",
-    border: "#bae6fd",
+    label: '스터디',
+    short: '스터디',
+    color: '#0369a1',
+    bg: '#f0f9ff',
+    border: '#bae6fd',
     icon: BookOpen,
   },
   ADV: {
-    label: "어드밴스드 (어드브)",
-    short: "어드브",
-    color: "#7e22ce",
-    bg: "#faf5ff",
-    border: "#e9d5ff",
+    label: '어드밴스드 (어드브)',
+    short: '어드브',
+    color: '#7e22ce',
+    bg: '#faf5ff',
+    border: '#e9d5ff',
     icon: Rocket,
   },
   ETC: {
-    label: "기타 내부 활동",
-    short: "기타",
-    color: "#475569",
-    bg: "#f8fafc",
-    border: "#e2e8f0",
+    label: '기타 내부 활동',
+    short: '기타',
+    color: '#475569',
+    bg: '#f8fafc',
+    border: '#e2e8f0',
     icon: Layers,
   },
 };
@@ -111,9 +111,9 @@ const STATUS_CFG: Record<
   EventStatus,
   { label: string; color: string; bg: string; border: string }
 > = {
-  UPCOMING: { label: "예정", color: "#b45309", bg: "#fffbeb", border: "#fde68a" },
-  IN_PROGRESS: { label: "진행중", color: "#047857", bg: "#ecfdf5", border: "#a7f3d0" },
-  FINISHED: { label: "종료", color: "#64748b", bg: "#f1f5f9", border: "#cbd5e1" },
+  UPCOMING: { label: '예정', color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+  IN_PROGRESS: { label: '진행중', color: '#047857', bg: '#ecfdf5', border: '#a7f3d0' },
+  FINISHED: { label: '종료', color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1' },
 };
 
 const ATTEND_STATUS_CFG: Record<
@@ -129,309 +129,309 @@ const ATTEND_STATUS_CFG: Record<
   }
 > = {
   present: {
-    label: "출석",
-    code: "0",
-    color: "#0f5132",
-    bg: "#def2e6",
-    border: "#b6e3c9",
-    activeBg: "#def2e6",
-    activeText: "#0f5132",
+    label: '출석',
+    code: '0',
+    color: '#0f5132',
+    bg: '#def2e6',
+    border: '#b6e3c9',
+    activeBg: '#def2e6',
+    activeText: '#0f5132',
   },
   late: {
-    label: "지각",
-    code: "1",
-    color: "#7c4a03",
-    bg: "#fceed2",
-    border: "#f5d5a4",
-    activeBg: "#fceed2",
-    activeText: "#7c4a03",
+    label: '지각',
+    code: '1',
+    color: '#7c4a03',
+    bg: '#fceed2',
+    border: '#f5d5a4',
+    activeBg: '#fceed2',
+    activeText: '#7c4a03',
   },
   absent: {
-    label: "결석",
-    code: "2",
-    color: "#8a1c32",
-    bg: "#fce4e6",
-    border: "#f8b4bc",
-    activeBg: "#fce4e6",
-    activeText: "#8a1c32",
+    label: '결석',
+    code: '2',
+    color: '#8a1c32',
+    bg: '#fce4e6',
+    border: '#f8b4bc',
+    activeBg: '#fce4e6',
+    activeText: '#8a1c32',
   },
   unmarked: {
-    label: "미체크",
-    code: "-",
-    color: "#334155",
-    bg: "#e9eef4",
-    border: "#cbd5e1",
-    activeBg: "#e9eef4",
-    activeText: "#334155",
+    label: '미체크',
+    code: '-',
+    color: '#334155',
+    bg: '#e9eef4',
+    border: '#cbd5e1',
+    activeBg: '#e9eef4',
+    activeText: '#334155',
   },
 };
 
 const ATTEND_STATUS_STYLES: Record<AttendStatus, { active: string; inactive: string }> = {
   present: {
-    active: "bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs",
+    active: 'bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#0f5132] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#0f5132] hover:bg-white/60 border border-transparent font-medium',
   },
   late: {
-    active: "bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs",
+    active: 'bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium',
   },
   absent: {
-    active: "bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs",
+    active: 'bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#8a1c32] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#8a1c32] hover:bg-white/60 border border-transparent font-medium',
   },
   unmarked: {
-    active: "bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs",
+    active: 'bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-slate-700 hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-slate-700 hover:bg-white/60 border border-transparent font-medium',
   },
 };
 
 const BOAZ_MEMBER_POOL = [
   {
-    name: "김서하",
+    name: '김서하',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "seoha.k@yonsei.ac.kr",
-    phone: "010-5519-8821",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'seoha.k@yonsei.ac.kr',
+    phone: '010-5519-8821',
   },
   {
-    name: "이민준",
+    name: '이민준',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "minjun.l@snu.ac.kr",
-    phone: "010-3811-9021",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'minjun.l@snu.ac.kr',
+    phone: '010-3811-9021',
   },
   {
-    name: "박지훈",
+    name: '박지훈',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "jihoon.p@korea.ac.kr",
-    phone: "010-4491-3829",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'jihoon.p@korea.ac.kr',
+    phone: '010-4491-3829',
   },
   {
-    name: "정채원",
+    name: '정채원',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "chaewon.j@hanyang.ac.kr",
-    phone: "010-9920-1182",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'chaewon.j@hanyang.ac.kr',
+    phone: '010-9920-1182',
   },
   {
-    name: "오승현",
+    name: '오승현',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "seunghyun.o@sogang.ac.kr",
-    phone: "010-3378-4912",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'seunghyun.o@sogang.ac.kr',
+    phone: '010-3378-4912',
   },
   {
-    name: "이도현",
+    name: '이도현',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "dohyun.l@snu.ac.kr",
-    phone: "010-3819-2910",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'dohyun.l@snu.ac.kr',
+    phone: '010-3819-2910',
   },
   {
-    name: "박성훈",
+    name: '박성훈',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "sunghoon.p@naver.com",
-    phone: "010-9182-4122",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'sunghoon.p@naver.com',
+    phone: '010-9182-4122',
   },
   {
-    name: "강태양",
+    name: '강태양',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "taeyang.k@snu.ac.kr",
-    phone: "010-1829-4720",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'taeyang.k@snu.ac.kr',
+    phone: '010-1829-4720',
   },
   {
-    name: "임수진",
+    name: '임수진',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "sujin.l@yonsei.ac.kr",
-    phone: "010-8831-2940",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'sujin.l@yonsei.ac.kr',
+    phone: '010-8831-2940',
   },
   {
-    name: "백민혁",
+    name: '백민혁',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "minhyuk.b@korea.ac.kr",
-    phone: "010-7719-2041",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'minhyuk.b@korea.ac.kr',
+    phone: '010-7719-2041',
   },
   {
-    name: "최민혁",
+    name: '최민혁',
     term: 28,
-    track: "VISUALIZATION",
-    affiliation: "28기 시각화",
-    email: "minhyuk.c@yonsei.ac.kr",
-    phone: "010-5512-7019",
+    track: 'VISUALIZATION',
+    affiliation: '28기 시각화',
+    email: 'minhyuk.c@yonsei.ac.kr',
+    phone: '010-5512-7019',
   },
   {
-    name: "한예린",
+    name: '한예린',
     term: 28,
-    track: "VISUALIZATION",
-    affiliation: "28기 시각화",
-    email: "yerin.h@ewha.ac.kr",
-    phone: "010-6629-3810",
+    track: 'VISUALIZATION',
+    affiliation: '28기 시각화',
+    email: 'yerin.h@ewha.ac.kr',
+    phone: '010-6629-3810',
   },
   {
-    name: "윤재혁",
+    name: '윤재혁',
     term: 28,
-    track: "VISUALIZATION",
-    affiliation: "28기 시각화",
-    email: "jaehyuk.y@skku.edu",
-    phone: "010-4490-1822",
+    track: 'VISUALIZATION',
+    affiliation: '28기 시각화',
+    email: 'jaehyuk.y@skku.edu',
+    phone: '010-4490-1822',
   },
   {
-    name: "장나연",
+    name: '장나연',
     term: 28,
-    track: "VISUALIZATION",
-    affiliation: "28기 시각화",
-    email: "nayeon.j@hanyang.ac.kr",
-    phone: "010-8812-7091",
+    track: 'VISUALIZATION',
+    affiliation: '28기 시각화',
+    email: 'nayeon.j@hanyang.ac.kr',
+    phone: '010-8812-7091',
   },
   {
-    name: "고준서",
+    name: '고준서',
     term: 27,
-    track: "ANALYSIS",
-    affiliation: "27기 분석",
-    email: "junseo.k@snu.ac.kr",
-    phone: "010-2281-9930",
+    track: 'ANALYSIS',
+    affiliation: '27기 분석',
+    email: 'junseo.k@snu.ac.kr',
+    phone: '010-2281-9930',
   },
   {
-    name: "남소희",
+    name: '남소희',
     term: 27,
-    track: "ENGINEERING",
-    affiliation: "27기 엔지니어링",
-    email: "sohee.n@yonsei.ac.kr",
-    phone: "010-3391-7721",
+    track: 'ENGINEERING',
+    affiliation: '27기 엔지니어링',
+    email: 'sohee.n@yonsei.ac.kr',
+    phone: '010-3391-7721',
   },
   {
-    name: "문지훈",
+    name: '문지훈',
     term: 27,
-    track: "VISUALIZATION",
-    affiliation: "27기 시각화",
-    email: "jihoon.m@korea.ac.kr",
-    phone: "010-4481-9012",
+    track: 'VISUALIZATION',
+    affiliation: '27기 시각화',
+    email: 'jihoon.m@korea.ac.kr',
+    phone: '010-4481-9012',
   },
 ];
 
 const INITIAL_INTERNAL_EVENTS: AttendanceEvent[] = [
   {
-    id: "evt_sess_03",
-    title: "제28기 3주차 정규 세션 (MLOps 특강 & 트랙 발표)",
-    type: "SESSION",
-    status: "IN_PROGRESS",
-    date: "2026-08-15",
-    startTime: "14:00",
-    endTime: "18:00",
-    location: "연세대학교 백양관 101호",
-    description: "28기 정규 세션 출결 체크 및 분과별 핵심 기술 공유",
+    id: 'evt_sess_03',
+    title: '제28기 3주차 정규 세션 (MLOps 특강 & 트랙 발표)',
+    type: 'SESSION',
+    status: 'IN_PROGRESS',
+    date: '2026-08-15',
+    startTime: '14:00',
+    endTime: '18:00',
+    location: '연세대학교 백양관 101호',
+    description: '28기 정규 세션 출결 체크 및 분과별 핵심 기술 공유',
     allowExternal: false,
-    checkinMethod: "CODE",
-    checkinCode: "9055",
+    checkinMethod: 'CODE',
+    checkinCode: '9055',
     targetTerms: [28],
-    targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+    targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
     totalTargetCount: 14,
     internalAttendedCount: 12,
     externalAttendedCount: 0,
-    createdAt: "2026-08-15",
+    createdAt: '2026-08-15',
     customFields: [],
   },
   {
-    id: "evt_study_ml",
-    title: "머신러닝 & 딥러닝 실전 스터디 3회차",
-    type: "STUDY",
-    status: "IN_PROGRESS",
-    date: "2026-08-18",
-    startTime: "19:00",
-    endTime: "21:30",
-    location: "강남 드림플러스 세미나실 B",
-    description: "논문 리뷰 (Transformer & LoRA 경량화 기법) 및 실전 구현",
+    id: 'evt_study_ml',
+    title: '머신러닝 & 딥러닝 실전 스터디 3회차',
+    type: 'STUDY',
+    status: 'IN_PROGRESS',
+    date: '2026-08-18',
+    startTime: '19:00',
+    endTime: '21:30',
+    location: '강남 드림플러스 세미나실 B',
+    description: '논문 리뷰 (Transformer & LoRA 경량화 기법) 및 실전 구현',
     allowExternal: false,
-    checkinMethod: "MANUAL",
-    checkinCode: "1124",
+    checkinMethod: 'MANUAL',
+    checkinCode: '1124',
     targetTerms: [28, 27],
-    targetTracks: ["ANALYSIS"],
+    targetTracks: ['ANALYSIS'],
     totalTargetCount: 8,
     internalAttendedCount: 7,
     externalAttendedCount: 0,
-    createdAt: "2026-08-18",
+    createdAt: '2026-08-18',
     customFields: [],
   },
   {
-    id: "evt_adv_mid",
-    title: "2026 하계 어드밴스드 1차 프로젝트 중간 점검 & 멘토링",
-    type: "ADV",
-    status: "UPCOMING",
-    date: "2026-08-20",
-    startTime: "13:30",
-    endTime: "17:30",
-    location: "서울대학교 글로벌공학센터 다목적홀",
-    description: "어드브 팀별 아키텍처 다이어그램 발표 및 현직 멘토 피드백",
+    id: 'evt_adv_mid',
+    title: '2026 하계 어드밴스드 1차 프로젝트 중간 점검 & 멘토링',
+    type: 'ADV',
+    status: 'UPCOMING',
+    date: '2026-08-20',
+    startTime: '13:30',
+    endTime: '17:30',
+    location: '서울대학교 글로벌공학센터 다목적홀',
+    description: '어드브 팀별 아키텍처 다이어그램 발표 및 현직 멘토 피드백',
     allowExternal: false,
-    checkinMethod: "QR_CODE",
-    checkinCode: "8220",
+    checkinMethod: 'QR_CODE',
+    checkinCode: '8220',
     targetTerms: [27, 28],
-    targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+    targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
     totalTargetCount: 16,
     internalAttendedCount: 0,
     externalAttendedCount: 0,
-    createdAt: "2026-08-10",
+    createdAt: '2026-08-10',
     customFields: [],
   },
   {
-    id: "evt_study_pipe",
-    title: "대용량 분산 데이터 파이프라인 스터디 3회차",
-    type: "STUDY",
-    status: "FINISHED",
-    date: "2026-08-12",
-    startTime: "19:30",
-    endTime: "22:00",
-    location: "온라인 Google Meet",
-    description: "Kafka & Spark Structured Streaming 실시간 ETL 파이프라인 구축",
+    id: 'evt_study_pipe',
+    title: '대용량 분산 데이터 파이프라인 스터디 3회차',
+    type: 'STUDY',
+    status: 'FINISHED',
+    date: '2026-08-12',
+    startTime: '19:30',
+    endTime: '22:00',
+    location: '온라인 Google Meet',
+    description: 'Kafka & Spark Structured Streaming 실시간 ETL 파이프라인 구축',
     allowExternal: false,
-    checkinMethod: "CODE",
-    checkinCode: "7721",
+    checkinMethod: 'CODE',
+    checkinCode: '7721',
     targetTerms: [28],
-    targetTracks: ["ENGINEERING"],
+    targetTracks: ['ENGINEERING'],
     totalTargetCount: 8,
     internalAttendedCount: 8,
     externalAttendedCount: 0,
-    createdAt: "2026-08-12",
+    createdAt: '2026-08-12',
     customFields: [],
   },
   {
-    id: "evt_sess_02",
-    title: "제28기 2주차 정규 세션 (데이터 수집 & 피처 엔지니어링)",
-    type: "SESSION",
-    status: "FINISHED",
-    date: "2026-08-08",
-    startTime: "14:00",
-    endTime: "18:00",
-    location: "연세대학교 백양관 101호",
-    description: "트랙별 기초 과제 발표 및 피드백 세션",
+    id: 'evt_sess_02',
+    title: '제28기 2주차 정규 세션 (데이터 수집 & 피처 엔지니어링)',
+    type: 'SESSION',
+    status: 'FINISHED',
+    date: '2026-08-08',
+    startTime: '14:00',
+    endTime: '18:00',
+    location: '연세대학교 백양관 101호',
+    description: '트랙별 기초 과제 발표 및 피드백 세션',
     allowExternal: false,
-    checkinMethod: "CODE",
-    checkinCode: "4312",
+    checkinMethod: 'CODE',
+    checkinCode: '4312',
     targetTerms: [28],
-    targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+    targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
     totalTargetCount: 14,
     internalAttendedCount: 13,
     externalAttendedCount: 0,
-    createdAt: "2026-08-08",
+    createdAt: '2026-08-08',
     customFields: [],
   },
 ];
@@ -439,381 +439,381 @@ const INITIAL_INTERNAL_EVENTS: AttendanceEvent[] = [
 const INITIAL_INTERNAL_ATTENDEES: AttendeeRecord[] = [
   // 1. 3주차 정규 세션
   {
-    id: "att_s1_1",
-    eventId: "evt_sess_03",
+    id: 'att_s1_1',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "김서하",
-    affiliation: "28기 분석",
+    name: '김서하',
+    affiliation: '28기 분석',
     term: 28,
-    email: "seoha.k@yonsei.ac.kr",
-    phone: "010-5519-8821",
-    status: "present",
-    checkedInAt: "13:50",
+    email: 'seoha.k@yonsei.ac.kr',
+    phone: '010-5519-8821',
+    status: 'present',
+    checkedInAt: '13:50',
   },
   {
-    id: "att_s1_2",
-    eventId: "evt_sess_03",
+    id: 'att_s1_2',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "이민준",
-    affiliation: "28기 분석",
+    name: '이민준',
+    affiliation: '28기 분석',
     term: 28,
-    email: "minjun.l@snu.ac.kr",
-    phone: "010-3811-9021",
-    status: "present",
-    checkedInAt: "13:52",
+    email: 'minjun.l@snu.ac.kr',
+    phone: '010-3811-9021',
+    status: 'present',
+    checkedInAt: '13:52',
   },
   {
-    id: "att_s1_3",
-    eventId: "evt_sess_03",
+    id: 'att_s1_3',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "박지훈",
-    affiliation: "28기 분석",
+    name: '박지훈',
+    affiliation: '28기 분석',
     term: 28,
-    email: "jihoon.p@korea.ac.kr",
-    phone: "010-4491-3829",
-    status: "present",
-    checkedInAt: "13:55",
+    email: 'jihoon.p@korea.ac.kr',
+    phone: '010-4491-3829',
+    status: 'present',
+    checkedInAt: '13:55',
   },
   {
-    id: "att_s1_4",
-    eventId: "evt_sess_03",
+    id: 'att_s1_4',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "정채원",
-    affiliation: "28기 분석",
+    name: '정채원',
+    affiliation: '28기 분석',
     term: 28,
-    email: "chaewon.j@hanyang.ac.kr",
-    phone: "010-9920-1182",
-    status: "present",
-    checkedInAt: "13:58",
+    email: 'chaewon.j@hanyang.ac.kr',
+    phone: '010-9920-1182',
+    status: 'present',
+    checkedInAt: '13:58',
   },
   {
-    id: "att_s1_5",
-    eventId: "evt_sess_03",
+    id: 'att_s1_5',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "오승현",
-    affiliation: "28기 분석",
+    name: '오승현',
+    affiliation: '28기 분석',
     term: 28,
-    email: "seunghyun.o@sogang.ac.kr",
-    phone: "010-3378-4912",
-    status: "absent",
-    checkedInAt: "-",
-    memo: "사전 공결 신청 승인",
+    email: 'seunghyun.o@sogang.ac.kr',
+    phone: '010-3378-4912',
+    status: 'absent',
+    checkedInAt: '-',
+    memo: '사전 공결 신청 승인',
   },
   {
-    id: "att_s1_6",
-    eventId: "evt_sess_03",
+    id: 'att_s1_6',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "이도현",
-    affiliation: "28기 엔지니어링",
+    name: '이도현',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "dohyun.l@snu.ac.kr",
-    phone: "010-3819-2910",
-    status: "present",
-    checkedInAt: "13:45",
+    email: 'dohyun.l@snu.ac.kr',
+    phone: '010-3819-2910',
+    status: 'present',
+    checkedInAt: '13:45',
   },
   {
-    id: "att_s1_7",
-    eventId: "evt_sess_03",
+    id: 'att_s1_7',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "박성훈",
-    affiliation: "28기 엔지니어링",
+    name: '박성훈',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "sunghoon.p@naver.com",
-    phone: "010-9182-4122",
-    status: "late",
-    checkedInAt: "14:15",
-    memo: "15분 지각",
+    email: 'sunghoon.p@naver.com',
+    phone: '010-9182-4122',
+    status: 'late',
+    checkedInAt: '14:15',
+    memo: '15분 지각',
   },
   {
-    id: "att_s1_8",
-    eventId: "evt_sess_03",
+    id: 'att_s1_8',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "강태양",
-    affiliation: "28기 엔지니어링",
+    name: '강태양',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "taeyang.k@snu.ac.kr",
-    phone: "010-1829-4720",
-    status: "present",
-    checkedInAt: "13:50",
+    email: 'taeyang.k@snu.ac.kr',
+    phone: '010-1829-4720',
+    status: 'present',
+    checkedInAt: '13:50',
   },
   {
-    id: "att_s1_9",
-    eventId: "evt_sess_03",
+    id: 'att_s1_9',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "임수진",
-    affiliation: "28기 엔지니어링",
+    name: '임수진',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "sujin.l@yonsei.ac.kr",
-    phone: "010-8831-2940",
-    status: "present",
-    checkedInAt: "13:54",
+    email: 'sujin.l@yonsei.ac.kr',
+    phone: '010-8831-2940',
+    status: 'present',
+    checkedInAt: '13:54',
   },
   {
-    id: "att_s1_10",
-    eventId: "evt_sess_03",
+    id: 'att_s1_10',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "최민혁",
-    affiliation: "28기 시각화",
+    name: '최민혁',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "minhyuk.c@yonsei.ac.kr",
-    phone: "010-5512-7019",
-    status: "present",
-    checkedInAt: "13:48",
+    email: 'minhyuk.c@yonsei.ac.kr',
+    phone: '010-5512-7019',
+    status: 'present',
+    checkedInAt: '13:48',
   },
   {
-    id: "att_s1_11",
-    eventId: "evt_sess_03",
+    id: 'att_s1_11',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "한예린",
-    affiliation: "28기 시각화",
+    name: '한예린',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "yerin.h@ewha.ac.kr",
-    phone: "010-6629-3810",
-    status: "present",
-    checkedInAt: "13:51",
+    email: 'yerin.h@ewha.ac.kr',
+    phone: '010-6629-3810',
+    status: 'present',
+    checkedInAt: '13:51',
   },
   {
-    id: "att_s1_12",
-    eventId: "evt_sess_03",
+    id: 'att_s1_12',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "윤재혁",
-    affiliation: "28기 시각화",
+    name: '윤재혁',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "jaehyuk.y@skku.edu",
-    phone: "010-4490-1822",
-    status: "present",
-    checkedInAt: "13:53",
+    email: 'jaehyuk.y@skku.edu',
+    phone: '010-4490-1822',
+    status: 'present',
+    checkedInAt: '13:53',
   },
   {
-    id: "att_s1_13",
-    eventId: "evt_sess_03",
+    id: 'att_s1_13',
+    eventId: 'evt_sess_03',
     isExternal: false,
-    name: "장나연",
-    affiliation: "28기 시각화",
+    name: '장나연',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "nayeon.j@hanyang.ac.kr",
-    phone: "010-8812-7091",
-    status: "unmarked",
-    checkedInAt: "-",
+    email: 'nayeon.j@hanyang.ac.kr',
+    phone: '010-8812-7091',
+    status: 'unmarked',
+    checkedInAt: '-',
   },
 
   // 2. 머신러닝 스터디 3회차
   {
-    id: "att_st_1",
-    eventId: "evt_study_ml",
+    id: 'att_st_1',
+    eventId: 'evt_study_ml',
     isExternal: false,
-    name: "이민준",
-    affiliation: "28기 분석",
+    name: '이민준',
+    affiliation: '28기 분석',
     term: 28,
-    email: "minjun.l@snu.ac.kr",
-    phone: "010-3811-9021",
-    status: "present",
-    checkedInAt: "18:50",
+    email: 'minjun.l@snu.ac.kr',
+    phone: '010-3811-9021',
+    status: 'present',
+    checkedInAt: '18:50',
   },
   {
-    id: "att_st_2",
-    eventId: "evt_study_ml",
+    id: 'att_st_2',
+    eventId: 'evt_study_ml',
     isExternal: false,
-    name: "김서하",
-    affiliation: "28기 분석",
+    name: '김서하',
+    affiliation: '28기 분석',
     term: 28,
-    email: "seoha.k@yonsei.ac.kr",
-    phone: "010-5519-8821",
-    status: "present",
-    checkedInAt: "18:55",
+    email: 'seoha.k@yonsei.ac.kr',
+    phone: '010-5519-8821',
+    status: 'present',
+    checkedInAt: '18:55',
   },
   {
-    id: "att_st_3",
-    eventId: "evt_study_ml",
+    id: 'att_st_3',
+    eventId: 'evt_study_ml',
     isExternal: false,
-    name: "정채원",
-    affiliation: "28기 분석",
+    name: '정채원',
+    affiliation: '28기 분석',
     term: 28,
-    email: "chaewon.j@hanyang.ac.kr",
-    phone: "010-9920-1182",
-    status: "present",
-    checkedInAt: "18:58",
+    email: 'chaewon.j@hanyang.ac.kr',
+    phone: '010-9920-1182',
+    status: 'present',
+    checkedInAt: '18:58',
   },
   {
-    id: "att_st_4",
-    eventId: "evt_study_ml",
+    id: 'att_st_4',
+    eventId: 'evt_study_ml',
     isExternal: false,
-    name: "고준서",
-    affiliation: "27기 분석",
+    name: '고준서',
+    affiliation: '27기 분석',
     term: 27,
-    email: "junseo.k@snu.ac.kr",
-    phone: "010-2281-9930",
-    status: "present",
-    checkedInAt: "18:45",
+    email: 'junseo.k@snu.ac.kr',
+    phone: '010-2281-9930',
+    status: 'present',
+    checkedInAt: '18:45',
   },
   {
-    id: "att_st_5",
-    eventId: "evt_study_ml",
+    id: 'att_st_5',
+    eventId: 'evt_study_ml',
     isExternal: false,
-    name: "박지훈",
-    affiliation: "28기 분석",
+    name: '박지훈',
+    affiliation: '28기 분석',
     term: 28,
-    email: "jihoon.p@korea.ac.kr",
-    phone: "010-4491-3829",
-    status: "present",
-    checkedInAt: "19:00",
+    email: 'jihoon.p@korea.ac.kr',
+    phone: '010-4491-3829',
+    status: 'present',
+    checkedInAt: '19:00',
   },
   {
-    id: "att_st_6",
-    eventId: "evt_study_ml",
+    id: 'att_st_6',
+    eventId: 'evt_study_ml',
     isExternal: false,
-    name: "오승현",
-    affiliation: "28기 분석",
+    name: '오승현',
+    affiliation: '28기 분석',
     term: 28,
-    email: "seunghyun.o@sogang.ac.kr",
-    phone: "010-3378-4912",
-    status: "absent",
-    checkedInAt: "-",
-    memo: "개인 일정",
+    email: 'seunghyun.o@sogang.ac.kr',
+    phone: '010-3378-4912',
+    status: 'absent',
+    checkedInAt: '-',
+    memo: '개인 일정',
   },
   {
-    id: "att_st_7",
-    eventId: "evt_study_ml",
+    id: 'att_st_7',
+    eventId: 'evt_study_ml',
     isExternal: false,
-    name: "최민혁",
-    affiliation: "28기 시각화",
+    name: '최민혁',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "minhyuk.c@yonsei.ac.kr",
-    phone: "010-5512-7019",
-    status: "present",
-    checkedInAt: "18:52",
+    email: 'minhyuk.c@yonsei.ac.kr',
+    phone: '010-5512-7019',
+    status: 'present',
+    checkedInAt: '18:52',
   },
   {
-    id: "att_st_8",
-    eventId: "evt_study_ml",
+    id: 'att_st_8',
+    eventId: 'evt_study_ml',
     isExternal: false,
-    name: "한예린",
-    affiliation: "28기 시각화",
+    name: '한예린',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "yerin.h@ewha.ac.kr",
-    phone: "010-6629-3810",
-    status: "present",
-    checkedInAt: "18:48",
+    email: 'yerin.h@ewha.ac.kr',
+    phone: '010-6629-3810',
+    status: 'present',
+    checkedInAt: '18:48',
   },
 
   // 3. 어드밴스드 중간 점검
   {
-    id: "att_adv_1",
-    eventId: "evt_adv_mid",
+    id: 'att_adv_1',
+    eventId: 'evt_adv_mid',
     isExternal: false,
-    name: "김서하",
-    affiliation: "28기 분석",
+    name: '김서하',
+    affiliation: '28기 분석',
     term: 28,
-    email: "seoha.k@yonsei.ac.kr",
-    phone: "010-5519-8821",
-    status: "unmarked",
-    checkedInAt: "-",
+    email: 'seoha.k@yonsei.ac.kr',
+    phone: '010-5519-8821',
+    status: 'unmarked',
+    checkedInAt: '-',
   },
   {
-    id: "att_adv_2",
-    eventId: "evt_adv_mid",
+    id: 'att_adv_2',
+    eventId: 'evt_adv_mid',
     isExternal: false,
-    name: "이민준",
-    affiliation: "28기 분석",
+    name: '이민준',
+    affiliation: '28기 분석',
     term: 28,
-    email: "minjun.l@snu.ac.kr",
-    phone: "010-3811-9021",
-    status: "unmarked",
-    checkedInAt: "-",
+    email: 'minjun.l@snu.ac.kr',
+    phone: '010-3811-9021',
+    status: 'unmarked',
+    checkedInAt: '-',
   },
   {
-    id: "att_adv_3",
-    eventId: "evt_adv_mid",
+    id: 'att_adv_3',
+    eventId: 'evt_adv_mid',
     isExternal: false,
-    name: "이도현",
-    affiliation: "28기 엔지니어링",
+    name: '이도현',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "dohyun.l@snu.ac.kr",
-    phone: "010-3819-2910",
-    status: "unmarked",
-    checkedInAt: "-",
+    email: 'dohyun.l@snu.ac.kr',
+    phone: '010-3819-2910',
+    status: 'unmarked',
+    checkedInAt: '-',
   },
   {
-    id: "att_adv_4",
-    eventId: "evt_adv_mid",
+    id: 'att_adv_4',
+    eventId: 'evt_adv_mid',
     isExternal: false,
-    name: "강태양",
-    affiliation: "28기 엔지니어링",
+    name: '강태양',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "taeyang.k@snu.ac.kr",
-    phone: "010-1829-4720",
-    status: "unmarked",
-    checkedInAt: "-",
+    email: 'taeyang.k@snu.ac.kr',
+    phone: '010-1829-4720',
+    status: 'unmarked',
+    checkedInAt: '-',
   },
   {
-    id: "att_adv_5",
-    eventId: "evt_adv_mid",
+    id: 'att_adv_5',
+    eventId: 'evt_adv_mid',
     isExternal: false,
-    name: "최민혁",
-    affiliation: "28기 시각화",
+    name: '최민혁',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "minhyuk.c@yonsei.ac.kr",
-    phone: "010-5512-7019",
-    status: "unmarked",
-    checkedInAt: "-",
+    email: 'minhyuk.c@yonsei.ac.kr',
+    phone: '010-5512-7019',
+    status: 'unmarked',
+    checkedInAt: '-',
   },
   {
-    id: "att_adv_6",
-    eventId: "evt_adv_mid",
+    id: 'att_adv_6',
+    eventId: 'evt_adv_mid',
     isExternal: false,
-    name: "문지훈",
-    affiliation: "27기 시각화",
+    name: '문지훈',
+    affiliation: '27기 시각화',
     term: 27,
-    email: "jihoon.m@korea.ac.kr",
-    phone: "010-4481-9012",
-    status: "unmarked",
-    checkedInAt: "-",
+    email: 'jihoon.m@korea.ac.kr',
+    phone: '010-4481-9012',
+    status: 'unmarked',
+    checkedInAt: '-',
   },
   {
-    id: "att_adv_7",
-    eventId: "evt_adv_mid",
+    id: 'att_adv_7',
+    eventId: 'evt_adv_mid',
     isExternal: false,
-    name: "고준서",
-    affiliation: "27기 분석",
+    name: '고준서',
+    affiliation: '27기 분석',
     term: 27,
-    email: "junseo.k@snu.ac.kr",
-    phone: "010-2281-9930",
-    status: "unmarked",
-    checkedInAt: "-",
+    email: 'junseo.k@snu.ac.kr',
+    phone: '010-2281-9930',
+    status: 'unmarked',
+    checkedInAt: '-',
   },
   {
-    id: "att_adv_8",
-    eventId: "evt_adv_mid",
+    id: 'att_adv_8',
+    eventId: 'evt_adv_mid',
     isExternal: false,
-    name: "남소희",
-    affiliation: "27기 엔지니어링",
+    name: '남소희',
+    affiliation: '27기 엔지니어링',
     term: 27,
-    email: "sohee.n@yonsei.ac.kr",
-    phone: "010-3391-7721",
-    status: "unmarked",
-    checkedInAt: "-",
+    email: 'sohee.n@yonsei.ac.kr',
+    phone: '010-3391-7721',
+    status: 'unmarked',
+    checkedInAt: '-',
   },
 ];
 
 export function InternalAttendanceManagePage() {
-  const [subTab, setSubTab] = useState<"live" | "events">("events");
+  const [subTab, setSubTab] = useState<'live' | 'events'>('events');
   const [activityCategoryFilter, setActivityCategoryFilter] = useState<
-    "ALL" | InternalActivityType
-  >("ALL");
-  const [statusFilter] = useState<"ALL" | EventStatus>("ALL");
-  const [eventSearch, setEventSearch] = useState("");
+    'ALL' | InternalActivityType
+  >('ALL');
+  const [statusFilter] = useState<'ALL' | EventStatus>('ALL');
+  const [eventSearch, setEventSearch] = useState('');
 
   const [events, setEvents] = useState<AttendanceEvent[]>(INITIAL_INTERNAL_EVENTS);
   const [attendees, setAttendees] = useState<AttendeeRecord[]>(INITIAL_INTERNAL_ATTENDEES);
-  const [selectedEventId, setSelectedEventId] = useState<string>("evt_sess_03");
+  const [selectedEventId, setSelectedEventId] = useState<string>('evt_sess_03');
 
   const [isBreadcrumbMenuOpen, setIsBreadcrumbMenuOpen] = useState(false);
   const breadcrumbDropdownRef = useRef<HTMLDivElement>(null);
 
   // Live tab controls
-  const [attendeeSearch, setAttendeeSearch] = useState("");
-  const [trackFilter, setTrackFilter] = useState<string>("ALL");
-  const [attendStatusFilter, setAttendStatusFilter] = useState<"ALL" | AttendStatus>("ALL");
+  const [attendeeSearch, setAttendeeSearch] = useState('');
+  const [trackFilter, setTrackFilter] = useState<string>('ALL');
+  const [attendStatusFilter, setAttendStatusFilter] = useState<'ALL' | AttendStatus>('ALL');
   const [isTableEditMode, setIsTableEditMode] = useState(false);
 
   // Modals
@@ -822,20 +822,20 @@ export function InternalAttendanceManagePage() {
   const [showAddMember, setShowAddMember] = useState(false);
 
   // Form State for new activity
-  const [newEventTitle, setNewEventTitle] = useState("");
-  const [newEventType, setNewEventType] = useState<InternalActivityType>("SESSION");
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventType, setNewEventType] = useState<InternalActivityType>('SESSION');
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().slice(0, 10));
-  const [newEventStart] = useState("14:00");
-  const [newEventEnd] = useState("18:00");
-  const [newEventLoc, setNewEventLoc] = useState("연세대학교 백양관 101호");
-  const [newEventDesc, setNewEventDesc] = useState("");
-  const [newEventMethod, setNewEventMethod] = useState<CheckinMethod>("CODE");
+  const [newEventStart] = useState('14:00');
+  const [newEventEnd] = useState('18:00');
+  const [newEventLoc, setNewEventLoc] = useState('연세대학교 백양관 101호');
+  const [newEventDesc, setNewEventDesc] = useState('');
+  const [newEventMethod, setNewEventMethod] = useState<CheckinMethod>('CODE');
   const [newEventCode, setNewEventCode] = useState(String(Math.floor(1000 + Math.random() * 9000)));
 
   // Add Member form state
-  const [newMemberName, setNewMemberName] = useState("");
-  const [newMemberTrack, setNewMemberTrack] = useState("ANALYSIS");
-  const [newMemberTerm, setNewMemberTerm] = useState("28");
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberTrack, setNewMemberTrack] = useState('ANALYSIS');
+  const [newMemberTerm, setNewMemberTerm] = useState('28');
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || events[0];
 
@@ -849,16 +849,16 @@ export function InternalAttendanceManagePage() {
         setIsBreadcrumbMenuOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Filtered Events
   const filteredEvents = events.filter((e) => {
-    if (activityCategoryFilter !== "ALL" && e.type !== activityCategoryFilter) {
+    if (activityCategoryFilter !== 'ALL' && e.type !== activityCategoryFilter) {
       return false;
     }
-    if (statusFilter !== "ALL" && e.status !== statusFilter) {
+    if (statusFilter !== 'ALL' && e.status !== statusFilter) {
       return false;
     }
     if (eventSearch.trim()) {
@@ -871,17 +871,17 @@ export function InternalAttendanceManagePage() {
   // Filtered Attendees for current live event
   const currentEventAttendees = attendees.filter((a) => a.eventId === selectedEvent.id);
   const filteredAttendees = currentEventAttendees.filter((a) => {
-    if (attendStatusFilter !== "ALL" && a.status !== attendStatusFilter) {
+    if (attendStatusFilter !== 'ALL' && a.status !== attendStatusFilter) {
       return false;
     }
-    if (trackFilter !== "ALL") {
-      if (trackFilter === "ANALYSIS" && !a.affiliation.includes("분석")) {
+    if (trackFilter !== 'ALL') {
+      if (trackFilter === 'ANALYSIS' && !a.affiliation.includes('분석')) {
         return false;
       }
-      if (trackFilter === "ENGINEERING" && !a.affiliation.includes("엔지니어링")) {
+      if (trackFilter === 'ENGINEERING' && !a.affiliation.includes('엔지니어링')) {
         return false;
       }
-      if (trackFilter === "VISUALIZATION" && !a.affiliation.includes("시각화")) {
+      if (trackFilter === 'VISUALIZATION' && !a.affiliation.includes('시각화')) {
         return false;
       }
     }
@@ -889,7 +889,7 @@ export function InternalAttendanceManagePage() {
       const q = attendeeSearch.toLowerCase();
       const matchName = a.name.toLowerCase().includes(q);
       const matchAffil = a.affiliation.toLowerCase().includes(q);
-      const matchMemo = (a.memo || "").toLowerCase().includes(q);
+      const matchMemo = (a.memo || '').toLowerCase().includes(q);
       if (!matchName && !matchAffil && !matchMemo) {
         return false;
       }
@@ -898,10 +898,10 @@ export function InternalAttendanceManagePage() {
   });
 
   const totalRosterCount = currentEventAttendees.length;
-  const presentCount = currentEventAttendees.filter((a) => a.status === "present").length;
-  const lateCount = currentEventAttendees.filter((a) => a.status === "late").length;
-  const absentCount = currentEventAttendees.filter((a) => a.status === "absent").length;
-  const unmarkedCount = currentEventAttendees.filter((a) => a.status === "unmarked").length;
+  const presentCount = currentEventAttendees.filter((a) => a.status === 'present').length;
+  const lateCount = currentEventAttendees.filter((a) => a.status === 'late').length;
+  const absentCount = currentEventAttendees.filter((a) => a.status === 'absent').length;
+  const unmarkedCount = currentEventAttendees.filter((a) => a.status === 'unmarked').length;
   const attendanceRate =
     totalRosterCount > 0 ? Math.round(((presentCount + lateCount) / totalRosterCount) * 100) : 0;
 
@@ -914,13 +914,13 @@ export function InternalAttendanceManagePage() {
             ...a,
             status: newStatus,
             checkedInAt:
-              (newStatus === "present" || newStatus === "late") && a.checkedInAt === "-"
+              (newStatus === 'present' || newStatus === 'late') && a.checkedInAt === '-'
                 ? nowTime
                 : a.checkedInAt,
           };
         }
         return a;
-      })
+      }),
     );
   }
 
@@ -929,7 +929,7 @@ export function InternalAttendanceManagePage() {
   }
 
   function handleDeleteAttendee(attendeeId: string) {
-    if (!window.confirm("정말 이 부원을 명단에서 제외하시겠습니까?")) {
+    if (!window.confirm('정말 이 부원을 명단에서 제외하시겠습니까?')) {
       return;
     }
     setAttendees((prev) => prev.filter((a) => a.id !== attendeeId));
@@ -937,15 +937,15 @@ export function InternalAttendanceManagePage() {
 
   function handleAddMemberToRoster() {
     if (!newMemberName.trim()) {
-      alert("부원 이름을 입력해 주세요.");
+      alert('부원 이름을 입력해 주세요.');
       return;
     }
     const trackLabel =
-      newMemberTrack === "ANALYSIS"
-        ? "분석"
-        : newMemberTrack === "ENGINEERING"
-          ? "엔지니어링"
-          : "시각화";
+      newMemberTrack === 'ANALYSIS'
+        ? '분석'
+        : newMemberTrack === 'ENGINEERING'
+          ? '엔지니어링'
+          : '시각화';
     const newId = `att_custom_${Date.now()}`;
     const newRecord: AttendeeRecord = {
       id: newId,
@@ -954,20 +954,20 @@ export function InternalAttendanceManagePage() {
       name: newMemberName.trim(),
       affiliation: `${newMemberTerm}기 ${trackLabel}`,
       term: parseInt(newMemberTerm, 10) || 28,
-      email: "member@boaz.org",
-      phone: "010-0000-0000",
-      status: "unmarked",
-      checkedInAt: "-",
+      email: 'member@boaz.org',
+      phone: '010-0000-0000',
+      status: 'unmarked',
+      checkedInAt: '-',
     };
 
     setAttendees((prev) => [newRecord, ...prev]);
-    setNewMemberName("");
+    setNewMemberName('');
     setShowAddMember(false);
   }
 
   function handleCreateNewActivity() {
     if (!newEventTitle.trim()) {
-      alert("활동/세션명을 입력해 주세요.");
+      alert('활동/세션명을 입력해 주세요.');
       return;
     }
     const newId = `evt_${Date.now()}`;
@@ -975,7 +975,7 @@ export function InternalAttendanceManagePage() {
       id: newId,
       title: newEventTitle.trim(),
       type: newEventType,
-      status: "IN_PROGRESS",
+      status: 'IN_PROGRESS',
       date: newEventDate,
       startTime: newEventStart,
       endTime: newEventEnd,
@@ -986,7 +986,7 @@ export function InternalAttendanceManagePage() {
       checkinCode: newEventCode,
       customFields: [],
       targetTerms: [28],
-      targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+      targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
       totalTargetCount: BOAZ_MEMBER_POOL.length,
       internalAttendedCount: 0,
       externalAttendedCount: 0,
@@ -1003,36 +1003,36 @@ export function InternalAttendanceManagePage() {
       term: m.term,
       email: m.email,
       phone: m.phone,
-      status: "unmarked",
-      checkedInAt: "-",
+      status: 'unmarked',
+      checkedInAt: '-',
     }));
 
     setEvents((prev) => [created, ...prev]);
     setAttendees((prev) => [...newRoster, ...prev]);
     setSelectedEventId(newId);
-    setSubTab("live");
+    setSubTab('live');
     setShowNewEventModal(false);
     alert(`새 활동 "${created.title}"이(가) 등록되었습니다.`);
   }
 
   function handleExportCsv() {
-    const headers = ["이름", "소속/기수", "출결상태", "체크인시간", "비고"];
+    const headers = ['이름', '소속/기수', '출결상태', '체크인시간', '비고'];
     const rows = filteredAttendees.map((a) => [
       a.name,
       a.affiliation,
       ATTEND_STATUS_CFG[a.status].label,
       a.checkedInAt,
-      a.memo || "",
+      a.memo || '',
     ]);
 
     const csvContent =
-      "\uFEFF" +
-      [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      '\uFEFF' +
+      [headers.join(','), ...rows.map((r) => r.map((c) => `"${c}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `BOAZ_${selectedEvent.title}_출석부_${selectedEvent.date}.csv`);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `BOAZ_${selectedEvent.title}_출석부_${selectedEvent.date}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1051,14 +1051,14 @@ export function InternalAttendanceManagePage() {
         <div className="flex items-center gap-2 text-sm">
           <button
             type="button"
-            onClick={() => setSubTab("events")}
+            onClick={() => setSubTab('events')}
             className="text-slate-700 hover:text-slate-900 font-bold flex items-center gap-1.5 transition-colors cursor-pointer text-sm"
           >
             <Calendar size={16} className="text-slate-500" />
             <span>전체 목록</span>
           </button>
 
-          {subTab === "live" && (
+          {subTab === 'live' && (
             <>
               <span className="text-slate-300 font-bold text-sm">/</span>
 
@@ -1073,7 +1073,7 @@ export function InternalAttendanceManagePage() {
                   <ChevronDown
                     size={14}
                     className={`text-slate-400 group-hover:text-slate-700 transition-transform duration-200 ${
-                      isBreadcrumbMenuOpen ? "rotate-180" : ""
+                      isBreadcrumbMenuOpen ? 'rotate-180' : ''
                     }`}
                   />
                 </button>
@@ -1094,7 +1094,7 @@ export function InternalAttendanceManagePage() {
                               setIsBreadcrumbMenuOpen(false);
                             }}
                             className={`px-3.5 py-2.5 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
-                              isCur ? "bg-slate-100 font-bold" : "hover:bg-slate-50"
+                              isCur ? 'bg-slate-100 font-bold' : 'hover:bg-slate-50'
                             }`}
                           >
                             <div className="flex items-center gap-2 min-w-0">
@@ -1109,7 +1109,7 @@ export function InternalAttendanceManagePage() {
                                 {typeMeta.short}
                               </span>
                               <p
-                                className={`text-sm truncate min-w-0 ${isCur ? "text-slate-950 font-bold" : "text-slate-700 font-medium"}`}
+                                className={`text-sm truncate min-w-0 ${isCur ? 'text-slate-950 font-bold' : 'text-slate-700 font-medium'}`}
                               >
                                 {evt.title}
                               </p>
@@ -1130,7 +1130,7 @@ export function InternalAttendanceManagePage() {
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2">
-          {subTab === "live" && (
+          {subTab === 'live' && (
             <button
               type="button"
               onClick={handleExportCsv}
@@ -1153,7 +1153,7 @@ export function InternalAttendanceManagePage() {
       </div>
 
       {/* ─── TAB 1: 현장 출석 체크 뷰 ─── */}
-      {subTab === "live" && (
+      {subTab === 'live' && (
         <div className="space-y-4">
           {/* Clean Inline Stats Text */}
           <div className="flex items-center gap-3 sm:gap-5 py-1 px-1 text-xs text-slate-500 flex-wrap border-b border-slate-100 pb-3 font-medium">
@@ -1224,11 +1224,11 @@ export function InternalAttendanceManagePage() {
                 className="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <span>
-                  {selectedEvent.checkinMethod === "CODE"
+                  {selectedEvent.checkinMethod === 'CODE'
                     ? `코드 (${selectedEvent.checkinCode})`
-                    : selectedEvent.checkinMethod === "QR_CODE"
-                      ? "QR 코드"
-                      : "수기 체크"}
+                    : selectedEvent.checkinMethod === 'QR_CODE'
+                      ? 'QR 코드'
+                      : '수기 체크'}
                 </span>
                 <ExternalLink size={10} className="text-slate-500" />
               </button>
@@ -1241,18 +1241,18 @@ export function InternalAttendanceManagePage() {
               {/* 분과/트랙 필터 */}
               <div className="flex rounded-lg bg-slate-100 p-0.5 border border-slate-200/80 text-xs">
                 {[
-                  { id: "ALL", label: "전체 트랙" },
-                  { id: "ANALYSIS", label: "분석" },
-                  { id: "ENGINEERING", label: "엔지니어링" },
-                  { id: "VISUALIZATION", label: "시각화" },
+                  { id: 'ALL', label: '전체 트랙' },
+                  { id: 'ANALYSIS', label: '분석' },
+                  { id: 'ENGINEERING', label: '엔지니어링' },
+                  { id: 'VISUALIZATION', label: '시각화' },
                 ].map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setTrackFilter(t.id)}
                     className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
                       trackFilter === t.id
-                        ? "bg-white text-slate-900 shadow-2xs font-semibold"
-                        : "text-slate-500 hover:text-slate-900"
+                        ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                        : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
                     {t.label}
@@ -1262,17 +1262,17 @@ export function InternalAttendanceManagePage() {
 
               {/* 출결 상태 필터 */}
               <div className="flex rounded-lg bg-slate-100 p-0.5 border border-slate-200/80 text-xs">
-                {(["ALL", "present", "late", "absent", "unmarked"] as const).map((st) => (
+                {(['ALL', 'present', 'late', 'absent', 'unmarked'] as const).map((st) => (
                   <button
                     key={st}
                     onClick={() => setAttendStatusFilter(st)}
                     className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
                       attendStatusFilter === st
-                        ? "bg-white text-slate-900 shadow-2xs font-semibold"
-                        : "text-slate-500 hover:text-slate-900"
+                        ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                        : 'text-slate-500 hover:text-slate-900'
                     }`}
                   >
-                    {st === "ALL" ? "전체 상태" : ATTEND_STATUS_CFG[st].label}
+                    {st === 'ALL' ? '전체 상태' : ATTEND_STATUS_CFG[st].label}
                   </button>
                 ))}
               </div>
@@ -1295,8 +1295,8 @@ export function InternalAttendanceManagePage() {
                 onClick={() => setIsTableEditMode((prev) => !prev)}
                 className={`h-8 min-w-[124px] px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
                   isTableEditMode
-                    ? "bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
-                    : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs"
+                    ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs'
                 }`}
               >
                 {isTableEditMode ? (
@@ -1440,7 +1440,7 @@ export function InternalAttendanceManagePage() {
                         <td className="px-3 py-2">
                           <div className="flex items-center justify-center">
                             <div className="grid grid-cols-4 w-[210px] p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none">
-                              {(["present", "late", "absent", "unmarked"] as const).map((s) => {
+                              {(['present', 'late', 'absent', 'unmarked'] as const).map((s) => {
                                 const active = att.status === s;
                                 return (
                                   <button
@@ -1466,7 +1466,7 @@ export function InternalAttendanceManagePage() {
                         <td className="px-3 py-2">
                           {isTableEditMode ? (
                             <input
-                              value={att.memo || ""}
+                              value={att.memo || ''}
                               onChange={(e) => handleMemoChange(att.id, e.target.value)}
                               placeholder="특이사항 입력 (예: 공결 승인 완료, 10분 조퇴)"
                               className="w-full px-2.5 py-1 text-xs rounded-lg bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 font-sans outline-none focus:border-slate-900 shadow-2xs"
@@ -1499,7 +1499,7 @@ export function InternalAttendanceManagePage() {
       )}
 
       {/* ─── TAB 2: 전체 활동 목록 ─── */}
-      {subTab === "events" && (
+      {subTab === 'events' && (
         <div className="space-y-4">
           <p className="text-xs text-slate-500">
             활동을 선택하면 해당 활동의 출석 명단과 집계 현황으로 즉시 이동합니다.
@@ -1509,26 +1509,26 @@ export function InternalAttendanceManagePage() {
           <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-1.5 flex-wrap">
               {[
-                { id: "ALL", label: "전체 활동", count: events.length },
+                { id: 'ALL', label: '전체 활동', count: events.length },
                 {
-                  id: "SESSION",
-                  label: "정규 세션",
-                  count: events.filter((e) => e.type === "SESSION").length,
+                  id: 'SESSION',
+                  label: '정규 세션',
+                  count: events.filter((e) => e.type === 'SESSION').length,
                 },
                 {
-                  id: "STUDY",
-                  label: "스터디",
-                  count: events.filter((e) => e.type === "STUDY").length,
+                  id: 'STUDY',
+                  label: '스터디',
+                  count: events.filter((e) => e.type === 'STUDY').length,
                 },
                 {
-                  id: "ADV",
-                  label: "어드밴스드 (어드브)",
-                  count: events.filter((e) => e.type === "ADV").length,
+                  id: 'ADV',
+                  label: '어드밴스드 (어드브)',
+                  count: events.filter((e) => e.type === 'ADV').length,
                 },
                 {
-                  id: "ETC",
-                  label: "기타 활동",
-                  count: events.filter((e) => e.type === "ETC").length,
+                  id: 'ETC',
+                  label: '기타 활동',
+                  count: events.filter((e) => e.type === 'ETC').length,
                 },
               ].map((cat) => {
                 const isActive = activityCategoryFilter === cat.id;
@@ -1538,14 +1538,14 @@ export function InternalAttendanceManagePage() {
                     onClick={() => setActivityCategoryFilter(cat.id as any)}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
                       isActive
-                        ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     <span>{cat.label}</span>
                     <span
                       className={`text-[10px] px-1.5 py-0.2 rounded-md ${
-                        isActive ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-500"
+                        isActive ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-500'
                       }`}
                     >
                       {cat.count}
@@ -1582,7 +1582,7 @@ export function InternalAttendanceManagePage() {
                 const statusMeta = STATUS_CFG[evt.status];
                 const evtAttendees = attendees.filter((a) => a.eventId === evt.id);
                 const attended = evtAttendees.filter(
-                  (a) => a.status === "present" || a.status === "late"
+                  (a) => a.status === 'present' || a.status === 'late',
                 ).length;
                 const total = evtAttendees.length;
                 const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
@@ -1592,7 +1592,7 @@ export function InternalAttendanceManagePage() {
                     key={evt.id}
                     onClick={() => {
                       setSelectedEventId(evt.id);
-                      setSubTab("live");
+                      setSubTab('live');
                     }}
                     className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white hover:border-slate-400 hover:shadow-xs px-6 py-4.5 transition-all cursor-pointer group"
                   >
@@ -1678,7 +1678,7 @@ export function InternalAttendanceManagePage() {
                   활동 성격 분류 (필수)
                 </label>
                 <div className="grid grid-cols-4 gap-2">
-                  {(["SESSION", "STUDY", "ADV", "ETC"] as const).map((t) => {
+                  {(['SESSION', 'STUDY', 'ADV', 'ETC'] as const).map((t) => {
                     const meta = ACTIVITY_TYPE_META[t];
                     const active = newEventType === t;
                     return (
@@ -1688,8 +1688,8 @@ export function InternalAttendanceManagePage() {
                         onClick={() => setNewEventType(t)}
                         className={`py-2 text-xs font-bold rounded-xl transition-all cursor-pointer border text-center ${
                           active
-                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                         }`}
                       >
                         {meta.short}

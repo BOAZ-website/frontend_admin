@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
-import { Code, FileJson, Plus, RefreshCw, Search, Trash2, Upload, X, ZoomIn } from "lucide-react";
+import { useRef, useState } from 'react';
+import { Code, FileJson, Plus, RefreshCw, Search, Trash2, Upload, X, ZoomIn } from 'lucide-react';
 
-export type ArchiveType = "project" | "blog" | "photo";
-export type TrackType = "ALL" | "ANALYSIS" | "ENGINEERING" | "VISUALIZATION";
+export type ArchiveType = 'project' | 'blog' | 'photo';
+export type TrackType = 'ALL' | 'ANALYSIS' | 'ENGINEERING' | 'VISUALIZATION';
 
 // 백엔드 ArchiveCreateRequest / ArchiveUpdateRequest 스펙 완벽 일치
 export interface ArchiveItem {
@@ -21,205 +21,205 @@ export interface ArchiveItem {
 }
 
 const SAMPLE_PROJECT_IMAGES = [
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800&auto=format&fit=crop&q=80",
+  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800&auto=format&fit=crop&q=80',
 ];
 
 const INITIAL_ARCHIVE_DATA: ArchiveItem[] = [
   {
-    id: "p1",
-    type: "project",
-    title: "배달앱 리뷰 텍스트로 매장 이탈 예측",
-    teamName: "리뷰읽는사람들",
+    id: 'p1',
+    type: 'project',
+    title: '배달앱 리뷰 텍스트로 매장 이탈 예측',
+    teamName: '리뷰읽는사람들',
     term: 21,
-    contentDate: "2026-07-28",
-    track: "ANALYSIS",
+    contentDate: '2026-07-28',
+    track: 'ANALYSIS',
     imageUrl: SAMPLE_PROJECT_IMAGES[0],
     visible: true,
     links: {
-      github: "https://github.com/boaz-analysis/delivery-churn",
-      slideshare: "https://slideshare.net/boaz/delivery-churn",
+      github: 'https://github.com/boaz-analysis/delivery-churn',
+      slideshare: 'https://slideshare.net/boaz/delivery-churn',
     },
   },
   {
-    id: "p2",
-    type: "project",
-    title: "서울시 따릉이 재배치 시뮬레이션",
-    teamName: "따릉이연구소",
+    id: 'p2',
+    type: 'project',
+    title: '서울시 따릉이 재배치 시뮬레이션',
+    teamName: '따릉이연구소',
     term: 21,
-    contentDate: "2026-07-28",
-    track: "ENGINEERING",
+    contentDate: '2026-07-28',
+    track: 'ENGINEERING',
     imageUrl: SAMPLE_PROJECT_IMAGES[1],
     visible: true,
-    links: { github: "https://github.com/boaz-eng/ttareungi-sim" },
+    links: { github: 'https://github.com/boaz-eng/ttareungi-sim' },
   },
   {
-    id: "p3",
-    type: "project",
-    title: "공모전 수상작 다시 보기 대시보드",
-    teamName: "VizLab",
+    id: 'p3',
+    type: 'project',
+    title: '공모전 수상작 다시 보기 대시보드',
+    teamName: 'VizLab',
     term: 20,
-    contentDate: "2026-01-20",
-    track: "VISUALIZATION",
+    contentDate: '2026-01-20',
+    track: 'VISUALIZATION',
     imageUrl: SAMPLE_PROJECT_IMAGES[2],
     visible: true,
-    links: { slideshare: "https://slideshare.net/boaz/viz-awards", web: "https://vizlab.boaz.com" },
+    links: { slideshare: 'https://slideshare.net/boaz/viz-awards', web: 'https://vizlab.boaz.com' },
   },
   {
-    id: "p4",
-    type: "project",
-    title: "중고거래 사기 탐지 모델",
-    teamName: "중고나라조심",
+    id: 'p4',
+    type: 'project',
+    title: '중고거래 사기 탐지 모델',
+    teamName: '중고나라조심',
     term: 20,
-    contentDate: "2026-01-20",
-    track: "ANALYSIS",
+    contentDate: '2026-01-20',
+    track: 'ANALYSIS',
     imageUrl: SAMPLE_PROJECT_IMAGES[3],
     visible: true,
     links: {
-      github: "https://github.com/boaz-analysis/fraud-detect",
-      slideshare: "https://slideshare.net/boaz/fraud-detect",
+      github: 'https://github.com/boaz-analysis/fraud-detect',
+      slideshare: 'https://slideshare.net/boaz/fraud-detect',
     },
   },
   {
-    id: "p5",
-    type: "project",
-    title: "실시간 지하철 혼잡도 파이프라인",
-    teamName: "8호선지옥철",
+    id: 'p5',
+    type: 'project',
+    title: '실시간 지하철 혼잡도 파이프라인',
+    teamName: '8호선지옥철',
     term: 20,
-    contentDate: "2026-01-20",
-    track: "ENGINEERING",
+    contentDate: '2026-01-20',
+    track: 'ENGINEERING',
     imageUrl: SAMPLE_PROJECT_IMAGES[4],
     visible: false,
-    links: { github: "https://github.com/boaz-eng/subway-realtime" },
+    links: { github: 'https://github.com/boaz-eng/subway-realtime' },
   },
   {
-    id: "p6",
-    type: "project",
-    title: "뉴스 프레임 비교 시각화",
-    teamName: "프레임워치",
+    id: 'p6',
+    type: 'project',
+    title: '뉴스 프레임 비교 시각화',
+    teamName: '프레임워치',
     term: 19,
-    contentDate: "2025-07-15",
-    track: "VISUALIZATION",
+    contentDate: '2025-07-15',
+    track: 'VISUALIZATION',
     imageUrl: SAMPLE_PROJECT_IMAGES[5],
     visible: true,
-    links: { web: "https://framewatch.boaz.com" },
+    links: { web: 'https://framewatch.boaz.com' },
   },
   {
-    id: "p7",
-    type: "project",
-    title: "카드 소비 데이터 상권 분석",
-    teamName: "골목상권팀",
+    id: 'p7',
+    type: 'project',
+    title: '카드 소비 데이터 상권 분석',
+    teamName: '골목상권팀',
     term: 19,
-    contentDate: "2025-07-15",
-    track: "ANALYSIS",
+    contentDate: '2025-07-15',
+    track: 'ANALYSIS',
     imageUrl: SAMPLE_PROJECT_IMAGES[0],
     visible: true,
     links: {
-      github: "https://github.com/boaz-analysis/card-consumption",
-      slideshare: "https://slideshare.net/boaz/card-consumption",
+      github: 'https://github.com/boaz-analysis/card-consumption',
+      slideshare: 'https://slideshare.net/boaz/card-consumption',
     },
   },
   {
-    id: "p8",
-    type: "project",
-    title: "음식점 리뷰 요약 LLM 파이프라인",
-    teamName: "요약해줘",
+    id: 'p8',
+    type: 'project',
+    title: '음식점 리뷰 요약 LLM 파이프라인',
+    teamName: '요약해줘',
     term: 19,
-    contentDate: "2025-07-15",
-    track: "ENGINEERING",
+    contentDate: '2025-07-15',
+    track: 'ENGINEERING',
     imageUrl: SAMPLE_PROJECT_IMAGES[1],
     visible: true,
-    links: { github: "https://github.com/boaz-eng/review-llm" },
+    links: { github: 'https://github.com/boaz-eng/review-llm' },
   },
   // Tech Blogs
   {
-    id: "b1",
-    type: "blog",
-    title: "Kubernetes와 Airflow를 활용한 대용량 배치 처리 아키텍처",
-    teamName: "김도현",
+    id: 'b1',
+    type: 'blog',
+    title: 'Kubernetes와 Airflow를 활용한 대용량 배치 처리 아키텍처',
+    teamName: '김도현',
     term: 21,
-    contentDate: "2026-06-12",
-    track: "ENGINEERING",
+    contentDate: '2026-06-12',
+    track: 'ENGINEERING',
     imageUrl: SAMPLE_PROJECT_IMAGES[4],
     visible: true,
     links: {
-      medium: "https://medium.com/boaz/k8s-airflow-batch",
-      github: "https://github.com/boaz-eng",
+      medium: 'https://medium.com/boaz/k8s-airflow-batch',
+      github: 'https://github.com/boaz-eng',
     },
   },
   {
-    id: "b2",
-    type: "blog",
-    title: "TabNet과 LightGBM 성능 비교 실험기",
-    teamName: "박서연",
+    id: 'b2',
+    type: 'blog',
+    title: 'TabNet과 LightGBM 성능 비교 실험기',
+    teamName: '박서연',
     term: 21,
-    contentDate: "2026-05-30",
-    track: "ANALYSIS",
+    contentDate: '2026-05-30',
+    track: 'ANALYSIS',
     imageUrl: SAMPLE_PROJECT_IMAGES[0],
     visible: true,
-    links: { medium: "https://medium.com/boaz/tabnet-vs-lightgbm" },
+    links: { medium: 'https://medium.com/boaz/tabnet-vs-lightgbm' },
   },
   {
-    id: "b3",
-    type: "blog",
-    title: "D3.js로 인터랙티브 네트워크 그래프 만들기",
-    teamName: "최지우",
+    id: 'b3',
+    type: 'blog',
+    title: 'D3.js로 인터랙티브 네트워크 그래프 만들기',
+    teamName: '최지우',
     term: 20,
-    contentDate: "2025-11-18",
-    track: "VISUALIZATION",
+    contentDate: '2025-11-18',
+    track: 'VISUALIZATION',
     imageUrl: SAMPLE_PROJECT_IMAGES[2],
     visible: true,
-    links: { medium: "https://medium.com/boaz/d3-network-graph", web: "https://d3-demo.boaz.com" },
+    links: { medium: 'https://medium.com/boaz/d3-network-graph', web: 'https://d3-demo.boaz.com' },
   },
   // Photos
   {
-    id: "ph1",
-    type: "photo",
-    title: "제21기 BOAZ 컨퍼런스 & 홈커밍데이 현장",
-    teamName: "서비스운영팀",
+    id: 'ph1',
+    type: 'photo',
+    title: '제21기 BOAZ 컨퍼런스 & 홈커밍데이 현장',
+    teamName: '서비스운영팀',
     term: 21,
-    contentDate: "2026-07-28",
-    track: "ALL",
+    contentDate: '2026-07-28',
+    track: 'ALL',
     imageUrl:
-      "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=80",
+      'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=80',
     visible: true,
-    links: { instagram: "https://instagram.com/p/boaz_conf21" },
-    half: "21-1",
+    links: { instagram: 'https://instagram.com/p/boaz_conf21' },
+    half: '21-1',
   },
   {
-    id: "ph2",
-    type: "photo",
-    title: "2026 여름 MT 및 네트워킹 나이트",
-    teamName: "운영지원팀",
+    id: 'ph2',
+    type: 'photo',
+    title: '2026 여름 MT 및 네트워킹 나이트',
+    teamName: '운영지원팀',
     term: 21,
-    contentDate: "2026-08-05",
-    track: "ALL",
+    contentDate: '2026-08-05',
+    track: 'ALL',
     imageUrl:
-      "https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=800&auto=format&fit=crop&q=80",
+      'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=800&auto=format&fit=crop&q=80',
     visible: true,
-    links: { instagram: "https://instagram.com/p/boaz_summer26" },
-    half: "21-1",
+    links: { instagram: 'https://instagram.com/p/boaz_summer26' },
+    half: '21-1',
   },
 ];
 
 const TRACK_LABELS: Record<TrackType, string> = {
-  ALL: "전체",
-  ANALYSIS: "분석",
-  ENGINEERING: "엔지니어링",
-  VISUALIZATION: "시각화",
+  ALL: '전체',
+  ANALYSIS: '분석',
+  ENGINEERING: '엔지니어링',
+  VISUALIZATION: '시각화',
 };
 
 export function ArchivingSection() {
-  const [activeTab, setActiveTab] = useState<ArchiveType>("project");
+  const [activeTab, setActiveTab] = useState<ArchiveType>('project');
   const [items, setItems] = useState<ArchiveItem[]>(INITIAL_ARCHIVE_DATA);
-  const [selectedTrack, setSelectedTrack] = useState<string>("ALL");
-  const [selectedTerm, setSelectedTerm] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string>("p1");
+  const [selectedTrack, setSelectedTrack] = useState<string>('ALL');
+  const [selectedTerm, setSelectedTerm] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<string>('p1');
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [showPayloadModal, setShowPayloadModal] = useState(false);
 
@@ -231,25 +231,25 @@ export function ArchivingSection() {
 
   // Endpoint mapping
   const endpointMap: Record<ArchiveType, string> = {
-    project: "/api/v1/admin/archiving/projects",
-    blog: "/api/v1/admin/archiving/blogs",
-    photo: "/api/v1/admin/archiving/activities",
+    project: '/api/v1/admin/archiving/projects',
+    blog: '/api/v1/admin/archiving/blogs',
+    photo: '/api/v1/admin/archiving/activities',
   };
 
   const filteredItems = items.filter((item) => {
     if (item.type !== activeTab) {
       return false;
     }
-    if (selectedTrack !== "ALL" && item.track !== selectedTrack) {
+    if (selectedTrack !== 'ALL' && item.track !== selectedTrack) {
       return false;
     }
-    if (selectedTerm !== "ALL" && item.term.toString() !== selectedTerm) {
+    if (selectedTerm !== 'ALL' && item.term.toString() !== selectedTerm) {
       return false;
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
-        item.title.toLowerCase().includes(q) || (item.teamName ?? "").toLowerCase().includes(q)
+        item.title.toLowerCase().includes(q) || (item.teamName ?? '').toLowerCase().includes(q)
       );
     }
     return true;
@@ -263,20 +263,20 @@ export function ArchivingSection() {
 
   function handleNewItem() {
     setIsNew(true);
-    setSelectedId("");
+    setSelectedId('');
     const newItem: ArchiveItem = {
-      id: "item_" + Date.now(),
+      id: 'item_' + Date.now(),
       type: activeTab,
-      title: "",
-      teamName: "",
+      title: '',
+      teamName: '',
       term: 21,
       contentDate: new Date().toISOString().slice(0, 10),
-      track: activeTab === "photo" ? "ALL" : "ANALYSIS",
-      imageUrl: "",
+      track: activeTab === 'photo' ? 'ALL' : 'ANALYSIS',
+      imageUrl: '',
       imageFile: null,
       visible: true,
       links: {},
-      half: "21-1",
+      half: '21-1',
     };
     setEditForm(newItem);
   }
@@ -317,20 +317,20 @@ export function ArchivingSection() {
       track: editForm.track,
       links: JSON.stringify(editForm.links),
       contentDate: editForm.contentDate,
-      ...(activeTab === "photo" ? { half: editForm.half || "21-1" } : {}),
+      ...(activeTab === 'photo' ? { half: editForm.half || '21-1' } : {}),
     };
     return {
       endpoint: isNew
         ? `POST ${endpointMap[activeTab]}`
         : `PATCH ${endpointMap[activeTab]}/${editForm.id}`,
-      contentType: "multipart/form-data",
+      contentType: 'multipart/form-data',
       parts: {
         data: dataPart,
         image: editForm.imageFile
           ? `[File: ${editForm.imageFile.name}, size: ${editForm.imageFile.size} bytes]`
           : editForm.imageUrl
             ? `[Preserved URL: ${editForm.imageUrl}]`
-            : "null (생략)",
+            : 'null (생략)',
       },
     };
   }
@@ -338,20 +338,20 @@ export function ArchivingSection() {
   function handleSave() {
     // 필수 필드 검증 (백엔드 ArchiveCreateRequest 스펙)
     if (!editForm.title.trim()) {
-      alert("제목(title)은 필수 입력값입니다.");
+      alert('제목(title)은 필수 입력값입니다.');
       return;
     }
     if (!editForm.term || editForm.term <= 0) {
-      alert("기수(term)는 필수 입력값(양수)입니다.");
+      alert('기수(term)는 필수 입력값(양수)입니다.');
       return;
     }
     if (!editForm.contentDate) {
-      alert("날짜(contentDate)는 필수 입력값입니다.");
+      alert('날짜(contentDate)는 필수 입력값입니다.');
       return;
     }
     const today = new Date().toISOString().slice(0, 10);
     if (editForm.contentDate > today) {
-      alert("날짜(contentDate)는 미래 날짜를 지정할 수 없습니다 (과거/오늘 날짜만 허용).");
+      alert('날짜(contentDate)는 미래 날짜를 지정할 수 없습니다 (과거/오늘 날짜만 허용).');
       return;
     }
 
@@ -368,7 +368,7 @@ export function ArchivingSection() {
   function handleDelete() {
     if (
       confirm(
-        `정말 이 항목을 삭제하시겠습니까?\n(DELETE ${endpointMap[activeTab]}/${editForm.id} 호출)`
+        `정말 이 항목을 삭제하시겠습니까?\n(DELETE ${endpointMap[activeTab]}/${editForm.id} 호출)`,
       )
     ) {
       setItems((prev) => prev.filter((i) => i.id !== editForm.id));
@@ -383,9 +383,9 @@ export function ArchivingSection() {
   }
 
   const tabLabels: Record<ArchiveType, string> = {
-    project: "프로젝트",
-    blog: "기술블로그",
-    photo: "활동사진",
+    project: '프로젝트',
+    blog: '기술블로그',
+    photo: '활동사진',
   };
 
   return (
@@ -396,7 +396,7 @@ export function ArchivingSection() {
       {/* ─── Top Tabs (프로젝트 | 기술블로그 | 활동사진) ─── */}
       <div className="flex items-center justify-between border-b border-slate-200 px-1">
         <div className="flex items-center gap-8">
-          {(["project", "blog", "photo"] as ArchiveType[]).map((tab) => {
+          {(['project', 'blog', 'photo'] as ArchiveType[]).map((tab) => {
             const isActive = activeTab === tab;
             return (
               <button
@@ -404,14 +404,14 @@ export function ArchivingSection() {
                 onClick={() => handleTabChange(tab)}
                 className="pb-3 text-sm font-semibold relative transition-colors cursor-pointer"
                 style={{
-                  color: isActive ? "#0f172a" : "#64748b",
+                  color: isActive ? '#0f172a' : '#64748b',
                 }}
               >
                 {tabLabels[tab]}
                 {isActive && (
                   <div
                     className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                    style={{ background: "#ef4444" }}
+                    style={{ background: '#ef4444' }}
                   />
                 )}
               </button>
@@ -499,7 +499,7 @@ export function ArchivingSection() {
         <button
           onClick={handleNewItem}
           className="px-4 py-1.5 rounded-md text-xs font-bold text-white transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
-          style={{ background: "#ef4444" }}
+          style={{ background: '#ef4444' }}
         >
           <Plus size={13} /> 새 항목
         </button>
@@ -551,8 +551,8 @@ export function ArchivingSection() {
                         onClick={() => handleSelectRow(item)}
                         className="transition-colors cursor-pointer group relative"
                         style={{
-                          background: isSelected ? "rgba(239, 68, 68, 0.09)" : "transparent",
-                          borderLeft: isSelected ? "3px solid #ef4444" : "3px solid transparent",
+                          background: isSelected ? 'rgba(239, 68, 68, 0.09)' : 'transparent',
+                          borderLeft: isSelected ? '3px solid #ef4444' : '3px solid transparent',
                         }}
                       >
                         {/* 16:9 Thumbnail */}
@@ -578,7 +578,7 @@ export function ArchivingSection() {
                             {item.title}
                           </p>
                           <p className="text-[11px] text-muted-foreground mt-0.5 font-normal">
-                            {item.teamName || "—"}
+                            {item.teamName || '—'}
                           </p>
                         </td>
 
@@ -597,7 +597,7 @@ export function ArchivingSection() {
                         {/* Links */}
                         <td className="px-3 py-2.5">
                           <span className="text-[10px] text-muted-foreground/80 italic truncate font-mono">
-                            {linksList.length > 0 ? linksList.join(", ") : "—"}
+                            {linksList.length > 0 ? linksList.join(', ') : '—'}
                           </span>
                         </td>
 
@@ -637,7 +637,7 @@ export function ArchivingSection() {
         <div className="col-span-12 lg:col-span-5 rounded-xl border border-slate-200 bg-white p-5 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-200 pb-3">
             <h3 className="text-xs font-bold text-foreground">
-              {isNew ? "새 항목 등록" : "항목 편집"}
+              {isNew ? '새 항목 등록' : '항목 편집'}
             </h3>
             <span className="text-[11px] px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-muted-foreground font-mono">
               {tabLabels[activeTab]}
@@ -675,7 +675,7 @@ export function ArchivingSection() {
                   </button>
                   <button
                     onClick={() =>
-                      setEditForm((prev) => ({ ...prev, imageUrl: "", imageFile: null }))
+                      setEditForm((prev) => ({ ...prev, imageUrl: '', imageFile: null }))
                     }
                     className="p-1.5 rounded-full bg-red-500/80 hover:bg-red-500 text-white text-xs"
                     title="사진 삭제"
@@ -728,9 +728,9 @@ export function ArchivingSection() {
                 팀명 (team_name / author, 선택)
               </label>
               <input
-                value={editForm.teamName ?? ""}
+                value={editForm.teamName ?? ''}
                 onChange={(e) => setEditForm((prev) => ({ ...prev, teamName: e.target.value }))}
-                placeholder={activeTab === "project" ? "예: 리뷰읽는사람들" : "예: 홍길동"}
+                placeholder={activeTab === 'project' ? '예: 리뷰읽는사람들' : '예: 홍길동'}
                 className="w-full px-3 py-2 rounded-md outline-none bg-slate-100 border border-slate-200 text-foreground placeholder:text-muted-foreground/50"
               />
             </div>
@@ -794,12 +794,12 @@ export function ArchivingSection() {
             </div>
 
             {/* Links based on tab */}
-            {activeTab === "project" && (
+            {activeTab === 'project' && (
               <>
                 <div>
                   <label className="text-muted-foreground block mb-1">links.github</label>
                   <input
-                    value={editForm.links.github ?? ""}
+                    value={editForm.links.github ?? ''}
                     onChange={(e) =>
                       setEditForm((prev) => ({
                         ...prev,
@@ -813,7 +813,7 @@ export function ArchivingSection() {
                 <div>
                   <label className="text-muted-foreground block mb-1">links.slideshare</label>
                   <input
-                    value={editForm.links.slideshare ?? ""}
+                    value={editForm.links.slideshare ?? ''}
                     onChange={(e) =>
                       setEditForm((prev) => ({
                         ...prev,
@@ -827,7 +827,7 @@ export function ArchivingSection() {
                 <div>
                   <label className="text-muted-foreground block mb-1">links.web</label>
                   <input
-                    value={editForm.links.web ?? ""}
+                    value={editForm.links.web ?? ''}
                     onChange={(e) =>
                       setEditForm((prev) => ({
                         ...prev,
@@ -841,12 +841,12 @@ export function ArchivingSection() {
               </>
             )}
 
-            {activeTab === "blog" && (
+            {activeTab === 'blog' && (
               <>
                 <div>
                   <label className="text-muted-foreground block mb-1">links.medium</label>
                   <input
-                    value={editForm.links.medium ?? ""}
+                    value={editForm.links.medium ?? ''}
                     onChange={(e) =>
                       setEditForm((prev) => ({
                         ...prev,
@@ -860,7 +860,7 @@ export function ArchivingSection() {
                 <div>
                   <label className="text-muted-foreground block mb-1">links.github</label>
                   <input
-                    value={editForm.links.github ?? ""}
+                    value={editForm.links.github ?? ''}
                     onChange={(e) =>
                       setEditForm((prev) => ({
                         ...prev,
@@ -874,12 +874,12 @@ export function ArchivingSection() {
               </>
             )}
 
-            {activeTab === "photo" && (
+            {activeTab === 'photo' && (
               <>
                 <div>
                   <label className="text-muted-foreground block mb-1">links.instagram</label>
                   <input
-                    value={editForm.links.instagram ?? ""}
+                    value={editForm.links.instagram ?? ''}
                     onChange={(e) =>
                       setEditForm((prev) => ({
                         ...prev,
@@ -893,7 +893,7 @@ export function ArchivingSection() {
                 <div>
                   <label className="text-muted-foreground block mb-1">반기 (half)</label>
                   <input
-                    value={editForm.half ?? "21-1"}
+                    value={editForm.half ?? '21-1'}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, half: e.target.value }))}
                     placeholder="예: 21-1, 21-2"
                     className="w-full px-3 py-1.5 rounded-md outline-none bg-slate-100 border border-slate-200 text-foreground placeholder:text-muted-foreground/50 font-mono text-[11px]"
@@ -921,7 +921,7 @@ export function ArchivingSection() {
             <button
               onClick={handleSave}
               className="flex-1 py-2.5 rounded-md text-xs font-bold text-white transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer"
-              style={{ background: "#ef4444" }}
+              style={{ background: '#ef4444' }}
             >
               저장
             </button>
@@ -976,7 +976,7 @@ export function ArchivingSection() {
 
               <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 overflow-x-auto">
                 <p className="text-xs text-amber-400 font-bold mb-2">
-                  {"// Part 1: data (JSON, ArchiveCreateRequest)"}
+                  {'// Part 1: data (JSON, ArchiveCreateRequest)'}
                 </p>
                 <pre className="text-[11px] text-foreground/90 whitespace-pre-wrap">
                   {JSON.stringify(buildBackendPayload().parts.data, null, 2)}
@@ -985,7 +985,7 @@ export function ArchivingSection() {
 
               <div className="p-3 rounded-lg bg-slate-100 border border-slate-200">
                 <p className="text-xs text-amber-400 font-bold mb-1">
-                  {"// Part 2: image (MultipartFile)"}
+                  {'// Part 2: image (MultipartFile)'}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   {buildBackendPayload().parts.image}
