@@ -1,4 +1,4 @@
-import type { AttendanceStatus } from "@/entities/attendance/model/types";
+import type { AttendanceStatus } from '@/entities/attendance/model/types';
 
 export interface ExceptionRequest {
   id: string;
