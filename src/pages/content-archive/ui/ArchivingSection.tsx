@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Code,
   ExternalLink,
@@ -11,10 +11,10 @@ import {
   Upload,
   X,
   ZoomIn,
-} from "lucide-react";
+} from 'lucide-react';
 
-export type ArchiveType = "project" | "blog" | "photo";
-export type TrackType = "ALL" | "ANALYSIS" | "ENGINEERING" | "VISUALIZATION";
+export type ArchiveType = 'project' | 'blog' | 'photo';
+export type TrackType = 'ALL' | 'ANALYSIS' | 'ENGINEERING' | 'VISUALIZATION';
 
 // 백엔드 ArchiveCreateRequest / ArchiveUpdateRequest 스펙 완벽 일치
 export interface ArchiveItem {
@@ -33,222 +33,222 @@ export interface ArchiveItem {
 }
 
 const SAMPLE_PROJECT_IMAGES = [
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800&auto=format&fit=crop&q=80",
+  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800&auto=format&fit=crop&q=80',
 ];
 
 const INITIAL_ARCHIVE_DATA: ArchiveItem[] = [
   {
-    id: "p1",
-    type: "project",
-    title: "배달앱 리뷰 텍스트로 매장 이탈 예측",
-    teamName: "리뷰읽는사람들",
+    id: 'p1',
+    type: 'project',
+    title: '배달앱 리뷰 텍스트로 매장 이탈 예측',
+    teamName: '리뷰읽는사람들',
     term: 21,
-    contentDate: "2026-07-28",
-    track: "ANALYSIS",
+    contentDate: '2026-07-28',
+    track: 'ANALYSIS',
     imageUrl: SAMPLE_PROJECT_IMAGES[0],
     visible: true,
     links: {
-      github: "https://github.com/boaz-analysis/delivery-churn",
-      slideshare: "https://slideshare.net/boaz/delivery-churn",
+      github: 'https://github.com/boaz-analysis/delivery-churn',
+      slideshare: 'https://slideshare.net/boaz/delivery-churn',
     },
   },
   {
-    id: "p2",
-    type: "project",
-    title: "서울시 따릉이 재배치 시뮬레이션",
-    teamName: "따릉이연구소",
+    id: 'p2',
+    type: 'project',
+    title: '서울시 따릉이 재배치 시뮬레이션',
+    teamName: '따릉이연구소',
     term: 21,
-    contentDate: "2026-07-28",
-    track: "ENGINEERING",
+    contentDate: '2026-07-28',
+    track: 'ENGINEERING',
     imageUrl: SAMPLE_PROJECT_IMAGES[1],
     visible: true,
-    links: { github: "https://github.com/boaz-eng/ttareungi-sim" },
+    links: { github: 'https://github.com/boaz-eng/ttareungi-sim' },
   },
   {
-    id: "p3",
-    type: "project",
-    title: "공모전 수상작 다시 보기 대시보드",
-    teamName: "VizLab",
+    id: 'p3',
+    type: 'project',
+    title: '공모전 수상작 다시 보기 대시보드',
+    teamName: 'VizLab',
     term: 20,
-    contentDate: "2026-01-20",
-    track: "VISUALIZATION",
+    contentDate: '2026-01-20',
+    track: 'VISUALIZATION',
     imageUrl: SAMPLE_PROJECT_IMAGES[2],
     visible: true,
     links: {
-      slideshare: "https://slideshare.net/boaz/viz-awards",
-      web: "https://vizlab.boaz.com",
+      slideshare: 'https://slideshare.net/boaz/viz-awards',
+      web: 'https://vizlab.boaz.com',
     },
   },
   {
-    id: "p4",
-    type: "project",
-    title: "중고거래 사기 탐지 모델",
-    teamName: "중고나라조심",
+    id: 'p4',
+    type: 'project',
+    title: '중고거래 사기 탐지 모델',
+    teamName: '중고나라조심',
     term: 20,
-    contentDate: "2026-01-20",
-    track: "ANALYSIS",
+    contentDate: '2026-01-20',
+    track: 'ANALYSIS',
     imageUrl: SAMPLE_PROJECT_IMAGES[3],
     visible: true,
     links: {
-      github: "https://github.com/boaz-analysis/fraud-detect",
-      slideshare: "https://slideshare.net/boaz/fraud-detect",
+      github: 'https://github.com/boaz-analysis/fraud-detect',
+      slideshare: 'https://slideshare.net/boaz/fraud-detect',
     },
   },
   {
-    id: "p5",
-    type: "project",
-    title: "실시간 지하철 혼잡도 파이프라인",
-    teamName: "8호선지옥철",
+    id: 'p5',
+    type: 'project',
+    title: '실시간 지하철 혼잡도 파이프라인',
+    teamName: '8호선지옥철',
     term: 20,
-    contentDate: "2026-01-20",
-    track: "ENGINEERING",
+    contentDate: '2026-01-20',
+    track: 'ENGINEERING',
     imageUrl: SAMPLE_PROJECT_IMAGES[4],
     visible: false,
-    links: { github: "https://github.com/boaz-eng/subway-realtime" },
+    links: { github: 'https://github.com/boaz-eng/subway-realtime' },
   },
   {
-    id: "p6",
-    type: "project",
-    title: "뉴스 프레임 비교 시각화",
-    teamName: "프레임워치",
+    id: 'p6',
+    type: 'project',
+    title: '뉴스 프레임 비교 시각화',
+    teamName: '프레임워치',
     term: 19,
-    contentDate: "2025-07-15",
-    track: "VISUALIZATION",
+    contentDate: '2025-07-15',
+    track: 'VISUALIZATION',
     imageUrl: SAMPLE_PROJECT_IMAGES[5],
     visible: true,
-    links: { web: "https://framewatch.boaz.com" },
+    links: { web: 'https://framewatch.boaz.com' },
   },
   {
-    id: "p7",
-    type: "project",
-    title: "카드 소비 데이터 상권 분석",
-    teamName: "골목상권팀",
+    id: 'p7',
+    type: 'project',
+    title: '카드 소비 데이터 상권 분석',
+    teamName: '골목상권팀',
     term: 19,
-    contentDate: "2025-07-15",
-    track: "ANALYSIS",
+    contentDate: '2025-07-15',
+    track: 'ANALYSIS',
     imageUrl: SAMPLE_PROJECT_IMAGES[0],
     visible: true,
     links: {
-      github: "https://github.com/boaz-analysis/card-consumption",
-      slideshare: "https://slideshare.net/boaz/card-consumption",
+      github: 'https://github.com/boaz-analysis/card-consumption',
+      slideshare: 'https://slideshare.net/boaz/card-consumption',
     },
   },
   {
-    id: "p8",
-    type: "project",
-    title: "음식점 리뷰 요약 LLM 파이프라인",
-    teamName: "요약해줘",
+    id: 'p8',
+    type: 'project',
+    title: '음식점 리뷰 요약 LLM 파이프라인',
+    teamName: '요약해줘',
     term: 19,
-    contentDate: "2025-07-15",
-    track: "ENGINEERING",
+    contentDate: '2025-07-15',
+    track: 'ENGINEERING',
     imageUrl: SAMPLE_PROJECT_IMAGES[1],
     visible: true,
-    links: { github: "https://github.com/boaz-eng/review-llm" },
+    links: { github: 'https://github.com/boaz-eng/review-llm' },
   },
   // Tech Blogs
   {
-    id: "b1",
-    type: "blog",
-    title: "Kubernetes와 Airflow를 활용한 대용량 배치 처리 아키텍처",
-    teamName: "김도현",
+    id: 'b1',
+    type: 'blog',
+    title: 'Kubernetes와 Airflow를 활용한 대용량 배치 처리 아키텍처',
+    teamName: '김도현',
     term: 21,
-    contentDate: "2026-06-12",
-    track: "ENGINEERING",
+    contentDate: '2026-06-12',
+    track: 'ENGINEERING',
     imageUrl: SAMPLE_PROJECT_IMAGES[4],
     visible: true,
     links: {
-      medium: "https://medium.com/boaz/k8s-airflow-batch",
-      github: "https://github.com/boaz-eng",
+      medium: 'https://medium.com/boaz/k8s-airflow-batch',
+      github: 'https://github.com/boaz-eng',
     },
   },
   {
-    id: "b2",
-    type: "blog",
-    title: "TabNet과 LightGBM 성능 비교 실험기",
-    teamName: "박서연",
+    id: 'b2',
+    type: 'blog',
+    title: 'TabNet과 LightGBM 성능 비교 실험기',
+    teamName: '박서연',
     term: 21,
-    contentDate: "2026-05-30",
-    track: "ANALYSIS",
+    contentDate: '2026-05-30',
+    track: 'ANALYSIS',
     imageUrl: SAMPLE_PROJECT_IMAGES[0],
     visible: true,
-    links: { medium: "https://medium.com/boaz/tabnet-vs-lightgbm" },
+    links: { medium: 'https://medium.com/boaz/tabnet-vs-lightgbm' },
   },
   {
-    id: "b3",
-    type: "blog",
-    title: "D3.js로 인터랙티브 네트워크 그래프 만들기",
-    teamName: "최지우",
+    id: 'b3',
+    type: 'blog',
+    title: 'D3.js로 인터랙티브 네트워크 그래프 만들기',
+    teamName: '최지우',
     term: 20,
-    contentDate: "2025-11-18",
-    track: "VISUALIZATION",
+    contentDate: '2025-11-18',
+    track: 'VISUALIZATION',
     imageUrl: SAMPLE_PROJECT_IMAGES[2],
     visible: true,
     links: {
-      medium: "https://medium.com/boaz/d3-network-graph",
-      web: "https://d3-demo.boaz.com",
+      medium: 'https://medium.com/boaz/d3-network-graph',
+      web: 'https://d3-demo.boaz.com',
     },
   },
   // Photos
   {
-    id: "ph1",
-    type: "photo",
-    title: "제21기 BOAZ 컨퍼런스 & 홈커밍데이 현장",
-    teamName: "서비스운영팀",
+    id: 'ph1',
+    type: 'photo',
+    title: '제21기 BOAZ 컨퍼런스 & 홈커밍데이 현장',
+    teamName: '서비스운영팀',
     term: 21,
-    contentDate: "2026-07-28",
-    track: "ALL",
+    contentDate: '2026-07-28',
+    track: 'ALL',
     imageUrl:
-      "https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=80",
+      'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=80',
     visible: true,
-    links: { instagram: "https://instagram.com/p/boaz_conf21" },
-    half: "21-1",
+    links: { instagram: 'https://instagram.com/p/boaz_conf21' },
+    half: '21-1',
   },
   {
-    id: "ph2",
-    type: "photo",
-    title: "2026 여름 MT 및 네트워킹 나이트",
-    teamName: "운영지원팀",
+    id: 'ph2',
+    type: 'photo',
+    title: '2026 여름 MT 및 네트워킹 나이트',
+    teamName: '운영지원팀',
     term: 21,
-    contentDate: "2026-08-05",
-    track: "ALL",
+    contentDate: '2026-08-05',
+    track: 'ALL',
     imageUrl:
-      "https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=800&auto=format&fit=crop&q=80",
+      'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=800&auto=format&fit=crop&q=80',
     visible: true,
-    links: { instagram: "https://instagram.com/p/boaz_summer26" },
-    half: "21-1",
+    links: { instagram: 'https://instagram.com/p/boaz_summer26' },
+    half: '21-1',
   },
 ];
 
 const TRACK_LABELS: Record<TrackType, string> = {
-  ALL: "전체",
-  ANALYSIS: "분석",
-  ENGINEERING: "엔지니어링",
-  VISUALIZATION: "시각화",
+  ALL: '전체',
+  ANALYSIS: '분석',
+  ENGINEERING: '엔지니어링',
+  VISUALIZATION: '시각화',
 };
 
 const LINK_LABELS: Record<string, string> = {
-  github: "GitHub",
-  slideshare: "발표 자료",
-  web: "서비스",
-  medium: "게시글",
-  instagram: "Instagram",
+  github: 'GitHub',
+  slideshare: '발표 자료',
+  web: '서비스',
+  medium: '게시글',
+  instagram: 'Instagram',
 };
 
 export function ArchivingSection() {
-  const [activeTab, setActiveTab] = useState<ArchiveType>("project");
+  const [activeTab, setActiveTab] = useState<ArchiveType>('project');
   const [items, setItems] = useState<ArchiveItem[]>(INITIAL_ARCHIVE_DATA);
-  const [selectedTrack, setSelectedTrack] = useState<string>("ALL");
-  const [selectedTerm, setSelectedTerm] = useState<string>("ALL");
-  const [selectedVisibility, setSelectedVisibility] = useState("ALL");
-  const [selectedHalf, setSelectedHalf] = useState("ALL");
-  const [selectedOwner, setSelectedOwner] = useState("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string>("p1");
+  const [selectedTrack, setSelectedTrack] = useState<string>('ALL');
+  const [selectedTerm, setSelectedTerm] = useState<string>('ALL');
+  const [selectedVisibility, setSelectedVisibility] = useState('ALL');
+  const [selectedHalf, setSelectedHalf] = useState('ALL');
+  const [selectedOwner, setSelectedOwner] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<string>('p1');
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [showPayloadModal, setShowPayloadModal] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -263,58 +263,42 @@ export function ArchivingSection() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Edit form state
-  const [editForm, setEditForm] = useState<ArchiveItem>(
-    INITIAL_ARCHIVE_DATA[0],
-  );
-  const [initialForm, setInitialForm] = useState<ArchiveItem>(
-    INITIAL_ARCHIVE_DATA[0],
-  );
+  const [editForm, setEditForm] = useState<ArchiveItem>(INITIAL_ARCHIVE_DATA[0]);
+  const [initialForm, setInitialForm] = useState<ArchiveItem>(INITIAL_ARCHIVE_DATA[0]);
   const [isNew, setIsNew] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Endpoint mapping
   const endpointMap: Record<ArchiveType, string> = {
-    project: "/api/v1/admin/archiving/projects",
-    blog: "/api/v1/admin/archiving/blogs",
-    photo: "/api/v1/admin/archiving/activities",
+    project: '/api/v1/admin/archiving/projects',
+    blog: '/api/v1/admin/archiving/blogs',
+    photo: '/api/v1/admin/archiving/activities',
   };
 
   const filteredItems = items.filter((item) => {
     if (item.type !== activeTab) {
       return false;
     }
-    if (selectedTrack !== "ALL" && item.track !== selectedTrack) {
+    if (selectedTrack !== 'ALL' && item.track !== selectedTrack) {
       return false;
     }
-    if (selectedTerm !== "ALL" && item.term.toString() !== selectedTerm) {
+    if (selectedTerm !== 'ALL' && item.term.toString() !== selectedTerm) {
       return false;
     }
-    if (
-      selectedVisibility !== "ALL" &&
-      item.visible !== (selectedVisibility === "VISIBLE")
-    ) {
+    if (selectedVisibility !== 'ALL' && item.visible !== (selectedVisibility === 'VISIBLE')) {
       return false;
     }
-    if (
-      activeTab === "photo" &&
-      selectedHalf !== "ALL" &&
-      item.half !== selectedHalf
-    ) {
+    if (activeTab === 'photo' && selectedHalf !== 'ALL' && item.half !== selectedHalf) {
       return false;
     }
-    if (
-      activeTab === "blog" &&
-      selectedOwner !== "ALL" &&
-      item.teamName !== selectedOwner
-    ) {
+    if (activeTab === 'blog' && selectedOwner !== 'ALL' && item.teamName !== selectedOwner) {
       return false;
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
-        item.title.toLowerCase().includes(q) ||
-        (item.teamName ?? "").toLowerCase().includes(q)
+        item.title.toLowerCase().includes(q) || (item.teamName ?? '').toLowerCase().includes(q)
       );
     }
     return true;
@@ -349,26 +333,26 @@ export function ArchivingSection() {
     setIsNew(true);
     setIsEditorOpen(true);
     const newItem: ArchiveItem = {
-      id: "item_" + Date.now(),
+      id: 'item_' + Date.now(),
       type: activeTab,
-      title: "",
-      teamName: "",
+      title: '',
+      teamName: '',
       term: 21,
       contentDate: new Date().toISOString().slice(0, 10),
-      track: activeTab === "photo" ? "ALL" : "ANALYSIS",
-      imageUrl: "",
+      track: activeTab === 'photo' ? 'ALL' : 'ANALYSIS',
+      imageUrl: '',
       imageFile: null,
       visible: true,
       links: {},
-      half: "21-1",
+      half: '21-1',
     };
     setEditForm(newItem);
     setInitialForm(newItem);
     setFormErrors({});
   }
 
-  function handleCloseEditor() {
-    if (isDirty && !confirm("변경사항을 저장하지 않고 닫을까요?")) {
+  const handleCloseEditor = useCallback(() => {
+    if (isDirty && !confirm('변경사항을 저장하지 않고 닫을까요?')) {
       return;
     }
     if (isNew) {
@@ -384,18 +368,18 @@ export function ArchivingSection() {
     setIsNew(false);
     setIsEditorOpen(false);
     setFormErrors({});
-  }
+  }, [isDirty, isNew, items, selectedId, activeTab]);
 
   function handleTabChange(tab: ArchiveType) {
     setActiveTab(tab);
     setIsEditorOpen(false);
     setDetailItem(null);
-    setSelectedTrack("ALL");
-    setSelectedTerm("ALL");
-    setSelectedVisibility("ALL");
-    setSelectedHalf("ALL");
-    setSelectedOwner("ALL");
-    setSearchQuery("");
+    setSelectedTrack('ALL');
+    setSelectedTerm('ALL');
+    setSelectedVisibility('ALL');
+    setSelectedHalf('ALL');
+    setSelectedOwner('ALL');
+    setSearchQuery('');
     setPage(1);
     const firstOfTab = items.find((i) => i.type === tab);
     if (firstOfTab) {
@@ -427,20 +411,20 @@ export function ArchivingSection() {
       track: editForm.track,
       links: JSON.stringify(editForm.links),
       contentDate: editForm.contentDate,
-      ...(activeTab === "photo" ? { half: editForm.half || "21-1" } : {}),
+      ...(activeTab === 'photo' ? { half: editForm.half || '21-1' } : {}),
     };
     return {
       endpoint: isNew
         ? `POST ${endpointMap[activeTab]}`
         : `PATCH ${endpointMap[activeTab]}/${editForm.id}`,
-      contentType: "multipart/form-data",
+      contentType: 'multipart/form-data',
       parts: {
         data: dataPart,
         image: editForm.imageFile
           ? `[File: ${editForm.imageFile.name}, size: ${editForm.imageFile.size} bytes]`
           : editForm.imageUrl
             ? `[Preserved URL: ${editForm.imageUrl}]`
-            : "null (생략)",
+            : 'null (생략)',
       },
     };
   }
@@ -451,14 +435,14 @@ export function ArchivingSection() {
       errors.title = `${currentFieldLabels.title}을 입력해 주세요.`;
     }
     if (!editForm.term || editForm.term <= 0) {
-      errors.term = "기수는 1 이상의 숫자로 입력해 주세요.";
+      errors.term = '기수는 1 이상의 숫자로 입력해 주세요.';
     }
     if (!editForm.contentDate) {
       errors.contentDate = `${currentFieldLabels.date}을 선택해 주세요.`;
     }
     const today = new Date().toISOString().slice(0, 10);
     if (editForm.contentDate > today) {
-      errors.contentDate = "오늘 또는 이전 날짜만 선택할 수 있습니다.";
+      errors.contentDate = '오늘 또는 이전 날짜만 선택할 수 있습니다.';
     }
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -470,9 +454,7 @@ export function ArchivingSection() {
       setIsNew(false);
       setSelectedId(editForm.id);
     } else {
-      setItems((prev) =>
-        prev.map((i) => (i.id === editForm.id ? editForm : i)),
-      );
+      setItems((prev) => prev.map((i) => (i.id === editForm.id ? editForm : i)));
     }
     setIsEditorOpen(false);
     setVisibilityUndo(null);
@@ -482,14 +464,12 @@ export function ArchivingSection() {
   function handleDelete() {
     if (confirm(`정말 이 ${tabLabels[activeTab]}를 삭제하시겠습니까?`)) {
       setItems((prev) => prev.filter((i) => i.id !== editForm.id));
-      const remaining = items.filter(
-        (i) => i.id !== editForm.id && i.type === activeTab,
-      );
+      const remaining = items.filter((i) => i.id !== editForm.id && i.type === activeTab);
       if (remaining.length > 0) {
         setSelectedId(remaining[0].id);
         setEditForm({ ...remaining[0], links: { ...remaining[0].links } });
       } else {
-        setSelectedId("");
+        setSelectedId('');
       }
       setIsEditorOpen(false);
       setVisibilityUndo(null);
@@ -500,15 +480,11 @@ export function ArchivingSection() {
   function handleToggleVisibility(item: ArchiveItem) {
     setItems((prev) =>
       prev.map((current) =>
-        current.id === item.id
-          ? { ...current, visible: !current.visible }
-          : current,
+        current.id === item.id ? { ...current, visible: !current.visible } : current,
       ),
     );
     setVisibilityUndo({ id: item.id, visible: item.visible });
-    showToast(
-      `${item.title}이(가) ${item.visible ? "숨김" : "노출"} 상태로 변경되었습니다.`,
-    );
+    showToast(`${item.title}이(가) ${item.visible ? '숨김' : '노출'} 상태로 변경되었습니다.`);
   }
 
   function handleUndoVisibility() {
@@ -517,19 +493,17 @@ export function ArchivingSection() {
     }
     setItems((prev) =>
       prev.map((item) =>
-        item.id === visibilityUndo.id
-          ? { ...item, visible: visibilityUndo.visible }
-          : item,
+        item.id === visibilityUndo.id ? { ...item, visible: visibilityUndo.visible } : item,
       ),
     );
     setVisibilityUndo(null);
-    showToast("노출 상태 변경을 되돌렸습니다.");
+    showToast('노출 상태 변경을 되돌렸습니다.');
   }
 
   const tabLabels: Record<ArchiveType, string> = {
-    project: "프로젝트",
-    blog: "기술블로그",
-    photo: "활동사진",
+    project: '프로젝트',
+    blog: '기술블로그',
+    photo: '활동사진',
   };
 
   const fieldLabels: Record<
@@ -537,22 +511,22 @@ export function ArchivingSection() {
     { title: string; owner: string; ownerPlaceholder: string; date: string }
   > = {
     project: {
-      title: "프로젝트명",
-      owner: "팀명",
-      ownerPlaceholder: "예: 리뷰읽는사람들",
-      date: "발표일",
+      title: '프로젝트명',
+      owner: '팀명',
+      ownerPlaceholder: '예: 리뷰읽는사람들',
+      date: '발표일',
     },
     blog: {
-      title: "글 제목",
-      owner: "작성자",
-      ownerPlaceholder: "예: 홍길동",
-      date: "게시일",
+      title: '글 제목',
+      owner: '작성자',
+      ownerPlaceholder: '예: 홍길동',
+      date: '게시일',
     },
     photo: {
-      title: "행사명",
-      owner: "담당 조직",
-      ownerPlaceholder: "예: 서비스운영팀",
-      date: "촬영일",
+      title: '행사명',
+      owner: '담당 조직',
+      ownerPlaceholder: '예: 서비스운영팀',
+      date: '촬영일',
     },
   };
 
@@ -564,14 +538,14 @@ export function ArchivingSection() {
     }
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         handleCloseEditor();
       }
     }
 
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [isEditorOpen, isNew, selectedId, activeTab, items]);
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isEditorOpen, handleCloseEditor]);
 
   useEffect(() => {
     if (!detailItem) {
@@ -579,25 +553,18 @@ export function ArchivingSection() {
     }
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setDetailItem(null);
       }
     }
 
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
   }, [detailItem]);
 
   useEffect(() => {
     setPage(1);
-  }, [
-    selectedTrack,
-    selectedTerm,
-    selectedVisibility,
-    selectedHalf,
-    selectedOwner,
-    searchQuery,
-  ]);
+  }, [selectedTrack, selectedTerm, selectedVisibility, selectedHalf, selectedOwner, searchQuery]);
 
   useEffect(() => {
     if (!toast) {
@@ -611,23 +578,22 @@ export function ArchivingSection() {
   }, [toast]);
 
   const searchPlaceholder: Record<ArchiveType, string> = {
-    project: "프로젝트명 또는 팀명 검색",
-    blog: "글 제목 또는 작성자 검색",
-    photo: "행사명 또는 담당 조직 검색",
+    project: '프로젝트명 또는 팀명 검색',
+    blog: '글 제목 또는 작성자 검색',
+    photo: '행사명 또는 담당 조직 검색',
   };
 
   return (
     <div
       className="space-y-4"
       style={{
-        fontFamily:
-          "'Pretendard Variable', Pretendard, -apple-system, sans-serif",
+        fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif",
       }}
     >
       {/* ─── Top Tabs (프로젝트 | 기술블로그 | 활동사진) ─── */}
       <div className="flex items-center justify-between border-b border-slate-200 px-1">
         <div className="flex items-center gap-8">
-          {(["project", "blog", "photo"] as ArchiveType[]).map((tab) => {
+          {(['project', 'blog', 'photo'] as ArchiveType[]).map((tab) => {
             const isActive = activeTab === tab;
             return (
               <button
@@ -635,14 +601,14 @@ export function ArchivingSection() {
                 onClick={() => handleTabChange(tab)}
                 className="pb-3 text-sm font-semibold relative transition-colors cursor-pointer"
                 style={{
-                  color: isActive ? "#0f172a" : "#64748b",
+                  color: isActive ? '#0f172a' : '#64748b',
                 }}
               >
                 {tabLabels[tab]}
                 {isActive && (
                   <div
                     className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                    style={{ background: "#2563eb" }}
+                    style={{ background: '#2563eb' }}
                   />
                 )}
               </button>
@@ -665,7 +631,7 @@ export function ArchivingSection() {
       {/* ─── Filter Bar ─── */}
       <div className="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-slate-200 bg-white p-3">
         <div className="flex items-center gap-2.5 flex-1 min-w-[320px]">
-          {activeTab !== "photo" && (
+          {activeTab !== 'photo' && (
             <select
               value={selectedTrack}
               onChange={(e) => setSelectedTrack(e.target.value)}
@@ -703,7 +669,7 @@ export function ArchivingSection() {
             </option>
           </select>
 
-          {activeTab === "blog" && (
+          {activeTab === 'blog' && (
             <select
               value={selectedOwner}
               onChange={(e) => setSelectedOwner(e.target.value)}
@@ -714,7 +680,7 @@ export function ArchivingSection() {
               {Array.from(
                 new Set(
                   items
-                    .filter((item) => item.type === "blog" && item.teamName)
+                    .filter((item) => item.type === 'blog' && item.teamName)
                     .map((item) => item.teamName as string),
                 ),
               ).map((owner) => (
@@ -725,7 +691,7 @@ export function ArchivingSection() {
             </select>
           )}
 
-          {activeTab === "photo" && (
+          {activeTab === 'photo' && (
             <select
               value={selectedHalf}
               onChange={(e) => setSelectedHalf(e.target.value)}
@@ -763,9 +729,7 @@ export function ArchivingSection() {
             />
           </div>
 
-          <span className="text-xs text-muted-foreground">
-            총 {filteredItems.length}건
-          </span>
+          <span className="text-xs text-muted-foreground">총 {filteredItems.length}건</span>
         </div>
 
         {/* New Item Button */}
@@ -810,25 +774,20 @@ export function ArchivingSection() {
               <tbody className="divide-y divide-slate-100">
                 {filteredItems.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="text-center py-12 text-xs text-muted-foreground"
-                    >
+                    <td colSpan={7} className="text-center py-12 text-xs text-muted-foreground">
                       조건에 맞는 아카이빙 항목이 없습니다.
                     </td>
                   </tr>
                 ) : (
                   paginatedItems.map((item) => {
-                    const linksList = Object.keys(item.links).filter(
-                      (k) => !!item.links[k],
-                    );
+                    const linksList = Object.keys(item.links).filter((k) => !!item.links[k]);
 
                     return (
                       <tr
                         key={item.id}
                         onClick={() => handleOpenDetail(item)}
                         className="transition-colors cursor-pointer group relative hover:bg-blue-50/60"
-                        style={{ borderLeft: "3px solid transparent" }}
+                        style={{ borderLeft: '3px solid transparent' }}
                       >
                         {/* 16:9 Thumbnail */}
                         <td className="px-5 py-3.5">
@@ -853,7 +812,7 @@ export function ArchivingSection() {
                             {item.title}
                           </p>
                           <p className="text-xs text-slate-500 mt-1 font-normal">
-                            {item.teamName || "—"}
+                            {item.teamName || '—'}
                           </p>
                         </td>
 
@@ -882,9 +841,7 @@ export function ArchivingSection() {
                                 </span>
                               ))
                             ) : (
-                              <span className="text-xs text-slate-400">
-                                등록된 링크 없음
-                              </span>
+                              <span className="text-xs text-slate-400">등록된 링크 없음</span>
                             )}
                           </div>
                         </td>
@@ -897,10 +854,10 @@ export function ArchivingSection() {
                               event.stopPropagation();
                               handleToggleVisibility(item);
                             }}
-                            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer ${item.visible ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
+                            className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors cursor-pointer ${item.visible ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
                             aria-label={`${item.title} 노출 상태 변경`}
                           >
-                            {item.visible ? "노출 중" : "숨김"}
+                            {item.visible ? '노출 중' : '숨김'}
                           </button>
                         </td>
 
@@ -929,8 +886,7 @@ export function ArchivingSection() {
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200 text-xs text-muted-foreground">
             <div className="flex items-center gap-3">
               <span>
-                총 {filteredItems.length}개 중{" "}
-                {filteredItems.length === 0 ? 0 : pageStart + 1}–
+                총 {filteredItems.length}개 중 {filteredItems.length === 0 ? 0 : pageStart + 1}–
                 {Math.min(pageStart + pageSize, filteredItems.length)}개 표시
               </span>
               <select
@@ -955,24 +911,18 @@ export function ArchivingSection() {
               >
                 이전
               </button>
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                (pageNumber) => (
-                  <button
-                    key={pageNumber}
-                    onClick={() => setPage(pageNumber)}
-                    aria-current={
-                      currentPage === pageNumber ? "page" : undefined
-                    }
-                    className={`h-7 min-w-7 rounded border px-2 text-xs font-semibold cursor-pointer ${currentPage === pageNumber ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"}`}
-                  >
-                    {pageNumber}
-                  </button>
-                ),
-              )}
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  onClick={() => setPage(pageNumber)}
+                  aria-current={currentPage === pageNumber ? 'page' : undefined}
+                  className={`h-7 min-w-7 rounded border px-2 text-xs font-semibold cursor-pointer ${currentPage === pageNumber ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'}`}
+                >
+                  {pageNumber}
+                </button>
+              ))}
               <button
-                onClick={() =>
-                  setPage((current) => Math.min(totalPages, current + 1))
-                }
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                 disabled={currentPage === totalPages}
                 className="px-2.5 py-1 rounded bg-white hover:bg-slate-100 text-foreground border border-slate-200 text-xs font-medium cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -1003,17 +953,14 @@ export function ArchivingSection() {
                       {tabLabels[detailItem.type]}
                     </span>
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${detailItem.visible ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${detailItem.visible ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
                     >
-                      {detailItem.visible ? "노출 중" : "숨김"}
+                      {detailItem.visible ? '노출 중' : '숨김'}
                     </span>
                   </div>
-                  <h3 className="truncate text-lg font-bold text-slate-900">
-                    {detailItem.title}
-                  </h3>
+                  <h3 className="truncate text-lg font-bold text-slate-900">{detailItem.title}</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    {detailItem.teamName ||
-                      `${currentFieldLabels.owner} 정보 없음`}
+                    {detailItem.teamName || `${currentFieldLabels.owner} 정보 없음`}
                   </p>
                 </div>
                 <button
@@ -1049,22 +996,16 @@ export function ArchivingSection() {
                 )}
 
                 <section>
-                  <h4 className="mb-3 text-xs font-bold text-slate-900">
-                    기본 정보
-                  </h4>
+                  <h4 className="mb-3 text-xs font-bold text-slate-900">기본 정보</h4>
                   <dl className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200 md:grid-cols-3">
                     <div className="border-b border-r border-slate-200 p-4 md:border-b-0">
-                      <dt className="text-[11px] font-medium text-slate-400">
-                        기수
-                      </dt>
+                      <dt className="text-[11px] font-medium text-slate-400">기수</dt>
                       <dd className="mt-1.5 text-sm font-semibold text-slate-800">
                         {detailItem.term}기
                       </dd>
                     </div>
                     <div className="border-b border-slate-200 p-4 md:border-b-0 md:border-r">
-                      <dt className="text-[11px] font-medium text-slate-400">
-                        트랙
-                      </dt>
+                      <dt className="text-[11px] font-medium text-slate-400">트랙</dt>
                       <dd className="mt-1.5 text-sm font-semibold text-slate-800">
                         {TRACK_LABELS[detailItem.track]}
                       </dd>
@@ -1074,18 +1015,14 @@ export function ArchivingSection() {
                         {currentFieldLabels.date}
                       </dt>
                       <dd className="mt-1.5 text-sm font-semibold text-slate-800">
-                        {new Date(
-                          `${detailItem.contentDate}T00:00:00`,
-                        ).toLocaleDateString("ko-KR")}
+                        {new Date(`${detailItem.contentDate}T00:00:00`).toLocaleDateString('ko-KR')}
                       </dd>
                     </div>
-                    {detailItem.type === "photo" && (
+                    {detailItem.type === 'photo' && (
                       <div className="col-span-2 border-t border-slate-200 p-4 md:col-span-3">
-                        <dt className="text-[11px] font-medium text-slate-400">
-                          활동 반기
-                        </dt>
+                        <dt className="text-[11px] font-medium text-slate-400">활동 반기</dt>
                         <dd className="mt-1.5 text-sm font-semibold text-slate-800">
-                          {detailItem.half || "—"}
+                          {detailItem.half || '—'}
                         </dd>
                       </div>
                     )}
@@ -1093,12 +1030,8 @@ export function ArchivingSection() {
                 </section>
 
                 <section className="mt-6">
-                  <h4 className="mb-3 text-xs font-bold text-slate-900">
-                    관련 링크
-                  </h4>
-                  {Object.entries(detailItem.links).filter(([, url]) =>
-                    Boolean(url),
-                  ).length > 0 ? (
+                  <h4 className="mb-3 text-xs font-bold text-slate-900">관련 링크</h4>
+                  {Object.entries(detailItem.links).filter(([, url]) => Boolean(url)).length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(detailItem.links)
                         .filter(([, url]) => Boolean(url))
@@ -1110,8 +1043,7 @@ export function ArchivingSection() {
                             rel="noreferrer"
                             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                           >
-                            {LINK_LABELS[type] ?? type}{" "}
-                            <ExternalLink size={12} />
+                            {LINK_LABELS[type] ?? type} <ExternalLink size={12} />
                           </a>
                         ))}
                     </div>
@@ -1154,15 +1086,13 @@ export function ArchivingSection() {
             <div
               role="dialog"
               aria-modal="true"
-              aria-label={`${tabLabels[activeTab]} ${isNew ? "추가" : "수정"}`}
+              aria-label={`${tabLabels[activeTab]} ${isNew ? '추가' : '수정'}`}
               className="fixed left-1/2 top-1/2 z-50 flex w-[calc(100%-2rem)] max-w-3xl max-h-[calc(100vh-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
             >
               <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
                 <div>
                   <h3 className="text-lg font-bold text-foreground">
-                    {isNew
-                      ? `새 ${tabLabels[activeTab]} 등록`
-                      : `${tabLabels[activeTab]} 수정`}
+                    {isNew ? `새 ${tabLabels[activeTab]} 등록` : `${tabLabels[activeTab]} 수정`}
                   </h3>
                   <p className="mt-1 max-w-md truncate text-xs text-muted-foreground">
                     {isNew
@@ -1195,9 +1125,7 @@ export function ArchivingSection() {
                 {/* 16:9 Image Upload Area */}
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-semibold text-foreground">
-                      대표 이미지
-                    </label>
+                    <label className="text-xs font-semibold text-foreground">대표 이미지</label>
                     <span className="text-[11px] text-muted-foreground">
                       권장 비율 16:9 · JPG, PNG
                     </span>
@@ -1207,13 +1135,11 @@ export function ArchivingSection() {
                       <img
                         src={editForm.imageUrl}
                         alt="대표 이미지 미리보기"
-                        className={`w-full object-cover ${isNew ? "h-52" : "h-36"}`}
+                        className={`w-full object-cover ${isNew ? 'h-52' : 'h-36'}`}
                       />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         <button
-                          onClick={() =>
-                            setLightboxUrl(editForm.imageUrl || null)
-                          }
+                          onClick={() => setLightboxUrl(editForm.imageUrl || null)}
                           className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs"
                           title="확대 보기"
                         >
@@ -1230,7 +1156,7 @@ export function ArchivingSection() {
                           onClick={() =>
                             setEditForm((prev) => ({
                               ...prev,
-                              imageUrl: "",
+                              imageUrl: '',
                               imageFile: null,
                             }))
                           }
@@ -1244,12 +1170,10 @@ export function ArchivingSection() {
                   ) : (
                     <div
                       onClick={() => fileInputRef.current?.click()}
-                      className={`w-full rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100 transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${isNew ? "h-52" : "h-36"}`}
+                      className={`w-full rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100 transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${isNew ? 'h-52' : 'h-36'}`}
                     >
                       <Upload size={18} className="text-muted-foreground" />
-                      <p className="text-xs font-medium text-foreground">
-                        클릭하여 이미지 업로드
-                      </p>
+                      <p className="text-xs font-medium text-foreground">클릭하여 이미지 업로드</p>
                       <p className="text-[11px] text-muted-foreground">
                         목록과 상세 화면의 대표 이미지로 사용됩니다.
                       </p>
@@ -1260,16 +1184,13 @@ export function ArchivingSection() {
                 {/* Form Fields */}
                 <div className="space-y-4 text-xs">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-foreground">
-                      기본 정보
-                    </h4>
+                    <h4 className="text-xs font-bold text-foreground">기본 정보</h4>
                     <div className="h-px flex-1 bg-slate-200" />
                   </div>
                   {/* Title (필수) */}
                   <div>
                     <label className="text-muted-foreground block mb-1">
-                      {currentFieldLabels.title}{" "}
-                      <span className="text-red-500 font-bold">*</span>
+                      {currentFieldLabels.title} <span className="text-red-500 font-bold">*</span>
                     </label>
                     <input
                       value={editForm.title}
@@ -1278,15 +1199,13 @@ export function ArchivingSection() {
                           ...prev,
                           title: e.target.value,
                         })),
-                        setFormErrors((prev) => ({ ...prev, title: "" }))
+                        setFormErrors((prev) => ({ ...prev, title: '' }))
                       )}
                       placeholder={`${currentFieldLabels.title}을 입력해 주세요`}
-                      className={`w-full px-3 py-2 rounded-md outline-none bg-slate-100 border text-foreground placeholder:text-muted-foreground/50 font-medium ${formErrors.title ? "border-red-400" : "border-slate-200"}`}
+                      className={`w-full px-3 py-2 rounded-md outline-none bg-slate-100 border text-foreground placeholder:text-muted-foreground/50 font-medium ${formErrors.title ? 'border-red-400' : 'border-slate-200'}`}
                     />
                     {formErrors.title && (
-                      <p className="mt-1 text-[11px] text-red-600">
-                        {formErrors.title}
-                      </p>
+                      <p className="mt-1 text-[11px] text-red-600">{formErrors.title}</p>
                     )}
                   </div>
 
@@ -1296,7 +1215,7 @@ export function ArchivingSection() {
                       {currentFieldLabels.owner}
                     </label>
                     <input
-                      value={editForm.teamName ?? ""}
+                      value={editForm.teamName ?? ''}
                       onChange={(e) =>
                         setEditForm((prev) => ({
                           ...prev,
@@ -1322,20 +1241,17 @@ export function ArchivingSection() {
                             ...prev,
                             term: Number(e.target.value),
                           })),
-                          setFormErrors((prev) => ({ ...prev, term: "" }))
+                          setFormErrors((prev) => ({ ...prev, term: '' }))
                         )}
-                        className={`w-full px-3 py-2 rounded-md outline-none bg-slate-100 border text-foreground font-mono ${formErrors.term ? "border-red-400" : "border-slate-200"}`}
+                        className={`w-full px-3 py-2 rounded-md outline-none bg-slate-100 border text-foreground font-mono ${formErrors.term ? 'border-red-400' : 'border-slate-200'}`}
                       />
                       {formErrors.term && (
-                        <p className="mt-1 text-[11px] text-red-600">
-                          {formErrors.term}
-                        </p>
+                        <p className="mt-1 text-[11px] text-red-600">{formErrors.term}</p>
                       )}
                     </div>
                     <div>
                       <label className="text-muted-foreground block mb-1">
-                        {currentFieldLabels.date}{" "}
-                        <span className="text-red-500 font-bold">*</span>
+                        {currentFieldLabels.date} <span className="text-red-500 font-bold">*</span>
                       </label>
                       <input
                         type="date"
@@ -1347,16 +1263,14 @@ export function ArchivingSection() {
                           })),
                           setFormErrors((prev) => ({
                             ...prev,
-                            contentDate: "",
+                            contentDate: '',
                           }))
                         )}
                         max={new Date().toISOString().slice(0, 10)}
-                        className={`w-full px-3 py-2 rounded-md outline-none bg-slate-100 border text-foreground font-mono ${formErrors.contentDate ? "border-red-400" : "border-slate-200"}`}
+                        className={`w-full px-3 py-2 rounded-md outline-none bg-slate-100 border text-foreground font-mono ${formErrors.contentDate ? 'border-red-400' : 'border-slate-200'}`}
                       />
                       {formErrors.contentDate && (
-                        <p className="mt-1 text-[11px] text-red-600">
-                          {formErrors.contentDate}
-                        </p>
+                        <p className="mt-1 text-[11px] text-red-600">{formErrors.contentDate}</p>
                       )}
                     </div>
                   </div>
@@ -1392,24 +1306,18 @@ export function ArchivingSection() {
                   </div>
 
                   <div className="flex items-center gap-2 pt-1">
-                    <h4 className="text-xs font-bold text-foreground">
-                      관련 링크
-                    </h4>
-                    <span className="text-[11px] text-muted-foreground">
-                      선택 입력
-                    </span>
+                    <h4 className="text-xs font-bold text-foreground">관련 링크</h4>
+                    <span className="text-[11px] text-muted-foreground">선택 입력</span>
                     <div className="h-px flex-1 bg-slate-200" />
                   </div>
 
                   {/* Links based on tab */}
-                  {activeTab === "project" && (
+                  {activeTab === 'project' && (
                     <>
                       <div>
-                        <label className="text-muted-foreground block mb-1">
-                          GitHub 링크
-                        </label>
+                        <label className="text-muted-foreground block mb-1">GitHub 링크</label>
                         <input
-                          value={editForm.links.github ?? ""}
+                          value={editForm.links.github ?? ''}
                           onChange={(e) =>
                             setEditForm((prev) => ({
                               ...prev,
@@ -1421,11 +1329,9 @@ export function ArchivingSection() {
                         />
                       </div>
                       <div>
-                        <label className="text-muted-foreground block mb-1">
-                          발표 자료 링크
-                        </label>
+                        <label className="text-muted-foreground block mb-1">발표 자료 링크</label>
                         <input
-                          value={editForm.links.slideshare ?? ""}
+                          value={editForm.links.slideshare ?? ''}
                           onChange={(e) =>
                             setEditForm((prev) => ({
                               ...prev,
@@ -1440,11 +1346,9 @@ export function ArchivingSection() {
                         />
                       </div>
                       <div>
-                        <label className="text-muted-foreground block mb-1">
-                          서비스 링크
-                        </label>
+                        <label className="text-muted-foreground block mb-1">서비스 링크</label>
                         <input
-                          value={editForm.links.web ?? ""}
+                          value={editForm.links.web ?? ''}
                           onChange={(e) =>
                             setEditForm((prev) => ({
                               ...prev,
@@ -1458,14 +1362,12 @@ export function ArchivingSection() {
                     </>
                   )}
 
-                  {activeTab === "blog" && (
+                  {activeTab === 'blog' && (
                     <>
                       <div>
-                        <label className="text-muted-foreground block mb-1">
-                          게시글 링크
-                        </label>
+                        <label className="text-muted-foreground block mb-1">게시글 링크</label>
                         <input
-                          value={editForm.links.medium ?? ""}
+                          value={editForm.links.medium ?? ''}
                           onChange={(e) =>
                             setEditForm((prev) => ({
                               ...prev,
@@ -1477,11 +1379,9 @@ export function ArchivingSection() {
                         />
                       </div>
                       <div>
-                        <label className="text-muted-foreground block mb-1">
-                          GitHub 링크
-                        </label>
+                        <label className="text-muted-foreground block mb-1">GitHub 링크</label>
                         <input
-                          value={editForm.links.github ?? ""}
+                          value={editForm.links.github ?? ''}
                           onChange={(e) =>
                             setEditForm((prev) => ({
                               ...prev,
@@ -1495,14 +1395,12 @@ export function ArchivingSection() {
                     </>
                   )}
 
-                  {activeTab === "photo" && (
+                  {activeTab === 'photo' && (
                     <>
                       <div>
-                        <label className="text-muted-foreground block mb-1">
-                          Instagram 링크
-                        </label>
+                        <label className="text-muted-foreground block mb-1">Instagram 링크</label>
                         <input
-                          value={editForm.links.instagram ?? ""}
+                          value={editForm.links.instagram ?? ''}
                           onChange={(e) =>
                             setEditForm((prev) => ({
                               ...prev,
@@ -1517,11 +1415,9 @@ export function ArchivingSection() {
                         />
                       </div>
                       <div>
-                        <label className="text-muted-foreground block mb-1">
-                          활동 반기
-                        </label>
+                        <label className="text-muted-foreground block mb-1">활동 반기</label>
                         <input
-                          value={editForm.half ?? "21-1"}
+                          value={editForm.half ?? '21-1'}
                           onChange={(e) =>
                             setEditForm((prev) => ({
                               ...prev,
@@ -1549,9 +1445,7 @@ export function ArchivingSection() {
                         }
                         className="rounded accent-blue-600 cursor-pointer w-4 h-4"
                       />
-                      <span className="text-xs text-foreground font-medium">
-                        사이트에 노출
-                      </span>
+                      <span className="text-xs text-foreground font-medium">사이트에 노출</span>
                     </label>
                   </div>
                 </div>
@@ -1578,7 +1472,7 @@ export function ArchivingSection() {
                   onClick={handleSave}
                   className="px-5 py-2.5 rounded-lg bg-blue-600 text-xs font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.98] cursor-pointer"
                 >
-                  {isNew ? `${tabLabels[activeTab]} 등록` : "변경사항 저장"}
+                  {isNew ? `${tabLabels[activeTab]} 등록` : '변경사항 저장'}
                 </button>
               </div>
             </div>
@@ -1613,9 +1507,7 @@ export function ArchivingSection() {
 
             <div className="space-y-3 text-xs font-mono">
               <div className="p-3 rounded-lg bg-slate-100 border border-slate-200">
-                <p className="text-[#34d399] font-bold mb-1">
-                  {buildBackendPayload().endpoint}
-                </p>
+                <p className="text-[#34d399] font-bold mb-1">{buildBackendPayload().endpoint}</p>
                 <p className="text-muted-foreground text-[11px]">
                   Content-Type: multipart/form-data
                 </p>
@@ -1623,7 +1515,7 @@ export function ArchivingSection() {
 
               <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 overflow-x-auto">
                 <p className="text-xs text-amber-400 font-bold mb-2">
-                  {"// Part 1: data (JSON, ArchiveCreateRequest)"}
+                  {'// Part 1: data (JSON, ArchiveCreateRequest)'}
                 </p>
                 <pre className="text-[11px] text-foreground/90 whitespace-pre-wrap">
                   {JSON.stringify(buildBackendPayload().parts.data, null, 2)}
@@ -1632,7 +1524,7 @@ export function ArchivingSection() {
 
               <div className="p-3 rounded-lg bg-slate-100 border border-slate-200">
                 <p className="text-xs text-amber-400 font-bold mb-1">
-                  {"// Part 2: image (MultipartFile)"}
+                  {'// Part 2: image (MultipartFile)'}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   {buildBackendPayload().parts.image}

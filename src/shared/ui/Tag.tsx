@@ -5,7 +5,7 @@ export function Tag({ label, color, bg }: { label: string; color?: string; bg?: 
       style={
         color && bg
           ? { background: bg, color, borderColor: `${color}30` }
-          : { background: "#f8fafc", color: "#475569", borderColor: "#e2e8f0" }
+          : { background: '#f8fafc', color: '#475569', borderColor: '#e2e8f0' }
       }
     >
       {label}
