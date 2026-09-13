@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
   Award,
   BookmarkCheck,
@@ -17,12 +17,12 @@ import {
   User,
   UserCheck,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-export type ApplicationStatus = "DRAFT" | "SUBMITTED";
-export type EvaluationDecision = "PASS" | "HOLD" | "FAIL" | "PENDING";
-export type TrackType = "ANALYSIS" | "ENGINEERING" | "VISUALIZATION";
-export type MilitaryStatus = "COMPLETED" | "EXEMPTED" | "UNFULFILLED" | "NOT_APPLICABLE";
+export type ApplicationStatus = 'DRAFT' | 'SUBMITTED';
+export type EvaluationDecision = 'PASS' | 'HOLD' | 'FAIL' | 'PENDING';
+export type TrackType = 'ANALYSIS' | 'ENGINEERING' | 'VISUALIZATION';
+export type MilitaryStatus = 'COMPLETED' | 'EXEMPTED' | 'UNFULFILLED' | 'NOT_APPLICABLE';
 
 // 공통 ApiResponse Envelope
 export interface ApiResponse<T> {
@@ -70,7 +70,7 @@ export interface ApplicantEvaluationDto extends ApplicantSummaryDto {
 export interface EvaluatorDetailItem {
   admin_id: number;
   name: string;
-  track: TrackType | "COMMON";
+  track: TrackType | 'COMMON';
   decision: EvaluationDecision | null;
   score: number | null;
   memo: string | null;
@@ -80,7 +80,7 @@ export interface EvaluatorDetailItem {
 export interface InterviewQuestionItem {
   admin_id: number;
   name: string;
-  track: TrackType | "COMMON";
+  track: TrackType | 'COMMON';
   interview_question: string | null;
 }
 
@@ -89,24 +89,24 @@ export interface ApplicantAnswerDto {
   question_id: number;
   label: string;
   category: string;
-  type: "TEXT" | "TABLE";
+  type: 'TEXT' | 'TABLE';
   content: string;
   order_num: number;
   answer: string | any;
 }
 
 // Mock Evaluators Pool
-const INITIAL_EVALUATOR_POOL: { admin_id: number; name: string; track: TrackType | "COMMON" }[] = [
-  { admin_id: 1, name: "문혁준 (나)", track: "ENGINEERING" },
-  { admin_id: 2, name: "강민석", track: "ENGINEERING" },
-  { admin_id: 3, name: "김대현", track: "ENGINEERING" },
-  { admin_id: 4, name: "남민서", track: "ENGINEERING" },
-  { admin_id: 5, name: "손채민", track: "ENGINEERING" },
-  { admin_id: 6, name: "신재원", track: "ENGINEERING" },
-  { admin_id: 7, name: "이욱성", track: "ENGINEERING" },
-  { admin_id: 8, name: "이주영", track: "ENGINEERING" },
-  { admin_id: 9, name: "장민주", track: "ENGINEERING" },
-  { admin_id: 10, name: "최재은", track: "ENGINEERING" },
+const INITIAL_EVALUATOR_POOL: { admin_id: number; name: string; track: TrackType | 'COMMON' }[] = [
+  { admin_id: 1, name: '문혁준 (나)', track: 'ENGINEERING' },
+  { admin_id: 2, name: '강민석', track: 'ENGINEERING' },
+  { admin_id: 3, name: '김대현', track: 'ENGINEERING' },
+  { admin_id: 4, name: '남민서', track: 'ENGINEERING' },
+  { admin_id: 5, name: '손채민', track: 'ENGINEERING' },
+  { admin_id: 6, name: '신재원', track: 'ENGINEERING' },
+  { admin_id: 7, name: '이욱성', track: 'ENGINEERING' },
+  { admin_id: 8, name: '이주영', track: 'ENGINEERING' },
+  { admin_id: 9, name: '장민주', track: 'ENGINEERING' },
+  { admin_id: 10, name: '최재은', track: 'ENGINEERING' },
 ];
 
 const INITIAL_DATA: {
@@ -119,55 +119,55 @@ const INITIAL_DATA: {
     {
       id: 101,
       user_id: 55,
-      status: "SUBMITTED",
-      track: "ENGINEERING",
-      name: "이도현",
-      email: "dohyun@snu.ac.kr",
-      phone: "010-3819-2910",
-      university: "서울대학교",
-      major: "컴퓨터공학과",
-      minor_double_major: ["통계학 (복수전공)"],
+      status: 'SUBMITTED',
+      track: 'ENGINEERING',
+      name: '이도현',
+      email: 'dohyun@snu.ac.kr',
+      phone: '010-3819-2910',
+      university: '서울대학교',
+      major: '컴퓨터공학과',
+      minor_double_major: ['통계학 (복수전공)'],
       last_semester: 6,
-      military_status: "COMPLETED",
-      birth_date: "2002-05-14",
-      graduation_date: "2028-02",
+      military_status: 'COMPLETED',
+      birth_date: '2002-05-14',
+      graduation_date: '2028-02',
       grad_school_plan: false,
-      submitted_at: "2026-08-15T19:20:00",
+      submitted_at: '2026-08-15T19:20:00',
       pass_count: 2,
       hold_count: 1,
       fail_count: 0,
       total_score: 23,
-      final_decision: "PASS",
-      my_decision: "HOLD",
+      final_decision: 'PASS',
+      my_decision: 'HOLD',
       my_score: 8,
       my_memo:
-        "AIOps 실시간 파이프라인 개발 경험이 매우 우수함. 면접 때 인프라 장애 대응 경험 질의 권장.",
+        'AIOps 실시간 파이프라인 개발 경험이 매우 우수함. 면접 때 인프라 장애 대응 경험 질의 권장.',
       my_interview_question:
-        "Kafka 파티션 분배 전략 및 트래픽 폭증 시 데이터 유실 방지 아키텍처는?",
+        'Kafka 파티션 분배 전략 및 트래픽 폭증 시 데이터 유실 방지 아키텍처는?',
       is_promoted_to_member: false,
     },
     {
       id: 102,
       user_id: 56,
-      status: "SUBMITTED",
-      track: "ENGINEERING",
-      name: "박성훈",
-      email: "sunghoon.p@naver.com",
-      phone: "010-9182-4122",
-      university: "고려대학교",
-      major: "컴퓨터학과",
+      status: 'SUBMITTED',
+      track: 'ENGINEERING',
+      name: '박성훈',
+      email: 'sunghoon.p@naver.com',
+      phone: '010-9182-4122',
+      university: '고려대학교',
+      major: '컴퓨터학과',
       minor_double_major: [],
       last_semester: 7,
-      military_status: "COMPLETED",
-      birth_date: "2001-08-20",
-      graduation_date: "2027-08",
+      military_status: 'COMPLETED',
+      birth_date: '2001-08-20',
+      graduation_date: '2027-08',
       grad_school_plan: true,
-      submitted_at: "2026-08-16T10:15:00",
+      submitted_at: '2026-08-16T10:15:00',
       pass_count: 1,
       hold_count: 0,
       fail_count: 0,
       total_score: 9,
-      final_decision: "PENDING",
+      final_decision: 'PENDING',
       my_decision: null,
       my_score: null,
       my_memo: null,
@@ -177,25 +177,25 @@ const INITIAL_DATA: {
     {
       id: 103,
       user_id: 57,
-      status: "SUBMITTED",
-      track: "ENGINEERING",
-      name: "이지원",
-      email: "jiwon.lee@snu.ac.kr",
-      phone: "010-3321-8890",
-      university: "서울대학교",
-      major: "전기정보공학부",
+      status: 'SUBMITTED',
+      track: 'ENGINEERING',
+      name: '이지원',
+      email: 'jiwon.lee@snu.ac.kr',
+      phone: '010-3321-8890',
+      university: '서울대학교',
+      major: '전기정보공학부',
       minor_double_major: [],
       last_semester: 5,
-      military_status: "NOT_APPLICABLE",
-      birth_date: "2003-02-11",
-      graduation_date: "2028-02",
+      military_status: 'NOT_APPLICABLE',
+      birth_date: '2003-02-11',
+      graduation_date: '2028-02',
       grad_school_plan: false,
-      submitted_at: "2026-08-16T11:30:00",
+      submitted_at: '2026-08-16T11:30:00',
       pass_count: 0,
       hold_count: 1,
       fail_count: 0,
       total_score: 6,
-      final_decision: "PENDING",
+      final_decision: 'PENDING',
       my_decision: null,
       my_score: null,
       my_memo: null,
@@ -205,53 +205,53 @@ const INITIAL_DATA: {
     {
       id: 104,
       user_id: 58,
-      status: "SUBMITTED",
-      track: "ANALYSIS",
-      name: "김서하",
-      email: "seoha.kim@yonsei.ac.kr",
-      phone: "010-5519-8821",
-      university: "연세대학교",
-      major: "경영학과",
-      minor_double_major: ["응용통계학"],
+      status: 'SUBMITTED',
+      track: 'ANALYSIS',
+      name: '김서하',
+      email: 'seoha.kim@yonsei.ac.kr',
+      phone: '010-5519-8821',
+      university: '연세대학교',
+      major: '경영학과',
+      minor_double_major: ['응용통계학'],
       last_semester: 6,
-      military_status: "NOT_APPLICABLE",
-      birth_date: "2002-09-22",
-      graduation_date: "2027-08",
+      military_status: 'NOT_APPLICABLE',
+      birth_date: '2002-09-22',
+      graduation_date: '2027-08',
       grad_school_plan: true,
-      submitted_at: "2026-08-16T11:30:00",
+      submitted_at: '2026-08-16T11:30:00',
       pass_count: 3,
       hold_count: 0,
       fail_count: 0,
       total_score: 27,
-      final_decision: "PASS",
-      my_decision: "PASS",
+      final_decision: 'PASS',
+      my_decision: 'PASS',
       my_score: 9,
-      my_memo: "비즈니스 인사이트 및 그로스 실험 설계 역량이 탁월함",
-      my_interview_question: "A/B 테스트 시 p-value 해석과 표본 크기 산정 기준은?",
+      my_memo: '비즈니스 인사이트 및 그로스 실험 설계 역량이 탁월함',
+      my_interview_question: 'A/B 테스트 시 p-value 해석과 표본 크기 산정 기준은?',
       is_promoted_to_member: false,
     },
     {
       id: 105,
       user_id: 59,
-      status: "SUBMITTED",
-      track: "VISUALIZATION",
-      name: "최민혁",
-      email: "minhyuk.c@yonsei.ac.kr",
-      phone: "010-5512-7019",
-      university: "연세대학교",
-      major: "산업공학과",
-      minor_double_major: ["시각디자인"],
+      status: 'SUBMITTED',
+      track: 'VISUALIZATION',
+      name: '최민혁',
+      email: 'minhyuk.c@yonsei.ac.kr',
+      phone: '010-5512-7019',
+      university: '연세대학교',
+      major: '산업공학과',
+      minor_double_major: ['시각디자인'],
       last_semester: 8,
-      military_status: "COMPLETED",
-      birth_date: "2001-11-03",
-      graduation_date: "2027-02",
+      military_status: 'COMPLETED',
+      birth_date: '2001-11-03',
+      graduation_date: '2027-02',
       grad_school_plan: false,
-      submitted_at: "2026-08-16T14:00:00",
+      submitted_at: '2026-08-16T14:00:00',
       pass_count: 1,
       hold_count: 1,
       fail_count: 0,
       total_score: 15,
-      final_decision: "PASS",
+      final_decision: 'PASS',
       my_decision: null,
       my_score: null,
       my_memo: null,
@@ -261,25 +261,25 @@ const INITIAL_DATA: {
     {
       id: 106,
       user_id: 60,
-      status: "DRAFT",
-      track: "ENGINEERING",
-      name: "한소희",
-      email: "sohee.han@korea.ac.kr",
-      phone: "010-2219-9041",
-      university: "고려대학교",
-      major: "컴퓨터학과",
+      status: 'DRAFT',
+      track: 'ENGINEERING',
+      name: '한소희',
+      email: 'sohee.han@korea.ac.kr',
+      phone: '010-2219-9041',
+      university: '고려대학교',
+      major: '컴퓨터학과',
       minor_double_major: [],
       last_semester: 4,
-      military_status: "NOT_APPLICABLE",
-      birth_date: "2004-03-12",
-      graduation_date: "2029-02",
+      military_status: 'NOT_APPLICABLE',
+      birth_date: '2004-03-12',
+      graduation_date: '2029-02',
       grad_school_plan: false,
       submitted_at: null,
       pass_count: 0,
       hold_count: 0,
       fail_count: 0,
       total_score: 0,
-      final_decision: "PENDING",
+      final_decision: 'PENDING',
       my_decision: null,
       my_score: null,
       my_memo: null,
@@ -291,87 +291,87 @@ const INITIAL_DATA: {
     101: [
       {
         question_id: 1,
-        label: "공통0",
-        category: "COMMON",
-        type: "TEXT",
-        content: "면접 가능 일정을 선택해 주세요.",
+        label: '공통0',
+        category: 'COMMON',
+        type: 'TEXT',
+        content: '면접 가능 일정을 선택해 주세요.',
         order_num: 0,
-        answer: "7월 4일(토) 13:00~15:00, 11:00~13:00 / 7월 5일(일) 13:00~15:00",
+        answer: '7월 4일(토) 13:00~15:00, 11:00~13:00 / 7월 5일(일) 13:00~15:00',
       },
       {
         question_id: 2,
-        label: "공통1",
-        category: "COMMON",
-        type: "TEXT",
-        content: "자기소개와 BOAZ에 지원한 동기를 서술해주세요.",
+        label: '공통1',
+        category: 'COMMON',
+        type: 'TEXT',
+        content: '자기소개와 BOAZ에 지원한 동기를 서술해주세요.',
         order_num: 1,
         answer:
-          "저는 시스템 인프라를 직접 구성하고 운영하며 동작 원리를 파고드는 것을 즐깁니다. AIOps 플랫폼을 개발하며 실시간 분산 파이프라인의 안정성이 서비스의 생명임을 배웠고, BOAZ에서 대규모 트래픽을 다루는 엔지니어들과 함께 성장하고 싶습니다.",
+          '저는 시스템 인프라를 직접 구성하고 운영하며 동작 원리를 파고드는 것을 즐깁니다. AIOps 플랫폼을 개발하며 실시간 분산 파이프라인의 안정성이 서비스의 생명임을 배웠고, BOAZ에서 대규모 트래픽을 다루는 엔지니어들과 함께 성장하고 싶습니다.',
       },
       {
         question_id: 3,
-        label: "엔지니어링1",
-        category: "ENGINEERING",
-        type: "TABLE",
-        content: "엔지니어링 관련 주요 기술 스택 및 프로젝트 활용 경험",
+        label: '엔지니어링1',
+        category: 'ENGINEERING',
+        type: 'TABLE',
+        content: '엔지니어링 관련 주요 기술 스택 및 프로젝트 활용 경험',
         order_num: 2,
         answer: {
-          Kafka: "3노드 클러스터 구축, 파티셔닝 최적화 (숙련도: 상)",
-          "Spark / PySpark": "대규모 배치 데이터 집계 파이프라인 구축 (숙련도: 중)",
-          "Docker / K8s": "컨테이너 오케스트레이션 및 모니터링 (숙련도: 중)",
+          Kafka: '3노드 클러스터 구축, 파티셔닝 최적화 (숙련도: 상)',
+          'Spark / PySpark': '대규모 배치 데이터 집계 파이프라인 구축 (숙련도: 중)',
+          'Docker / K8s': '컨테이너 오케스트레이션 및 모니터링 (숙련도: 중)',
         },
       },
       {
         question_id: 4,
-        label: "엔지니어링2",
-        category: "ENGINEERING",
-        type: "TEXT",
+        label: '엔지니어링2',
+        category: 'ENGINEERING',
+        type: 'TEXT',
         content:
-          "[엔지니어링] RDBMS/NoSQL 모델링 또는 분산 데이터 파이프라인(Kafka, Spark 등) 구축 및 인프라 운용 경험을 작성해 주세요.",
+          '[엔지니어링] RDBMS/NoSQL 모델링 또는 분산 데이터 파이프라인(Kafka, Spark 등) 구축 및 인프라 운용 경험을 작성해 주세요.',
         order_num: 3,
         answer:
-          "Kafka 3노드 클러스터를 기반으로 분당 5만 건의 로그를 Elasticsearch로 색인하는 실시간 파이프라인을 구축했습니다. 지연율이 급증하던 병목을 Kafka Consumer 그룹 파티션 재분배 및 Batch Size 튜닝으로 해결했습니다.",
+          'Kafka 3노드 클러스터를 기반으로 분당 5만 건의 로그를 Elasticsearch로 색인하는 실시간 파이프라인을 구축했습니다. 지연율이 급증하던 병목을 Kafka Consumer 그룹 파티션 재분배 및 Batch Size 튜닝으로 해결했습니다.',
       },
     ],
     102: [
       {
         question_id: 2,
-        label: "공통1",
-        category: "COMMON",
-        type: "TEXT",
-        content: "자기소개와 BOAZ 지원 동기",
+        label: '공통1',
+        category: 'COMMON',
+        type: 'TEXT',
+        content: '자기소개와 BOAZ 지원 동기',
         order_num: 1,
-        answer: "분산 스토리지 시스템 최적화 연구에 깊은 관심이 있습니다.",
+        answer: '분산 스토리지 시스템 최적화 연구에 깊은 관심이 있습니다.',
       },
       {
         question_id: 4,
-        label: "엔지니어링2",
-        category: "ENGINEERING",
-        type: "TEXT",
-        content: "파이프라인 구축 경험",
+        label: '엔지니어링2',
+        category: 'ENGINEERING',
+        type: 'TEXT',
+        content: '파이프라인 구축 경험',
         order_num: 2,
-        answer: "Spark 배치 집계 파이프라인 최적화 프로젝트를 완수했습니다.",
+        answer: 'Spark 배치 집계 파이프라인 최적화 프로젝트를 완수했습니다.',
       },
     ],
     104: [
       {
         question_id: 2,
-        label: "공통1",
-        category: "COMMON",
-        type: "TEXT",
-        content: "자기소개와 BOAZ 지원 동기",
+        label: '공통1',
+        category: 'COMMON',
+        type: 'TEXT',
+        content: '자기소개와 BOAZ 지원 동기',
         order_num: 1,
-        answer: "데이터 기반의 그로스 실험과 비즈니스 인사이트 도출을 전공했습니다.",
+        answer: '데이터 기반의 그로스 실험과 비즈니스 인사이트 도출을 전공했습니다.',
       },
       {
         question_id: 5,
-        label: "분석1",
-        category: "ANALYSIS",
-        type: "TEXT",
-        content: "[데이터 분석] 가설 검정 및 모델링 경험",
+        label: '분석1',
+        category: 'ANALYSIS',
+        type: 'TEXT',
+        content: '[데이터 분석] 가설 검정 및 모델링 경험',
         order_num: 2,
         answer:
-          "이커머스 결제 전환율 개선을 위한 A/B 테스트 및 LightGBM 고객 이탈 예측 모델링을 수행했습니다.",
+          '이커머스 결제 전환율 개선을 위한 A/B 테스트 및 LightGBM 고객 이탈 예측 모델링을 수행했습니다.',
       },
     ],
   },
@@ -379,56 +379,56 @@ const INITIAL_DATA: {
     101: [
       {
         admin_id: 1,
-        name: "문혁준 (나)",
-        track: "ENGINEERING",
-        decision: "HOLD",
+        name: '문혁준 (나)',
+        track: 'ENGINEERING',
+        decision: 'HOLD',
         score: 8,
-        memo: "AIOps 실시간 파이프라인 경험 우수. 트래픽 장애 대응 확인 필요",
+        memo: 'AIOps 실시간 파이프라인 경험 우수. 트래픽 장애 대응 확인 필요',
       },
       {
         admin_id: 2,
-        name: "강민석",
-        track: "ENGINEERING",
-        decision: "PASS",
+        name: '강민석',
+        track: 'ENGINEERING',
+        decision: 'PASS',
         score: 9,
-        memo: "카프카 파티셔닝 이해도 매우 높음",
+        memo: '카프카 파티셔닝 이해도 매우 높음',
       },
       {
         admin_id: 3,
-        name: "김대현",
-        track: "ENGINEERING",
-        decision: "PASS",
+        name: '김대현',
+        track: 'ENGINEERING',
+        decision: 'PASS',
         score: 6,
-        memo: "성실하게 서류 작성함",
+        memo: '성실하게 서류 작성함',
       },
       {
         admin_id: 4,
-        name: "남민서",
-        track: "ENGINEERING",
+        name: '남민서',
+        track: 'ENGINEERING',
         decision: null,
         score: null,
         memo: null,
       },
       {
         admin_id: 5,
-        name: "손채민",
-        track: "ENGINEERING",
+        name: '손채민',
+        track: 'ENGINEERING',
         decision: null,
         score: null,
         memo: null,
       },
       {
         admin_id: 6,
-        name: "신재원",
-        track: "ENGINEERING",
+        name: '신재원',
+        track: 'ENGINEERING',
         decision: null,
         score: null,
         memo: null,
       },
       {
         admin_id: 7,
-        name: "이욱성",
-        track: "ENGINEERING",
+        name: '이욱성',
+        track: 'ENGINEERING',
         decision: null,
         score: null,
         memo: null,
@@ -437,27 +437,27 @@ const INITIAL_DATA: {
     104: [
       {
         admin_id: 1,
-        name: "문혁준 (나)",
-        track: "COMMON",
-        decision: "PASS",
+        name: '문혁준 (나)',
+        track: 'COMMON',
+        decision: 'PASS',
         score: 9,
-        memo: "비즈니스 인사이트 및 그로스 분석 경험 우수",
+        memo: '비즈니스 인사이트 및 그로스 분석 경험 우수',
       },
       {
         admin_id: 11,
-        name: "박서연",
-        track: "ANALYSIS",
-        decision: "PASS",
+        name: '박서연',
+        track: 'ANALYSIS',
+        decision: 'PASS',
         score: 9,
-        memo: "통계적 가설 검증과 모델링 기초 탄탄함",
+        memo: '통계적 가설 검증과 모델링 기초 탄탄함',
       },
       {
         admin_id: 12,
-        name: "윤지후",
-        track: "ANALYSIS",
-        decision: "PASS",
+        name: '윤지후',
+        track: 'ANALYSIS',
+        decision: 'PASS',
         score: 9,
-        memo: "포트폴리오 완성도 최상",
+        memo: '포트폴리오 완성도 최상',
       },
     ],
   },
@@ -465,59 +465,59 @@ const INITIAL_DATA: {
     101: [
       {
         admin_id: 1,
-        name: "문혁준 (나)",
-        track: "ENGINEERING",
-        interview_question: "Kafka 파티션 분배 전략 및 트래픽 폭증 시 데이터 유실 방지 아키텍처는?",
+        name: '문혁준 (나)',
+        track: 'ENGINEERING',
+        interview_question: 'Kafka 파티션 분배 전략 및 트래픽 폭증 시 데이터 유실 방지 아키텍처는?',
       },
       {
         admin_id: 2,
-        name: "강민석",
-        track: "ENGINEERING",
-        interview_question: "Elasticsearch 인덱스 설계 시 샤드(Shard) 수 결정 기준은?",
+        name: '강민석',
+        track: 'ENGINEERING',
+        interview_question: 'Elasticsearch 인덱스 설계 시 샤드(Shard) 수 결정 기준은?',
       },
     ],
     104: [
       {
         admin_id: 1,
-        name: "문혁준 (나)",
-        track: "COMMON",
-        interview_question: "A/B 테스트 시 p-value 해석과 표본 크기 산정 기준은?",
+        name: '문혁준 (나)',
+        track: 'COMMON',
+        interview_question: 'A/B 테스트 시 p-value 해석과 표본 크기 산정 기준은?',
       },
     ],
   },
 };
 
 interface EvaluationManagePageProps {
-  initialTab?: "evaluations" | "applicants" | "promotions";
+  initialTab?: 'evaluations' | 'applicants' | 'promotions';
 }
 
-export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationManagePageProps) {
+export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationManagePageProps) {
   // Main Subtabs: "evaluations" (서류 심사) | "applicants" (지원자 현황) | "promotions" (합격자 승격 전용 탭)
-  const [mainTab, setMainTab] = useState<"evaluations" | "applicants" | "promotions">(initialTab);
+  const [mainTab, setMainTab] = useState<'evaluations' | 'applicants' | 'promotions'>(initialTab);
 
   const [applicants, setApplicants] = useState<ApplicantEvaluationDto[]>(INITIAL_DATA.applicants);
   const [answersMap] = useState<Record<number, ApplicantAnswerDto[]>>(INITIAL_DATA.answersMap);
   const [evaluatorsMap, setEvaluatorsMap] = useState<Record<number, EvaluatorDetailItem[]>>(
-    INITIAL_DATA.evaluatorsMap
+    INITIAL_DATA.evaluatorsMap,
   );
   const [interviewQuestionsMap, setInterviewQuestionsMap] = useState<
     Record<number, InterviewQuestionItem[]>
   >(INITIAL_DATA.interviewQuestionsMap);
 
   // Filters
-  const [selectedTrack, setSelectedTrack] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [decisionFilter, setDecisionFilter] = useState<"ALL" | EvaluationDecision>("ALL");
+  const [selectedTrack, setSelectedTrack] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [decisionFilter, setDecisionFilter] = useState<'ALL' | EvaluationDecision>('ALL');
 
   // Detail Modal State (for evaluations / applicants)
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantEvaluationDto | null>(null);
-  const [modalTab, setModalTab] = useState<"review" | "status" | "interview">("review");
+  const [modalTab, setModalTab] = useState<'review' | 'status' | 'interview'>('review');
 
   // Form State (PUT /api/v1/admin/recruitment/applicants/{id}/evaluations/me)
-  const [editDecision, setEditDecision] = useState<EvaluationDecision>("PENDING");
+  const [editDecision, setEditDecision] = useState<EvaluationDecision>('PENDING');
   const [editScore, setEditScore] = useState<number>(8);
-  const [editMemo, setEditMemo] = useState<string>("");
-  const [editInterviewQuestion, setEditInterviewQuestion] = useState<string>("");
+  const [editMemo, setEditMemo] = useState<string>('');
+  const [editInterviewQuestion, setEditInterviewQuestion] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
 
   // Promotions Tab Selection State (UserAdminController: PATCH /api/v1/admin/users/promote)
@@ -539,13 +539,13 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
 
   // Overall Statistics
   const stats = useMemo(() => {
-    const submitted = applicants.filter((a) => a.status === "SUBMITTED");
+    const submitted = applicants.filter((a) => a.status === 'SUBMITTED');
     const totalCount = submitted.length;
     const evaluatedCount = submitted.filter((a) => a.my_decision !== null).length;
-    const passCount = submitted.filter((a) => a.final_decision === "PASS").length;
-    const holdCount = submitted.filter((a) => a.final_decision === "HOLD").length;
-    const failCount = submitted.filter((a) => a.final_decision === "FAIL").length;
-    const pendingCount = submitted.filter((a) => a.final_decision === "PENDING").length;
+    const passCount = submitted.filter((a) => a.final_decision === 'PASS').length;
+    const holdCount = submitted.filter((a) => a.final_decision === 'HOLD').length;
+    const failCount = submitted.filter((a) => a.final_decision === 'FAIL').length;
+    const pendingCount = submitted.filter((a) => a.final_decision === 'PENDING').length;
     const promotedCount = applicants.filter((a) => a.is_promoted_to_member).length;
 
     return {
@@ -563,13 +563,13 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
   const displayedApplicants = useMemo(() => {
     return applicants
       .filter((app) => {
-        if (mainTab === "evaluations" && app.status !== "SUBMITTED") {
+        if (mainTab === 'evaluations' && app.status !== 'SUBMITTED') {
           return false;
         }
-        if (selectedTrack !== "ALL" && app.track !== selectedTrack) {
+        if (selectedTrack !== 'ALL' && app.track !== selectedTrack) {
           return false;
         }
-        if (decisionFilter !== "ALL" && app.final_decision !== decisionFilter) {
+        if (decisionFilter !== 'ALL' && app.final_decision !== decisionFilter) {
           return false;
         }
         if (searchQuery.trim()) {
@@ -593,7 +593,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
 
   // List of Passed Candidates for Promotion Tab (UserAdminController)
   const passedCandidates = useMemo(() => {
-    return applicants.filter((a) => a.final_decision === "PASS");
+    return applicants.filter((a) => a.final_decision === 'PASS');
   }, [applicants]);
 
   const unpromotedPassedCandidates = useMemo(() => {
@@ -603,18 +603,18 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
   // Open Detailed Modal
   function handleOpenModal(
     app: ApplicantEvaluationDto,
-    tab: "review" | "status" | "interview" = "review"
+    tab: 'review' | 'status' | 'interview' = 'review',
   ) {
     setSelectedApplicant(app);
     setModalTab(tab);
-    setEditDecision(app.my_decision || "PENDING");
+    setEditDecision(app.my_decision || 'PENDING');
     setEditScore(app.my_score !== null ? app.my_score : 8);
-    setEditMemo(app.my_memo || "");
-    setEditInterviewQuestion(app.my_interview_question || "");
+    setEditMemo(app.my_memo || '');
+    setEditInterviewQuestion(app.my_interview_question || '');
   }
 
   // Prev / Next Navigation in Modal
-  function handleNavigateModal(direction: "PREV" | "NEXT") {
+  function handleNavigateModal(direction: 'PREV' | 'NEXT') {
     if (!selectedApplicant) {
       return;
     }
@@ -624,7 +624,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
     }
 
     const nextIdx =
-      direction === "PREV"
+      direction === 'PREV'
         ? curIdx > 0
           ? curIdx - 1
           : displayedApplicants.length - 1
@@ -644,7 +644,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
     setIsSaving(true);
 
     const currentAdminId = 1;
-    const currentAdminName = "문혁준 (나)";
+    const currentAdminName = '문혁준 (나)';
 
     setTimeout(() => {
       const existingEvaluators =
@@ -657,7 +657,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
         }));
 
       const updatedEvaluators: EvaluatorDetailItem[] = existingEvaluators.some(
-        (e) => e.admin_id === currentAdminId
+        (e) => e.admin_id === currentAdminId,
       )
         ? existingEvaluators.map((e) =>
             e.admin_id === currentAdminId
@@ -667,7 +667,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                   score: editScore,
                   memo: editMemo || null,
                 }
-              : e
+              : e,
           )
         : [
             ...existingEvaluators,
@@ -689,7 +689,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
           ? existingQuestions.map((q) =>
               q.admin_id === currentAdminId
                 ? { ...q, interview_question: editInterviewQuestion }
-                : q
+                : q,
             )
           : [
               ...existingQuestions,
@@ -703,9 +703,9 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
         setInterviewQuestionsMap((prev) => ({ ...prev, [selectedApplicant.id]: updatedQuestions }));
       }
 
-      const pass_count = updatedEvaluators.filter((e) => e.decision === "PASS").length;
-      const hold_count = updatedEvaluators.filter((e) => e.decision === "HOLD").length;
-      const fail_count = updatedEvaluators.filter((e) => e.decision === "FAIL").length;
+      const pass_count = updatedEvaluators.filter((e) => e.decision === 'PASS').length;
+      const hold_count = updatedEvaluators.filter((e) => e.decision === 'HOLD').length;
+      const fail_count = updatedEvaluators.filter((e) => e.decision === 'FAIL').length;
       const total_score = updatedEvaluators.reduce((acc, e) => acc + (e.score || 0), 0);
 
       const updatedApplicant: ApplicantEvaluationDto = {
@@ -721,18 +721,18 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
       };
 
       setApplicants((prev) =>
-        prev.map((a) => (a.id === selectedApplicant.id ? updatedApplicant : a))
+        prev.map((a) => (a.id === selectedApplicant.id ? updatedApplicant : a)),
       );
       setSelectedApplicant(updatedApplicant);
       setIsSaving(false);
-      alert("개인 평가가 정상적으로 저장되었습니다.");
+      alert('개인 평가가 정상적으로 저장되었습니다.');
     }, 300);
   }
 
   // 8. 최종 평가 수정 — PATCH /api/v1/admin/recruitment/applicants/{id}/final-decision
   function handleUpdateFinalDecision(applicantId: number, decision: EvaluationDecision) {
     setApplicants((prev) =>
-      prev.map((a) => (a.id === applicantId ? { ...a, final_decision: decision } : a))
+      prev.map((a) => (a.id === applicantId ? { ...a, final_decision: decision } : a)),
     );
     if (selectedApplicant && selectedApplicant.id === applicantId) {
       setSelectedApplicant((prev) => (prev ? { ...prev, final_decision: decision } : null));
@@ -742,7 +742,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
   // Promotion Selection Handlers (PATCH /api/v1/admin/users/promote)
   function handleTogglePromoteSelect(userId: number) {
     setSelectedPromoteUserIds((prev) =>
-      prev.includes(userId) ? prev.filter((item) => item !== userId) : [...prev, userId]
+      prev.includes(userId) ? prev.filter((item) => item !== userId) : [...prev, userId],
     );
   }
 
@@ -756,7 +756,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
 
   function handleOpenPromoteModal() {
     if (selectedPromoteUserIds.length === 0) {
-      alert("승격할 합격자를 최소 1명 이상 선택해 주세요.");
+      alert('승격할 합격자를 최소 1명 이상 선택해 주세요.');
       return;
     }
     setPromoteCheck1(false);
@@ -777,14 +777,14 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
       const failed_user_ids: { user_id: number; error_code: string }[] = [];
 
       const successUserIds = selectedPromoteUserIds.filter(
-        (uid) => !failed_user_ids.some((f) => f.user_id === uid)
+        (uid) => !failed_user_ids.some((f) => f.user_id === uid),
       );
 
       // 성공한 user_id에 해당하는 지원서 is_promoted_to_member 업데이트
       setApplicants((prev) =>
         prev.map((a) =>
-          successUserIds.includes(a.user_id) ? { ...a, is_promoted_to_member: true } : a
-        )
+          successUserIds.includes(a.user_id) ? { ...a, is_promoted_to_member: true } : a,
+        ),
       );
 
       setIsPromoting(false);
@@ -794,7 +794,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
       alert(
         `정회원 승격 처리가 완료되었습니다.\n` +
           `• 승격 완료: ${successUserIds.length}명\n` +
-          `• 실패 건수: ${failed_user_ids.length}건`
+          `• 실패 건수: ${failed_user_ids.length}건`,
       );
     }, 700);
   }
@@ -822,16 +822,16 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
           {/* 3-Tab Segmented Control */}
           <div className="flex p-1 rounded-xl bg-slate-100 border border-slate-200">
             <button
-              onClick={() => setMainTab("evaluations")}
+              onClick={() => setMainTab('evaluations')}
               className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
               style={
-                mainTab === "evaluations"
+                mainTab === 'evaluations'
                   ? {
-                      background: "#ffffff",
-                      color: "#1d4ed8",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                      background: '#ffffff',
+                      color: '#1d4ed8',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
                     }
-                  : { color: "#64748b" }
+                  : { color: '#64748b' }
               }
             >
               <FileCheck2 size={13} />
@@ -839,32 +839,32 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
             </button>
 
             <button
-              onClick={() => setMainTab("applicants")}
+              onClick={() => setMainTab('applicants')}
               className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
               style={
-                mainTab === "applicants"
+                mainTab === 'applicants'
                   ? {
-                      background: "#ffffff",
-                      color: "#1d4ed8",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                      background: '#ffffff',
+                      color: '#1d4ed8',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
                     }
-                  : { color: "#64748b" }
+                  : { color: '#64748b' }
               }
             >
               2. 전체 지원자 현황
             </button>
 
             <button
-              onClick={() => setMainTab("promotions")}
+              onClick={() => setMainTab('promotions')}
               className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
               style={
-                mainTab === "promotions"
+                mainTab === 'promotions'
                   ? {
-                      background: "linear-gradient(135deg, #059669 0%, #0d9488 100%)",
-                      color: "#ffffff",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                      background: 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
+                      color: '#ffffff',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
                     }
-                  : { color: "#64748b" }
+                  : { color: '#64748b' }
               }
             >
               <UserCheck size={13} />
@@ -875,7 +875,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
 
         {/* Right Info: Track Filter & Logged-In User Badge */}
         <div className="flex items-center gap-3">
-          {mainTab !== "promotions" && (
+          {mainTab !== 'promotions' && (
             <select
               value={selectedTrack}
               onChange={(e) => setSelectedTrack(e.target.value)}
@@ -900,53 +900,53 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-bold text-emerald-400">문혁준 로그인됨</span>
             <span className="text-[11px] text-muted-foreground font-mono">
-              {mainTab === "promotions" ? "(서비스운영팀 팀장 권한)" : "(엔지니어링 평가자)"}
+              {mainTab === 'promotions' ? '(서비스운영팀 팀장 권한)' : '(엔지니어링 평가자)'}
             </span>
           </div>
         </div>
       </div>
 
       {/* ─── TAB 1 & 2: 서류 심사 대시보드 / 지원자 현황 ─── */}
-      {(mainTab === "evaluations" || mainTab === "applicants") && (
+      {(mainTab === 'evaluations' || mainTab === 'applicants') && (
         <div className="space-y-4">
           {/* Top Stats Summary Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
               {
-                label: "제출 지원서",
+                label: '제출 지원서',
                 val: `${stats.totalCount}건`,
-                sub: "SUBMITTED 대상",
-                color: "#3b82f6",
+                sub: 'SUBMITTED 대상',
+                color: '#3b82f6',
               },
               {
-                label: "내 심사 완료",
+                label: '내 심사 완료',
                 val: `${stats.evaluatedCount} / ${stats.totalCount}`,
                 sub: `진행률 ${Math.round((stats.evaluatedCount / Math.max(stats.totalCount, 1)) * 100)}%`,
-                color: "#8b5cf6",
+                color: '#8b5cf6',
               },
               {
-                label: "최종 합격 (PASS)",
+                label: '최종 합격 (PASS)',
                 val: `${stats.passCount}명`,
-                sub: "대표진 확정",
-                color: "#34d399",
+                sub: '대표진 확정',
+                color: '#34d399',
               },
               {
-                label: "최종 보류 (HOLD)",
+                label: '최종 보류 (HOLD)',
                 val: `${stats.holdCount}명`,
-                sub: "심층 면접 고려",
-                color: "#fbbf24",
+                sub: '심층 면접 고려',
+                color: '#fbbf24',
               },
               {
-                label: "최종 불합격 (FAIL)",
+                label: '최종 불합격 (FAIL)',
                 val: `${stats.failCount}명`,
-                sub: "기준 미달",
-                color: "#f87171",
+                sub: '기준 미달',
+                color: '#f87171',
               },
               {
-                label: "판정 미결 (PENDING)",
+                label: '판정 미결 (PENDING)',
                 val: `${stats.pendingCount}명`,
-                sub: "심사 진행중",
-                color: "#9094a8",
+                sub: '심사 진행중',
+                color: '#9094a8',
               },
             ].map((card) => (
               <div
@@ -968,9 +968,9 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
             <div className="p-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3 bg-white/[0.01]">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-foreground">
-                  {mainTab === "evaluations"
-                    ? "서류 심사 대시보드 (합격 수 내림차순 정렬)"
-                    : "전체 지원서 목록 (DRAFT / SUBMITTED)"}
+                  {mainTab === 'evaluations'
+                    ? '서류 심사 대시보드 (합격 수 내림차순 정렬)'
+                    : '전체 지원서 목록 (DRAFT / SUBMITTED)'}
                 </span>
                 <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-[#8ba5ff]">
                   총 {displayedApplicants.length}명
@@ -1040,7 +1040,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                   {displayedApplicants.map((app) => (
                     <tr
                       key={app.id}
-                      onClick={() => handleOpenModal(app, "review")}
+                      onClick={() => handleOpenModal(app, 'review')}
                       className="hover:bg-slate-50 transition-colors cursor-pointer group"
                     >
                       {/* Name */}
@@ -1049,7 +1049,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                           <span className="group-hover:text-[#3b82f6] transition-colors">
                             {app.name}
                           </span>
-                          {app.status === "DRAFT" && (
+                          {app.status === 'DRAFT' && (
                             <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-400 font-mono">
                               DRAFT
                             </span>
@@ -1073,15 +1073,15 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                       <td className="px-4 py-3.5 font-sans text-muted-foreground">
                         <p className="text-foreground">{app.university}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {app.major}{" "}
+                          {app.major}{' '}
                           {app.minor_double_major.length > 0 &&
-                            `(${app.minor_double_major.join(", ")})`}
+                            `(${app.minor_double_major.join(', ')})`}
                         </p>
                       </td>
 
                       {/* Graduation Date */}
                       <td className="px-3 py-3.5 text-center text-muted-foreground">
-                        {app.graduation_date || "—"}
+                        {app.graduation_date || '—'}
                       </td>
 
                       {/* Pass Count (초록) */}
@@ -1115,38 +1115,38 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                         <span
                           className="px-2.5 py-1 rounded-lg text-xs font-bold inline-block"
                           style={
-                            app.my_decision === "PASS"
+                            app.my_decision === 'PASS'
                               ? {
-                                  background: "rgba(52,211,153,0.15)",
-                                  color: "#34d399",
-                                  border: "1px solid rgba(52,211,153,0.3)",
+                                  background: 'rgba(52,211,153,0.15)',
+                                  color: '#34d399',
+                                  border: '1px solid rgba(52,211,153,0.3)',
                                 }
-                              : app.my_decision === "HOLD"
+                              : app.my_decision === 'HOLD'
                                 ? {
-                                    background: "rgba(251,191,36,0.15)",
-                                    color: "#fbbf24",
-                                    border: "1px solid rgba(251,191,36,0.3)",
+                                    background: 'rgba(251,191,36,0.15)',
+                                    color: '#fbbf24',
+                                    border: '1px solid rgba(251,191,36,0.3)',
                                   }
-                                : app.my_decision === "FAIL"
+                                : app.my_decision === 'FAIL'
                                   ? {
-                                      background: "rgba(248,113,113,0.15)",
-                                      color: "#f87171",
-                                      border: "1px solid rgba(248,113,113,0.3)",
+                                      background: 'rgba(248,113,113,0.15)',
+                                      color: '#f87171',
+                                      border: '1px solid rgba(248,113,113,0.3)',
                                     }
                                   : {
-                                      background: "rgba(0,0,0,0.06)",
-                                      color: "#9094a8",
-                                      border: "1px solid rgba(0,0,0,0.08)",
+                                      background: 'rgba(0,0,0,0.06)',
+                                      color: '#9094a8',
+                                      border: '1px solid rgba(0,0,0,0.08)',
                                     }
                           }
                         >
-                          {app.my_decision === "PASS"
-                            ? "합격"
-                            : app.my_decision === "HOLD"
-                              ? "보류"
-                              : app.my_decision === "FAIL"
-                                ? "불합격"
-                                : "미결"}
+                          {app.my_decision === 'PASS'
+                            ? '합격'
+                            : app.my_decision === 'HOLD'
+                              ? '보류'
+                              : app.my_decision === 'FAIL'
+                                ? '불합격'
+                                : '미결'}
                         </span>
                       </td>
 
@@ -1179,7 +1179,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleOpenModal(app, "review");
+                            handleOpenModal(app, 'review');
                           }}
                           className="px-3.5 py-1.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
                         >
@@ -1196,7 +1196,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
       )}
 
       {/* ─── TAB 3: 합격자 정회원 승격 전용 탭 (UserAdminController: PATCH /api/v1/admin/users/promote) ─── */}
-      {mainTab === "promotions" && (
+      {mainTab === 'promotions' && (
         <div className="space-y-4">
           {/* Promotion Header Banner */}
           <div className="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.03] space-y-2">
@@ -1207,10 +1207,10 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                   <span>최종 합격자 정회원(MEMBER) 승격 관리</span>
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  프론트엔드에서 합격자(PASS)를 선택하여{" "}
+                  프론트엔드에서 합격자(PASS)를 선택하여{' '}
                   <code className="text-foreground font-mono">user_ids</code> 목록을 전송하면,
-                  서버가 각 유저의 최신 SUBMITTED 지원서에서{" "}
-                  <strong>이름/전화번호/대학교/전공</strong>을 User 엔티티로 복사하고{" "}
+                  서버가 각 유저의 최신 SUBMITTED 지원서에서{' '}
+                  <strong>이름/전화번호/대학교/전공</strong>을 User 엔티티로 복사하고{' '}
                   <code className="text-[#34d399] font-mono">memberType=MEMBER</code>로 일괄
                   승격합니다.
                 </p>
@@ -1226,8 +1226,8 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                   <span>
                     {selectedPromoteUserIds.length === unpromotedPassedCandidates.length &&
                     unpromotedPassedCandidates.length > 0
-                      ? "선택 해제"
-                      : "승격 대상 전체 선택"}
+                      ? '선택 해제'
+                      : '승격 대상 전체 선택'}
                   </span>
                 </button>
 
@@ -1300,7 +1300,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                       <tr
                         key={candidate.id}
                         onClick={() => !isPromoted && handleTogglePromoteSelect(candidate.user_id)}
-                        className={`transition-colors ${isPromoted ? "opacity-60 bg-white/[0.01]" : "hover:bg-slate-50 cursor-pointer"}`}
+                        className={`transition-colors ${isPromoted ? 'opacity-60 bg-white/[0.01]' : 'hover:bg-slate-50 cursor-pointer'}`}
                       >
                         {/* Checkbox */}
                         <td
@@ -1392,11 +1392,11 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
             <div className="px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-white/[0.01]">
               <div className="flex items-center gap-2.5">
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#3b82f6]/15 text-[#60a5fa] border border-[#3b82f6]/30">
-                  {selectedApplicant.track === "ENGINEERING"
-                    ? "엔지니어링"
-                    : selectedApplicant.track === "ANALYSIS"
-                      ? "데이터 분석"
-                      : "데이터 시각화"}
+                  {selectedApplicant.track === 'ENGINEERING'
+                    ? '엔지니어링'
+                    : selectedApplicant.track === 'ANALYSIS'
+                      ? '데이터 분석'
+                      : '데이터 시각화'}
                 </span>
                 <span className="text-sm font-bold text-foreground">{selectedApplicant.name}</span>
                 <span className="text-xs text-muted-foreground font-mono">
@@ -1406,7 +1406,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => alert("지원서 데이터를 새로고침했습니다.")}
+                  onClick={() => alert('지원서 데이터를 새로고침했습니다.')}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-foreground text-xs font-medium flex items-center gap-1 cursor-pointer"
                 >
                   <RotateCcw size={12} />
@@ -1425,9 +1425,9 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
             <div className="px-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-6">
                 {[
-                  { id: "review", label: "지원서 원문 & 개인 평가" },
-                  { id: "status", label: "동료 평가 현황" },
-                  { id: "interview", label: "면접 추천 질문" },
+                  { id: 'review', label: '지원서 원문 & 개인 평가' },
+                  { id: 'status', label: '동료 평가 현황' },
+                  { id: 'interview', label: '면접 추천 질문' },
                 ].map((tab) => {
                   const isActive = modalTab === tab.id;
                   return (
@@ -1435,7 +1435,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                       key={tab.id}
                       onClick={() => setModalTab(tab.id as any)}
                       className="py-3 text-xs font-bold relative transition-colors cursor-pointer"
-                      style={{ color: isActive ? "#2563eb" : "#64748b" }}
+                      style={{ color: isActive ? '#2563eb' : '#64748b' }}
                     >
                       <span>{tab.label}</span>
                       {isActive && (
@@ -1448,13 +1448,13 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
 
               <div className="flex items-center gap-1.5 py-2">
                 <button
-                  onClick={() => handleNavigateModal("PREV")}
+                  onClick={() => handleNavigateModal('PREV')}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-foreground text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <ChevronLeft size={13} /> 이전
                 </button>
                 <button
-                  onClick={() => handleNavigateModal("NEXT")}
+                  onClick={() => handleNavigateModal('NEXT')}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-foreground text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   다음 <ChevronRight size={13} />
@@ -1465,7 +1465,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-6">
               {/* ─── TAB 1: 지원서 원문 & 개인 평가 ─── */}
-              {modalTab === "review" && (
+              {modalTab === 'review' && (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   {/* Left Column: 지원서 원문 (7 cols) */}
                   <div className="lg:col-span-7 space-y-5">
@@ -1476,57 +1476,57 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                       </p>
                       <div className="grid grid-cols-2 gap-2 text-muted-foreground text-[11px] font-mono">
                         <p>
-                          • 성명:{" "}
+                          • 성명:{' '}
                           <strong className="text-white font-sans">{selectedApplicant.name}</strong>
                         </p>
                         <p>
-                          • 학년/학기:{" "}
+                          • 학년/학기:{' '}
                           <strong className="text-white font-sans">
                             {selectedApplicant.last_semester}학기 이수
                           </strong>
                         </p>
                         <p>
-                          • 대학교:{" "}
+                          • 대학교:{' '}
                           <strong className="text-white font-sans">
                             {selectedApplicant.university}
                           </strong>
                         </p>
                         <p>
-                          • 본전공:{" "}
+                          • 본전공:{' '}
                           <strong className="text-white font-sans">
                             {selectedApplicant.major}
                           </strong>
                         </p>
                         <p>
-                          • 복수/부전공:{" "}
+                          • 복수/부전공:{' '}
                           <strong className="text-white font-sans">
-                            {selectedApplicant.minor_double_major.join(", ") || "없음"}
+                            {selectedApplicant.minor_double_major.join(', ') || '없음'}
                           </strong>
                         </p>
                         <p>
-                          • 병역 여부:{" "}
+                          • 병역 여부:{' '}
                           <strong className="text-white font-sans">
                             {selectedApplicant.military_status}
                           </strong>
                         </p>
                         <p>
-                          • 졸업 예정:{" "}
+                          • 졸업 예정:{' '}
                           <strong className="text-white font-sans">
                             {selectedApplicant.graduation_date}
                           </strong>
                         </p>
                         <p>
-                          • 대학원 진학:{" "}
+                          • 대학원 진학:{' '}
                           <strong className="text-white font-sans">
-                            {selectedApplicant.grad_school_plan ? "진학 예정" : "취업/미정"}
+                            {selectedApplicant.grad_school_plan ? '진학 예정' : '취업/미정'}
                           </strong>
                         </p>
                         <p>
-                          • 연락처:{" "}
+                          • 연락처:{' '}
                           <strong className="text-white">{selectedApplicant.phone}</strong>
                         </p>
                         <p>
-                          • 이메일:{" "}
+                          • 이메일:{' '}
                           <strong className="text-white">{selectedApplicant.email}</strong>
                         </p>
                       </div>
@@ -1551,7 +1551,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                             <span className="font-bold text-foreground">{ans.content}</span>
                           </div>
 
-                          {ans.type === "TABLE" && typeof ans.answer === "object" ? (
+                          {ans.type === 'TABLE' && typeof ans.answer === 'object' ? (
                             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 font-mono text-xs">
                               {Object.entries(ans.answer).map(([k, v]) => (
                                 <p key={k} className="text-muted-foreground">
@@ -1590,28 +1590,28 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                         <div className="grid grid-cols-4 gap-1.5">
                           {[
                             {
-                              id: "PASS",
-                              label: "합격",
-                              color: "#34d399",
-                              bg: "rgba(52,211,153,0.15)",
+                              id: 'PASS',
+                              label: '합격',
+                              color: '#34d399',
+                              bg: 'rgba(52,211,153,0.15)',
                             },
                             {
-                              id: "HOLD",
-                              label: "보류",
-                              color: "#fbbf24",
-                              bg: "rgba(251,191,36,0.18)",
+                              id: 'HOLD',
+                              label: '보류',
+                              color: '#fbbf24',
+                              bg: 'rgba(251,191,36,0.18)',
                             },
                             {
-                              id: "FAIL",
-                              label: "불합격",
-                              color: "#f87171",
-                              bg: "rgba(248,113,113,0.15)",
+                              id: 'FAIL',
+                              label: '불합격',
+                              color: '#f87171',
+                              bg: 'rgba(248,113,113,0.15)',
                             },
                             {
-                              id: "PENDING",
-                              label: "미결",
-                              color: "#9094a8",
-                              bg: "rgba(0,0,0,0.06)",
+                              id: 'PENDING',
+                              label: '미결',
+                              color: '#9094a8',
+                              bg: 'rgba(0,0,0,0.06)',
                             },
                           ].map((btn) => {
                             const isSelected = editDecision === btn.id;
@@ -1630,9 +1630,9 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                                         boxShadow: `0 0 10px ${btn.color}30`,
                                       }
                                     : {
-                                        background: "rgba(255,255,255,0.02)",
-                                        borderColor: "rgba(255,255,255,0.08)",
-                                        color: "#64748b",
+                                        background: 'rgba(255,255,255,0.02)',
+                                        borderColor: 'rgba(255,255,255,0.08)',
+                                        color: '#64748b',
                                       }
                                 }
                               >
@@ -1708,37 +1708,37 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
               )}
 
               {/* ─── TAB 2: 동료 평가 현황 ─── */}
-              {modalTab === "status" && (
+              {modalTab === 'status' && (
                 <div className="space-y-5">
                   <div className="grid grid-cols-4 gap-3">
                     {[
                       {
-                        label: "합격 (PASS)",
+                        label: '합격 (PASS)',
                         val: selectedApplicant.pass_count,
-                        color: "#34d399",
-                        bg: "rgba(52,211,153,0.15)",
-                        border: "rgba(52,211,153,0.3)",
+                        color: '#34d399',
+                        bg: 'rgba(52,211,153,0.15)',
+                        border: 'rgba(52,211,153,0.3)',
                       },
                       {
-                        label: "보류 (HOLD)",
+                        label: '보류 (HOLD)',
                         val: selectedApplicant.hold_count,
-                        color: "#fbbf24",
-                        bg: "rgba(251,191,36,0.15)",
-                        border: "rgba(251,191,36,0.3)",
+                        color: '#fbbf24',
+                        bg: 'rgba(251,191,36,0.15)',
+                        border: 'rgba(251,191,36,0.3)',
                       },
                       {
-                        label: "불합 (FAIL)",
+                        label: '불합 (FAIL)',
                         val: selectedApplicant.fail_count,
-                        color: "#f87171",
-                        bg: "rgba(248,113,113,0.15)",
-                        border: "rgba(248,113,113,0.3)",
+                        color: '#f87171',
+                        bg: 'rgba(248,113,113,0.15)',
+                        border: 'rgba(248,113,113,0.3)',
                       },
                       {
-                        label: "합산 총점",
+                        label: '합산 총점',
                         val: selectedApplicant.total_score,
-                        color: "#0f172a",
-                        bg: "#f1f5f9",
-                        border: "rgba(0,0,0,0.08)",
+                        color: '#0f172a',
+                        bg: '#f1f5f9',
+                        border: 'rgba(0,0,0,0.08)',
                       },
                     ].map((card) => (
                       <div
@@ -1774,29 +1774,29 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                               <span
                                 className="px-2.5 py-0.5 rounded-md text-xs font-bold font-sans inline-block"
                                 style={
-                                  ev.decision === "PASS"
-                                    ? { background: "rgba(52,211,153,0.15)", color: "#34d399" }
-                                    : ev.decision === "HOLD"
-                                      ? { background: "rgba(251,191,36,0.15)", color: "#fbbf24" }
-                                      : ev.decision === "FAIL"
-                                        ? { background: "rgba(248,113,113,0.15)", color: "#f87171" }
-                                        : { background: "rgba(0,0,0,0.06)", color: "#9094a8" }
+                                  ev.decision === 'PASS'
+                                    ? { background: 'rgba(52,211,153,0.15)', color: '#34d399' }
+                                    : ev.decision === 'HOLD'
+                                      ? { background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }
+                                      : ev.decision === 'FAIL'
+                                        ? { background: 'rgba(248,113,113,0.15)', color: '#f87171' }
+                                        : { background: 'rgba(0,0,0,0.06)', color: '#9094a8' }
                                 }
                               >
-                                {ev.decision === "PASS"
-                                  ? "합격"
-                                  : ev.decision === "HOLD"
-                                    ? "보류"
-                                    : ev.decision === "FAIL"
-                                      ? "불합격"
-                                      : "미결"}
+                                {ev.decision === 'PASS'
+                                  ? '합격'
+                                  : ev.decision === 'HOLD'
+                                    ? '보류'
+                                    : ev.decision === 'FAIL'
+                                      ? '불합격'
+                                      : '미결'}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center font-bold">
-                              {ev.score !== null ? `${ev.score}점` : "-"}
+                              {ev.score !== null ? `${ev.score}점` : '-'}
                             </td>
                             <td className="px-5 py-3 text-muted-foreground font-sans text-xs break-all">
-                              {ev.memo || "-"}
+                              {ev.memo || '-'}
                             </td>
                           </tr>
                         ))}
@@ -1807,7 +1807,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
               )}
 
               {/* ─── TAB 3: 면접 추천 질문 ─── */}
-              {modalTab === "interview" && (
+              {modalTab === 'interview' && (
                 <div className="space-y-4">
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
                     <h3 className="text-xs font-bold text-foreground">
@@ -1833,7 +1833,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                               onClick={() => {
                                 if (q.interview_question) {
                                   navigator.clipboard.writeText(q.interview_question);
-                                  alert("질문이 복사되었습니다.");
+                                  alert('질문이 복사되었습니다.');
                                 }
                               }}
                               className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
@@ -1920,7 +1920,7 @@ export function EvaluationManagePage({ initialTab = "evaluations" }: EvaluationM
                   className="mt-0.5 rounded accent-emerald-500 w-4 h-4 cursor-pointer"
                 />
                 <span className="text-foreground leading-relaxed">
-                  대표진 면접 및 최종 선발 회의를 거쳐{" "}
+                  대표진 면접 및 최종 선발 회의를 거쳐{' '}
                   <strong>합격(PASS)이 최종 확정된 명단</strong>임을 확인했습니다.
                 </span>
               </label>

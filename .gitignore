@@ -24,4 +24,10 @@ yarn-error.log*
 # OS
 .DS_Store
 
+# Claude
+.CLAUDE.md
+.omc/
+.serena/
+
+# local docs
 /docs

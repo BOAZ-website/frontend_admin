@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -8,18 +8,18 @@ import {
   Layers,
   Plus,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { SessionDetailModal } from "@/widgets/session-detail-modal/ui/SessionDetailModal";
-import { STATUS_CFG, WEEKS } from "@/entities/attendance/model/constants";
-import { sessionKey } from "@/entities/attendance/model/lib";
-import type { AttendanceState, AttendanceStatus } from "@/entities/attendance/model/types";
-import type { ExceptionRequest } from "@/entities/exception-request/model/types";
-import type { Member, StudyPeriodType, StudyTeamInfo } from "@/entities/study-team/model/types";
-import { Btn } from "@/shared/ui/Btn";
-import { CardHeader } from "@/shared/ui/CardHeader";
-import { SectionCard } from "@/shared/ui/SectionCard";
-import { Tag } from "@/shared/ui/Tag";
+import { SessionDetailModal } from '@/widgets/session-detail-modal/ui/SessionDetailModal';
+import { STATUS_CFG, WEEKS } from '@/entities/attendance/model/constants';
+import { sessionKey } from '@/entities/attendance/model/lib';
+import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
+import type { ExceptionRequest } from '@/entities/exception-request/model/types';
+import type { Member, StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
+import { Btn } from '@/shared/ui/Btn';
+import { CardHeader } from '@/shared/ui/CardHeader';
+import { SectionCard } from '@/shared/ui/SectionCard';
+import { Tag } from '@/shared/ui/Tag';
 
 export function DashboardPage({
   attendance,
@@ -44,7 +44,7 @@ export function DashboardPage({
     t: string,
     memberId: string,
     to: AttendanceStatus,
-    reason: string
+    reason: string,
   ) => void;
   onConfirmAdmin: (w: string, a: string, t: string) => void;
   onOpenAddStudy?: () => void;
@@ -55,14 +55,14 @@ export function DashboardPage({
     team: string;
   } | null>(null);
   // 방학 스터디와 학기 스터디는 시리얼하게(순차적으로) 진행되므로 현재 활성 시즌인 학기 스터디를 기본값으로 설정
-  const [currentSeason, setCurrentSeason] = useState<StudyPeriodType>("학기 스터디");
+  const [currentSeason, setCurrentSeason] = useState<StudyPeriodType>('학기 스터디');
 
   const displayedStudyTeams = studyTeams.filter((t) => t.studyType === currentSeason);
   const allTeams = displayedStudyTeams.map((t) => ({
     team: t.teamName,
     studyName: t.studyName,
-    actId: "study",
-    color: "#3b82f6",
+    actId: 'study',
+    color: '#3b82f6',
   }));
   const totalCells = WEEKS.length * allTeams.length;
   const submittedCells = WEEKS.reduce(
@@ -70,15 +70,15 @@ export function DashboardPage({
       acc +
       allTeams.filter(({ team, actId }) => attendance[sessionKey(w.id, actId, team)]?.submitted)
         .length,
-    0
+    0,
   );
 
   const activeModalRecord = selectedCell
     ? (attendance[sessionKey(selectedCell.weekId, selectedCell.actId, selectedCell.team)] ?? null)
     : null;
 
-  const vacationCount = studyTeams.filter((t) => t.studyType === "방학 스터디").length;
-  const semesterCount = studyTeams.filter((t) => t.studyType === "학기 스터디").length;
+  const vacationCount = studyTeams.filter((t) => t.studyType === '방학 스터디').length;
+  const semesterCount = studyTeams.filter((t) => t.studyType === '학기 스터디').length;
 
   return (
     <div className="space-y-5">
@@ -95,13 +95,13 @@ export function DashboardPage({
                   기수 활동 순차 주기 (Serial Timeline)
                 </span>
                 <span className="px-2 py-0.2 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                  {currentSeason === "학기 스터디" ? "2단계 진행 중" : "1단계 완료 기록"}
+                  {currentSeason === '학기 스터디' ? '2단계 진행 중' : '1단계 완료 기록'}
                 </span>
               </div>
               <h2 className="text-base font-black text-slate-900 tracking-tight mt-0.5">
-                {currentSeason === "학기 스터디"
-                  ? "정규 학기 스터디 출결 현황 (현재 진행)"
-                  : "방학 집중 스터디 출결 현황 (종료)"}
+                {currentSeason === '학기 스터디'
+                  ? '정규 학기 스터디 출결 현황 (현재 진행)'
+                  : '방학 집중 스터디 출결 현황 (종료)'}
               </h2>
             </div>
           </div>
@@ -109,18 +109,18 @@ export function DashboardPage({
           {/* Serial Phase Stepper Toggle */}
           <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 self-start lg:self-center flex-wrap">
             <button
-              onClick={() => setCurrentSeason("방학 스터디")}
+              onClick={() => setCurrentSeason('방학 스터디')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                currentSeason === "방학 스터디"
-                  ? "bg-white text-slate-900 shadow-2xs border border-slate-200/80"
-                  : "text-slate-500 hover:text-slate-800"
+                currentSeason === '방학 스터디'
+                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <span
                 className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                  currentSeason === "방학 스터디"
-                    ? "bg-amber-100 text-amber-900"
-                    : "bg-slate-200 text-slate-600"
+                  currentSeason === '방학 스터디'
+                    ? 'bg-amber-100 text-amber-900'
+                    : 'bg-slate-200 text-slate-600'
                 }`}
               >
                 1
@@ -132,18 +132,18 @@ export function DashboardPage({
             <span className="text-slate-300 font-bold text-xs px-0.5">→</span>
 
             <button
-              onClick={() => setCurrentSeason("학기 스터디")}
+              onClick={() => setCurrentSeason('학기 스터디')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                currentSeason === "학기 스터디"
-                  ? "bg-white text-slate-900 shadow-2xs border border-slate-200/80"
-                  : "text-slate-500 hover:text-slate-800"
+                currentSeason === '학기 스터디'
+                  ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               <span
                 className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${
-                  currentSeason === "학기 스터디"
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-200 text-slate-600"
+                  currentSeason === '학기 스터디'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-200 text-slate-600'
                 }`}
               >
                 2
@@ -164,17 +164,17 @@ export function DashboardPage({
           {
             label: `${currentSeason} 전체 제출 현황`,
             value: `${submittedCells} / ${totalCells}`,
-            sub: "스터디장 제출률 " + Math.round((submittedCells / (totalCells || 1)) * 100) + "%",
+            sub: '스터디장 제출률 ' + Math.round((submittedCells / (totalCells || 1)) * 100) + '%',
           },
           {
             label: `${currentSeason} 이번 주 미제출`,
-            value: `${allTeams.filter(({ team, actId }) => !attendance[sessionKey("w3", actId, team)]?.submitted).length}팀`,
-            sub: currentSeason === "학기 스터디" ? "3주차 진행 중" : "전체 주차 마감 완료",
+            value: `${allTeams.filter(({ team, actId }) => !attendance[sessionKey('w3', actId, team)]?.submitted).length}팀`,
+            sub: currentSeason === '학기 스터디' ? '3주차 진행 중' : '전체 주차 마감 완료',
           },
           {
-            label: "예외 승인 대기",
+            label: '예외 승인 대기',
             value: `${exceptions.length}건`,
-            sub: "운영지원팀 확인 필요",
+            sub: '운영지원팀 확인 필요',
           },
         ].map((s) => (
           <SectionCard key={s.label}>
@@ -194,9 +194,9 @@ export function DashboardPage({
             <div className="flex items-center gap-2 flex-wrap">
               <span
                 className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border shadow-2xs ${
-                  currentSeason === "학기 스터디"
-                    ? "bg-slate-100 text-slate-800 border-slate-200"
-                    : "bg-slate-100 text-slate-800 border-slate-200"
+                  currentSeason === '학기 스터디'
+                    ? 'bg-slate-100 text-slate-800 border-slate-200'
+                    : 'bg-slate-100 text-slate-800 border-slate-200'
                 }`}
               >
                 {currentSeason}
@@ -262,18 +262,18 @@ export function DashboardPage({
                     </td>
                     {displayedStudyTeams.map((st) => {
                       const team = st.teamName;
-                      const rec = attendance[sessionKey(w.id, "study", team)];
+                      const rec = attendance[sessionKey(w.id, 'study', team)];
                       const done = rec?.submitted ?? false;
                       const hasPhoto = !!rec?.photoUrl;
                       return (
                         <td key={team} className="py-1 px-1">
                           <div
-                            onClick={() => setSelectedCell({ weekId: w.id, actId: "study", team })}
+                            onClick={() => setSelectedCell({ weekId: w.id, actId: 'study', team })}
                             title={`${st.studyName} (${w.label}) - 클릭하여 인증 사진 및 출결 상세 보기`}
                             className="w-full h-11 px-3 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-105 group relative shadow-2xs"
                             style={{
-                              background: done ? "#ecfdf5" : "#fef2f2",
-                              border: `1px solid ${done ? "#a7f3d0" : "#fecaca"}`,
+                              background: done ? '#ecfdf5' : '#fef2f2',
+                              border: `1px solid ${done ? '#a7f3d0' : '#fecaca'}`,
                             }}
                           >
                             {done ? (
@@ -284,7 +284,7 @@ export function DashboardPage({
                                     size={11}
                                     className="text-slate-700"
                                     {...({
-                                      title: "인증사진 첨부됨",
+                                      title: '인증사진 첨부됨',
                                     } as React.SVGProps<SVGSVGElement>)}
                                   />
                                 )}
@@ -294,9 +294,9 @@ export function DashboardPage({
                             )}
                             <span
                               className="text-[10px] font-bold mt-0.5 whitespace-nowrap"
-                              style={{ color: done ? "#047857" : "#b91c1c" }}
+                              style={{ color: done ? '#047857' : '#b91c1c' }}
                             >
-                              {done ? (hasPhoto ? "사진 인증" : "제출완료") : "미제출"}
+                              {done ? (hasPhoto ? '사진 인증' : '제출완료') : '미제출'}
                             </span>
                           </div>
                         </td>
@@ -322,11 +322,11 @@ export function DashboardPage({
             대기 중인 요청이 없습니다
           </div>
         ) : (
-          <div className="divide-y" style={{ borderColor: "#f1f5f9" }}>
+          <div className="divide-y" style={{ borderColor: '#f1f5f9' }}>
             {exceptions.map((ex) => (
               <div key={ex.id} className="flex items-center justify-between px-5 py-3.5 gap-4">
                 <div className="flex items-center gap-3 min-w-0">
-                  <AlertTriangle size={14} style={{ color: "#fbbf24" }} className="shrink-0" />
+                  <AlertTriangle size={14} style={{ color: '#fbbf24' }} className="shrink-0" />
                   <div className="min-w-0">
                     <p className="text-sm text-foreground">
                       <span className="font-semibold">{ex.team}</span>
@@ -339,11 +339,11 @@ export function DashboardPage({
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs" style={{ color: STATUS_CFG[ex.from]?.color ?? "#fff" }}>
+                  <span className="text-xs" style={{ color: STATUS_CFG[ex.from]?.color ?? '#fff' }}>
                     {STATUS_CFG[ex.from]?.label ?? ex.from}
                   </span>
                   <span className="text-xs text-muted-foreground">→</span>
-                  <span className="text-xs" style={{ color: STATUS_CFG[ex.to]?.color ?? "#fff" }}>
+                  <span className="text-xs" style={{ color: STATUS_CFG[ex.to]?.color ?? '#fff' }}>
                     {STATUS_CFG[ex.to]?.label ?? ex.to}
                   </span>
                   <Btn variant="success" size="xs" onClick={() => onApprove(ex.id)}>

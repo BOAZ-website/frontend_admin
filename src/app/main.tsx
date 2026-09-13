@@ -1,11 +1,11 @@
-import { Component } from "react";
-import { createRoot } from "react-dom/client";
-import type { ErrorInfo, ReactNode } from "react";
-import { AlertCircle, RotateCcw } from "lucide-react";
+import { Component } from 'react';
+import { createRoot } from 'react-dom/client';
+import type { ErrorInfo, ReactNode } from 'react';
+import { AlertCircle, RotateCcw } from 'lucide-react';
 
-import App from "./App.tsx";
+import App from './App.tsx';
 
-import "./styles/index.css";
+import './styles/index.css';
 
 interface Props {
   children?: ReactNode;
@@ -29,7 +29,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught React Error:", error, errorInfo);
+    console.error('Uncaught React Error:', error, errorInfo);
     this.setState({ errorInfo });
   }
 
@@ -57,8 +57,9 @@ class GlobalErrorBoundary extends Component<Props, State> {
               <p className="text-xs text-slate-500 font-normal leading-relaxed">
                 페이지를 새로고침하거나 잠시 후 다시 시도해 주세요.
                 <br />
-                문제가 지속될 경우{" "}
-                <span className="font-semibold text-slate-700">관리자(서비스운영팀)</span>에게 문의해 주세요.
+                문제가 지속될 경우{' '}
+                <span className="font-semibold text-slate-700">관리자(서비스운영팀)</span>에게
+                문의해 주세요.
               </p>
             </div>
 
@@ -80,9 +81,9 @@ class GlobalErrorBoundary extends Component<Props, State> {
                 type="button"
                 onClick={() => {
                   try {
-                    localStorage.removeItem("boaz_sidebar_open_v2");
-                    localStorage.removeItem("boaz_sidebar_open");
-                    localStorage.removeItem("boaz_sidebar_expanded_sections");
+                    localStorage.removeItem('boaz_sidebar_open_v2');
+                    localStorage.removeItem('boaz_sidebar_open');
+                    localStorage.removeItem('boaz_sidebar_expanded_sections');
                   } catch {}
                   this.setState({ hasError: false, error: null, errorInfo: null });
                   window.location.reload();
@@ -101,8 +102,8 @@ class GlobalErrorBoundary extends Component<Props, State> {
   }
 }
 
-createRoot(document.getElementById("root")!).render(
+createRoot(document.getElementById('root')!).render(
   <GlobalErrorBoundary>
     <App />
-  </GlobalErrorBoundary>
+  </GlobalErrorBoundary>,
 );

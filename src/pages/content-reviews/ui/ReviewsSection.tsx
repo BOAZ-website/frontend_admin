@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Edit3, Plus, Search, Trash2, X } from "lucide-react";
+import { useState } from 'react';
+import { Edit3, Plus, Search, Trash2, X } from 'lucide-react';
 
-export type ReviewTrack = "ANALYSIS" | "VISUALIZATION" | "ENGINEERING";
+export type ReviewTrack = 'ANALYSIS' | 'VISUALIZATION' | 'ENGINEERING';
 
 export interface ReviewItem {
   id: string;
@@ -14,61 +14,61 @@ export interface ReviewItem {
 }
 
 const SAMPLE_AVATARS = [
-  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&auto=format&fit=crop&q=80",
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&auto=format&fit=crop&q=80',
 ];
 
 const INITIAL_REVIEWS: ReviewItem[] = [
   {
-    id: "rev1",
-    name: "김민지",
-    track: "ANALYSIS",
+    id: 'rev1',
+    name: '김민지',
+    track: 'ANALYSIS',
     term: 20,
     content:
-      "BOAZ 활동을 통해 단순한 데이터 분석을 넘어 비즈니스 임팩트를 내는 머신러닝 파이프라인을 구축해 볼 수 있었습니다. 현업 멘토님들의 피드백과 동료들과의 밤샘 프로젝트가 큰 성장의 밑거름이 되었습니다.",
+      'BOAZ 활동을 통해 단순한 데이터 분석을 넘어 비즈니스 임팩트를 내는 머신러닝 파이프라인을 구축해 볼 수 있었습니다. 현업 멘토님들의 피드백과 동료들과의 밤샘 프로젝트가 큰 성장의 밑거름이 되었습니다.',
     imageUrl: SAMPLE_AVATARS[0],
-    createdAt: "2026-02-15",
+    createdAt: '2026-02-15',
   },
   {
-    id: "rev2",
-    name: "이준혁",
-    track: "ENGINEERING",
+    id: 'rev2',
+    name: '이준혁',
+    track: 'ENGINEERING',
     term: 20,
     content:
-      "대용량 스트리밍 데이터를 다루는 Kafka & Spark 파이프라인을 직접 구축하고 Kubernetes 상에 배포하는 실무 경험을 쌓았습니다. 데이터 엔지니어로서의 기초를 단단히 다질 수 있었던 최고의 동아리입니다.",
+      '대용량 스트리밍 데이터를 다루는 Kafka & Spark 파이프라인을 직접 구축하고 Kubernetes 상에 배포하는 실무 경험을 쌓았습니다. 데이터 엔지니어로서의 기초를 단단히 다질 수 있었던 최고의 동아리입니다.',
     imageUrl: SAMPLE_AVATARS[1],
-    createdAt: "2026-02-18",
+    createdAt: '2026-02-18',
   },
   {
-    id: "rev3",
-    name: "박수진",
-    track: "VISUALIZATION",
+    id: 'rev3',
+    name: '박수진',
+    track: 'VISUALIZATION',
     term: 19,
     content:
-      "D3.js와 인터랙티브 웹 시각화 프로젝트를 진행하며 데이터 저널리즘과 정보 디자인에 대한 깊은 인사이트를 얻었습니다. 컨퍼런스에서 많은 사람들에게 시각화 결과물을 선보인 경험은 잊지 못할 것입니다.",
+      'D3.js와 인터랙티브 웹 시각화 프로젝트를 진행하며 데이터 저널리즘과 정보 디자인에 대한 깊은 인사이트를 얻었습니다. 컨퍼런스에서 많은 사람들에게 시각화 결과물을 선보인 경험은 잊지 못할 것입니다.',
     imageUrl: SAMPLE_AVATARS[2],
-    createdAt: "2025-08-20",
+    createdAt: '2025-08-20',
   },
 ];
 
 const TRACK_LABELS: Record<ReviewTrack, string> = {
-  ANALYSIS: "데이터 분석",
-  VISUALIZATION: "데이터 시각화",
-  ENGINEERING: "데이터 엔지니어링",
+  ANALYSIS: '데이터 분석',
+  VISUALIZATION: '데이터 시각화',
+  ENGINEERING: '데이터 엔지니어링',
 };
 
 export function ReviewsSection() {
   const [reviews, setReviews] = useState<ReviewItem[]>(INITIAL_REVIEWS);
-  const [selectedTrack, setSelectedTrack] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTrack, setSelectedTrack] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [editingReview, setEditingReview] = useState<ReviewItem | null>(null);
   const [isNew, setIsNew] = useState(false);
 
   const filteredReviews = reviews.filter((r) => {
-    if (selectedTrack !== "ALL" && r.track !== selectedTrack) {
+    if (selectedTrack !== 'ALL' && r.track !== selectedTrack) {
       return false;
     }
     if (searchQuery.trim()) {
@@ -81,11 +81,11 @@ export function ReviewsSection() {
   function handleAddNew() {
     setIsNew(true);
     setEditingReview({
-      id: "rev_" + Date.now(),
-      name: "",
-      track: "ANALYSIS",
+      id: 'rev_' + Date.now(),
+      name: '',
+      track: 'ANALYSIS',
       term: 21,
-      content: "",
+      content: '',
       imageUrl: SAMPLE_AVATARS[Math.floor(Math.random() * SAMPLE_AVATARS.length)],
       createdAt: new Date().toISOString().slice(0, 10),
     });
@@ -101,7 +101,7 @@ export function ReviewsSection() {
       return;
     }
     if (!editingReview.name.trim() || !editingReview.content.trim()) {
-      alert("작성자 이름과 후기 내용을 모두 입력해 주세요.");
+      alert('작성자 이름과 후기 내용을 모두 입력해 주세요.');
       return;
     }
     if (isNew) {
@@ -113,7 +113,7 @@ export function ReviewsSection() {
   }
 
   function handleDelete(id: string) {
-    if (confirm("정말 이 수료자 후기를 삭제하시겠습니까?")) {
+    if (confirm('정말 이 수료자 후기를 삭제하시겠습니까?')) {
       setReviews((prev) => prev.filter((r) => r.id !== id));
       if (editingReview?.id === id) {
         setEditingReview(null);
@@ -172,7 +172,7 @@ export function ReviewsSection() {
         <button
           onClick={handleAddNew}
           className="px-4 py-1.5 rounded-md text-xs font-bold text-white transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
-          style={{ background: "#ef4444" }}
+          style={{ background: '#ef4444' }}
         >
           <Plus size={13} /> 새 후기 등록
         </button>
@@ -245,7 +245,7 @@ export function ReviewsSection() {
           <div className="w-full max-w-lg rounded-2xl overflow-hidden p-6 space-y-4 bg-white border border-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-sm font-bold text-foreground">
-                {isNew ? "새 수료자 후기 등록" : "수료자 후기 수정"}
+                {isNew ? '새 수료자 후기 등록' : '수료자 후기 수정'}
               </h3>
               <button
                 onClick={() => setEditingReview(null)}
@@ -275,7 +275,7 @@ export function ReviewsSection() {
                     value={editingReview.term}
                     onChange={(e) =>
                       setEditingReview((prev) =>
-                        prev ? { ...prev, term: Number(e.target.value) } : null
+                        prev ? { ...prev, term: Number(e.target.value) } : null,
                       )
                     }
                     className="w-full px-3 py-2 rounded-md outline-none bg-slate-100 border border-slate-200 text-foreground font-mono"
@@ -289,7 +289,7 @@ export function ReviewsSection() {
                   value={editingReview.track}
                   onChange={(e) =>
                     setEditingReview((prev) =>
-                      prev ? { ...prev, track: e.target.value as ReviewTrack } : null
+                      prev ? { ...prev, track: e.target.value as ReviewTrack } : null,
                     )
                   }
                   className="w-full px-3 py-2 rounded-md outline-none bg-slate-100 border border-slate-200 text-foreground cursor-pointer"
@@ -312,10 +312,10 @@ export function ReviewsSection() {
                 </label>
                 <div className="flex gap-2 items-center">
                   <input
-                    value={editingReview.imageUrl ?? ""}
+                    value={editingReview.imageUrl ?? ''}
                     onChange={(e) =>
                       setEditingReview((prev) =>
-                        prev ? { ...prev, imageUrl: e.target.value } : null
+                        prev ? { ...prev, imageUrl: e.target.value } : null,
                       )
                     }
                     placeholder="https://..."
@@ -331,7 +331,7 @@ export function ReviewsSection() {
                               imageUrl:
                                 SAMPLE_AVATARS[Math.floor(Math.random() * SAMPLE_AVATARS.length)],
                             }
-                          : null
+                          : null,
                       )
                     }
                     className="px-2.5 py-1.5 rounded bg-slate-100 hover:bg-slate-100 text-muted-foreground hover:text-foreground text-[11px] border border-slate-200 shrink-0 cursor-pointer"
@@ -365,7 +365,7 @@ export function ReviewsSection() {
               <button
                 onClick={handleSave}
                 className="px-5 py-2 rounded-md text-xs font-bold text-white cursor-pointer hover:opacity-90"
-                style={{ background: "#ef4444" }}
+                style={{ background: '#ef4444' }}
               >
                 저장
               </button>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 import {
   Check,
   ChevronDown,
@@ -17,28 +17,28 @@ import {
   UserPlus,
   Users,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-export type EventType = "SESSION" | "HACKATHON" | "CONFERENCE" | "SEMINAR" | "STUDY" | "ETC";
-export type EventStatus = "UPCOMING" | "IN_PROGRESS" | "FINISHED";
-export type CheckinMethod = "QR_CODE" | "CODE" | "MANUAL" | "OPEN_LINK";
+export type EventType = 'SESSION' | 'HACKATHON' | 'CONFERENCE' | 'SEMINAR' | 'STUDY' | 'ETC';
+export type EventStatus = 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED';
+export type CheckinMethod = 'QR_CODE' | 'CODE' | 'MANUAL' | 'OPEN_LINK';
 export type AttendStatus =
-  | "present"
-  | "late"
-  | "absent"
-  | "excusedAbsent"
-  | "unexcusedLate"
-  | "unexcusedAbsent"
-  | "unmarked"
-  | "earlyLeave";
+  | 'present'
+  | 'late'
+  | 'absent'
+  | 'excusedAbsent'
+  | 'unexcusedLate'
+  | 'unexcusedAbsent'
+  | 'unmarked'
+  | 'earlyLeave';
 
 export interface CustomFormField {
   id: string;
   label: string;
-  type: "TEXT" | "SELECT" | "PHONE" | "EMAIL";
+  type: 'TEXT' | 'SELECT' | 'PHONE' | 'EMAIL';
   options?: string[];
   isRequired: boolean;
-  target: "ALL" | "INTERNAL_ONLY" | "EXTERNAL_ONLY";
+  target: 'ALL' | 'INTERNAL_ONLY' | 'EXTERNAL_ONLY';
 }
 
 export interface FormTemplate {
@@ -94,41 +94,41 @@ const EVENT_TYPE_META: Record<
   { label: string; short: string; color: string; bg: string; border: string }
 > = {
   CONFERENCE: {
-    label: "컨퍼런스 (빅콘)",
-    short: "컨퍼런스",
-    color: "#334155",
-    bg: "#f8fafc",
-    border: "#e2e8f0",
+    label: '컨퍼런스 (빅콘)',
+    short: '컨퍼런스',
+    color: '#334155',
+    bg: '#f8fafc',
+    border: '#e2e8f0',
   },
   HACKATHON: {
-    label: "해커톤 / 데이터톤",
-    short: "해커톤",
-    color: "#334155",
-    bg: "#f8fafc",
-    border: "#e2e8f0",
+    label: '해커톤 / 데이터톤',
+    short: '해커톤',
+    color: '#334155',
+    bg: '#f8fafc',
+    border: '#e2e8f0',
   },
   SESSION: {
-    label: "정기 세션 / 특강",
-    short: "정기세션",
-    color: "#334155",
-    bg: "#f8fafc",
-    border: "#e2e8f0",
+    label: '정기 세션 / 특강',
+    short: '정기세션',
+    color: '#334155',
+    bg: '#f8fafc',
+    border: '#e2e8f0',
   },
   SEMINAR: {
-    label: "분과 세미나",
-    short: "세미나",
-    color: "#334155",
-    bg: "#f8fafc",
-    border: "#e2e8f0",
+    label: '분과 세미나',
+    short: '세미나',
+    color: '#334155',
+    bg: '#f8fafc',
+    border: '#e2e8f0',
   },
   STUDY: {
-    label: "정규 스터디",
-    short: "스터디",
-    color: "#334155",
-    bg: "#f8fafc",
-    border: "#e2e8f0",
+    label: '정규 스터디',
+    short: '스터디',
+    color: '#334155',
+    bg: '#f8fafc',
+    border: '#e2e8f0',
   },
-  ETC: { label: "기타 행사", short: "기타", color: "#334155", bg: "#f8fafc", border: "#e2e8f0" },
+  ETC: { label: '기타 행사', short: '기타', color: '#334155', bg: '#f8fafc', border: '#e2e8f0' },
 };
 
 const ATTEND_STATUS_CFG: Record<
@@ -144,357 +144,357 @@ const ATTEND_STATUS_CFG: Record<
   }
 > = {
   present: {
-    label: "출석",
-    code: "0",
-    color: "#0f5132",
-    bg: "#def2e6",
-    border: "#b6e3c9",
-    activeBg: "#def2e6",
-    activeText: "#0f5132",
+    label: '출석',
+    code: '0',
+    color: '#0f5132',
+    bg: '#def2e6',
+    border: '#b6e3c9',
+    activeBg: '#def2e6',
+    activeText: '#0f5132',
   },
   late: {
-    label: "지각",
-    code: "1",
-    color: "#7c4a03",
-    bg: "#fceed2",
-    border: "#f5d5a4",
-    activeBg: "#fceed2",
-    activeText: "#7c4a03",
+    label: '지각',
+    code: '1',
+    color: '#7c4a03',
+    bg: '#fceed2',
+    border: '#f5d5a4',
+    activeBg: '#fceed2',
+    activeText: '#7c4a03',
   },
   earlyLeave: {
-    label: "조퇴",
-    code: "1E",
-    color: "#7c4a03",
-    bg: "#fef3c7",
-    border: "#fde68a",
-    activeBg: "#fef3c7",
-    activeText: "#7c4a03",
+    label: '조퇴',
+    code: '1E',
+    color: '#7c4a03',
+    bg: '#fef3c7',
+    border: '#fde68a',
+    activeBg: '#fef3c7',
+    activeText: '#7c4a03',
   },
   absent: {
-    label: "결석",
-    code: "2",
-    color: "#8a1c32",
-    bg: "#fce4e6",
-    border: "#f8b4bc",
-    activeBg: "#fce4e6",
-    activeText: "#8a1c32",
+    label: '결석',
+    code: '2',
+    color: '#8a1c32',
+    bg: '#fce4e6',
+    border: '#f8b4bc',
+    activeBg: '#fce4e6',
+    activeText: '#8a1c32',
   },
   excusedAbsent: {
-    label: "인정결석",
-    code: "3",
-    color: "#1e40af",
-    bg: "#eff6ff",
-    border: "#bfdbfe",
-    activeBg: "#eff6ff",
-    activeText: "#1e40af",
+    label: '인정결석',
+    code: '3',
+    color: '#1e40af',
+    bg: '#eff6ff',
+    border: '#bfdbfe',
+    activeBg: '#eff6ff',
+    activeText: '#1e40af',
   },
   unexcusedLate: {
-    label: "무단지각",
-    code: "4",
-    color: "#c2410c",
-    bg: "#fff7ed",
-    border: "#fed7aa",
-    activeBg: "#fff7ed",
-    activeText: "#c2410c",
+    label: '무단지각',
+    code: '4',
+    color: '#c2410c',
+    bg: '#fff7ed',
+    border: '#fed7aa',
+    activeBg: '#fff7ed',
+    activeText: '#c2410c',
   },
   unexcusedAbsent: {
-    label: "무단결석",
-    code: "5",
-    color: "#991b1b",
-    bg: "#fee2e2",
-    border: "#fca5a5",
-    activeBg: "#fee2e2",
-    activeText: "#991b1b",
+    label: '무단결석',
+    code: '5',
+    color: '#991b1b',
+    bg: '#fee2e2',
+    border: '#fca5a5',
+    activeBg: '#fee2e2',
+    activeText: '#991b1b',
   },
   unmarked: {
-    label: "미체크",
-    code: "-",
-    color: "#334155",
-    bg: "#e9eef4",
-    border: "#cbd5e1",
-    activeBg: "#e9eef4",
-    activeText: "#334155",
+    label: '미체크',
+    code: '-',
+    color: '#334155',
+    bg: '#e9eef4',
+    border: '#cbd5e1',
+    activeBg: '#e9eef4',
+    activeText: '#334155',
   },
 };
 
 const ATTEND_STATUS_STYLES: Record<AttendStatus, { active: string; inactive: string }> = {
   present: {
-    active: "bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs",
+    active: 'bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#0f5132] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#0f5132] hover:bg-white/60 border border-transparent font-medium',
   },
   late: {
-    active: "bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs",
+    active: 'bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium',
   },
   earlyLeave: {
-    active: "bg-[#fef3c7] text-[#7c4a03] font-bold border border-[#fde68a] shadow-2xs",
+    active: 'bg-[#fef3c7] text-[#7c4a03] font-bold border border-[#fde68a] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium',
   },
   absent: {
-    active: "bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs",
+    active: 'bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#8a1c32] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#8a1c32] hover:bg-white/60 border border-transparent font-medium',
   },
   excusedAbsent: {
-    active: "bg-[#eff6ff] text-[#1e40af] font-bold border border-[#bfdbfe] shadow-2xs",
+    active: 'bg-[#eff6ff] text-[#1e40af] font-bold border border-[#bfdbfe] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#1e40af] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#1e40af] hover:bg-white/60 border border-transparent font-medium',
   },
   unexcusedLate: {
-    active: "bg-[#fff7ed] text-[#c2410c] font-bold border border-[#fed7aa] shadow-2xs",
+    active: 'bg-[#fff7ed] text-[#c2410c] font-bold border border-[#fed7aa] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#c2410c] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#c2410c] hover:bg-white/60 border border-transparent font-medium',
   },
   unexcusedAbsent: {
-    active: "bg-[#fee2e2] text-[#991b1b] font-bold border border-[#fca5a5] shadow-2xs",
+    active: 'bg-[#fee2e2] text-[#991b1b] font-bold border border-[#fca5a5] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#991b1b] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#991b1b] hover:bg-white/60 border border-transparent font-medium',
   },
   unmarked: {
-    active: "bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs",
+    active: 'bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-slate-700 hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-slate-700 hover:bg-white/60 border border-transparent font-medium',
   },
 };
 
 const BOAZ_MEMBER_POOL = [
   {
-    name: "김서하",
+    name: '김서하',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "seoha.k@yonsei.ac.kr",
-    phone: "010-5519-8821",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'seoha.k@yonsei.ac.kr',
+    phone: '010-5519-8821',
   },
   {
-    name: "이민준",
+    name: '이민준',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "minjun.l@snu.ac.kr",
-    phone: "010-3811-9021",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'minjun.l@snu.ac.kr',
+    phone: '010-3811-9021',
   },
   {
-    name: "박지훈",
+    name: '박지훈',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "jihoon.p@korea.ac.kr",
-    phone: "010-4491-3829",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'jihoon.p@korea.ac.kr',
+    phone: '010-4491-3829',
   },
   {
-    name: "정채원",
+    name: '정채원',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "chaewon.j@hanyang.ac.kr",
-    phone: "010-9920-1182",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'chaewon.j@hanyang.ac.kr',
+    phone: '010-9920-1182',
   },
   {
-    name: "오승현",
+    name: '오승현',
     term: 28,
-    track: "ANALYSIS",
-    affiliation: "28기 분석",
-    email: "seunghyun.o@sogang.ac.kr",
-    phone: "010-3378-4912",
+    track: 'ANALYSIS',
+    affiliation: '28기 분석',
+    email: 'seunghyun.o@sogang.ac.kr',
+    phone: '010-3378-4912',
   },
   {
-    name: "이도현",
+    name: '이도현',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "dohyun.l@snu.ac.kr",
-    phone: "010-3819-2910",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'dohyun.l@snu.ac.kr',
+    phone: '010-3819-2910',
   },
   {
-    name: "박성훈",
+    name: '박성훈',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "sunghoon.p@naver.com",
-    phone: "010-9182-4122",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'sunghoon.p@naver.com',
+    phone: '010-9182-4122',
   },
   {
-    name: "강태양",
+    name: '강태양',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "taeyang.k@snu.ac.kr",
-    phone: "010-1829-4720",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'taeyang.k@snu.ac.kr',
+    phone: '010-1829-4720',
   },
   {
-    name: "임수진",
+    name: '임수진',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "sujin.l@yonsei.ac.kr",
-    phone: "010-8831-2940",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'sujin.l@yonsei.ac.kr',
+    phone: '010-8831-2940',
   },
   {
-    name: "백민혁",
+    name: '백민혁',
     term: 28,
-    track: "ENGINEERING",
-    affiliation: "28기 엔지니어링",
-    email: "minhyuk.b@korea.ac.kr",
-    phone: "010-7719-2041",
+    track: 'ENGINEERING',
+    affiliation: '28기 엔지니어링',
+    email: 'minhyuk.b@korea.ac.kr',
+    phone: '010-7719-2041',
   },
   {
-    name: "최민혁",
+    name: '최민혁',
     term: 28,
-    track: "VISUALIZATION",
-    affiliation: "28기 시각화",
-    email: "minhyuk.c@yonsei.ac.kr",
-    phone: "010-5512-7019",
+    track: 'VISUALIZATION',
+    affiliation: '28기 시각화',
+    email: 'minhyuk.c@yonsei.ac.kr',
+    phone: '010-5512-7019',
   },
   {
-    name: "한예린",
+    name: '한예린',
     term: 28,
-    track: "VISUALIZATION",
-    affiliation: "28기 시각화",
-    email: "yerin.h@ewha.ac.kr",
-    phone: "010-6629-3810",
+    track: 'VISUALIZATION',
+    affiliation: '28기 시각화',
+    email: 'yerin.h@ewha.ac.kr',
+    phone: '010-6629-3810',
   },
   {
-    name: "윤재혁",
+    name: '윤재혁',
     term: 28,
-    track: "VISUALIZATION",
-    affiliation: "28기 시각화",
-    email: "jaehyuk.y@skku.edu",
-    phone: "010-4490-1822",
+    track: 'VISUALIZATION',
+    affiliation: '28기 시각화',
+    email: 'jaehyuk.y@skku.edu',
+    phone: '010-4490-1822',
   },
   {
-    name: "장나연",
+    name: '장나연',
     term: 28,
-    track: "VISUALIZATION",
-    affiliation: "28기 시각화",
-    email: "nayeon.j@hanyang.ac.kr",
-    phone: "010-8812-7091",
+    track: 'VISUALIZATION',
+    affiliation: '28기 시각화',
+    email: 'nayeon.j@hanyang.ac.kr',
+    phone: '010-8812-7091',
   },
   {
-    name: "고준서",
+    name: '고준서',
     term: 27,
-    track: "ANALYSIS",
-    affiliation: "27기 분석",
-    email: "junseo.k@snu.ac.kr",
-    phone: "010-2281-9930",
+    track: 'ANALYSIS',
+    affiliation: '27기 분석',
+    email: 'junseo.k@snu.ac.kr',
+    phone: '010-2281-9930',
   },
   {
-    name: "남소희",
+    name: '남소희',
     term: 27,
-    track: "ENGINEERING",
-    affiliation: "27기 엔지니어링",
-    email: "sohee.n@yonsei.ac.kr",
-    phone: "010-3391-7721",
+    track: 'ENGINEERING',
+    affiliation: '27기 엔지니어링',
+    email: 'sohee.n@yonsei.ac.kr',
+    phone: '010-3391-7721',
   },
   {
-    name: "문지훈",
+    name: '문지훈',
     term: 27,
-    track: "VISUALIZATION",
-    affiliation: "27기 시각화",
-    email: "jihoon.m@korea.ac.kr",
-    phone: "010-4481-9012",
+    track: 'VISUALIZATION',
+    affiliation: '27기 시각화',
+    email: 'jihoon.m@korea.ac.kr',
+    phone: '010-4481-9012',
   },
 ];
 
 const INITIAL_TEMPLATES: FormTemplate[] = [
   {
-    id: "tmpl_conf",
-    title: "빅데이터 컨퍼런스 (빅콘) 표준 양식",
-    type: "CONFERENCE",
-    description: "외부 참가자 대규모 출석 확인 및 소속/기념품 수령 여부 체크 양식",
+    id: 'tmpl_conf',
+    title: '빅데이터 컨퍼런스 (빅콘) 표준 양식',
+    type: 'CONFERENCE',
+    description: '외부 참가자 대규모 출석 확인 및 소속/기념품 수령 여부 체크 양식',
     allowExternal: true,
-    defaultCheckinMethod: "QR_CODE",
-    createdAt: "2026-08-01",
+    defaultCheckinMethod: 'QR_CODE',
+    createdAt: '2026-08-01',
     customFields: [],
   },
   {
-    id: "tmpl_hack",
-    title: "무박 해커톤 / 데이터톤 전용 양식",
-    type: "HACKATHON",
-    description: "팀별 배정 현황 확인 및 체크인 코드 인증 양식",
+    id: 'tmpl_hack',
+    title: '무박 해커톤 / 데이터톤 전용 양식',
+    type: 'HACKATHON',
+    description: '팀별 배정 현황 확인 및 체크인 코드 인증 양식',
     allowExternal: false,
-    defaultCheckinMethod: "CODE",
-    createdAt: "2026-08-05",
+    defaultCheckinMethod: 'CODE',
+    createdAt: '2026-08-05',
     customFields: [],
   },
   {
-    id: "tmpl_session",
-    title: "정기 세션 & 특강 출석 양식",
-    type: "SESSION",
-    description: "정규 부원 과제 제출 여부 확인 및 출결 집계 양식",
+    id: 'tmpl_session',
+    title: '정기 세션 & 특강 출석 양식',
+    type: 'SESSION',
+    description: '정규 부원 과제 제출 여부 확인 및 출결 집계 양식',
     allowExternal: false,
-    defaultCheckinMethod: "QR_CODE",
-    createdAt: "2026-08-10",
+    defaultCheckinMethod: 'QR_CODE',
+    createdAt: '2026-08-10',
     customFields: [],
   },
 ];
 
 const INITIAL_EVENTS: AttendanceEvent[] = [
   {
-    id: "evt_hack_01",
-    title: "2026 하계 LLM & Agentic AI 해커톤",
-    type: "HACKATHON",
-    status: "IN_PROGRESS",
-    date: "2026-08-15",
-    startTime: "09:00",
-    endTime: "21:00",
-    location: "강남 드림플러스 메인홀",
-    description: "28기 정회원 및 산학 연계 협력사 멘토와 함께하는 무박 해커톤",
+    id: 'evt_hack_01',
+    title: '2026 하계 LLM & Agentic AI 해커톤',
+    type: 'HACKATHON',
+    status: 'IN_PROGRESS',
+    date: '2026-08-15',
+    startTime: '09:00',
+    endTime: '21:00',
+    location: '강남 드림플러스 메인홀',
+    description: '28기 정회원 및 산학 연계 협력사 멘토와 함께하는 무박 해커톤',
     allowExternal: false,
-    checkinMethod: "CODE",
-    checkinCode: "9055",
+    checkinMethod: 'CODE',
+    checkinCode: '9055',
     targetTerms: [28],
-    targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+    targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
     totalTargetCount: 52,
     internalAttendedCount: 6,
     externalAttendedCount: 0,
-    createdAt: "2026-08-15",
+    createdAt: '2026-08-15',
     customFields: [],
   },
   {
-    id: "evt_conf_28",
-    title: "BOAZ 제28기 Big Data Conference (빅콘)",
-    type: "CONFERENCE",
-    status: "IN_PROGRESS",
-    date: "2026-08-08",
-    startTime: "13:00",
-    endTime: "18:30",
-    location: "서울대학교 글로벌공학센터 다목적홀 / YouTube Live",
+    id: 'evt_conf_28',
+    title: 'BOAZ 제28기 Big Data Conference (빅콘)',
+    type: 'CONFERENCE',
+    status: 'IN_PROGRESS',
+    date: '2026-08-08',
+    startTime: '13:00',
+    endTime: '18:30',
+    location: '서울대학교 글로벌공학센터 다목적홀 / YouTube Live',
     description:
-      "BOAZ 28기 부원들의 프로젝트 성과 발표 및 외부 IT 기업 데이터 현직자 초청 컨퍼런스",
+      'BOAZ 28기 부원들의 프로젝트 성과 발표 및 외부 IT 기업 데이터 현직자 초청 컨퍼런스',
     allowExternal: true,
-    checkinMethod: "QR_CODE",
-    checkinCode: "8220",
+    checkinMethod: 'QR_CODE',
+    checkinCode: '8220',
     targetTerms: [27, 28],
-    targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+    targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
     totalTargetCount: 75,
     internalAttendedCount: 5,
     externalAttendedCount: 4,
-    createdAt: "2026-08-08",
+    createdAt: '2026-08-08',
     customFields: [],
   },
   {
-    id: "evt_session_03",
-    title: "제28기 3주차 정기 세션 (MLOps 특강)",
-    type: "SESSION",
-    status: "FINISHED",
-    date: "2026-08-01",
-    startTime: "14:00",
-    endTime: "17:00",
-    location: "연세대학교 백양관 101호",
-    description: "현업 MLOps 아키텍처 실무 강의 및 트랙별 진행 상황 공유",
+    id: 'evt_session_03',
+    title: '제28기 3주차 정기 세션 (MLOps 특강)',
+    type: 'SESSION',
+    status: 'FINISHED',
+    date: '2026-08-01',
+    startTime: '14:00',
+    endTime: '17:00',
+    location: '연세대학교 백양관 101호',
+    description: '현업 MLOps 아키텍처 실무 강의 및 트랙별 진행 상황 공유',
     allowExternal: false,
-    checkinMethod: "QR_CODE",
-    checkinCode: "8150",
+    checkinMethod: 'QR_CODE',
+    checkinCode: '8150',
     targetTerms: [28],
-    targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+    targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
     totalTargetCount: 52,
     internalAttendedCount: 6,
     externalAttendedCount: 0,
-    createdAt: "2026-08-01",
+    createdAt: '2026-08-01',
     customFields: [],
   },
 ];
@@ -502,484 +502,484 @@ const INITIAL_EVENTS: AttendanceEvent[] = [
 const INITIAL_ATTENDEES: AttendeeRecord[] = [
   // 1. LLM 해커톤
   {
-    id: "att_h1",
-    eventId: "evt_hack_01",
+    id: 'att_h1',
+    eventId: 'evt_hack_01',
     isExternal: false,
-    name: "김서하",
-    affiliation: "28기 분석",
+    name: '김서하',
+    affiliation: '28기 분석',
     term: 28,
-    email: "seoha.k@yonsei.ac.kr",
-    phone: "010-5519-8821",
-    status: "present",
-    checkedInAt: "08:45",
-    customAnswers: { "배정 팀명": "1조 RAG마스터", f4: "1조 RAG마스터" },
+    email: 'seoha.k@yonsei.ac.kr',
+    phone: '010-5519-8821',
+    status: 'present',
+    checkedInAt: '08:45',
+    customAnswers: { '배정 팀명': '1조 RAG마스터', f4: '1조 RAG마스터' },
   },
   {
-    id: "att_h2",
-    eventId: "evt_hack_01",
+    id: 'att_h2',
+    eventId: 'evt_hack_01',
     isExternal: false,
-    name: "이민준",
-    affiliation: "28기 분석",
+    name: '이민준',
+    affiliation: '28기 분석',
     term: 28,
-    email: "minjun.l@snu.ac.kr",
-    phone: "010-3811-9021",
-    status: "present",
-    checkedInAt: "08:50",
-    customAnswers: { "배정 팀명": "1조 RAG마스터", f4: "1조 RAG마스터" },
+    email: 'minjun.l@snu.ac.kr',
+    phone: '010-3811-9021',
+    status: 'present',
+    checkedInAt: '08:50',
+    customAnswers: { '배정 팀명': '1조 RAG마스터', f4: '1조 RAG마스터' },
   },
   {
-    id: "att_h3",
-    eventId: "evt_hack_01",
+    id: 'att_h3',
+    eventId: 'evt_hack_01',
     isExternal: false,
-    name: "이도현",
-    affiliation: "28기 엔지니어링",
+    name: '이도현',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "dohyun.l@snu.ac.kr",
-    phone: "010-3819-2910",
-    status: "present",
-    checkedInAt: "08:40",
-    customAnswers: { "배정 팀명": "2조 에이전트", f4: "2조 에이전트" },
+    email: 'dohyun.l@snu.ac.kr',
+    phone: '010-3819-2910',
+    status: 'present',
+    checkedInAt: '08:40',
+    customAnswers: { '배정 팀명': '2조 에이전트', f4: '2조 에이전트' },
   },
   {
-    id: "att_h4",
-    eventId: "evt_hack_01",
+    id: 'att_h4',
+    eventId: 'evt_hack_01',
     isExternal: false,
-    name: "박성훈",
-    affiliation: "28기 엔지니어링",
+    name: '박성훈',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "sunghoon.p@naver.com",
-    phone: "010-9182-4122",
-    status: "late",
-    checkedInAt: "09:15",
-    customAnswers: { "배정 팀명": "2조 에이전트", f4: "2조 에이전트" },
+    email: 'sunghoon.p@naver.com',
+    phone: '010-9182-4122',
+    status: 'late',
+    checkedInAt: '09:15',
+    customAnswers: { '배정 팀명': '2조 에이전트', f4: '2조 에이전트' },
   },
   {
-    id: "att_h5",
-    eventId: "evt_hack_01",
+    id: 'att_h5',
+    eventId: 'evt_hack_01',
     isExternal: false,
-    name: "최민혁",
-    affiliation: "28기 시각화",
+    name: '최민혁',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "minhyuk.c@yonsei.ac.kr",
-    phone: "010-5512-7019",
-    status: "present",
-    checkedInAt: "08:55",
-    customAnswers: { "배정 팀명": "3조 대시보드", f4: "3조 대시보드" },
+    email: 'minhyuk.c@yonsei.ac.kr',
+    phone: '010-5512-7019',
+    status: 'present',
+    checkedInAt: '08:55',
+    customAnswers: { '배정 팀명': '3조 대시보드', f4: '3조 대시보드' },
   },
   {
-    id: "att_h6",
-    eventId: "evt_hack_01",
+    id: 'att_h6',
+    eventId: 'evt_hack_01',
     isExternal: false,
-    name: "한예린",
-    affiliation: "28기 시각화",
+    name: '한예린',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "yerin.h@ewha.ac.kr",
-    phone: "010-6629-3810",
-    status: "present",
-    checkedInAt: "08:35",
-    customAnswers: { "배정 팀명": "3조 대시보드", f4: "3조 대시보드" },
+    email: 'yerin.h@ewha.ac.kr',
+    phone: '010-6629-3810',
+    status: 'present',
+    checkedInAt: '08:35',
+    customAnswers: { '배정 팀명': '3조 대시보드', f4: '3조 대시보드' },
   },
   {
-    id: "att_h7",
-    eventId: "evt_hack_01",
+    id: 'att_h7',
+    eventId: 'evt_hack_01',
     isExternal: false,
-    name: "정채원",
-    affiliation: "28기 분석",
+    name: '정채원',
+    affiliation: '28기 분석',
     term: 28,
-    email: "chaewon.j@hanyang.ac.kr",
-    phone: "010-9920-1182",
-    status: "unmarked",
-    checkedInAt: "-",
-    customAnswers: { "배정 팀명": "4조 파이프라인", f4: "4조 파이프라인" },
+    email: 'chaewon.j@hanyang.ac.kr',
+    phone: '010-9920-1182',
+    status: 'unmarked',
+    checkedInAt: '-',
+    customAnswers: { '배정 팀명': '4조 파이프라인', f4: '4조 파이프라인' },
   },
   {
-    id: "att_h8",
-    eventId: "evt_hack_01",
+    id: 'att_h8',
+    eventId: 'evt_hack_01',
     isExternal: false,
-    name: "오승현",
-    affiliation: "28기 분석",
+    name: '오승현',
+    affiliation: '28기 분석',
     term: 28,
-    email: "seunghyun.o@sogang.ac.kr",
-    phone: "010-3378-4912",
-    status: "absent",
-    checkedInAt: "-",
-    memo: "사전 불참 통보",
-    customAnswers: { "배정 팀명": "4조 파이프라인", f4: "4조 파이프라인" },
+    email: 'seunghyun.o@sogang.ac.kr',
+    phone: '010-3378-4912',
+    status: 'absent',
+    checkedInAt: '-',
+    memo: '사전 불참 통보',
+    customAnswers: { '배정 팀명': '4조 파이프라인', f4: '4조 파이프라인' },
   },
 
   // 2. 빅콘 컨퍼런스
   {
-    id: "att_1",
-    eventId: "evt_conf_28",
+    id: 'att_1',
+    eventId: 'evt_conf_28',
     isExternal: false,
-    name: "김서하",
-    affiliation: "28기 분석",
+    name: '김서하',
+    affiliation: '28기 분석',
     term: 28,
-    email: "seoha@yonsei.ac.kr",
-    phone: "010-5519-8821",
-    status: "present",
-    checkedInAt: "12:50",
-    customAnswers: { "기념품 수령": "수령 완료", f4: "수령 완료" },
+    email: 'seoha@yonsei.ac.kr',
+    phone: '010-5519-8821',
+    status: 'present',
+    checkedInAt: '12:50',
+    customAnswers: { '기념품 수령': '수령 완료', f4: '수령 완료' },
   },
   {
-    id: "att_2",
-    eventId: "evt_conf_28",
+    id: 'att_2',
+    eventId: 'evt_conf_28',
     isExternal: false,
-    name: "이도현",
-    affiliation: "28기 엔지니어링",
+    name: '이도현',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "dohyun@snu.ac.kr",
-    phone: "010-3819-2910",
-    status: "present",
-    checkedInAt: "12:45",
-    customAnswers: { "기념품 수령": "수령 완료", f4: "수령 완료" },
+    email: 'dohyun@snu.ac.kr',
+    phone: '010-3819-2910',
+    status: 'present',
+    checkedInAt: '12:45',
+    customAnswers: { '기념품 수령': '수령 완료', f4: '수령 완료' },
   },
   {
-    id: "att_3",
-    eventId: "evt_conf_28",
+    id: 'att_3',
+    eventId: 'evt_conf_28',
     isExternal: false,
-    name: "최민혁",
-    affiliation: "28기 시각화",
+    name: '최민혁',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "minhyuk.c@yonsei.ac.kr",
-    phone: "010-5512-7019",
-    status: "late",
-    checkedInAt: "13:18",
-    memo: "지하철 연착",
-    customAnswers: { "기념품 수령": "수령 완료", f4: "수령 완료" },
+    email: 'minhyuk.c@yonsei.ac.kr',
+    phone: '010-5512-7019',
+    status: 'late',
+    checkedInAt: '13:18',
+    memo: '지하철 연착',
+    customAnswers: { '기념품 수령': '수령 완료', f4: '수령 완료' },
   },
   {
-    id: "att_4",
-    eventId: "evt_conf_28",
+    id: 'att_4',
+    eventId: 'evt_conf_28',
     isExternal: false,
-    name: "박성훈",
-    affiliation: "28기 엔지니어링",
+    name: '박성훈',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "sunghoon.p@naver.com",
-    phone: "010-9182-4122",
-    status: "unmarked",
-    checkedInAt: "-",
-    customAnswers: { "기념품 수령": "미수령", f4: "미수령" },
+    email: 'sunghoon.p@naver.com',
+    phone: '010-9182-4122',
+    status: 'unmarked',
+    checkedInAt: '-',
+    customAnswers: { '기념품 수령': '미수령', f4: '미수령' },
   },
   {
-    id: "att_5",
-    eventId: "evt_conf_28",
+    id: 'att_5',
+    eventId: 'evt_conf_28',
     isExternal: false,
-    name: "강태양",
-    affiliation: "28기 엔지니어링",
+    name: '강태양',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "taeyang.k@snu.ac.kr",
-    phone: "010-1829-4720",
-    status: "present",
-    checkedInAt: "12:58",
-    customAnswers: { "기념품 수령": "수령 완료", f4: "수령 완료" },
+    email: 'taeyang.k@snu.ac.kr',
+    phone: '010-1829-4720',
+    status: 'present',
+    checkedInAt: '12:58',
+    customAnswers: { '기념품 수령': '수령 완료', f4: '수령 완료' },
   },
   {
-    id: "att_6",
-    eventId: "evt_conf_28",
+    id: 'att_6',
+    eventId: 'evt_conf_28',
     isExternal: false,
-    name: "임수진",
-    affiliation: "28기 엔지니어링",
+    name: '임수진',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "sujin.l@yonsei.ac.kr",
-    phone: "010-8831-2940",
-    status: "absent",
-    checkedInAt: "-",
-    memo: "개인 사유",
-    customAnswers: { "기념품 수령": "미수령", f4: "미수령" },
+    email: 'sujin.l@yonsei.ac.kr',
+    phone: '010-8831-2940',
+    status: 'absent',
+    checkedInAt: '-',
+    memo: '개인 사유',
+    customAnswers: { '기념품 수령': '미수령', f4: '미수령' },
   },
   {
-    id: "att_7",
-    eventId: "evt_conf_28",
+    id: 'att_7',
+    eventId: 'evt_conf_28',
     isExternal: false,
-    name: "한예린",
-    affiliation: "28기 시각화",
+    name: '한예린',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "yerin.h@ewha.ac.kr",
-    phone: "010-6629-3810",
-    status: "present",
-    checkedInAt: "12:40",
-    customAnswers: { "기념품 수령": "수령 완료", f4: "수령 완료" },
+    email: 'yerin.h@ewha.ac.kr',
+    phone: '010-6629-3810',
+    status: 'present',
+    checkedInAt: '12:40',
+    customAnswers: { '기념품 수령': '수령 완료', f4: '수령 완료' },
   },
   {
-    id: "att_8",
-    eventId: "evt_conf_28",
+    id: 'att_8',
+    eventId: 'evt_conf_28',
     isExternal: false,
-    name: "윤재혁",
-    affiliation: "28기 시각화",
+    name: '윤재혁',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "jaehyuk.y@skku.edu",
-    phone: "010-4490-1822",
-    status: "unmarked",
-    checkedInAt: "-",
-    customAnswers: { "기념품 수령": "미수령", f4: "미수령" },
+    email: 'jaehyuk.y@skku.edu',
+    phone: '010-4490-1822',
+    status: 'unmarked',
+    checkedInAt: '-',
+    customAnswers: { '기념품 수령': '미수령', f4: '미수령' },
   },
   {
-    id: "att_ext_1",
-    eventId: "evt_conf_28",
+    id: 'att_ext_1',
+    eventId: 'evt_conf_28',
     isExternal: true,
-    name: "박지민 (게스트)",
-    affiliation: "카카오 데이터팀",
-    email: "jimin.park@kakao.com",
-    phone: "010-7721-9943",
-    status: "present",
-    checkedInAt: "12:40",
-    customAnswers: { "기념품 수령": "수령 완료", f4: "수령 완료" },
+    name: '박지민 (게스트)',
+    affiliation: '카카오 데이터팀',
+    email: 'jimin.park@kakao.com',
+    phone: '010-7721-9943',
+    status: 'present',
+    checkedInAt: '12:40',
+    customAnswers: { '기념품 수령': '수령 완료', f4: '수령 완료' },
   },
   {
-    id: "att_ext_2",
-    eventId: "evt_conf_28",
+    id: 'att_ext_2',
+    eventId: 'evt_conf_28',
     isExternal: true,
-    name: "정우성 (게스트)",
-    affiliation: "고려대 산경과",
-    email: "ws.jung@korea.ac.kr",
-    phone: "010-4491-1120",
-    status: "present",
-    checkedInAt: "12:55",
-    customAnswers: { "기념품 수령": "수령 완료", f4: "수령 완료" },
+    name: '정우성 (게스트)',
+    affiliation: '고려대 산경과',
+    email: 'ws.jung@korea.ac.kr',
+    phone: '010-4491-1120',
+    status: 'present',
+    checkedInAt: '12:55',
+    customAnswers: { '기념품 수령': '수령 완료', f4: '수령 완료' },
   },
   {
-    id: "att_ext_3",
-    eventId: "evt_conf_28",
+    id: 'att_ext_3',
+    eventId: 'evt_conf_28',
     isExternal: true,
-    name: "한소희 (게스트)",
-    affiliation: "네이버 AI Lab",
-    email: "sohee.h@navercorp.com",
-    phone: "010-3388-1290",
-    status: "present",
-    checkedInAt: "13:05",
-    customAnswers: { "기념품 수령": "수령 완료", f4: "수령 완료" },
+    name: '한소희 (게스트)',
+    affiliation: '네이버 AI Lab',
+    email: 'sohee.h@navercorp.com',
+    phone: '010-3388-1290',
+    status: 'present',
+    checkedInAt: '13:05',
+    customAnswers: { '기념품 수령': '수령 완료', f4: '수령 완료' },
   },
   {
-    id: "att_ext_4",
-    eventId: "evt_conf_28",
+    id: 'att_ext_4',
+    eventId: 'evt_conf_28',
     isExternal: true,
-    name: "강동원 (게스트)",
-    affiliation: "성균관대 소프트",
-    email: "dw.kang@skku.edu",
-    phone: "010-8812-4411",
-    status: "unmarked",
-    checkedInAt: "-",
-    customAnswers: { "기념품 수령": "미수령", f4: "미수령" },
+    name: '강동원 (게스트)',
+    affiliation: '성균관대 소프트',
+    email: 'dw.kang@skku.edu',
+    phone: '010-8812-4411',
+    status: 'unmarked',
+    checkedInAt: '-',
+    customAnswers: { '기념품 수령': '미수령', f4: '미수령' },
   },
 
   // 3. MLOps 세션
   {
-    id: "att_s1",
-    eventId: "evt_session_03",
+    id: 'att_s1',
+    eventId: 'evt_session_03',
     isExternal: false,
-    name: "김서하",
-    affiliation: "28기 분석",
+    name: '김서하',
+    affiliation: '28기 분석',
     term: 28,
-    email: "seoha.k@yonsei.ac.kr",
-    phone: "010-5519-8821",
-    status: "present",
-    checkedInAt: "13:55",
-    customAnswers: { "과제 제출": "제출 완료", f4: "제출 완료" },
+    email: 'seoha.k@yonsei.ac.kr',
+    phone: '010-5519-8821',
+    status: 'present',
+    checkedInAt: '13:55',
+    customAnswers: { '과제 제출': '제출 완료', f4: '제출 완료' },
   },
   {
-    id: "att_s2",
-    eventId: "evt_session_03",
+    id: 'att_s2',
+    eventId: 'evt_session_03',
     isExternal: false,
-    name: "이도현",
-    affiliation: "28기 엔지니어링",
+    name: '이도현',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "dohyun.l@snu.ac.kr",
-    phone: "010-3819-2910",
-    status: "present",
-    checkedInAt: "13:50",
-    customAnswers: { "과제 제출": "제출 완료", f4: "제출 완료" },
+    email: 'dohyun.l@snu.ac.kr',
+    phone: '010-3819-2910',
+    status: 'present',
+    checkedInAt: '13:50',
+    customAnswers: { '과제 제출': '제출 완료', f4: '제출 완료' },
   },
   {
-    id: "att_s3",
-    eventId: "evt_session_03",
+    id: 'att_s3',
+    eventId: 'evt_session_03',
     isExternal: false,
-    name: "최민혁",
-    affiliation: "28기 시각화",
+    name: '최민혁',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "minhyuk.c@yonsei.ac.kr",
-    phone: "010-5512-7019",
-    status: "present",
-    checkedInAt: "13:58",
-    customAnswers: { "과제 제출": "제출 완료", f4: "제출 완료" },
+    email: 'minhyuk.c@yonsei.ac.kr',
+    phone: '010-5512-7019',
+    status: 'present',
+    checkedInAt: '13:58',
+    customAnswers: { '과제 제출': '제출 완료', f4: '제출 완료' },
   },
   {
-    id: "att_s4",
-    eventId: "evt_session_03",
+    id: 'att_s4',
+    eventId: 'evt_session_03',
     isExternal: false,
-    name: "박성훈",
-    affiliation: "28기 엔지니어링",
+    name: '박성훈',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "sunghoon.p@naver.com",
-    phone: "010-9182-4122",
-    status: "absent",
-    checkedInAt: "-",
-    memo: "개인 사정",
-    customAnswers: { "과제 제출": "미제출", f4: "미제출" },
+    email: 'sunghoon.p@naver.com',
+    phone: '010-9182-4122',
+    status: 'absent',
+    checkedInAt: '-',
+    memo: '개인 사정',
+    customAnswers: { '과제 제출': '미제출', f4: '미제출' },
   },
   {
-    id: "att_s5",
-    eventId: "evt_session_03",
+    id: 'att_s5',
+    eventId: 'evt_session_03',
     isExternal: false,
-    name: "강태양",
-    affiliation: "28기 엔지니어링",
+    name: '강태양',
+    affiliation: '28기 엔지니어링',
     term: 28,
-    email: "taeyang.k@snu.ac.kr",
-    phone: "010-1829-4720",
-    status: "present",
-    checkedInAt: "13:52",
-    customAnswers: { "과제 제출": "제출 완료", f4: "제출 완료" },
+    email: 'taeyang.k@snu.ac.kr',
+    phone: '010-1829-4720',
+    status: 'present',
+    checkedInAt: '13:52',
+    customAnswers: { '과제 제출': '제출 완료', f4: '제출 완료' },
   },
   {
-    id: "att_s6",
-    eventId: "evt_session_03",
+    id: 'att_s6',
+    eventId: 'evt_session_03',
     isExternal: false,
-    name: "한예린",
-    affiliation: "28기 시각화",
+    name: '한예린',
+    affiliation: '28기 시각화',
     term: 28,
-    email: "yerin.h@ewha.ac.kr",
-    phone: "010-6629-3810",
-    status: "late",
-    checkedInAt: "14:12",
-    memo: "12분 지각",
-    customAnswers: { "과제 제출": "제출 완료", f4: "제출 완료" },
+    email: 'yerin.h@ewha.ac.kr',
+    phone: '010-6629-3810',
+    status: 'late',
+    checkedInAt: '14:12',
+    memo: '12분 지각',
+    customAnswers: { '과제 제출': '제출 완료', f4: '제출 완료' },
   },
 ];
 
 // Smart resolver for attendee values based on dynamic column labels
 function getAttendeeFieldValue(att: AttendeeRecord, label: string, id: string): string {
-  if (att.customAnswers?.[label] !== undefined && att.customAnswers[label] !== "") {
+  if (att.customAnswers?.[label] !== undefined && att.customAnswers[label] !== '') {
     return att.customAnswers[label];
   }
-  if (att.customAnswers?.[id] !== undefined && att.customAnswers[id] !== "") {
+  if (att.customAnswers?.[id] !== undefined && att.customAnswers[id] !== '') {
     return att.customAnswers[id];
   }
 
   const clean = label.trim().toLowerCase();
 
   // 학교 / 대학교 / 출신학교
-  if (clean.includes("학교") || clean.includes("대학")) {
-    if (att.email.includes("yonsei")) {
-      return "연세대학교";
+  if (clean.includes('학교') || clean.includes('대학')) {
+    if (att.email.includes('yonsei')) {
+      return '연세대학교';
     }
-    if (att.email.includes("snu")) {
-      return "서울대학교";
+    if (att.email.includes('snu')) {
+      return '서울대학교';
     }
-    if (att.email.includes("ewha")) {
-      return "이화여자대학교";
+    if (att.email.includes('ewha')) {
+      return '이화여자대학교';
     }
-    if (att.email.includes("hanyang")) {
-      return "한양대학교";
+    if (att.email.includes('hanyang')) {
+      return '한양대학교';
     }
-    if (att.email.includes("sogang")) {
-      return "서강대학교";
+    if (att.email.includes('sogang')) {
+      return '서강대학교';
     }
-    if (att.email.includes("korea")) {
-      return "고려대학교";
+    if (att.email.includes('korea')) {
+      return '고려대학교';
     }
-    if (att.email.includes("skku")) {
-      return "성균관대학교";
+    if (att.email.includes('skku')) {
+      return '성균관대학교';
     }
-    if (att.affiliation.includes("대")) {
-      return att.affiliation.split(" ")[0];
+    if (att.affiliation.includes('대')) {
+      return att.affiliation.split(' ')[0];
     }
-    return "서울대학교";
+    return '서울대학교';
   }
 
   // 소속 / 회사 / 직장 / 기업
   if (
-    clean.includes("소속") ||
-    clean.includes("회사") ||
-    clean.includes("직장") ||
-    clean.includes("기업")
+    clean.includes('소속') ||
+    clean.includes('회사') ||
+    clean.includes('직장') ||
+    clean.includes('기업')
   ) {
-    return att.affiliation || (att.isExternal ? "외부 게스트" : "BOAZ 28기");
+    return att.affiliation || (att.isExternal ? '외부 게스트' : 'BOAZ 28기');
   }
 
   // 기수 / 기
-  if (clean === "기수" || clean === "기" || clean.includes("기수")) {
-    return att.term ? `${att.term}기` : att.affiliation.match(/\d+기/)?.[0] || "28기";
+  if (clean === '기수' || clean === '기' || clean.includes('기수')) {
+    return att.term ? `${att.term}기` : att.affiliation.match(/\d+기/)?.[0] || '28기';
   }
 
   // 부문 / 트랙 / 분야 / 세부트랙
-  if (clean.includes("부문") || clean.includes("트랙") || clean.includes("분야")) {
-    if (att.affiliation.includes("분석")) {
-      return "분석 트랙";
+  if (clean.includes('부문') || clean.includes('트랙') || clean.includes('분야')) {
+    if (att.affiliation.includes('분석')) {
+      return '분석 트랙';
     }
-    if (att.affiliation.includes("엔지니어링") || att.affiliation.includes("엔지니어")) {
-      return "엔지니어링 트랙";
+    if (att.affiliation.includes('엔지니어링') || att.affiliation.includes('엔지니어')) {
+      return '엔지니어링 트랙';
     }
-    if (att.affiliation.includes("시각화")) {
-      return "시각화 트랙";
+    if (att.affiliation.includes('시각화')) {
+      return '시각화 트랙';
     }
-    return "분석 트랙";
+    return '분석 트랙';
   }
 
   // 팀 / 팀명 / 배정팀 / 배정 팀명 / 조
-  if (clean.includes("팀") || clean.includes("조") || clean.includes("배정")) {
+  if (clean.includes('팀') || clean.includes('조') || clean.includes('배정')) {
     return (
-      att.customAnswers?.["배정 팀명"] ||
-      att.customAnswers?.["팀명"] ||
-      (att.id.includes("1") || att.id.includes("2") ? "1조" : "2조")
+      att.customAnswers?.['배정 팀명'] ||
+      att.customAnswers?.['팀명'] ||
+      (att.id.includes('1') || att.id.includes('2') ? '1조' : '2조')
     );
   }
 
   // 전화번호 / 연락처 / 핸드폰 / 휴대폰
   if (
-    clean.includes("전화") ||
-    clean.includes("연락") ||
-    clean.includes("핸드폰") ||
-    clean.includes("휴대폰") ||
-    clean.includes("phone")
+    clean.includes('전화') ||
+    clean.includes('연락') ||
+    clean.includes('핸드폰') ||
+    clean.includes('휴대폰') ||
+    clean.includes('phone')
   ) {
     return att.phone;
   }
 
   // 이메일 / 메일 / email
-  if (clean.includes("메일") || clean.includes("email")) {
+  if (clean.includes('메일') || clean.includes('email')) {
     return att.email;
   }
 
   // 구분 / 참가구분 / 신분
-  if (clean.includes("구분") || clean.includes("신분")) {
-    return att.isExternal ? "외부인" : "정회원";
+  if (clean.includes('구분') || clean.includes('신분')) {
+    return att.isExternal ? '외부인' : '정회원';
   }
 
   // 기념품 / 수령
-  if (clean.includes("기념품") || clean.includes("수령")) {
-    return att.customAnswers?.["기념품 수령"] || "수령 완료";
+  if (clean.includes('기념품') || clean.includes('수령')) {
+    return att.customAnswers?.['기념품 수령'] || '수령 완료';
   }
 
   // 과제 / 제출
-  if (clean.includes("과제") || clean.includes("제출")) {
-    return att.customAnswers?.["과제 제출"] || "제출 완료";
+  if (clean.includes('과제') || clean.includes('제출')) {
+    return att.customAnswers?.['과제 제출'] || '제출 완료';
   }
 
-  return "";
+  return '';
 }
 
 export function EventAttendanceManagePage() {
-  const [subTab, setSubTab] = useState<"events" | "live" | "forms" | "stats">(() => {
+  const [subTab, setSubTab] = useState<'events' | 'live' | 'forms' | 'stats'>(() => {
     try {
-      const saved = localStorage.getItem("boaz_event_subtab");
-      if (saved && ["events", "live", "forms", "stats"].includes(saved)) {
-        return saved as "events" | "live" | "forms" | "stats";
+      const saved = localStorage.getItem('boaz_event_subtab');
+      if (saved && ['events', 'live', 'forms', 'stats'].includes(saved)) {
+        return saved as 'events' | 'live' | 'forms' | 'stats';
       }
     } catch {}
-    return "events";
+    return 'events';
   });
 
   const [selectedEventId, setSelectedEventId] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem("boaz_event_selected_id");
+      const saved = localStorage.getItem('boaz_event_selected_id');
       if (saved) return saved;
     } catch {}
-    return "evt_conf_28";
+    return 'evt_conf_28';
   });
 
   const [events, setEvents] = useState<AttendanceEvent[]>(() => {
     try {
-      const saved = localStorage.getItem("boaz_event_events");
+      const saved = localStorage.getItem('boaz_event_events');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -990,7 +990,7 @@ export function EventAttendanceManagePage() {
 
   const [attendees, setAttendees] = useState<AttendeeRecord[]>(() => {
     try {
-      const saved = localStorage.getItem("boaz_event_attendees");
+      const saved = localStorage.getItem('boaz_event_attendees');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -1001,7 +1001,7 @@ export function EventAttendanceManagePage() {
 
   const [templates, setTemplates] = useState<FormTemplate[]>(() => {
     try {
-      const saved = localStorage.getItem("boaz_event_templates");
+      const saved = localStorage.getItem('boaz_event_templates');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -1012,85 +1012,99 @@ export function EventAttendanceManagePage() {
 
   useEffect(() => {
     try {
-      localStorage.setItem("boaz_event_subtab", subTab);
+      localStorage.setItem('boaz_event_subtab', subTab);
     } catch {}
   }, [subTab]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("boaz_event_selected_id", selectedEventId);
+      localStorage.setItem('boaz_event_selected_id', selectedEventId);
     } catch {}
   }, [selectedEventId]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("boaz_event_events", JSON.stringify(events));
+      localStorage.setItem('boaz_event_events', JSON.stringify(events));
     } catch {}
   }, [events]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("boaz_event_attendees", JSON.stringify(attendees));
+      localStorage.setItem('boaz_event_attendees', JSON.stringify(attendees));
     } catch {}
   }, [attendees]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("boaz_event_templates", JSON.stringify(templates));
+      localStorage.setItem('boaz_event_templates', JSON.stringify(templates));
     } catch {}
   }, [templates]);
 
   // ─── Browser History: 뒤로가기 시 행사 세부 탭 -> 행사 전체 목록 이동 연동 ───
   useEffect(() => {
     // 마운트 시 초기 history state 동기화
-    if (subTab !== "events") {
-      if (!window.history.state || window.history.state.subTab !== "detail") {
-        window.history.replaceState({ page: "att-events", subTab: "events" }, "", window.location.href);
+    if (subTab !== 'events') {
+      if (!window.history.state || window.history.state.subTab !== 'detail') {
+        window.history.replaceState(
+          { page: 'att-events', subTab: 'events' },
+          '',
+          window.location.href,
+        );
         window.history.pushState(
-          { page: "att-events", subTab: "detail", eventId: selectedEventId, tab: subTab },
-          "",
-          window.location.href
+          { page: 'att-events', subTab: 'detail', eventId: selectedEventId, tab: subTab },
+          '',
+          window.location.href,
         );
       }
     } else {
-      if (!window.history.state || window.history.state.subTab !== "events") {
-        window.history.replaceState({ page: "att-events", subTab: "events" }, "", window.location.href);
+      if (!window.history.state || window.history.state.subTab !== 'events') {
+        window.history.replaceState(
+          { page: 'att-events', subTab: 'events' },
+          '',
+          window.location.href,
+        );
       }
     }
 
     const handlePopState = (e: PopStateEvent) => {
       const state = e.state;
-      if (state && state.subTab === "detail") {
-        setSubTab(state.tab || "live");
+      if (state && state.subTab === 'detail') {
+        setSubTab(state.tab || 'live');
         if (state.eventId) {
           setSelectedEventId(state.eventId);
         }
       } else {
         // 브라우저 뒤로가기 누를 시 행사 세부 탭에서 행사 전체 목록으로 이동
-        setSubTab("events");
+        setSubTab('events');
       }
     };
 
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+    // The listener intentionally captures the initial detail state; later navigation is handled by popstate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleSelectEvent(eventId: string, tab: "live" | "forms" | "stats" = "live") {
+  function handleSelectEvent(eventId: string, tab: 'live' | 'forms' | 'stats' = 'live') {
     setSelectedEventId(eventId);
     setSubTab(tab);
     window.history.pushState(
-      { page: "att-events", subTab: "detail", eventId, tab },
-      "",
-      window.location.href
+      { page: 'att-events', subTab: 'detail', eventId, tab },
+      '',
+      window.location.href,
     );
   }
 
   function handleGoBackToList() {
-    if (window.history.state && window.history.state.subTab === "detail") {
+    if (window.history.state && window.history.state.subTab === 'detail') {
       window.history.back();
     } else {
-      setSubTab("events");
-      window.history.replaceState({ page: "att-events", subTab: "events" }, "", window.location.href);
+      setSubTab('events');
+      window.history.replaceState(
+        { page: 'att-events', subTab: 'events' },
+        '',
+        window.location.href,
+      );
     }
   }
 
@@ -1101,12 +1115,12 @@ export function EventAttendanceManagePage() {
   const breadcrumbDropdownRef = useRef<HTMLDivElement>(null);
 
   // Filter & Search
-  const [attendeeSearch, setAttendeeSearch] = useState("");
-  const [termFilter, setTermFilter] = useState<string>("ALL"); // "ALL" | "28" | "27" | "26"
+  const [attendeeSearch, setAttendeeSearch] = useState('');
+  const [termFilter, setTermFilter] = useState<string>('ALL'); // "ALL" | "28" | "27" | "26"
   const [attendeeCategoryFilter, setAttendeeCategoryFilter] = useState<
-    "ALL" | "ANALYSIS" | "VISUALIZATION" | "ENGINEERING" | "EXTERNAL"
-  >("ALL");
-  const [attendStatusFilter, setAttendStatusFilter] = useState<"ALL" | AttendStatus>("ALL");
+    'ALL' | 'ANALYSIS' | 'VISUALIZATION' | 'ENGINEERING' | 'EXTERNAL'
+  >('ALL');
+  const [attendStatusFilter, setAttendStatusFilter] = useState<'ALL' | AttendStatus>('ALL');
 
   // Fast Keyboard Check-in Mode State
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
@@ -1116,20 +1130,20 @@ export function EventAttendanceManagePage() {
   const [showQuickAddDrawer, setShowQuickAddDrawer] = useState(false);
   const [quickAdd, setQuickAdd] = useState({
     isExternal: false,
-    name: "",
-    affiliation: "",
-    email: "",
-    phone: "",
-    memo: "",
-    status: "present" as AttendStatus,
+    name: '',
+    affiliation: '',
+    email: '',
+    phone: '',
+    memo: '',
+    status: 'present' as AttendStatus,
     customAnswers: {} as Record<string, string>,
   });
 
   // Modal: Import / Bulk Add Roster
   const [showImportModal, setShowImportModal] = useState(false);
-  const [importTab, setImportTab] = useState<"CSV_FILE" | "PASTE" | "BOAZ_POOL">("CSV_FILE");
-  const [uploadedFileName, setUploadedFileName] = useState<string>("");
-  const [pastedText, setPastedText] = useState("");
+  const [importTab, setImportTab] = useState<'CSV_FILE' | 'PASTE' | 'BOAZ_POOL'>('CSV_FILE');
+  const [uploadedFileName, setUploadedFileName] = useState<string>('');
+  const [pastedText, setPastedText] = useState('');
   const [parsedPreview, setParsedPreview] = useState<
     {
       isExternal: boolean;
@@ -1146,10 +1160,10 @@ export function EventAttendanceManagePage() {
   // Modal: Event Form Create / Edit (BASIC_INFO: 기본정보, COLUMNS_ONLY: 출석컬럼, CREATE_FULL: 새 행사 전체)
   const [editingEvent, setEditingEvent] = useState<AttendanceEvent | null>(null);
   const [eventModalType, setEventModalType] = useState<
-    "BASIC_INFO" | "COLUMNS_ONLY" | "CREATE_FULL"
-  >("CREATE_FULL");
+    'BASIC_INFO' | 'COLUMNS_ONLY' | 'CREATE_FULL'
+  >('CREATE_FULL');
   const [isNewEvent, setIsNewEvent] = useState(false);
-  const [newColInputText, setNewColInputText] = useState("");
+  const [newColInputText, setNewColInputText] = useState('');
   const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null);
   const [dropIndicatorIdx, setDropIndicatorIdx] = useState<number | null>(null);
 
@@ -1178,7 +1192,7 @@ export function EventAttendanceManagePage() {
 
   const updateGuidelinePos = (targetEl?: HTMLElement | null) => {
     const cell = targetEl
-      ? ((targetEl.closest("th") || targetEl.closest("td")) as HTMLElement | null)
+      ? ((targetEl.closest('th') || targetEl.closest('td')) as HTMLElement | null)
       : activeThRef.current;
     if (!cell || !tableContainerRef.current) {
       return;
@@ -1194,8 +1208,8 @@ export function EventAttendanceManagePage() {
   const handleResizeStart = (e: React.MouseEvent<HTMLElement>, key: string, minWidth = 50) => {
     e.preventDefault();
     e.stopPropagation();
-    const cell = (e.currentTarget.closest("th") ||
-      e.currentTarget.closest("td")) as HTMLElement | null;
+    const cell = (e.currentTarget.closest('th') ||
+      e.currentTarget.closest('td')) as HTMLElement | null;
     activeThRef.current = cell;
     const startX = e.clientX;
     const startWidth = cell ? cell.offsetWidth : colWidths[key] || minWidth;
@@ -1203,8 +1217,8 @@ export function EventAttendanceManagePage() {
     setResizingColKey(key);
     updateGuidelinePos(e.currentTarget);
 
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!resizingCol.current) {
@@ -1225,14 +1239,14 @@ export function EventAttendanceManagePage() {
       setResizingColKey(null);
       setGuidelineX(null);
       activeThRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
   };
 
   // 최신 활동일자순 (날짜 내림차순 -> 생성일 내림차순) 정렬
@@ -1245,30 +1259,30 @@ export function EventAttendanceManagePage() {
   });
 
   const fallbackEvent: AttendanceEvent = {
-    id: "evt_fallback",
-    title: "행사",
-    type: "SESSION",
-    status: "IN_PROGRESS",
-    date: "2026-08-20",
-    startTime: "14:00",
-    endTime: "18:00",
-    location: "-",
-    description: "",
+    id: 'evt_fallback',
+    title: '행사',
+    type: 'SESSION',
+    status: 'IN_PROGRESS',
+    date: '2026-08-20',
+    startTime: '14:00',
+    endTime: '18:00',
+    location: '-',
+    description: '',
     allowExternal: false,
-    checkinMethod: "CODE",
-    checkinCode: "1234",
+    checkinMethod: 'CODE',
+    checkinCode: '1234',
     customFields: [],
     targetTerms: [28],
-    targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+    targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
     totalTargetCount: 0,
     internalAttendedCount: 0,
     externalAttendedCount: 0,
-    createdAt: "2026-08-20",
+    createdAt: '2026-08-20',
   };
 
   const selectedEvent =
     events.find((e) => e.id === selectedEventId) || sortedEvents[0] || events[0] || fallbackEvent;
-  const currentEventAttendees = attendees.filter((a) => a.eventId === (selectedEvent?.id || ""));
+  const currentEventAttendees = attendees.filter((a) => a.eventId === (selectedEvent?.id || ''));
 
   // Close dropdown when clicked outside
   useEffect(() => {
@@ -1283,21 +1297,21 @@ export function EventAttendanceManagePage() {
         setIsBreadcrumbMenuOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const filteredAttendees = currentEventAttendees.filter((a) => {
     const rawText = [
-      a.affiliation || "",
-      a.isExternal ? "외부인 외부" : "부원 기수",
+      a.affiliation || '',
+      a.isExternal ? '외부인 외부' : '부원 기수',
       ...Object.values(a.customAnswers || {}),
     ]
-      .join(" ")
+      .join(' ')
       .toLowerCase();
 
     // 1. 기수 필터 (Term filter)
-    if (termFilter !== "ALL") {
+    if (termFilter !== 'ALL') {
       const termMatch =
         (a.term && String(a.term) === termFilter) ||
         (a.affiliation && a.affiliation.includes(`${termFilter}기`)) ||
@@ -1308,30 +1322,30 @@ export function EventAttendanceManagePage() {
     }
 
     // 2. 트랙 및 구분 필터
-    if (attendeeCategoryFilter === "ANALYSIS") {
-      if (!rawText.includes("분석")) {
+    if (attendeeCategoryFilter === 'ANALYSIS') {
+      if (!rawText.includes('분석')) {
         return false;
       }
-    } else if (attendeeCategoryFilter === "VISUALIZATION") {
-      if (!rawText.includes("시각화") && !rawText.includes("시각")) {
+    } else if (attendeeCategoryFilter === 'VISUALIZATION') {
+      if (!rawText.includes('시각화') && !rawText.includes('시각')) {
         return false;
       }
-    } else if (attendeeCategoryFilter === "ENGINEERING") {
-      if (!rawText.includes("엔지") && !rawText.includes("개발")) {
+    } else if (attendeeCategoryFilter === 'ENGINEERING') {
+      if (!rawText.includes('엔지') && !rawText.includes('개발')) {
         return false;
       }
-    } else if (attendeeCategoryFilter === "EXTERNAL") {
+    } else if (attendeeCategoryFilter === 'EXTERNAL') {
       if (
         !a.isExternal &&
-        !rawText.includes("외") &&
-        !rawText.includes("게스트") &&
-        !rawText.includes("기업")
+        !rawText.includes('외') &&
+        !rawText.includes('게스트') &&
+        !rawText.includes('기업')
       ) {
         return false;
       }
     }
 
-    if (attendStatusFilter !== "ALL" && a.status !== attendStatusFilter) {
+    if (attendStatusFilter !== 'ALL' && a.status !== attendStatusFilter) {
       return false;
     }
     if (attendeeSearch) {
@@ -1349,33 +1363,33 @@ export function EventAttendanceManagePage() {
 
   // Stats calculation
   const totalRosterCount = currentEventAttendees.length;
-  const presentCount = currentEventAttendees.filter((a) => a.status === "present").length;
-  const lateCount = currentEventAttendees.filter((a) => a.status === "late").length;
-  const earlyLeaveCount = currentEventAttendees.filter((a) => a.status === "earlyLeave").length;
-  const absentCount = currentEventAttendees.filter((a) => a.status === "absent").length;
+  const presentCount = currentEventAttendees.filter((a) => a.status === 'present').length;
+  const lateCount = currentEventAttendees.filter((a) => a.status === 'late').length;
+  const earlyLeaveCount = currentEventAttendees.filter((a) => a.status === 'earlyLeave').length;
+  const absentCount = currentEventAttendees.filter((a) => a.status === 'absent').length;
   const excusedAbsentCount = currentEventAttendees.filter(
-    (a) => a.status === "excusedAbsent"
+    (a) => a.status === 'excusedAbsent',
   ).length;
   const unexcusedLateCount = currentEventAttendees.filter(
-    (a) => a.status === "unexcusedLate"
+    (a) => a.status === 'unexcusedLate',
   ).length;
   const unexcusedAbsentCount = currentEventAttendees.filter(
-    (a) => a.status === "unexcusedAbsent"
+    (a) => a.status === 'unexcusedAbsent',
   ).length;
-  const unmarkedCount = currentEventAttendees.filter((a) => a.status === "unmarked").length;
+  const unmarkedCount = currentEventAttendees.filter((a) => a.status === 'unmarked').length;
 
   const attendanceRate =
     totalRosterCount > 0
       ? Math.round(((presentCount + lateCount + earlyLeaveCount) / totalRosterCount) * 100)
       : 0;
   const externalPresent = currentEventAttendees.filter(
-    (a) => a.isExternal && a.status === "present"
+    (a) => a.isExternal && a.status === 'present',
   ).length;
 
   // ─── Keyboard Hotkeys (0: 출석, 1: 지각, 2: 조퇴, 3: 결석, 4: 인정결석, 5: 무단지각, 6: 무단결석, ↑/↓ 이동) ───
   useEffect(() => {
     if (
-      subTab !== "live" ||
+      subTab !== 'live' ||
       !isKeyboardModeActive ||
       showImportModal ||
       editingEvent ||
@@ -1388,7 +1402,7 @@ export function EventAttendanceManagePage() {
 
     function handleKeyDown(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") {
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') {
         return;
       }
 
@@ -1401,38 +1415,40 @@ export function EventAttendanceManagePage() {
         return;
       }
 
-      if (e.key === "0") {
+      if (e.key === '0') {
         e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, "present");
-      } else if (e.key === "1") {
+        changeStatusAndMoveNext(currentTarget.id, 'present');
+      } else if (e.key === '1') {
         e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, "late");
-      } else if (e.key === "2") {
+        changeStatusAndMoveNext(currentTarget.id, 'late');
+      } else if (e.key === '2') {
         e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, "earlyLeave");
-      } else if (e.key === "3") {
+        changeStatusAndMoveNext(currentTarget.id, 'earlyLeave');
+      } else if (e.key === '3') {
         e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, "absent");
-      } else if (e.key === "4") {
+        changeStatusAndMoveNext(currentTarget.id, 'absent');
+      } else if (e.key === '4') {
         e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, "excusedAbsent");
-      } else if (e.key === "5") {
+        changeStatusAndMoveNext(currentTarget.id, 'excusedAbsent');
+      } else if (e.key === '5') {
         e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, "unexcusedLate");
-      } else if (e.key === "6") {
+        changeStatusAndMoveNext(currentTarget.id, 'unexcusedLate');
+      } else if (e.key === '6') {
         e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, "unexcusedAbsent");
-      } else if (e.key === "ArrowDown" || e.key === "j") {
+        changeStatusAndMoveNext(currentTarget.id, 'unexcusedAbsent');
+      } else if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault();
         setFocusedIndex((prev) => Math.min(prev + 1, filteredAttendees.length - 1));
-      } else if (e.key === "ArrowUp" || e.key === "k") {
+      } else if (e.key === 'ArrowUp' || e.key === 'k') {
         e.preventDefault();
         setFocusedIndex((prev) => Math.max(prev - 1, 0));
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // changeStatusAndMoveNext only reads filteredAttendees.length, which is already tracked above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     subTab,
     isKeyboardModeActive,
@@ -1454,14 +1470,14 @@ export function EventAttendanceManagePage() {
               ...a,
               status,
               checkedInAt:
-                status === "present" || status === "late" || status === "unexcusedLate"
-                  ? a.checkedInAt === "-"
+                status === 'present' || status === 'late' || status === 'unexcusedLate'
+                  ? a.checkedInAt === '-'
                     ? timeNow
                     : a.checkedInAt
-                  : "-",
+                  : '-',
             }
-          : a
-      )
+          : a,
+      ),
     );
 
     setFocusedIndex((prev) => Math.min(prev + 1, filteredAttendees.length - 1));
@@ -1479,19 +1495,19 @@ export function EventAttendanceManagePage() {
     }
 
     const rawHeaderTokens = (
-      lines[0].includes("\t") ? lines[0].split("\t") : lines[0].split(",")
-    ).map((t) => t.trim().replace(/^"|"$/g, ""));
+      lines[0].includes('\t') ? lines[0].split('\t') : lines[0].split(',')
+    ).map((t) => t.trim().replace(/^"|"$/g, ''));
 
     const hasHeader = rawHeaderTokens.some(
       (t) =>
-        t.includes("이름") ||
-        t.includes("성명") ||
-        t.toLowerCase().includes("name") ||
-        t.includes("소속") ||
-        t.includes("전화") ||
-        t.includes("팀") ||
-        t.includes("구분") ||
-        t.includes("메일")
+        t.includes('이름') ||
+        t.includes('성명') ||
+        t.toLowerCase().includes('name') ||
+        t.includes('소속') ||
+        t.includes('전화') ||
+        t.includes('팀') ||
+        t.includes('구분') ||
+        t.includes('메일'),
     );
 
     const headerMap: Record<number, string> = {};
@@ -1516,18 +1532,18 @@ export function EventAttendanceManagePage() {
       if (!rawLine.trim()) {
         continue;
       }
-      const tokens = (rawLine.includes("\t") ? rawLine.split("\t") : rawLine.split(",")).map((t) =>
-        t.trim().replace(/^"|"$/g, "")
+      const tokens = (rawLine.includes('\t') ? rawLine.split('\t') : rawLine.split(',')).map((t) =>
+        t.trim().replace(/^"|"$/g, ''),
       );
 
       if (tokens.length === 0 || !tokens[0]) {
         continue;
       }
 
-      let name = "";
-      let affiliation = selectedEvent.allowExternal ? "외부 참가자" : "BOAZ 28기";
-      let email = "";
-      let phone = "";
+      let name = '';
+      let affiliation = selectedEvent.allowExternal ? '외부 참가자' : 'BOAZ 28기';
+      let email = '';
+      let phone = '';
       let isExt = false;
       const customAnswers: Record<string, string> = {};
 
@@ -1545,7 +1561,7 @@ export function EventAttendanceManagePage() {
           (f) =>
             f.label.toLowerCase() === colHeader.toLowerCase() ||
             colHeader.includes(f.label) ||
-            f.label.includes(colHeader)
+            f.label.includes(colHeader),
         );
         if (matchedField) {
           customAnswers[matchedField.id] = val;
@@ -1553,29 +1569,29 @@ export function EventAttendanceManagePage() {
         }
 
         if (
-          colHeader === "이름" ||
-          colHeader.includes("이름") ||
-          colHeader.includes("성명") ||
-          colHeader.toLowerCase().includes("name")
+          colHeader === '이름' ||
+          colHeader.includes('이름') ||
+          colHeader.includes('성명') ||
+          colHeader.toLowerCase().includes('name')
         ) {
           name = val;
         } else if (
-          colHeader.includes("소속") ||
-          colHeader.includes("대학") ||
-          colHeader.includes("회사") ||
-          colHeader.includes("트랙")
+          colHeader.includes('소속') ||
+          colHeader.includes('대학') ||
+          colHeader.includes('회사') ||
+          colHeader.includes('트랙')
         ) {
           affiliation = val;
-        } else if (colHeader.includes("메일") || colHeader.toLowerCase().includes("email")) {
+        } else if (colHeader.includes('메일') || colHeader.toLowerCase().includes('email')) {
           email = val;
         } else if (
-          colHeader.includes("전화") ||
-          colHeader.includes("연락처") ||
-          colHeader.toLowerCase().includes("phone")
+          colHeader.includes('전화') ||
+          colHeader.includes('연락처') ||
+          colHeader.toLowerCase().includes('phone')
         ) {
           phone = val;
-        } else if (colHeader.includes("구분") || colHeader.includes("타입")) {
-          isExt = val.includes("외") || val.toLowerCase().includes("ext");
+        } else if (colHeader.includes('구분') || colHeader.includes('타입')) {
+          isExt = val.includes('외') || val.toLowerCase().includes('ext');
         }
       });
 
@@ -1586,11 +1602,11 @@ export function EventAttendanceManagePage() {
       if (name) {
         if (!isExt && selectedEvent.allowExternal) {
           isExt =
-            affiliation.includes("외") ||
-            affiliation.includes("카카오") ||
-            affiliation.includes("네이버") ||
-            affiliation.includes("기업") ||
-            !affiliation.includes("기");
+            affiliation.includes('외') ||
+            affiliation.includes('카카오') ||
+            affiliation.includes('네이버') ||
+            affiliation.includes('기업') ||
+            !affiliation.includes('기');
         }
         parsed.push({ name, affiliation, email, phone, isExternal: isExt, customAnswers });
       }
@@ -1614,44 +1630,44 @@ export function EventAttendanceManagePage() {
         parseTextContent(content);
       }
     };
-    reader.readAsText(file, "UTF-8");
+    reader.readAsText(file, 'UTF-8');
   }
 
   function handleDownloadSampleCsv() {
     const colHeaders = (selectedEvent.customFields || []).map((f) => f.label);
-    const headers = colHeaders.length > 0 ? colHeaders : ["이름", "소속", "연락처"];
+    const headers = colHeaders.length > 0 ? colHeaders : ['이름', '소속', '연락처'];
     const sample1 = headers.map((h) =>
-      h === "이름"
-        ? "홍길동"
-        : h.includes("소속")
-          ? "28기 분석"
-          : h.includes("구분")
-            ? "외부인"
-            : h.includes("전화") || h.includes("연락처")
-              ? "010-1234-5678"
-              : h.includes("메일")
-                ? "hong@kakao.com"
-                : "예시데이터1"
+      h === '이름'
+        ? '홍길동'
+        : h.includes('소속')
+          ? '28기 분석'
+          : h.includes('구분')
+            ? '외부인'
+            : h.includes('전화') || h.includes('연락처')
+              ? '010-1234-5678'
+              : h.includes('메일')
+                ? 'hong@kakao.com'
+                : '예시데이터1',
     );
     const sample2 = headers.map((h) =>
-      h === "이름"
-        ? "김철수"
-        : h.includes("소속")
-          ? "28기 엔지니어링"
-          : h.includes("구분")
-            ? "부원"
-            : h.includes("전화") || h.includes("연락처")
-              ? "010-9876-5432"
-              : h.includes("메일")
-                ? "cheolsu@snu.ac.kr"
-                : "예시데이터2"
+      h === '이름'
+        ? '김철수'
+        : h.includes('소속')
+          ? '28기 엔지니어링'
+          : h.includes('구분')
+            ? '부원'
+            : h.includes('전화') || h.includes('연락처')
+              ? '010-9876-5432'
+              : h.includes('메일')
+                ? 'cheolsu@snu.ac.kr'
+                : '예시데이터2',
     );
 
     const sampleContent =
-      "\uFEFF" + [headers.join(","), sample1.join(","), sample2.join(",")].join("\n") + "\n";
-    const blob = new Blob([sampleContent], { type: "text/csv;charset=utf-8;" });
+      '\uFEFF' + [headers.join(','), sample1.join(','), sample2.join(',')].join('\n') + '\n';
+    const blob = new Blob([sampleContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
     a.download = `참가자명단_${selectedEvent.title}_샘플양식.csv`;
     document.body.appendChild(a);
@@ -1661,7 +1677,7 @@ export function EventAttendanceManagePage() {
 
   function handleApplyImportedRoster() {
     if (parsedPreview.length === 0) {
-      alert("추가할 명단 데이터가 없습니다.");
+      alert('추가할 명단 데이터가 없습니다.');
       return;
     }
 
@@ -1674,15 +1690,15 @@ export function EventAttendanceManagePage() {
       term: item.term,
       email: item.email,
       phone: item.phone,
-      status: "unmarked",
-      checkedInAt: "-",
+      status: 'unmarked',
+      checkedInAt: '-',
       customAnswers: item.customAnswers || {},
     }));
 
     setAttendees((prev) => [...newRecords, ...prev]);
     setShowImportModal(false);
-    setPastedText("");
-    setUploadedFileName("");
+    setPastedText('');
+    setUploadedFileName('');
     setParsedPreview([]);
   }
 
@@ -1699,7 +1715,7 @@ export function EventAttendanceManagePage() {
     const toAdd = pool.filter((m) => !existingNames.has(m.name));
 
     if (toAdd.length === 0) {
-      alert("이미 해당 명단의 모든 부원이 등록되어 있습니다.");
+      alert('이미 해당 명단의 모든 부원이 등록되어 있습니다.');
       return;
     }
 
@@ -1712,8 +1728,8 @@ export function EventAttendanceManagePage() {
       term: m.term,
       email: m.email,
       phone: m.phone,
-      status: "unmarked",
-      checkedInAt: "-",
+      status: 'unmarked',
+      checkedInAt: '-',
       customAnswers: {},
     }));
 
@@ -1723,19 +1739,19 @@ export function EventAttendanceManagePage() {
 
   function handleQuickAddSubmit() {
     if (!quickAdd.name.trim()) {
-      alert("이름을 입력하세요.");
+      alert('이름을 입력하세요.');
       return;
     }
 
     const answers = { ...quickAdd.customAnswers };
-    if (quickAdd.affiliation && !answers["소속"]) {
-      answers["소속"] = quickAdd.affiliation.trim();
+    if (quickAdd.affiliation && !answers['소속']) {
+      answers['소속'] = quickAdd.affiliation.trim();
     }
-    if (quickAdd.phone && !answers["연락처"]) {
-      answers["연락처"] = quickAdd.phone.trim();
+    if (quickAdd.phone && !answers['연락처']) {
+      answers['연락처'] = quickAdd.phone.trim();
     }
-    if (quickAdd.email && !answers["이메일"]) {
-      answers["이메일"] = quickAdd.email.trim();
+    if (quickAdd.email && !answers['이메일']) {
+      answers['이메일'] = quickAdd.email.trim();
     }
 
     const newRec: AttendeeRecord = {
@@ -1744,29 +1760,29 @@ export function EventAttendanceManagePage() {
       isExternal: quickAdd.isExternal,
       name: quickAdd.name.trim(),
       affiliation:
-        answers["소속"] ||
+        answers['소속'] ||
         quickAdd.affiliation.trim() ||
-        (quickAdd.isExternal ? "외부 게스트" : "BOAZ 28기"),
-      email: answers["이메일"] || quickAdd.email.trim(),
-      phone: answers["연락처"] || quickAdd.phone.trim(),
+        (quickAdd.isExternal ? '외부 게스트' : 'BOAZ 28기'),
+      email: answers['이메일'] || quickAdd.email.trim(),
+      phone: answers['연락처'] || quickAdd.phone.trim(),
       status: quickAdd.status,
       checkedInAt:
-        quickAdd.status === "present" || quickAdd.status === "late"
+        quickAdd.status === 'present' || quickAdd.status === 'late'
           ? new Date().toTimeString().slice(0, 5)
-          : "-",
-      memo: quickAdd.memo?.trim() || "",
+          : '-',
+      memo: quickAdd.memo?.trim() || '',
       customAnswers: answers,
     };
 
     setAttendees((prev) => [newRec, ...prev]);
     setQuickAdd({
       isExternal: false,
-      name: "",
-      affiliation: "",
-      email: "",
-      phone: "",
-      memo: "",
-      status: "present",
+      name: '',
+      affiliation: '',
+      email: '',
+      phone: '',
+      memo: '',
+      status: 'present',
       customAnswers: {},
     });
     setShowQuickAddDrawer(false);
@@ -1779,11 +1795,11 @@ export function EventAttendanceManagePage() {
       return;
     }
     if (
-      trimmed === "이름" ||
-      trimmed === "출결" ||
-      trimmed === "비고" ||
-      trimmed === "출석 상태" ||
-      trimmed === "출석상태"
+      trimmed === '이름' ||
+      trimmed === '출결' ||
+      trimmed === '비고' ||
+      trimmed === '출석 상태' ||
+      trimmed === '출석상태'
     ) {
       return;
     }
@@ -1794,15 +1810,15 @@ export function EventAttendanceManagePage() {
     const newField: CustomFormField = {
       id: `cf_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       label: trimmed,
-      type: "TEXT",
+      type: 'TEXT',
       isRequired: false,
-      target: "ALL",
+      target: 'ALL',
     };
     setEditingEvent({
       ...editingEvent,
       customFields: [...(editingEvent.customFields || []), newField],
     });
-    setNewColInputText("");
+    setNewColInputText('');
   }
 
   function handleRemoveCustomColumn(label: string) {
@@ -1817,13 +1833,13 @@ export function EventAttendanceManagePage() {
 
   function handleColDragStart(e: React.DragEvent, index: number) {
     setDraggedColIdx(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", `${index}`);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', `${index}`);
   }
 
   function handleColDragOver(e: React.DragEvent, index: number) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+    e.dataTransfer.dropEffect = 'move';
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const isLeftHalf = e.clientX < rect.left + rect.width / 2;
     const targetSlot = isLeftHalf ? index : index + 1;
@@ -1843,10 +1859,10 @@ export function EventAttendanceManagePage() {
 
     const validFields = (editingEvent.customFields || []).filter(
       (f) =>
-        f.label !== "이름" &&
-        f.label !== "비고" &&
-        f.label !== "출석 상태" &&
-        f.label !== "출석상태"
+        f.label !== '이름' &&
+        f.label !== '비고' &&
+        f.label !== '출석 상태' &&
+        f.label !== '출석상태',
     );
 
     // If dropped at same relative position, no-op
@@ -1876,23 +1892,23 @@ export function EventAttendanceManagePage() {
 
   function handleOpenNewEvent() {
     setIsNewEvent(true);
-    setEventModalType("CREATE_FULL");
-    setNewColInputText("");
+    setEventModalType('CREATE_FULL');
+    setNewColInputText('');
     setEditingEvent({
-      id: "evt_" + Date.now(),
-      title: "",
-      type: "CONFERENCE",
-      status: "UPCOMING",
+      id: 'evt_' + Date.now(),
+      title: '',
+      type: 'CONFERENCE',
+      status: 'UPCOMING',
       date: new Date().toISOString().slice(0, 10),
-      startTime: "14:00",
-      endTime: "18:00",
-      location: "",
-      description: "",
+      startTime: '14:00',
+      endTime: '18:00',
+      location: '',
+      description: '',
       allowExternal: true,
-      checkinMethod: "QR_CODE",
+      checkinMethod: 'QR_CODE',
       checkinCode: String(Math.floor(1000 + Math.random() * 9000)),
       targetTerms: [28],
-      targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+      targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
       totalTargetCount: 50,
       internalAttendedCount: 0,
       externalAttendedCount: 0,
@@ -1904,14 +1920,14 @@ export function EventAttendanceManagePage() {
   // 1. 출석 체크 화면 톱니바퀴 -> 출석 컬럼 설정만 오픈
   function handleOpenColumnSettings(e: AttendanceEvent) {
     setIsNewEvent(false);
-    setEventModalType("COLUMNS_ONLY");
-    setNewColInputText("");
+    setEventModalType('COLUMNS_ONLY');
+    setNewColInputText('');
     const extraCols = (e.customFields || []).filter(
       (f) =>
-        f.label !== "이름" &&
-        f.label !== "비고" &&
-        f.label !== "출석 상태" &&
-        f.label !== "출석상태"
+        f.label !== '이름' &&
+        f.label !== '비고' &&
+        f.label !== '출석 상태' &&
+        f.label !== '출석상태',
     );
     setEditingEvent({ ...e, customFields: [...extraCols] });
   }
@@ -1919,7 +1935,7 @@ export function EventAttendanceManagePage() {
   // 2. 전체 행사 목록 화면 톱니바퀴 -> 행사 기본 정보 수정만 오픈
   function handleOpenBasicInfoSettings(e: AttendanceEvent) {
     setIsNewEvent(false);
-    setEventModalType("BASIC_INFO");
+    setEventModalType('BASIC_INFO');
     setEditingEvent({ ...e });
   }
 
@@ -1927,8 +1943,8 @@ export function EventAttendanceManagePage() {
     if (!editingEvent) {
       return;
     }
-    if (eventModalType !== "COLUMNS_ONLY" && !editingEvent.title.trim()) {
-      alert("행사명을 입력하세요.");
+    if (eventModalType !== 'COLUMNS_ONLY' && !editingEvent.title.trim()) {
+      alert('행사명을 입력하세요.');
       return;
     }
 
@@ -1944,7 +1960,7 @@ export function EventAttendanceManagePage() {
   function handleDeleteEvent(evtId: string, title: string) {
     if (
       confirm(
-        `'${title}' 행사를 삭제하시겠습니까?\n해당 행사의 출석 명단 데이터도 함께 삭제됩니다.`
+        `'${title}' 행사를 삭제하시겠습니까?\n해당 행사의 출석 명단 데이터도 함께 삭제됩니다.`,
       )
     ) {
       setEvents((prev) => prev.filter((e) => e.id !== evtId));
@@ -1963,46 +1979,46 @@ export function EventAttendanceManagePage() {
     const extraHeaders = (evt.customFields || [])
       .filter(
         (f) =>
-          f.label !== "이름" &&
-          f.label !== "비고" &&
-          f.label !== "출석 상태" &&
-          f.label !== "출석상태"
+          f.label !== '이름' &&
+          f.label !== '비고' &&
+          f.label !== '출석 상태' &&
+          f.label !== '출석상태',
       )
       .map((f) => f.label);
-    const headers = ["번호", "이름", ...extraHeaders, "출석코드(0,1,2)", "출석상태", "비고"];
+    const headers = ['번호', '이름', ...extraHeaders, '출석코드(0,1,2)', '출석상태', '비고'];
     const rows = evtAttendees.map((a, idx) => {
       const extraVals = extraHeaders.map(
         (h) =>
           a.customAnswers?.[h] ||
-          (h.includes("소속")
+          (h.includes('소속')
             ? a.affiliation
-            : h.includes("구분")
+            : h.includes('구분')
               ? a.isExternal
-                ? "외부인"
-                : "부원"
-              : h.includes("전화") || h.includes("연락처")
+                ? '외부인'
+                : '부원'
+              : h.includes('전화') || h.includes('연락처')
                 ? a.phone
-                : h.includes("메일")
+                : h.includes('메일')
                   ? a.email
-                  : "") ||
-          "-"
+                  : '') ||
+          '-',
       );
       return [
         idx + 1,
         a.name,
         ...extraVals,
-        ATTEND_STATUS_CFG[a.status]?.code || "-",
-        ATTEND_STATUS_CFG[a.status]?.label || "미체크",
-        a.memo || "-",
+        ATTEND_STATUS_CFG[a.status]?.code || '-',
+        ATTEND_STATUS_CFG[a.status]?.label || '미체크',
+        a.memo || '-',
       ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(",");
+        .join(',');
     });
 
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = url;
     link.download = `출석부_${evt.title}_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
@@ -2018,21 +2034,21 @@ export function EventAttendanceManagePage() {
   function handleOpenCreateTemplate() {
     setIsNewTemplate(true);
     setEditingTemplate({
-      id: "tmpl_" + Date.now(),
-      title: "새 출석 양식 템플릿",
-      type: "SESSION",
-      description: "운영 목적에 맞춘 출석 체크 및 추가 확인 항목 양식",
+      id: 'tmpl_' + Date.now(),
+      title: '새 출석 양식 템플릿',
+      type: 'SESSION',
+      description: '운영 목적에 맞춘 출석 체크 및 추가 확인 항목 양식',
       allowExternal: false,
-      defaultCheckinMethod: "QR_CODE",
+      defaultCheckinMethod: 'QR_CODE',
       createdAt: new Date().toISOString().slice(0, 10),
       customFields: [
         {
-          id: "f_" + Date.now(),
-          label: "과제 제출 여부",
-          type: "SELECT",
-          options: ["제출 완료", "미제출"],
+          id: 'f_' + Date.now(),
+          label: '과제 제출 여부',
+          type: 'SELECT',
+          options: ['제출 완료', '미제출'],
           isRequired: true,
-          target: "ALL",
+          target: 'ALL',
         },
       ],
     });
@@ -2043,7 +2059,7 @@ export function EventAttendanceManagePage() {
       return;
     }
     if (!editingTemplate.title.trim()) {
-      alert("양식명을 입력하세요.");
+      alert('양식명을 입력하세요.');
       return;
     }
 
@@ -2064,20 +2080,20 @@ export function EventAttendanceManagePage() {
   function handleCreateEventFromTemplate(tmpl: FormTemplate) {
     setIsNewEvent(true);
     setEditingEvent({
-      id: "evt_" + Date.now(),
-      title: `${tmpl.title.replace(" 템플릿", "").replace(" 양식", "")} (${new Date().toISOString().slice(5, 10)})`,
+      id: 'evt_' + Date.now(),
+      title: `${tmpl.title.replace(' 템플릿', '').replace(' 양식', '')} (${new Date().toISOString().slice(5, 10)})`,
       type: tmpl.type,
-      status: "UPCOMING",
+      status: 'UPCOMING',
       date: new Date().toISOString().slice(0, 10),
-      startTime: "14:00",
-      endTime: "18:00",
-      location: "동아리 지정 세미나실",
+      startTime: '14:00',
+      endTime: '18:00',
+      location: '동아리 지정 세미나실',
       description: tmpl.description,
       allowExternal: tmpl.allowExternal,
       checkinMethod: tmpl.defaultCheckinMethod,
       checkinCode: String(Math.floor(1000 + Math.random() * 9000)),
       targetTerms: [28],
-      targetTracks: ["ANALYSIS", "ENGINEERING", "VISUALIZATION"],
+      targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
       totalTargetCount: 50,
       internalAttendedCount: 0,
       externalAttendedCount: 0,
@@ -2098,7 +2114,7 @@ export function EventAttendanceManagePage() {
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-3">
         {/* Breadcrumb Hierarchy - Standardized matching all pages */}
         <div className="flex items-center gap-2.5">
-          {subTab === "events" ? (
+          {subTab === 'events' ? (
             <h2 className="text-slate-950 font-black text-lg sm:text-xl tracking-tight">
               행사 전체 목록
             </h2>
@@ -2132,7 +2148,7 @@ export function EventAttendanceManagePage() {
                   <ChevronDown
                     size={16}
                     className={`text-slate-400 group-hover:text-slate-700 transition-transform duration-200 ${
-                      isBreadcrumbMenuOpen ? "rotate-180" : ""
+                      isBreadcrumbMenuOpen ? 'rotate-180' : ''
                     }`}
                   />
                 </button>
@@ -2152,17 +2168,22 @@ export function EventAttendanceManagePage() {
                               setFocusedIndex(0);
                               setIsBreadcrumbMenuOpen(false);
                               window.history.replaceState(
-                                { page: "att-events", subTab: "detail", eventId: evt.id, tab: subTab },
-                                "",
-                                window.location.href
+                                {
+                                  page: 'att-events',
+                                  subTab: 'detail',
+                                  eventId: evt.id,
+                                  tab: subTab,
+                                },
+                                '',
+                                window.location.href,
                               );
                             }}
                             className={`px-3.5 py-2.5 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
-                              isCur ? "bg-slate-100 font-bold" : "hover:bg-slate-50"
+                              isCur ? 'bg-slate-100 font-bold' : 'hover:bg-slate-50'
                             }`}
                           >
                             <p
-                              className={`text-sm truncate min-w-0 ${isCur ? "text-slate-950 font-bold" : "text-slate-700 font-medium"}`}
+                              className={`text-sm truncate min-w-0 ${isCur ? 'text-slate-950 font-bold' : 'text-slate-700 font-medium'}`}
                             >
                               {evt.title}
                             </p>
@@ -2182,7 +2203,7 @@ export function EventAttendanceManagePage() {
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2">
-          {subTab === "live" && (
+          {subTab === 'live' && (
             <>
               {/* CSV 일괄 등록 버튼 */}
               <button
@@ -2218,7 +2239,7 @@ export function EventAttendanceManagePage() {
       </div>
 
       {/* ─── TAB 1: 현장 출석 체크 ─── */}
-      {subTab === "live" && (
+      {subTab === 'live' && (
         <div className="space-y-4">
           {/* Clean Inline Stats Text */}
           <div className="flex items-center gap-2.5 sm:gap-3.5 py-1 px-1 text-xs text-slate-500 flex-wrap border-b border-slate-100 pb-3 font-medium">
@@ -2323,7 +2344,7 @@ export function EventAttendanceManagePage() {
                 <select
                   value={attendStatusFilter}
                   onChange={(e) => {
-                    setAttendStatusFilter(e.target.value as "ALL" | AttendStatus);
+                    setAttendStatusFilter(e.target.value as 'ALL' | AttendStatus);
                     setFocusedIndex(0);
                   }}
                   className="appearance-none pl-3 pr-7 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-800 text-xs font-semibold shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
@@ -2346,14 +2367,14 @@ export function EventAttendanceManagePage() {
 
               {/* 트랙 및 구분 필터 캡슐 */}
               <div className="flex rounded-lg bg-slate-100 p-0.5 border border-slate-200/80 text-xs">
-                {(["ALL", "ANALYSIS", "VISUALIZATION", "ENGINEERING", "EXTERNAL"] as const).map(
+                {(['ALL', 'ANALYSIS', 'VISUALIZATION', 'ENGINEERING', 'EXTERNAL'] as const).map(
                   (cat) => {
                     const labelMap: Record<string, string> = {
-                      ALL: "전체",
-                      ANALYSIS: "분석",
-                      VISUALIZATION: "시각화",
-                      ENGINEERING: "엔지",
-                      EXTERNAL: "외부",
+                      ALL: '전체',
+                      ANALYSIS: '분석',
+                      VISUALIZATION: '시각화',
+                      ENGINEERING: '엔지',
+                      EXTERNAL: '외부',
                     };
                     return (
                       <button
@@ -2364,14 +2385,14 @@ export function EventAttendanceManagePage() {
                         }}
                         className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
                           attendeeCategoryFilter === cat
-                            ? "bg-white text-slate-900 shadow-2xs font-semibold"
-                            : "text-slate-500 hover:text-slate-900"
+                            ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                            : 'text-slate-500 hover:text-slate-900'
                         }`}
                       >
                         {labelMap[cat]}
                       </button>
                     );
-                  }
+                  },
                 )}
               </div>
             </div>
@@ -2396,8 +2417,8 @@ export function EventAttendanceManagePage() {
                 }}
                 className={`h-8 min-w-[124px] px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
                   isTableEditMode
-                    ? "bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
-                    : "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs"
+                    ? 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs'
                 }`}
               >
                 {isTableEditMode ? (
@@ -2438,10 +2459,10 @@ export function EventAttendanceManagePage() {
                   {(selectedEvent.customFields || [])
                     .filter(
                       (f) =>
-                        f.label !== "이름" &&
-                        f.label !== "비고" &&
-                        f.label !== "출석 상태" &&
-                        f.label !== "출석상태"
+                        f.label !== '이름' &&
+                        f.label !== '비고' &&
+                        f.label !== '출석 상태' &&
+                        f.label !== '출석상태',
                     )
                     .map((cf) => (
                       <col
@@ -2450,21 +2471,21 @@ export function EventAttendanceManagePage() {
                       />
                     ))}
                   <col style={{ width: `${colWidths.status || 400}px` }} />
-                  <col style={{ width: `${colWidths.memo || 240}px`, minWidth: "220px" }} />
-                  <col style={{ width: "80px", minWidth: "80px", maxWidth: "80px" }} />
+                  <col style={{ width: `${colWidths.memo || 240}px`, minWidth: '220px' }} />
+                  <col style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }} />
                 </colgroup>
                 <thead className="bg-slate-50/80 select-none">
                   <tr className="border-b border-slate-200/70 divide-x divide-slate-200/70 text-slate-700 font-semibold text-[11px] whitespace-nowrap">
                     <th
-                      style={{ width: `${colWidths.index || 48}px`, minWidth: "48px" }}
+                      style={{ width: `${colWidths.index || 48}px`, minWidth: '48px' }}
                       className="relative text-center px-2 py-2.5 text-slate-400 font-bold"
                     >
                       #
                       <div
-                        onMouseDown={(e) => handleResizeStart(e, "index", 40)}
+                        onMouseDown={(e) => handleResizeStart(e, 'index', 40)}
                         onMouseEnter={(e) => {
                           if (!resizingColKey) {
-                            setActiveHoverCol("index");
+                            setActiveHoverCol('index');
                             updateGuidelinePos(e.currentTarget);
                           }
                         }}
@@ -2479,15 +2500,15 @@ export function EventAttendanceManagePage() {
                       />
                     </th>
                     <th
-                      style={{ width: `${colWidths.name || 130}px`, minWidth: "110px" }}
+                      style={{ width: `${colWidths.name || 130}px`, minWidth: '110px' }}
                       className="relative text-center px-2 py-2.5 text-slate-900 font-bold"
                     >
                       이름
                       <div
-                        onMouseDown={(e) => handleResizeStart(e, "name", 70)}
+                        onMouseDown={(e) => handleResizeStart(e, 'name', 70)}
                         onMouseEnter={(e) => {
                           if (!resizingColKey) {
-                            setActiveHoverCol("name");
+                            setActiveHoverCol('name');
                             updateGuidelinePos(e.currentTarget);
                           }
                         }}
@@ -2504,17 +2525,17 @@ export function EventAttendanceManagePage() {
                     {(selectedEvent.customFields || [])
                       .filter(
                         (f) =>
-                          f.label !== "이름" &&
-                          f.label !== "비고" &&
-                          f.label !== "출석 상태" &&
-                          f.label !== "출석상태"
+                          f.label !== '이름' &&
+                          f.label !== '비고' &&
+                          f.label !== '출석 상태' &&
+                          f.label !== '출석상태',
                       )
                       .map((cf) => {
                         const colKey = `custom_${cf.id}`;
                         return (
                           <th
                             key={cf.id}
-                            style={{ width: `${colWidths[colKey] || 140}px`, minWidth: "120px" }}
+                            style={{ width: `${colWidths[colKey] || 140}px`, minWidth: '120px' }}
                             className="relative text-center px-2 py-2.5 text-slate-800 font-bold"
                           >
                             {cf.label}
@@ -2539,15 +2560,15 @@ export function EventAttendanceManagePage() {
                         );
                       })}
                     <th
-                      style={{ width: `${colWidths.status || 400}px`, minWidth: "395px" }}
+                      style={{ width: `${colWidths.status || 400}px`, minWidth: '395px' }}
                       className="relative text-center px-2 py-2.5 text-slate-900 font-bold"
                     >
                       출결
                       <div
-                        onMouseDown={(e) => handleResizeStart(e, "status", 395)}
+                        onMouseDown={(e) => handleResizeStart(e, 'status', 395)}
                         onMouseEnter={(e) => {
                           if (!resizingColKey) {
-                            setActiveHoverCol("status");
+                            setActiveHoverCol('status');
                             updateGuidelinePos(e.currentTarget);
                           }
                         }}
@@ -2562,14 +2583,14 @@ export function EventAttendanceManagePage() {
                       />
                     </th>
                     <th
-                      style={{ width: `${colWidths.memo || 240}px`, minWidth: "220px" }}
+                      style={{ width: `${colWidths.memo || 240}px`, minWidth: '220px' }}
                       className="relative text-center px-3 py-2.5 text-slate-700 font-semibold"
                     >
                       비고
                     </th>
                     {/* Fixed Sticky Right Action Column */}
                     <th
-                      style={{ width: "80px", minWidth: "80px", maxWidth: "80px" }}
+                      style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }}
                       className="sticky right-0 top-0 bg-slate-50 z-20 px-2 py-3 w-20 min-w-[80px] max-w-[80px] text-center select-none border-l border-slate-200 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]"
                     >
                       <div className="flex items-center justify-center mx-auto">
@@ -2606,10 +2627,10 @@ export function EventAttendanceManagePage() {
                     filteredAttendees.map((att, idx) => {
                       const extraCols = (selectedEvent.customFields || []).filter(
                         (f) =>
-                          f.label !== "이름" &&
-                          f.label !== "비고" &&
-                          f.label !== "출석 상태" &&
-                          f.label !== "출석상태"
+                          f.label !== '이름' &&
+                          f.label !== '비고' &&
+                          f.label !== '출석 상태' &&
+                          f.label !== '출석상태',
                       );
                       const isRowEditing = isTableEditMode || editingRowId === att.id;
 
@@ -2617,16 +2638,16 @@ export function EventAttendanceManagePage() {
                         <tr
                           key={att.id}
                           className={`transition-colors divide-x divide-slate-200/70 ${
-                            isRowEditing ? "bg-slate-50/90" : "hover:bg-slate-50/60"
+                            isRowEditing ? 'bg-slate-50/90' : 'hover:bg-slate-50/60'
                           }`}
                         >
                           <td className="relative text-center px-3 py-2 h-[50px] text-slate-400 text-xs">
                             <div className="h-8 flex items-center justify-center">{idx + 1}</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "index", 40)}
+                              onMouseDown={(e) => handleResizeStart(e, 'index', 40)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("index");
+                                  setActiveHoverCol('index');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -2652,7 +2673,7 @@ export function EventAttendanceManagePage() {
                                 onChange={(e) => {
                                   const newVal = e.target.value;
                                   setAttendees((prev) =>
-                                    prev.map((a) => (a.id === att.id ? { ...a, name: newVal } : a))
+                                    prev.map((a) => (a.id === att.id ? { ...a, name: newVal } : a)),
                                   );
                                 }}
                                 placeholder="이름"
@@ -2660,14 +2681,14 @@ export function EventAttendanceManagePage() {
                               />
                             ) : (
                               <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs font-bold text-slate-900 truncate font-sans">
-                                {att.name || "-"}
+                                {att.name || '-'}
                               </div>
                             )}
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "name", 70)}
+                              onMouseDown={(e) => handleResizeStart(e, 'name', 70)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("name");
+                                  setActiveHoverCol('name');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -2703,17 +2724,17 @@ export function EventAttendanceManagePage() {
                                           a.id === att.id
                                             ? {
                                                 ...a,
-                                                affiliation: cf.label.includes("소속")
+                                                affiliation: cf.label.includes('소속')
                                                   ? newVal
                                                   : a.affiliation,
                                                 phone:
-                                                  cf.label.includes("전화") ||
-                                                  cf.label.includes("연락처")
+                                                  cf.label.includes('전화') ||
+                                                  cf.label.includes('연락처')
                                                     ? newVal
                                                     : a.phone,
-                                                email: cf.label.includes("메일") ? newVal : a.email,
-                                                isExternal: cf.label.includes("구분")
-                                                  ? newVal.includes("외")
+                                                email: cf.label.includes('메일') ? newVal : a.email,
+                                                isExternal: cf.label.includes('구분')
+                                                  ? newVal.includes('외')
                                                   : a.isExternal,
                                                 customAnswers: {
                                                   ...(a.customAnswers || {}),
@@ -2721,8 +2742,8 @@ export function EventAttendanceManagePage() {
                                                   [cf.label]: newVal,
                                                 },
                                               }
-                                            : a
-                                        )
+                                            : a,
+                                        ),
                                       );
                                     }}
                                     placeholder={`${cf.label}`}
@@ -2760,17 +2781,17 @@ export function EventAttendanceManagePage() {
                               <div className="grid grid-cols-7 w-[390px] shrink-0 p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
                                 {(
                                   [
-                                    "present",
-                                    "late",
-                                    "earlyLeave",
-                                    "absent",
-                                    "excusedAbsent",
-                                    "unexcusedLate",
-                                    "unexcusedAbsent",
+                                    'present',
+                                    'late',
+                                    'earlyLeave',
+                                    'absent',
+                                    'excusedAbsent',
+                                    'unexcusedLate',
+                                    'unexcusedAbsent',
                                   ] as AttendStatus[]
                                 ).map((st) => {
                                   const isCurrent = att.status === st;
-                                  const label = ATTEND_STATUS_CFG[st]?.label || "";
+                                  const label = ATTEND_STATUS_CFG[st]?.label || '';
                                   const styleCfg = ATTEND_STATUS_STYLES[st];
 
                                   return (
@@ -2783,8 +2804,8 @@ export function EventAttendanceManagePage() {
                                       }}
                                       className={`py-1 text-[10px] rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
                                         isCurrent
-                                          ? styleCfg?.active || ""
-                                          : styleCfg?.inactive || ""
+                                          ? styleCfg?.active || ''
+                                          : styleCfg?.inactive || ''
                                       }`}
                                     >
                                       {label}
@@ -2794,10 +2815,10 @@ export function EventAttendanceManagePage() {
                               </div>
                             </div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "status", 395)}
+                              onMouseDown={(e) => handleResizeStart(e, 'status', 395)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("status");
+                                  setActiveHoverCol('status');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -2819,11 +2840,11 @@ export function EventAttendanceManagePage() {
                           >
                             {isRowEditing ? (
                               <input
-                                value={att.memo || ""}
+                                value={att.memo || ''}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setAttendees((prev) =>
-                                    prev.map((a) => (a.id === att.id ? { ...a, memo: val } : a))
+                                    prev.map((a) => (a.id === att.id ? { ...a, memo: val } : a)),
                                   );
                                 }}
                                 placeholder="비고 입력 (선택)"
@@ -2868,7 +2889,7 @@ export function EventAttendanceManagePage() {
                                 onClick={() => {
                                   if (
                                     confirm(
-                                      `[${att.name || "참가자"}] 님을 명단에서 삭제하시겠습니까?`
+                                      `[${att.name || '참가자'}] 님을 명단에서 삭제하시겠습니까?`,
                                     )
                                   ) {
                                     setAttendees((prev) => prev.filter((a) => a.id !== att.id));
@@ -2901,7 +2922,7 @@ export function EventAttendanceManagePage() {
       )}
 
       {/* ─── TAB 2: 전체 행사 목록 ─── */}
-      {subTab === "events" && (
+      {subTab === 'events' && (
         <div className="space-y-4">
           <p className="text-xs text-slate-500">
             행사를 선택하면 해당 행사의 출석 명단과 집계 현황으로 즉시 이동합니다.
@@ -2912,7 +2933,7 @@ export function EventAttendanceManagePage() {
               return (
                 <div
                   key={evt.id}
-                  onClick={() => handleSelectEvent(evt.id, "live")}
+                  onClick={() => handleSelectEvent(evt.id, 'live')}
                   className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white hover:border-slate-400 hover:shadow-xs px-6 py-5 transition-all cursor-pointer group"
                 >
                   <div className="space-y-1 min-w-0 flex-1 pr-4">
@@ -2921,7 +2942,7 @@ export function EventAttendanceManagePage() {
                     </h3>
                     <p className="text-xs text-slate-500">
                       {evt.date}
-                      {evt.location ? ` · ${evt.location}` : ""}
+                      {evt.location ? ` · ${evt.location}` : ''}
                     </p>
                   </div>
 
@@ -2971,7 +2992,7 @@ export function EventAttendanceManagePage() {
       )}
 
       {/* ─── TAB 3: 양식 템플릿 설정 ─── */}
-      {subTab === "forms" && (
+      {subTab === 'forms' && (
         <div className="space-y-5">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
@@ -3075,7 +3096,7 @@ export function EventAttendanceManagePage() {
                             >
                               <span>• {f.label}</span>
                               <span className="text-slate-400 text-[10px] font-sans">
-                                [{f.type === "SELECT" ? "선택형" : "텍스트"}]{" "}
+                                [{f.type === 'SELECT' ? '선택형' : '텍스트'}]{' '}
                                 {f.isRequired && <strong className="text-red-500">필수</strong>}
                               </span>
                             </div>
@@ -3100,7 +3121,7 @@ export function EventAttendanceManagePage() {
       )}
 
       {/* ─── TAB 4: 출석 통계 & 리포트 ─── */}
-      {subTab === "stats" && (
+      {subTab === 'stats' && (
         <div className="space-y-5">
           <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-5">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -3133,8 +3154,8 @@ export function EventAttendanceManagePage() {
               <div className="p-5 rounded-xl bg-slate-50/80 border border-slate-200">
                 <p className="text-slate-500 text-xs font-medium">정상 출석 / 지각 / 결석</p>
                 <p className="text-2xl font-bold font-mono text-slate-900 mt-1">
-                  <span className="text-emerald-600">{presentCount}</span> /{" "}
-                  <span className="text-amber-600">{lateCount}</span> /{" "}
+                  <span className="text-emerald-600">{presentCount}</span> /{' '}
+                  <span className="text-amber-600">{lateCount}</span> /{' '}
                   <span className="text-red-600">{absentCount}</span>
                 </p>
                 <p className="text-[11px] text-slate-400 mt-0.5">미체크 {unmarkedCount}명</p>
@@ -3200,22 +3221,22 @@ export function EventAttendanceManagePage() {
               {(selectedEvent.customFields || [])
                 .filter(
                   (f) =>
-                    f.label !== "이름" &&
-                    f.label !== "비고" &&
-                    f.label !== "출석 상태" &&
-                    f.label !== "출석상태"
+                    f.label !== '이름' &&
+                    f.label !== '비고' &&
+                    f.label !== '출석 상태' &&
+                    f.label !== '출석상태',
                 )
                 .map((cf) => {
                   const currentVal =
                     quickAdd.customAnswers[cf.label] ??
                     quickAdd.customAnswers[cf.id] ??
-                    (cf.label.includes("소속")
+                    (cf.label.includes('소속')
                       ? quickAdd.affiliation
-                      : cf.label.includes("전화") || cf.label.includes("연락처")
+                      : cf.label.includes('전화') || cf.label.includes('연락처')
                         ? quickAdd.phone
-                        : cf.label.includes("메일")
+                        : cf.label.includes('메일')
                           ? quickAdd.email
-                          : "");
+                          : '');
 
                   return (
                     <div key={cf.id}>
@@ -3228,12 +3249,12 @@ export function EventAttendanceManagePage() {
                           const val = e.target.value;
                           setQuickAdd((prev) => ({
                             ...prev,
-                            affiliation: cf.label.includes("소속") ? val : prev.affiliation,
+                            affiliation: cf.label.includes('소속') ? val : prev.affiliation,
                             phone:
-                              cf.label.includes("전화") || cf.label.includes("연락처")
+                              cf.label.includes('전화') || cf.label.includes('연락처')
                                 ? val
                                 : prev.phone,
-                            email: cf.label.includes("메일") ? val : prev.email,
+                            email: cf.label.includes('메일') ? val : prev.email,
                             customAnswers: { ...prev.customAnswers, [cf.label]: val, [cf.id]: val },
                           }));
                         }}
@@ -3250,13 +3271,13 @@ export function EventAttendanceManagePage() {
                 <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/60">
                   {(
                     [
-                      "present",
-                      "late",
-                      "earlyLeave",
-                      "absent",
-                      "excusedAbsent",
-                      "unexcusedLate",
-                      "unexcusedAbsent",
+                      'present',
+                      'late',
+                      'earlyLeave',
+                      'absent',
+                      'excusedAbsent',
+                      'unexcusedLate',
+                      'unexcusedAbsent',
                     ] as AttendStatus[]
                   ).map((st) => {
                     const cfg = ATTEND_STATUS_CFG[st];
@@ -3333,22 +3354,22 @@ export function EventAttendanceManagePage() {
 
             <div className="flex rounded-xl bg-slate-100 p-1 text-xs">
               <button
-                onClick={() => setImportTab("CSV_FILE")}
-                className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${importTab === "CSV_FILE" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500"}`}
+                onClick={() => setImportTab('CSV_FILE')}
+                className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${importTab === 'CSV_FILE' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
               >
                 <FileUp size={13} />
                 <span>CSV 파일 업로드</span>
               </button>
               <button
-                onClick={() => setImportTab("PASTE")}
-                className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${importTab === "PASTE" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500"}`}
+                onClick={() => setImportTab('PASTE')}
+                className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${importTab === 'PASTE' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
               >
                 <Copy size={13} />
                 <span>엑셀 복사-붙여넣기</span>
               </button>
               <button
-                onClick={() => setImportTab("BOAZ_POOL")}
-                className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${importTab === "BOAZ_POOL" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500"}`}
+                onClick={() => setImportTab('BOAZ_POOL')}
+                className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${importTab === 'BOAZ_POOL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'}`}
               >
                 <Users size={13} />
                 <span>부원 불러오기</span>
@@ -3356,7 +3377,7 @@ export function EventAttendanceManagePage() {
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
-              {importTab === "CSV_FILE" && (
+              {importTab === 'CSV_FILE' && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-slate-700">CSV 명단 파일 첨부</span>
@@ -3382,7 +3403,7 @@ export function EventAttendanceManagePage() {
                   >
                     <FileUp size={24} className="mx-auto text-slate-700" />
                     <p className="font-bold text-slate-900 text-xs">
-                      {uploadedFileName ? `선택됨: ${uploadedFileName}` : "클릭하여 CSV 파일 선택"}
+                      {uploadedFileName ? `선택됨: ${uploadedFileName}` : '클릭하여 CSV 파일 선택'}
                     </p>
                     <p className="text-[10px] text-slate-500">
                       열: 이름, 소속, 이메일, 전화번호, 구분
@@ -3391,7 +3412,7 @@ export function EventAttendanceManagePage() {
                 </div>
               )}
 
-              {importTab === "PASTE" && (
+              {importTab === 'PASTE' && (
                 <div className="space-y-2">
                   <p className="text-slate-500 text-[11px]">
                     엑셀에서 복사한 텍스트를 붙여넣으세요 (Ctrl+V):
@@ -3409,7 +3430,7 @@ export function EventAttendanceManagePage() {
                 </div>
               )}
 
-              {importTab === "BOAZ_POOL" && (
+              {importTab === 'BOAZ_POOL' && (
                 <div className="space-y-2">
                   <p className="text-slate-500 text-[11px]">
                     동아리 정규 부원 명단을 원클릭으로 추가합니다:
@@ -3465,7 +3486,7 @@ export function EventAttendanceManagePage() {
                             <td className="px-2 py-1 text-slate-600 font-sans">
                               {item.affiliation}
                             </td>
-                            <td className="px-2 py-1 text-slate-500">{item.phone || "-"}</td>
+                            <td className="px-2 py-1 text-slate-500">{item.phone || '-'}</td>
                             {(selectedEvent.customFields || []).map((cf) => (
                               <td
                                 key={cf.id}
@@ -3473,7 +3494,7 @@ export function EventAttendanceManagePage() {
                               >
                                 {item.customAnswers?.[cf.id] ||
                                   item.customAnswers?.[cf.label] ||
-                                  "-"}
+                                  '-'}
                               </td>
                             ))}
                           </tr>
@@ -3492,14 +3513,14 @@ export function EventAttendanceManagePage() {
               >
                 취소
               </button>
-              {(importTab === "CSV_FILE" || importTab === "PASTE") && (
+              {(importTab === 'CSV_FILE' || importTab === 'PASTE') && (
                 <button
                   onClick={handleApplyImportedRoster}
                   disabled={parsedPreview.length === 0}
                   className={`px-4 py-1.5 rounded-lg text-xs font-semibold text-white shadow-xs cursor-pointer ${
                     parsedPreview.length > 0
-                      ? "bg-slate-900 hover:bg-slate-800"
-                      : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                      ? 'bg-slate-900 hover:bg-slate-800'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
                   {parsedPreview.length}명 명단 추가하기
@@ -3517,18 +3538,18 @@ export function EventAttendanceManagePage() {
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  {eventModalType === "COLUMNS_ONLY"
-                    ? "출석 명단 표 컬럼 설정"
-                    : eventModalType === "BASIC_INFO"
-                      ? "행사 기본 정보 수정"
-                      : "새 행사 등록"}
+                  {eventModalType === 'COLUMNS_ONLY'
+                    ? '출석 명단 표 컬럼 설정'
+                    : eventModalType === 'BASIC_INFO'
+                      ? '행사 기본 정보 수정'
+                      : '새 행사 등록'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {eventModalType === "COLUMNS_ONLY"
+                  {eventModalType === 'COLUMNS_ONLY'
                     ? `대상: ${editingEvent.title || selectedEvent.title}`
-                    : eventModalType === "BASIC_INFO"
-                      ? "행사명, 일자, 장소 등 기본 정보를 수정합니다."
-                      : "새로운 행사의 기본 정보와 출석 명단 컬럼을 설정합니다."}
+                    : eventModalType === 'BASIC_INFO'
+                      ? '행사명, 일자, 장소 등 기본 정보를 수정합니다.'
+                      : '새로운 행사의 기본 정보와 출석 명단 컬럼을 설정합니다.'}
                 </p>
               </div>
               <button
@@ -3541,7 +3562,7 @@ export function EventAttendanceManagePage() {
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
               {/* 1. 기본 정보 섹션 (BASIC_INFO 또는 CREATE_FULL) */}
-              {(eventModalType === "BASIC_INFO" || eventModalType === "CREATE_FULL") && (
+              {(eventModalType === 'BASIC_INFO' || eventModalType === 'CREATE_FULL') && (
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs font-semibold text-slate-700 block mb-1">
@@ -3551,7 +3572,7 @@ export function EventAttendanceManagePage() {
                       value={editingEvent.title}
                       onChange={(e) =>
                         setEditingEvent((prev) =>
-                          prev ? { ...prev, title: e.target.value } : null
+                          prev ? { ...prev, title: e.target.value } : null,
                         )
                       }
                       placeholder="예: BOAZ 제28기 Big Data Conference"
@@ -3569,7 +3590,7 @@ export function EventAttendanceManagePage() {
                         value={editingEvent.date}
                         onChange={(e) =>
                           setEditingEvent((prev) =>
-                            prev ? { ...prev, date: e.target.value } : null
+                            prev ? { ...prev, date: e.target.value } : null,
                           )
                         }
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-200 transition-all"
@@ -3584,7 +3605,7 @@ export function EventAttendanceManagePage() {
                         value={editingEvent.location}
                         onChange={(e) =>
                           setEditingEvent((prev) =>
-                            prev ? { ...prev, location: e.target.value } : null
+                            prev ? { ...prev, location: e.target.value } : null,
                           )
                         }
                         placeholder="예: 서울대학교 글로벌공학센터"
@@ -3596,7 +3617,7 @@ export function EventAttendanceManagePage() {
               )}
 
               {/* 2. 출석 명단 표 컬럼 설정 섹션 (COLUMNS_ONLY 또는 CREATE_FULL) */}
-              {(eventModalType === "COLUMNS_ONLY" || eventModalType === "CREATE_FULL") && (
+              {(eventModalType === 'COLUMNS_ONLY' || eventModalType === 'CREATE_FULL') && (
                 <div className="space-y-4 pt-1">
                   <div>
                     <label className="text-xs font-semibold text-slate-700 block mb-1.5">
@@ -3607,7 +3628,7 @@ export function EventAttendanceManagePage() {
                         value={newColInputText}
                         onChange={(e) => setNewColInputText(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
+                          if (e.key === 'Enter') {
                             e.preventDefault();
                             handleAddCustomColumn(newColInputText);
                           }
@@ -3628,10 +3649,10 @@ export function EventAttendanceManagePage() {
                     {(() => {
                       const validFields = (editingEvent.customFields || []).filter(
                         (f) =>
-                          f.label !== "이름" &&
-                          f.label !== "비고" &&
-                          f.label !== "출석 상태" &&
-                          f.label !== "출석상태"
+                          f.label !== '이름' &&
+                          f.label !== '비고' &&
+                          f.label !== '출석 상태' &&
+                          f.label !== '출석상태',
                       );
                       if (validFields.length === 0) {
                         return null;
@@ -3681,8 +3702,8 @@ export function EventAttendanceManagePage() {
                                     onDragEnd={handleColDragEnd}
                                     className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-grab active:cursor-grabbing ${
                                       isDragging
-                                        ? "opacity-25 border-dashed border-slate-400 bg-slate-200"
-                                        : "bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-2xs hover:shadow-xs"
+                                        ? 'opacity-25 border-dashed border-slate-400 bg-slate-200'
+                                        : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-2xs hover:shadow-xs'
                                     }`}
                                     title="드래그하여 순서를 변경할 수 있습니다"
                                   >
@@ -3739,10 +3760,10 @@ export function EventAttendanceManagePage() {
                             {(editingEvent.customFields || [])
                               .filter(
                                 (f) =>
-                                  f.label !== "이름" &&
-                                  f.label !== "비고" &&
-                                  f.label !== "출석 상태" &&
-                                  f.label !== "출석상태"
+                                  f.label !== '이름' &&
+                                  f.label !== '비고' &&
+                                  f.label !== '출석 상태' &&
+                                  f.label !== '출석상태',
                               )
                               .map((cf) => (
                                 <th key={cf.id} className="px-3 py-2 text-slate-800 font-bold">
@@ -3760,10 +3781,10 @@ export function EventAttendanceManagePage() {
                             {(editingEvent.customFields || [])
                               .filter(
                                 (f) =>
-                                  f.label !== "이름" &&
-                                  f.label !== "비고" &&
-                                  f.label !== "출석 상태" &&
-                                  f.label !== "출석상태"
+                                  f.label !== '이름' &&
+                                  f.label !== '비고' &&
+                                  f.label !== '출석 상태' &&
+                                  f.label !== '출석상태',
                               )
                               .map((cf) => (
                                 <td key={cf.id} className="px-3 py-2 text-slate-400">
@@ -3793,10 +3814,10 @@ export function EventAttendanceManagePage() {
                 className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
               >
                 {isNewEvent
-                  ? "행사 생성하기"
-                  : eventModalType === "COLUMNS_ONLY"
-                    ? "컬럼 설정 저장"
-                    : "행사 정보 저장"}
+                  ? '행사 생성하기'
+                  : eventModalType === 'COLUMNS_ONLY'
+                    ? '컬럼 설정 저장'
+                    : '행사 정보 저장'}
               </button>
             </div>
           </div>
@@ -3810,7 +3831,7 @@ export function EventAttendanceManagePage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">
-                  {isNewTemplate ? "새 출석 양식 템플릿 생성" : "출석 양식 템플릿 수정"}
+                  {isNewTemplate ? '새 출석 양식 템플릿 생성' : '출석 양식 템플릿 수정'}
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   행사 특성에 맞추어 외부인 허용 여부와 수집할 추가 질문 항목을 정의합니다.
@@ -3832,7 +3853,7 @@ export function EventAttendanceManagePage() {
                     value={editingTemplate.title}
                     onChange={(e) =>
                       setEditingTemplate((prev) =>
-                        prev ? { ...prev, title: e.target.value } : null
+                        prev ? { ...prev, title: e.target.value } : null,
                       )
                     }
                     placeholder="예: 28기 빅콘 출석 양식"
@@ -3846,7 +3867,7 @@ export function EventAttendanceManagePage() {
                     value={editingTemplate.type}
                     onChange={(e) =>
                       setEditingTemplate((prev) =>
-                        prev ? { ...prev, type: e.target.value as EventType } : null
+                        prev ? { ...prev, type: e.target.value as EventType } : null,
                       )
                     }
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900"
@@ -3868,7 +3889,7 @@ export function EventAttendanceManagePage() {
                   value={editingTemplate.description}
                   onChange={(e) =>
                     setEditingTemplate((prev) =>
-                      prev ? { ...prev, description: e.target.value } : null
+                      prev ? { ...prev, description: e.target.value } : null,
                     )
                   }
                   placeholder="양식의 사용 목적 및 출결 체크 기준을 입력하세요..."
@@ -3883,7 +3904,7 @@ export function EventAttendanceManagePage() {
                     checked={editingTemplate.allowExternal}
                     onChange={(e) =>
                       setEditingTemplate((prev) =>
-                        prev ? { ...prev, allowExternal: e.target.checked } : null
+                        prev ? { ...prev, allowExternal: e.target.checked } : null,
                       )
                     }
                     className="rounded accent-slate-900 w-4 h-4"
@@ -3901,7 +3922,7 @@ export function EventAttendanceManagePage() {
                       setEditingTemplate((prev) =>
                         prev
                           ? { ...prev, defaultCheckinMethod: e.target.value as CheckinMethod }
-                          : null
+                          : null,
                       )
                     }
                     className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-900 font-semibold"
@@ -3923,14 +3944,14 @@ export function EventAttendanceManagePage() {
                     type="button"
                     onClick={() => {
                       const newField: CustomFormField = {
-                        id: "f_" + Date.now(),
-                        label: "새 입력 항목",
-                        type: "TEXT",
+                        id: 'f_' + Date.now(),
+                        label: '새 입력 항목',
+                        type: 'TEXT',
                         isRequired: false,
-                        target: "ALL",
+                        target: 'ALL',
                       };
                       setEditingTemplate((prev) =>
-                        prev ? { ...prev, customFields: [...prev.customFields, newField] } : null
+                        prev ? { ...prev, customFields: [...prev.customFields, newField] } : null,
                       );
                     }}
                     className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-semibold flex items-center gap-1 cursor-pointer"
@@ -3955,10 +3976,10 @@ export function EventAttendanceManagePage() {
                             value={field.label}
                             onChange={(e) => {
                               const updated = editingTemplate.customFields.map((f, i) =>
-                                i === idx ? { ...f, label: e.target.value } : f
+                                i === idx ? { ...f, label: e.target.value } : f,
                               );
                               setEditingTemplate((prev) =>
-                                prev ? { ...prev, customFields: updated } : null
+                                prev ? { ...prev, customFields: updated } : null,
                               );
                             }}
                             placeholder="항목 라벨 (예: 소속 대학, 기념품 수령)"
@@ -3970,10 +3991,10 @@ export function EventAttendanceManagePage() {
                           type="button"
                           onClick={() => {
                             const updated = editingTemplate.customFields.filter(
-                              (_, i) => i !== idx
+                              (_, i) => i !== idx,
                             );
                             setEditingTemplate((prev) =>
-                              prev ? { ...prev, customFields: updated } : null
+                              prev ? { ...prev, customFields: updated } : null,
                             );
                           }}
                           className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
@@ -3996,14 +4017,14 @@ export function EventAttendanceManagePage() {
                                       ...f,
                                       type: newType,
                                       options:
-                                        newType === "SELECT"
-                                          ? f.options || ["옵션1", "옵션2"]
+                                        newType === 'SELECT'
+                                          ? f.options || ['옵션1', '옵션2']
                                           : undefined,
                                     }
-                                  : f
+                                  : f,
                               );
                               setEditingTemplate((prev) =>
-                                prev ? { ...prev, customFields: updated } : null
+                                prev ? { ...prev, customFields: updated } : null,
                               );
                             }}
                             className="w-full px-2 py-1 rounded bg-white border border-slate-200 text-slate-800"
@@ -4021,10 +4042,10 @@ export function EventAttendanceManagePage() {
                             value={field.target}
                             onChange={(e) => {
                               const updated = editingTemplate.customFields.map((f, i) =>
-                                i === idx ? { ...f, target: e.target.value as any } : f
+                                i === idx ? { ...f, target: e.target.value as any } : f,
                               );
                               setEditingTemplate((prev) =>
-                                prev ? { ...prev, customFields: updated } : null
+                                prev ? { ...prev, customFields: updated } : null,
                               );
                             }}
                             className="w-full px-2 py-1 rounded bg-white border border-slate-200 text-slate-800"
@@ -4042,10 +4063,10 @@ export function EventAttendanceManagePage() {
                               checked={field.isRequired}
                               onChange={(e) => {
                                 const updated = editingTemplate.customFields.map((f, i) =>
-                                  i === idx ? { ...f, isRequired: e.target.checked } : f
+                                  i === idx ? { ...f, isRequired: e.target.checked } : f,
                                 );
                                 setEditingTemplate((prev) =>
-                                  prev ? { ...prev, customFields: updated } : null
+                                  prev ? { ...prev, customFields: updated } : null,
                                 );
                               }}
                               className="rounded accent-slate-900"
@@ -4055,23 +4076,23 @@ export function EventAttendanceManagePage() {
                         </div>
                       </div>
 
-                      {field.type === "SELECT" && (
+                      {field.type === 'SELECT' && (
                         <div className="pt-1">
                           <label className="text-slate-500 block text-[10px] mb-0.5">
                             선택지 (쉼표로 구분):
                           </label>
                           <input
-                            value={field.options?.join(", ") || ""}
+                            value={field.options?.join(', ') || ''}
                             onChange={(e) => {
                               const opts = e.target.value
-                                .split(",")
+                                .split(',')
                                 .map((s) => s.trim())
                                 .filter(Boolean);
                               const updated = editingTemplate.customFields.map((f, i) =>
-                                i === idx ? { ...f, options: opts } : f
+                                i === idx ? { ...f, options: opts } : f,
                               );
                               setEditingTemplate((prev) =>
-                                prev ? { ...prev, customFields: updated } : null
+                                prev ? { ...prev, customFields: updated } : null,
                               );
                             }}
                             placeholder="예: 수령 완료, 미수령"

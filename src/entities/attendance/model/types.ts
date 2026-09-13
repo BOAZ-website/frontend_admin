@@ -1,13 +1,13 @@
 export type AttendanceStatus =
-  | "present"
-  | "late"
-  | "earlyLeave"
-  | "absent"
-  | "excusedAbsent"
-  | "remote"
-  | "unexcusedLate"
-  | "unexcusedAbsent"
-  | "unmarked";
+  | 'present'
+  | 'late'
+  | 'earlyLeave'
+  | 'absent'
+  | 'excusedAbsent'
+  | 'remote'
+  | 'unexcusedLate'
+  | 'unexcusedAbsent'
+  | 'unmarked';
 
 export interface SessionRecord {
   statuses: Record<string, AttendanceStatus>;

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { CheckCircle2, Edit3, Plus, Save } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { CheckCircle2, Edit3, Plus, Save } from 'lucide-react';
 
-import type { ScoreRule } from "@/entities/score-rule/model/types";
+import type { ScoreRule } from '@/entities/score-rule/model/types';
 
 interface RulesPageProps {
   rules: ScoreRule[];
@@ -9,7 +9,7 @@ interface RulesPageProps {
 }
 
 export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
-  const activeRule = rules.find((r) => r.status === "ACTIVE") || rules[0];
+  const activeRule = rules.find((r) => r.status === 'ACTIVE') || rules[0];
   const [isEditMode, setIsEditMode] = useState(false);
 
   const [editingValues, setEditingValues] = useState({
@@ -60,7 +60,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
 
   const handleSaveActiveRule = () => {
     const updated = rules.map((r) => {
-      if (r.status === "ACTIVE") {
+      if (r.status === 'ACTIVE') {
         return {
           ...r,
           absentPenalty: Number(editingValues.absentPenalty),
@@ -89,9 +89,9 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
     const newVersion = Math.max(...rules.map((r) => r.version), 0) + 1;
     const newDraft: ScoreRule = {
       version: newVersion,
-      status: "DRAFT",
+      status: 'DRAFT',
       activatedAt: null,
-      createdBy: "차기대표진",
+      createdBy: '차기대표진',
       absentPenalty: Number(draftValues.absentPenalty),
       unexcusedAbsentPenalty: Number(draftValues.unexcusedAbsentPenalty),
       latePenalty: Number(draftValues.latePenalty),
@@ -114,10 +114,10 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
     const today = new Date().toISOString().slice(0, 10);
     const updated = rules.map((r) => {
       if (r.version === targetVersion) {
-        return { ...r, status: "ACTIVE" as const, activatedAt: today };
+        return { ...r, status: 'ACTIVE' as const, activatedAt: today };
       }
-      if (r.status === "ACTIVE") {
-        return { ...r, status: "INACTIVE" as const };
+      if (r.status === 'ACTIVE') {
+        return { ...r, status: 'INACTIVE' as const };
       }
       return r;
     });
@@ -192,7 +192,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                 <span className="font-serif italic font-bold text-slate-400 shrink-0">fx</span>
                 <span className="text-slate-400">|</span>
                 <span className="truncate font-sans font-medium text-[11.5px] text-slate-700">
-                  총점 = (사유결석 × {editingValues.absentPenalty}) + (무단결석 ×{" "}
+                  총점 = (사유결석 × {editingValues.absentPenalty}) + (무단결석 ×{' '}
                   {editingValues.unexcusedAbsentPenalty}) + (지각·조퇴 × {editingValues.latePenalty}
                   )
                 </span>
@@ -354,7 +354,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                 <span className="font-serif italic font-bold text-slate-400 shrink-0">fx</span>
                 <span className="text-slate-400">|</span>
                 <span className="truncate font-sans font-medium text-[11.5px] text-slate-700">
-                  =SUM( IF(출석 ≤ 4, {editingValues.studyFailPenalty}, IF(출석 &lt; 7,{" "}
+                  =SUM( IF(출석 ≤ 4, {editingValues.studyFailPenalty}, IF(출석 &lt; 7,{' '}
                   {editingValues.studyPassBonus}, {editingValues.studyPerfectBonus})), 스터디장 )
                 </span>
               </div>
@@ -613,17 +613,17 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                 <span className="font-mono font-bold text-slate-900">v{rule.version}</span>
                 <span
                   className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                    rule.status === "ACTIVE"
-                      ? "bg-slate-900 text-white"
-                      : rule.status === "DRAFT"
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-slate-100 text-slate-600"
+                    rule.status === 'ACTIVE'
+                      ? 'bg-slate-900 text-white'
+                      : rule.status === 'DRAFT'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-slate-100 text-slate-600'
                   }`}
                 >
                   {rule.status}
                 </span>
                 <span className="text-slate-500 text-[11px]">
-                  {rule.activatedAt ? `활성: ${rule.activatedAt}` : "미활성"} · 작성:{" "}
+                  {rule.activatedAt ? `활성: ${rule.activatedAt}` : '미활성'} · 작성:{' '}
                   {rule.createdBy}
                 </span>
                 <span className="text-slate-600 text-[11px] font-mono">
@@ -633,7 +633,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                 </span>
               </div>
 
-              {rule.status === "DRAFT" && (
+              {rule.status === 'DRAFT' && (
                 <button
                   onClick={() => handleActivateRule(rule.version)}
                   className="px-2.5 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded font-semibold cursor-pointer"

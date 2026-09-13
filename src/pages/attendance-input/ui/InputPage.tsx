@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Camera,
   Check,
@@ -13,83 +13,83 @@ import {
   Upload,
   Users,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { STATUS_CFG } from "@/entities/attendance/model/constants";
-import { sessionKey } from "@/entities/attendance/model/lib";
+import { STATUS_CFG } from '@/entities/attendance/model/constants';
+import { sessionKey } from '@/entities/attendance/model/lib';
 import type {
   AttendanceState,
   AttendanceStatus,
   SessionRecord,
-} from "@/entities/attendance/model/types";
+} from '@/entities/attendance/model/types';
 import {
   ADV_INITIAL_TEAMS,
   ADV_MEMBERS,
   INITIAL_STUDY_TEAMS,
   MEMBERS,
-} from "@/entities/study-team/model/constants";
-import type { Member, StudyTeamInfo } from "@/entities/study-team/model/types";
-import type { UserRole } from "@/entities/user/model/types";
-import { Btn } from "@/shared/ui/Btn";
+} from '@/entities/study-team/model/constants';
+import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
+import type { UserRole } from '@/entities/user/model/types';
+import { Btn } from '@/shared/ui/Btn';
 
 // ─── Page: 출결 입력 (HOST 스터디장 전용 페이지) ───────────────────────────────
 
 const EXT_STATUS_BTNS: { id: AttendanceStatus; label: string }[] = [
-  { id: "present", label: "출석" },
-  { id: "late", label: "지각" },
-  { id: "earlyLeave", label: "조퇴" },
-  { id: "absent", label: "결석" },
-  { id: "excusedAbsent", label: "인정결석" },
-  { id: "unexcusedLate", label: "무단지각" },
-  { id: "unexcusedAbsent", label: "무단결석" },
-  { id: "unmarked", label: "미정" },
+  { id: 'present', label: '출석' },
+  { id: 'late', label: '지각' },
+  { id: 'earlyLeave', label: '조퇴' },
+  { id: 'absent', label: '결석' },
+  { id: 'excusedAbsent', label: '인정결석' },
+  { id: 'unexcusedLate', label: '무단지각' },
+  { id: 'unexcusedAbsent', label: '무단결석' },
+  { id: 'unmarked', label: '미정' },
 ];
 
 const ATTEND_STATUS_STYLES: Record<AttendanceStatus, { active: string; inactive: string }> = {
   present: {
-    active: "bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs",
+    active: 'bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#0f5132] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#0f5132] hover:bg-white/60 border border-transparent font-medium',
   },
   late: {
-    active: "bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs",
+    active: 'bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium',
   },
   earlyLeave: {
-    active: "bg-[#fef3c7] text-[#7c4a03] font-bold border border-[#fde68a] shadow-2xs",
+    active: 'bg-[#fef3c7] text-[#7c4a03] font-bold border border-[#fde68a] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium',
   },
   absent: {
-    active: "bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs",
+    active: 'bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#8a1c32] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#8a1c32] hover:bg-white/60 border border-transparent font-medium',
   },
   excusedAbsent: {
-    active: "bg-[#eff6ff] text-[#1e40af] font-bold border border-[#bfdbfe] shadow-2xs",
+    active: 'bg-[#eff6ff] text-[#1e40af] font-bold border border-[#bfdbfe] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#1e40af] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#1e40af] hover:bg-white/60 border border-transparent font-medium',
   },
   remote: {
-    active: "bg-[#eef2ff] text-[#4338ca] font-bold border border-[#c7d2fe] shadow-2xs",
+    active: 'bg-[#eef2ff] text-[#4338ca] font-bold border border-[#c7d2fe] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#4338ca] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#4338ca] hover:bg-white/60 border border-transparent font-medium',
   },
   unexcusedLate: {
-    active: "bg-[#fff7ed] text-[#c2410c] font-bold border border-[#fed7aa] shadow-2xs",
+    active: 'bg-[#fff7ed] text-[#c2410c] font-bold border border-[#fed7aa] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#c2410c] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#c2410c] hover:bg-white/60 border border-transparent font-medium',
   },
   unexcusedAbsent: {
-    active: "bg-[#fee2e2] text-[#991b1b] font-bold border border-[#fca5a5] shadow-2xs",
+    active: 'bg-[#fee2e2] text-[#991b1b] font-bold border border-[#fca5a5] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#991b1b] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#991b1b] hover:bg-white/60 border border-transparent font-medium',
   },
   unmarked: {
-    active: "bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs",
+    active: 'bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-slate-700 hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-slate-700 hover:bg-white/60 border border-transparent font-medium',
   },
 };
 
@@ -114,7 +114,7 @@ export function InputPage({
     memberName: string,
     from: AttendanceStatus,
     to: AttendanceStatus,
-    reason: string
+    reason: string,
   ) => void;
   currentHostTeam: string;
   studyTeams: StudyTeamInfo[];
@@ -125,27 +125,27 @@ export function InputPage({
   onOpenAddStudy?: () => void;
   pageTitle?: string;
 }) {
-  const [termPeriod, setTermPeriod] = useState<"방학" | "학기">("방학");
+  const [termPeriod, setTermPeriod] = useState<'방학' | '학기'>('방학');
 
-  const isAdv = pageTitle?.includes("ADV") ?? false;
-  const isHost = currentRole === "HOST";
+  const isAdv = pageTitle?.includes('ADV') ?? false;
+  const isHost = currentRole === 'HOST';
 
   const [advTeams, setAdvTeams] = useState<StudyTeamInfo[]>(ADV_INITIAL_TEAMS);
-  const effectiveTeams = isAdv ? advTeams : (studyTeams || INITIAL_STUDY_TEAMS);
+  const effectiveTeams = isAdv ? advTeams : studyTeams || INITIAL_STUDY_TEAMS;
 
   // 팀 개설 모달 상태
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
-  const [newTeamTrack, setNewTeamTrack] = useState<"분석" | "시각화" | "엔지니어링">("분석");
-  const [newTeamName, setNewTeamName] = useState("");
-  const [newTeamLeader, setNewTeamLeader] = useState("");
-  const [newTeamMembersText, setNewTeamMembersText] = useState("");
+  const [newTeamTrack, setNewTeamTrack] = useState<'분석' | '시각화' | '엔지니어링'>('분석');
+  const [newTeamName, setNewTeamName] = useState('');
+  const [newTeamLeader, setNewTeamLeader] = useState('');
+  const [newTeamMembersText, setNewTeamMembersText] = useState('');
 
   const [selectedTeam, setSelectedTeam] = useState(
-    currentRole === "HOST"
-      ? currentHostTeam || (isAdv ? "분석 1팀" : "A팀")
+    currentRole === 'HOST'
+      ? currentHostTeam || (isAdv ? '분석 1팀' : 'A팀')
       : isAdv
-      ? "분석 1팀"
-      : studyTeams[0]?.teamName || "A팀"
+        ? '분석 1팀'
+        : studyTeams[0]?.teamName || 'A팀',
   );
 
   // HOST 계정인 경우 본인 팀만 필터링, 관리자인 경우 전체 팀 노출
@@ -153,7 +153,7 @@ export function InputPage({
     if (isHost) {
       const myTeam = currentHostTeam || selectedTeam;
       const filtered = effectiveTeams.filter(
-        (t) => t.teamName === myTeam || (myTeam && t.teamName.includes(myTeam))
+        (t) => t.teamName === myTeam || (myTeam && t.teamName.includes(myTeam)),
       );
       return filtered.length > 0 ? filtered : effectiveTeams.slice(0, 1);
     }
@@ -163,32 +163,32 @@ export function InputPage({
   const TOTAL_WEEKS = 8;
 
   useEffect(() => {
-    if (currentRole === "HOST" && currentHostTeam) {
+    if (currentRole === 'HOST' && currentHostTeam) {
       setSelectedTeam(currentHostTeam);
       return;
     }
     if (isAdv) {
       if (
-        !selectedTeam.startsWith("분석") &&
-        !selectedTeam.startsWith("시각화") &&
-        !selectedTeam.startsWith("엔지")
+        !selectedTeam.startsWith('분석') &&
+        !selectedTeam.startsWith('시각화') &&
+        !selectedTeam.startsWith('엔지')
       ) {
-        setSelectedTeam(effectiveTeams[0]?.teamName || "분석 1팀");
+        setSelectedTeam(effectiveTeams[0]?.teamName || '분석 1팀');
       }
     } else {
       if (
-        selectedTeam.startsWith("분석") ||
-        selectedTeam.startsWith("시각화") ||
-        selectedTeam.startsWith("엔지")
+        selectedTeam.startsWith('분석') ||
+        selectedTeam.startsWith('시각화') ||
+        selectedTeam.startsWith('엔지')
       ) {
-        setSelectedTeam(effectiveTeams[0]?.teamName || "A팀");
+        setSelectedTeam(effectiveTeams[0]?.teamName || 'A팀');
       }
     }
-  }, [isAdv, effectiveTeams, currentRole, currentHostTeam]);
+  }, [isAdv, effectiveTeams, currentRole, currentHostTeam, selectedTeam]);
 
   const handleCreateTeam = () => {
     if (!newTeamName.trim()) {
-      alert("팀명을 입력해 주세요.");
+      alert('팀명을 입력해 주세요.');
       return;
     }
     const memberNames = newTeamMembersText
@@ -197,12 +197,12 @@ export function InputPage({
       .filter(Boolean);
 
     if (memberNames.length === 0) {
-      alert("팀원 이름을 입력해 주세요.");
+      alert('팀원 이름을 입력해 주세요.');
       return;
     }
 
     const finalTeamName = newTeamName.trim();
-    const finalLeader = newTeamLeader.trim() || memberNames[0] || "팀장 미정";
+    const finalLeader = newTeamLeader.trim() || memberNames[0] || '팀장 미정';
     const teamId = `team_${Date.now()}`;
 
     const newTeamObj: StudyTeamInfo = {
@@ -211,9 +211,9 @@ export function InputPage({
       studyName: finalTeamName,
       leaderName: finalLeader,
       category: newTeamTrack,
-      schedule: "매주 정기 세션",
-      studyType: termPeriod === "방학" ? "방학 스터디" : "학기 스터디",
-      description: "",
+      schedule: '매주 정기 세션',
+      studyType: termPeriod === '방학' ? '방학 스터디' : '학기 스터디',
+      description: '',
       createdAt: new Date().toISOString().slice(0, 10),
     };
 
@@ -225,7 +225,7 @@ export function InputPage({
     const newMemberList: Member[] = combinedNames.map((name, idx) => ({
       id: `mem_${Date.now()}_${idx}`,
       name,
-      year: "28",
+      year: '28',
       track: newTeamTrack,
     }));
 
@@ -244,17 +244,17 @@ export function InputPage({
 
     setSelectedTeam(finalTeamName);
     setShowCreateTeamModal(false);
-    setNewTeamName("");
-    setNewTeamLeader("");
-    setNewTeamMembersText("");
+    setNewTeamName('');
+    setNewTeamLeader('');
+    setNewTeamMembersText('');
   };
 
-  const handlePeriodChange = (period: "방학" | "학기") => {
+  const handlePeriodChange = (period: '방학' | '학기') => {
     setTermPeriod(period);
     if (!isAdv) {
-      const periodTarget = period === "방학" ? "방학 스터디" : "학기 스터디";
+      const periodTarget = period === '방학' ? '방학 스터디' : '학기 스터디';
       const available = (studyTeams || []).filter((s) => s.studyType === periodTarget);
-      if (available.length > 0 && currentRole !== "HOST") {
+      if (available.length > 0 && currentRole !== 'HOST') {
         setSelectedTeam(available[0].teamName);
       }
     }
@@ -287,7 +287,7 @@ export function InputPage({
   };
   const [memos, setMemos] = useState<Record<string, string>>({});
   const [extStatuses, setExtStatuses] = useState<Record<string, Record<string, AttendanceStatus>>>(
-    {}
+    {},
   );
 
   const [uploadedImage, setUploadedImage] = useState<{
@@ -304,9 +304,9 @@ export function InputPage({
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [reqMember, setReqMember] = useState("");
-  const [reqToStatus, setReqToStatus] = useState<AttendanceStatus>("present");
-  const [reqReason, setReqReason] = useState("");
+  const [reqMember, setReqMember] = useState('');
+  const [reqToStatus, setReqToStatus] = useState<AttendanceStatus>('present');
+  const [reqReason, setReqReason] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -337,22 +337,20 @@ export function InputPage({
   } | null>(null);
   const [resizingColKey, setResizingColKey] = useState<string | null>(null);
 
-  const handleResizeStart = (
-    e: React.MouseEvent<HTMLElement>,
-    key: string,
-    minWidth = 50
-  ) => {
+  const handleResizeStart = (e: React.MouseEvent<HTMLElement>, key: string, minWidth = 50) => {
     e.preventDefault();
     e.stopPropagation();
-    const cell = (e.currentTarget.closest("th") ||
-      e.currentTarget.closest("td")) as HTMLElement | null;
+    const cell = (e.currentTarget.closest('th') ||
+      e.currentTarget.closest('td')) as HTMLElement | null;
     const startX = e.clientX;
-    const startWidth = cell ? cell.offsetWidth : colWidths[key as keyof typeof colWidths] || minWidth;
+    const startWidth = cell
+      ? cell.offsetWidth
+      : colWidths[key as keyof typeof colWidths] || minWidth;
     resizingCol.current = { key, startX, startWidth };
     setResizingColKey(key);
 
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!resizingCol.current) return;
@@ -366,14 +364,14 @@ export function InputPage({
     const handleMouseUp = () => {
       resizingCol.current = null;
       setResizingColKey(null);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
   };
 
   // Horizontal Week Scroll State
@@ -392,14 +390,14 @@ export function InputPage({
   useEffect(() => {
     checkWeekScroll();
     const handleResize = () => checkWeekScroll();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleScrollWeeks = (direction: "left" | "right") => {
+  const handleScrollWeeks = (direction: 'left' | 'right') => {
     if (weekScrollRef.current) {
-      const offset = direction === "left" ? -240 : 240;
-      weekScrollRef.current.scrollBy({ left: offset, behavior: "smooth" });
+      const offset = direction === 'left' ? -240 : 240;
+      weekScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
       setTimeout(checkWeekScroll, 300);
     }
   };
@@ -419,7 +417,7 @@ export function InputPage({
       if (!containerRef.current) {
         return;
       }
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
       const rect = containerRef.current.getBoundingClientRect();
       const rawRatio = ((clientX - rect.left) / rect.width) * 100;
       const clampedRatio = Math.min(Math.max(rawRatio, 15), 65);
@@ -428,24 +426,24 @@ export function InputPage({
 
     function handlePointerUp() {
       setIsDragging(false);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     }
 
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("mousemove", handlePointerMove);
-    window.addEventListener("mouseup", handlePointerUp);
-    window.addEventListener("touchmove", handlePointerMove);
-    window.addEventListener("touchend", handlePointerUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+    window.addEventListener('touchmove', handlePointerMove);
+    window.addEventListener('touchend', handlePointerUp);
 
     return () => {
-      window.removeEventListener("mousemove", handlePointerMove);
-      window.removeEventListener("mouseup", handlePointerUp);
-      window.removeEventListener("touchmove", handlePointerMove);
-      window.removeEventListener("touchend", handlePointerUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+      window.removeEventListener('touchmove', handlePointerMove);
+      window.removeEventListener('touchend', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
   }, [isDragging]);
 
@@ -461,18 +459,17 @@ export function InputPage({
   }));
 
   const weekId = `w${weekNum}`;
-  const key = sessionKey(weekId, "study", selectedTeam);
-  const rec: SessionRecord =
-    attendance?.[key]
-      ? attendance[key]
-      : {
-          statuses: {},
-          memos: {},
-          photo: null,
-          photoUrl: null,
-          submitted: false,
-          submittedAt: null,
-        };
+  const key = sessionKey(weekId, 'study', selectedTeam);
+  const rec: SessionRecord = attendance?.[key]
+    ? attendance[key]
+    : {
+        statuses: {},
+        memos: {},
+        photo: null,
+        photoUrl: null,
+        submitted: false,
+        submittedAt: null,
+      };
 
   const members =
     (membersMap && membersMap[selectedTeam]) ||
@@ -482,7 +479,7 @@ export function InputPage({
     if (rec?.submitted || isPastWeek || isFutureWeek) {
       return;
     }
-    if (window.confirm("해당 부원을 스터디 명단에서 삭제하시겠습니까?")) {
+    if (window.confirm('해당 부원을 스터디 명단에서 삭제하시겠습니까?')) {
       if (setMembersMap) {
         setMembersMap((prev) => {
           const existing = prev[selectedTeam] || [];
@@ -503,7 +500,9 @@ export function InputPage({
   const currentPhotoName = uploadedImage?.name || rec?.photoName || rec?.photo || null;
   const currentPhotoSize = uploadedImage?.size || rec?.photoSize || null;
 
-  const [photoDimensions, setPhotoDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [photoDimensions, setPhotoDimensions] = useState<{ width: number; height: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!currentPhotoUrl) {
@@ -550,9 +549,9 @@ export function InputPage({
 
   function getStatus(memberId: string): AttendanceStatus {
     if (isFutureWeek) {
-      return "unmarked";
+      return 'unmarked';
     }
-    return extStatuses[weekId]?.[memberId] ?? rec?.statuses?.[memberId] ?? "present";
+    return extStatuses[weekId]?.[memberId] ?? rec?.statuses?.[memberId] ?? 'present';
   }
 
   function setStatus(memberId: string, val: AttendanceStatus) {
@@ -585,10 +584,10 @@ export function InputPage({
 
   function getMemo(memberId: string): string {
     if (isFutureWeek) {
-      return "";
+      return '';
     }
     const memoKey = `${weekId}-${memberId}`;
-    return memos[memoKey] ?? rec?.memos?.[memberId] ?? "";
+    return memos[memoKey] ?? rec?.memos?.[memberId] ?? '';
   }
 
   function setMemo(memberId: string, val: string) {
@@ -662,7 +661,7 @@ export function InputPage({
     }
     setUploadedImage({ file: null, url: null, name: null, size: null });
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
     }
     if (key) {
       setAttendance((prev) => {
@@ -689,7 +688,7 @@ export function InputPage({
 
     if (!currentPhotoUrl) {
       const confirmNoPhoto = window.confirm(
-        "출석 인증 사진이 첨부되지 않았습니다.\n운영지원팀의 확인을 위해 사진 업로드가 필요합니다.\n사진 없이 그대로 제출하시겠습니까?"
+        '출석 인증 사진이 첨부되지 않았습니다.\n운영지원팀의 확인을 위해 사진 업로드가 필요합니다.\n사진 없이 그대로 제출하시겠습니까?',
       );
       if (!confirmNoPhoto) {
         return;
@@ -715,8 +714,8 @@ export function InputPage({
         photo: currentPhotoName || `스터디_${selectedTeam}_${weekNum}주차.jpg`,
         photoUrl: currentPhotoUrl,
         photoName: currentPhotoName || `스터디_${selectedTeam}_${weekNum}주차.jpg`,
-        photoSize: currentPhotoSize || "2.1 MB",
-        submittedAt: new Date().toLocaleString("ko-KR", { hour12: false }).slice(0, 16),
+        photoSize: currentPhotoSize || '2.1 MB',
+        submittedAt: new Date().toLocaleString('ko-KR', { hour12: false }).slice(0, 16),
         confirmedByAdmin: false,
       },
     }));
@@ -724,7 +723,7 @@ export function InputPage({
 
   function handleSendRequest() {
     if (!reqMember || !reqReason.trim()) {
-      alert("부원과 수정 사유를 입력해 주세요.");
+      alert('부원과 수정 사유를 입력해 주세요.');
       return;
     }
     const mem = members.find((m) => m.id === reqMember);
@@ -738,11 +737,11 @@ export function InputPage({
       mem.name,
       fromStatus,
       reqToStatus,
-      reqReason
+      reqReason,
     );
     setShowRequestModal(false);
-    setReqReason("");
-    alert("운영지원팀에 출결 수정 요청이 전송되었습니다.");
+    setReqReason('');
+    alert('운영지원팀에 출결 수정 요청이 전송되었습니다.');
   }
 
   void onOpenAddStudy;
@@ -771,36 +770,35 @@ export function InputPage({
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-3 shrink-0">
         <div className="flex items-center gap-3.5">
           <h2 className="text-slate-950 font-black text-lg sm:text-xl tracking-tight">
-            {pageTitle || "ADV Term 출결 입력"}
+            {pageTitle || 'ADV Term 출결 입력'}
           </h2>
 
           {/* 방학 / 학기 토글 버튼 (Segmented Control) */}
           <div className="flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80 text-xs font-semibold select-none">
             <button
               type="button"
-              onClick={() => handlePeriodChange("방학")}
+              onClick={() => handlePeriodChange('방학')}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-bold ${
-                termPeriod === "방학"
-                  ? "bg-white text-slate-900 shadow-2xs"
-                  : "text-slate-500 hover:text-slate-800"
+                termPeriod === '방학'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               방학
             </button>
             <button
               type="button"
-              onClick={() => handlePeriodChange("학기")}
+              onClick={() => handlePeriodChange('학기')}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-bold ${
-                termPeriod === "학기"
-                  ? "bg-white text-slate-900 shadow-2xs"
-                  : "text-slate-500 hover:text-slate-800"
+                termPeriod === '학기'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               학기
             </button>
           </div>
         </div>
-
       </div>
 
       {/* ─── 주차 선택 토글 바 (수평 스크롤 & 위치 완전 고정) ─── */}
@@ -810,7 +808,7 @@ export function InputPage({
           <div className="absolute left-0 z-20 flex items-center h-full pr-4 bg-gradient-to-r from-slate-50 via-slate-50/90 to-transparent pointer-events-none">
             <button
               type="button"
-              onClick={() => handleScrollWeeks("left")}
+              onClick={() => handleScrollWeeks('left')}
               className="pointer-events-auto w-6 h-6 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-700 hover:text-slate-950 hover:bg-slate-50 transition-colors cursor-pointer"
               title="이전 주차 보기"
             >
@@ -824,7 +822,7 @@ export function InputPage({
           ref={weekScrollRef}
           onScroll={checkWeekScroll}
           className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 w-full flex-nowrap"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {WEEKS_LIST.map((w) => {
             const isActive = w.weekNum === weekNum;
@@ -836,10 +834,10 @@ export function InputPage({
                 onClick={() => handleSelectWeek(w.weekNum)}
                 className={`w-[58px] h-[34px] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none relative ${
                   isActive
-                    ? "bg-slate-900 text-white border border-slate-900 shadow-xs"
+                    ? 'bg-slate-900 text-white border border-slate-900 shadow-xs'
                     : isWeekFuture
-                    ? "text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs"
+                      ? 'text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
                 }`}
               >
                 <span>{w.label}</span>
@@ -853,7 +851,7 @@ export function InputPage({
           <div className="absolute right-0 z-20 flex items-center h-full pl-4 bg-gradient-to-l from-slate-50 via-slate-50/90 to-transparent pointer-events-none">
             <button
               type="button"
-              onClick={() => handleScrollWeeks("right")}
+              onClick={() => handleScrollWeeks('right')}
               className="pointer-events-auto w-6 h-6 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-700 hover:text-slate-950 hover:bg-slate-50 transition-colors cursor-pointer"
               title="다음 주차 보기"
             >
@@ -866,7 +864,7 @@ export function InputPage({
       <div
         ref={containerRef}
         className={`relative w-full flex-1 min-h-0 transition-all ${
-          isFullScreen ? "block h-full" : "flex flex-row gap-0 h-full min-w-0"
+          isFullScreen ? 'block h-full' : 'flex flex-row gap-0 h-full min-w-0'
         }`}
       >
         {/* ─── 좌측: 팀 목록 패널 (두번째 사진 스타일) ─── */}
@@ -874,7 +872,7 @@ export function InputPage({
           <div
             style={{
               width: `${splitRatio}%`,
-              minWidth: "200px",
+              minWidth: '200px',
             }}
             className="space-y-2.5 shrink-0 h-full overflow-y-auto pr-1.5"
           >
@@ -882,7 +880,7 @@ export function InputPage({
             <div className="flex items-center justify-between px-1 pb-1">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {isHost ? "내 담당 팀" : isAdv ? "ADV 프로젝트 팀" : "스터디 팀"}
+                  {isHost ? '내 담당 팀' : isAdv ? 'ADV 프로젝트 팀' : '스터디 팀'}
                 </span>
                 {isHost && (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
@@ -895,7 +893,7 @@ export function InputPage({
                 <button
                   type="button"
                   onClick={() => {
-                    setNewTeamName("");
+                    setNewTeamName('');
                     setShowCreateTeamModal(true);
                   }}
                   className="px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1 cursor-pointer border border-slate-200 shadow-2xs"
@@ -915,7 +913,9 @@ export function InputPage({
                 <div>
                   <p className="text-xs font-bold text-slate-800">개설된 팀이 없습니다</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    {isAdv ? "새로운 ADV 프로젝트 팀을 개설하세요." : "새로운 스터디 팀을 개설하세요."}
+                    {isAdv
+                      ? '새로운 ADV 프로젝트 팀을 개설하세요.'
+                      : '새로운 스터디 팀을 개설하세요.'}
                   </p>
                 </div>
                 {!isHost && (
@@ -931,10 +931,8 @@ export function InputPage({
               </div>
             ) : isAdv ? (
               <div className="space-y-4">
-                {(["분석", "시각화", "엔지니어링"] as const).map((trackName) => {
-                  const trackTeams = displayedTeams.filter(
-                    (t) => t.category === trackName || (t as any).track === trackName
-                  );
+                {(['분석', '시각화', '엔지니어링'] as const).map((trackName) => {
+                  const trackTeams = displayedTeams.filter((t) => t.category === trackName);
                   if (trackTeams.length === 0) return null;
 
                   return (
@@ -954,8 +952,8 @@ export function InputPage({
                               onClick={() => setSelectedTeam(team.teamName)}
                               className={`relative rounded-2xl border transition-all cursor-pointer p-3.5 group select-none ${
                                 isSelected
-                                  ? "bg-slate-100/80 border-slate-300 shadow-2xs"
-                                  : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs"
+                                  ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+                                  : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
                               }`}
                             >
                               <div className="flex items-center justify-between gap-3">
@@ -963,11 +961,13 @@ export function InputPage({
                                   <h4
                                     className={`text-sm font-bold truncate ${
                                       isSelected
-                                        ? "text-slate-950 font-bold"
-                                        : "text-slate-900 group-hover:text-slate-950"
+                                        ? 'text-slate-950 font-bold'
+                                        : 'text-slate-900 group-hover:text-slate-950'
                                     }`}
                                   >
-                                    {team.studyName && team.studyName !== team.teamName ? `${team.teamName} (${team.studyName})` : team.teamName}
+                                    {team.studyName && team.studyName !== team.teamName
+                                      ? `${team.teamName} (${team.studyName})`
+                                      : team.teamName}
                                   </h4>
                                   {team.leaderName && (
                                     <p className="text-[11px] text-slate-500 font-medium">
@@ -980,8 +980,8 @@ export function InputPage({
                                   size={16}
                                   className={`shrink-0 transition-transform ${
                                     isSelected
-                                      ? "text-slate-500 translate-x-0.5"
-                                      : "text-slate-300 group-hover:text-slate-500"
+                                      ? 'text-slate-500 translate-x-0.5'
+                                      : 'text-slate-300 group-hover:text-slate-500'
                                   }`}
                                 />
                               </div>
@@ -1007,8 +1007,8 @@ export function InputPage({
                         onClick={() => setSelectedTeam(team.teamName)}
                         className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
                           isSelected
-                            ? "bg-slate-100/80 border-slate-300 shadow-2xs"
-                            : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs"
+                            ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-3">
@@ -1016,11 +1016,13 @@ export function InputPage({
                             <h4
                               className={`text-sm font-bold truncate ${
                                 isSelected
-                                  ? "text-slate-950 font-bold"
-                                  : "text-slate-900 group-hover:text-slate-950"
+                                  ? 'text-slate-950 font-bold'
+                                  : 'text-slate-900 group-hover:text-slate-950'
                               }`}
                             >
-                              {team.studyName && team.studyName !== team.teamName ? `${team.teamName} (${team.studyName})` : team.teamName}
+                              {team.studyName && team.studyName !== team.teamName
+                                ? `${team.teamName} (${team.studyName})`
+                                : team.teamName}
                             </h4>
                             {team.leaderName && (
                               <p className="text-[11px] text-slate-500 font-medium">
@@ -1033,8 +1035,8 @@ export function InputPage({
                             size={16}
                             className={`shrink-0 transition-transform ${
                               isSelected
-                                ? "text-slate-500 translate-x-0.5"
-                                : "text-slate-300 group-hover:text-slate-500"
+                                ? 'text-slate-500 translate-x-0.5'
+                                : 'text-slate-300 group-hover:text-slate-500'
                             }`}
                           />
                         </div>
@@ -1056,15 +1058,15 @@ export function InputPage({
               setIsDragging(true);
             }}
             className={`flex w-4 shrink-0 -mx-0.5 items-center justify-center cursor-col-resize group self-stretch z-20 select-none py-12 transition-colors ${
-              isDragging ? "bg-slate-200/50" : "hover:bg-slate-100/80"
+              isDragging ? 'bg-slate-200/50' : 'hover:bg-slate-100/80'
             }`}
             title="마우스로 드래그하여 패널 너비 조절"
           >
             <div
               className={`w-1 h-14 rounded-full transition-all flex flex-col items-center justify-center ${
                 isDragging
-                  ? "bg-slate-700 h-20"
-                  : "bg-slate-300 group-hover:bg-slate-500 group-hover:h-16"
+                  ? 'bg-slate-700 h-20'
+                  : 'bg-slate-300 group-hover:bg-slate-500 group-hover:h-16'
               }`}
             >
               <GripVertical
@@ -1078,13 +1080,13 @@ export function InputPage({
         {/* ─── 우측: 사진 & 출결 입력 영역 (두번째 사진 스타일) ─── */}
         <div
           style={{
-            width: isFullScreen ? "100%" : `${100 - splitRatio}%`,
-            minWidth: isFullScreen ? undefined : "320px",
+            width: isFullScreen ? '100%' : `${100 - splitRatio}%`,
+            minWidth: isFullScreen ? undefined : '320px',
           }}
           className={`min-w-0 flex-1 h-full overflow-y-auto ${
             displayedTeams.length === 0
-              ? ""
-              : "rounded-2xl border border-slate-200/90 bg-white p-6 lg:p-7 shadow-sm space-y-5 animate-in slide-in-from-right duration-150"
+              ? ''
+              : 'rounded-2xl border border-slate-200/90 bg-white p-6 lg:p-7 shadow-sm space-y-5 animate-in slide-in-from-right duration-150'
           }`}
         >
           {displayedTeams.length === 0 ? (
@@ -1096,15 +1098,15 @@ export function InputPage({
                 <h3 className="text-base font-bold text-slate-900">개설된 팀이 없습니다</h3>
                 <p className="text-xs text-slate-500">
                   {isHost
-                    ? "배정된 담당 팀이 없습니다. 운영지원팀에 문의하세요."
-                    : `새로운 ${isAdv ? "ADV 프로젝트" : "스터디"} 팀을 개설하여 출결 입력을 시작하세요.`}
+                    ? '배정된 담당 팀이 없습니다. 운영지원팀에 문의하세요.'
+                    : `새로운 ${isAdv ? 'ADV 프로젝트' : '스터디'} 팀을 개설하여 출결 입력을 시작하세요.`}
                 </p>
               </div>
               {!isHost && (
                 <button
                   type="button"
                   onClick={() => {
-                    setNewTeamName("");
+                    setNewTeamName('');
                     setShowCreateTeamModal(true);
                   }}
                   className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -1127,18 +1129,22 @@ export function InputPage({
 
               {/* 우측 상단 헤더: 선택된 팀 이름 & 제출 상태/버튼 & 전체화면 토글 */}
               <div className="flex items-center justify-between gap-4 pb-3 border-b border-slate-100 flex-wrap">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2.5 flex-wrap">
-                        <h3 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight leading-snug truncate">
-                          {currentStudy ? (currentStudy.studyName && currentStudy.studyName !== currentStudy.teamName ? `${currentStudy.teamName} (${currentStudy.studyName})` : currentStudy.teamName) : selectedTeam}
-                        </h3>
-                        {isHost && (
-                          <span className="shrink-0 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
-                            HOST 담당 팀
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h3 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight leading-snug truncate">
+                      {currentStudy
+                        ? currentStudy.studyName && currentStudy.studyName !== currentStudy.teamName
+                          ? `${currentStudy.teamName} (${currentStudy.studyName})`
+                          : currentStudy.teamName
+                        : selectedTeam}
+                    </h3>
+                    {isHost && (
+                      <span className="shrink-0 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
+                        HOST 담당 팀
+                      </span>
+                    )}
+                  </div>
+                </div>
 
                 <div className="flex items-center gap-2">
                   {isFutureWeek ? (
@@ -1150,9 +1156,13 @@ export function InputPage({
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
                         <Check size={14} className="text-emerald-600 stroke-[2.5]" />
                         <span>제출 완료 (마감)</span>
-                        {(rec?.submittedAt || (weekNum === 1 ? "2026-08-04 21:15" : "2026-08-11 20:47")) && (
+                        {(rec?.submittedAt ||
+                          (weekNum === 1 ? '2026-08-04 21:15' : '2026-08-11 20:47')) && (
                           <span className="text-[11px] font-normal text-slate-400 font-mono">
-                            {(rec?.submittedAt || (weekNum === 1 ? "2026-08-04 21:15" : "2026-08-11 20:47")).slice(5, 16)}
+                            {(
+                              rec?.submittedAt ||
+                              (weekNum === 1 ? '2026-08-04 21:15' : '2026-08-11 20:47')
+                            ).slice(5, 16)}
                           </span>
                         )}
                       </div>
@@ -1203,7 +1213,7 @@ export function InputPage({
                       type="button"
                       onClick={() => setIsFullScreen(!isFullScreen)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer flex items-center gap-0.5 text-xs font-semibold"
-                      title={isFullScreen ? "분할 뷰로 축소" : "전체 화면으로 확장"}
+                      title={isFullScreen ? '분할 뷰로 축소' : '전체 화면으로 확장'}
                     >
                       {isFullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
                     </button>
@@ -1221,7 +1231,7 @@ export function InputPage({
                         photoDisplaySize
                           ? {
                               width: `${photoDisplaySize.width}px`,
-                              maxWidth: "100%",
+                              maxWidth: '100%',
                               aspectRatio: `${photoDisplaySize.aspectRatio}`,
                             }
                           : undefined
@@ -1248,7 +1258,7 @@ export function InputPage({
                           photoDisplaySize
                             ? {
                                 width: `${Math.max(photoDisplaySize.width, 360)}px`,
-                                maxWidth: "100%",
+                                maxWidth: '100%',
                               }
                             : undefined
                         }
@@ -1282,17 +1292,17 @@ export function InputPage({
                   <div
                     onClick={() => canEdit && fileInputRef.current?.click()}
                     className={`w-full max-w-[520px] h-44 sm:h-48 rounded-2xl border border-dashed flex flex-col items-center justify-center gap-3 transition-colors select-none border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50/60 ${
-                      canEdit ? "cursor-pointer" : "opacity-60 cursor-not-allowed"
+                      canEdit ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'
                     }`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <Camera size={26} strokeWidth={1.4} className="text-slate-400" />
                       <p className="text-xs sm:text-sm text-slate-600 font-medium">
                         {isFutureWeek
-                          ? "세션 오픈 후 활동 사진을 등록할 수 있습니다"
+                          ? '세션 오픈 후 활동 사진을 등록할 수 있습니다'
                           : isPastWeek
-                          ? "등록된 활동 사진이 없습니다 (마감)"
-                          : "활동 사진을 등록해 주세요"}
+                            ? '등록된 활동 사진이 없습니다 (마감)'
+                            : '활동 사진을 등록해 주세요'}
                       </p>
                     </div>
 
@@ -1318,9 +1328,7 @@ export function InputPage({
               {members.length === 0 ? (
                 <div className="py-10 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-2">
                   <Users size={28} className="mx-auto text-slate-300" />
-                  <p className="text-xs font-bold text-slate-700">
-                    아직 등록된 팀원이 없습니다
-                  </p>
+                  <p className="text-xs font-bold text-slate-700">아직 등록된 팀원이 없습니다</p>
                   <p className="text-[11px] text-slate-500">
                     팀 개설 시 등록된 팀원 명단이 표시됩니다.
                   </p>
@@ -1341,17 +1349,15 @@ export function InputPage({
                           >
                             <div className="h-9 flex items-center justify-center">이름</div>
                             <div
-                              onMouseDown={(e) =>
-                                handleResizeStart(e, "name", MIN_COL_WIDTHS.name)
-                              }
+                              onMouseDown={(e) => handleResizeStart(e, 'name', MIN_COL_WIDTHS.name)}
                               className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
                               title="열 너비 조절"
                             >
                               <div
                                 className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === "name"
-                                    ? "bg-slate-700 h-full"
-                                    : "h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5"
+                                  resizingColKey === 'name'
+                                    ? 'bg-slate-700 h-full'
+                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
                                 }`}
                               />
                             </div>
@@ -1364,17 +1370,15 @@ export function InputPage({
                           >
                             <div className="h-9 flex items-center justify-center">기수</div>
                             <div
-                              onMouseDown={(e) =>
-                                handleResizeStart(e, "year", MIN_COL_WIDTHS.year)
-                              }
+                              onMouseDown={(e) => handleResizeStart(e, 'year', MIN_COL_WIDTHS.year)}
                               className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
                               title="열 너비 조절"
                             >
                               <div
                                 className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === "year"
-                                    ? "bg-slate-700 h-full"
-                                    : "h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5"
+                                  resizingColKey === 'year'
+                                    ? 'bg-slate-700 h-full'
+                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
                                 }`}
                               />
                             </div>
@@ -1388,16 +1392,16 @@ export function InputPage({
                             <div className="h-9 flex items-center justify-center">부문</div>
                             <div
                               onMouseDown={(e) =>
-                                handleResizeStart(e, "track", MIN_COL_WIDTHS.track)
+                                handleResizeStart(e, 'track', MIN_COL_WIDTHS.track)
                               }
                               className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
                               title="열 너비 조절"
                             >
                               <div
                                 className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === "track"
-                                    ? "bg-slate-700 h-full"
-                                    : "h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5"
+                                  resizingColKey === 'track'
+                                    ? 'bg-slate-700 h-full'
+                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
                                 }`}
                               />
                             </div>
@@ -1414,16 +1418,16 @@ export function InputPage({
                             <div className="h-9 flex items-center justify-center">출결</div>
                             <div
                               onMouseDown={(e) =>
-                                handleResizeStart(e, "status", MIN_COL_WIDTHS.status)
+                                handleResizeStart(e, 'status', MIN_COL_WIDTHS.status)
                               }
                               className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
                               title="열 너비 조절"
                             >
                               <div
                                 className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === "status"
-                                    ? "bg-slate-700 h-full"
-                                    : "h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5"
+                                  resizingColKey === 'status'
+                                    ? 'bg-slate-700 h-full'
+                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
                                 }`}
                               />
                             </div>
@@ -1439,17 +1443,15 @@ export function InputPage({
                           >
                             <div className="h-9 flex items-center justify-center">비고</div>
                             <div
-                              onMouseDown={(e) =>
-                                handleResizeStart(e, "memo", MIN_COL_WIDTHS.memo)
-                              }
+                              onMouseDown={(e) => handleResizeStart(e, 'memo', MIN_COL_WIDTHS.memo)}
                               className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
                               title="열 너비 조절"
                             >
                               <div
                                 className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === "memo"
-                                    ? "bg-slate-700 h-full"
-                                    : "h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5"
+                                  resizingColKey === 'memo'
+                                    ? 'bg-slate-700 h-full'
+                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
                                 }`}
                               />
                             </div>
@@ -1483,12 +1485,12 @@ export function InputPage({
 
                               {/* 기수 */}
                               <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs whitespace-nowrap">
-                                {m.year ? `${m.year}기` : "—"}
+                                {m.year ? `${m.year}기` : '—'}
                               </td>
 
                               {/* 부문 */}
                               <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans whitespace-nowrap">
-                                {m.track || "분석"}
+                                {m.track || '분석'}
                               </td>
 
                               {/* 출결 */}
@@ -1526,7 +1528,9 @@ export function InputPage({
                                     value={currentMemo}
                                     onChange={(e) => setMemo(m.id, e.target.value)}
                                     disabled={!canEdit}
-                                    placeholder={isFutureWeek ? "미오픈" : isPastWeek ? "마감" : "—"}
+                                    placeholder={
+                                      isFutureWeek ? '미오픈' : isPastWeek ? '마감' : '—'
+                                    }
                                     className="w-full h-8 text-center px-3 text-xs font-sans text-slate-700 placeholder:text-slate-300 placeholder:font-mono rounded-lg bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-800 focus:ring-2 focus:ring-slate-100 outline-none transition-all shadow-2xs disabled:bg-slate-50 disabled:text-slate-400"
                                   />
                                 </div>
@@ -1622,15 +1626,15 @@ export function InputPage({
               <div>
                 <label className="text-muted-foreground block mb-1">변경 희망 상태</label>
                 <div className="flex gap-2">
-                  {(["present", "late", "absent"] as AttendanceStatus[]).map((s) => (
+                  {(['present', 'late', 'absent'] as AttendanceStatus[]).map((s) => (
                     <button
                       key={s}
                       onClick={() => setReqToStatus(s)}
                       className="flex-1 py-1.5 text-xs font-medium rounded transition-all cursor-pointer"
                       style={
                         reqToStatus === s
-                          ? { background: STATUS_CFG[s].color, color: "#000", fontWeight: "bold" }
-                          : { background: "#f1f5f9", color: "#64748b" }
+                          ? { background: STATUS_CFG[s].color, color: '#000', fontWeight: 'bold' }
+                          : { background: '#f1f5f9', color: '#64748b' }
                       }
                     >
                       {STATUS_CFG[s].label}
@@ -1668,7 +1672,7 @@ export function InputPage({
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900">
-                {isAdv ? "ADV 팀 개설" : "스터디 팀 개설"}
+                {isAdv ? 'ADV 팀 개설' : '스터디 팀 개설'}
               </h3>
               <button
                 type="button"
@@ -1687,15 +1691,15 @@ export function InputPage({
                   부문 <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(["분석", "시각화", "엔지니어링"] as const).map((track) => (
+                  {(['분석', '시각화', '엔지니어링'] as const).map((track) => (
                     <button
                       key={track}
                       type="button"
                       onClick={() => setNewTeamTrack(track)}
                       className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                         newTeamTrack === track
-                          ? "bg-slate-900 border-slate-900 text-white shadow-xs"
-                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                          ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                       }`}
                     >
                       {track}
@@ -1713,14 +1717,12 @@ export function InputPage({
                   <input
                     value={newTeamName}
                     onChange={(e) => setNewTeamName(e.target.value)}
-                    placeholder={isAdv ? "예: 분석 1팀" : "예: 데이터 분석 스터디"}
+                    placeholder={isAdv ? '예: 분석 1팀' : '예: 데이터 분석 스터디'}
                     className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-slate-400 transition-colors font-medium"
                   />
                 </div>
                 <div>
-                  <label className="text-slate-700 block mb-1.5 font-semibold">
-                    팀장 이름
-                  </label>
+                  <label className="text-slate-700 block mb-1.5 font-semibold">팀장 이름</label>
                   <input
                     value={newTeamLeader}
                     onChange={(e) => setNewTeamLeader(e.target.value)}

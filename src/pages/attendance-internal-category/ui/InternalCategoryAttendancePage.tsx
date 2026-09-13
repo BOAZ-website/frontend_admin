@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   Calendar,
@@ -21,25 +21,25 @@ import {
   UserCheck,
   Users,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { sessionKey } from "@/entities/attendance/model/lib";
-import type { AttendanceState } from "@/entities/attendance/model/types";
-import type { ScoreRule } from "@/entities/score-rule/model/types";
+import { sessionKey } from '@/entities/attendance/model/lib';
+import type { AttendanceState } from '@/entities/attendance/model/types';
+import type { ScoreRule } from '@/entities/score-rule/model/types';
 
-export type InternalCategory = "SESSION" | "STUDY" | "ADV";
-export type EventStatus = "UPCOMING" | "IN_PROGRESS" | "FINISHED";
-export type CheckinMethod = "QR_CODE" | "CODE" | "MANUAL";
+export type InternalCategory = 'SESSION' | 'STUDY' | 'ADV';
+export type EventStatus = 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED';
+export type CheckinMethod = 'QR_CODE' | 'CODE' | 'MANUAL';
 export type AttendStatus =
-  | "present"
-  | "late"
-  | "earlyLeave"
-  | "absent"
-  | "excusedAbsent"
-  | "remote"
-  | "unexcusedLate"
-  | "unexcusedAbsent"
-  | "unmarked";
+  | 'present'
+  | 'late'
+  | 'earlyLeave'
+  | 'absent'
+  | 'excusedAbsent'
+  | 'remote'
+  | 'unexcusedLate'
+  | 'unexcusedAbsent'
+  | 'unmarked';
 
 export interface TeamMeta {
   id: string;
@@ -47,7 +47,7 @@ export interface TeamMeta {
   leader: string;
   description: string;
   memberCount: number;
-  track?: "분석" | "시각화" | "엔지니어링" | string;
+  track?: '분석' | '시각화' | '엔지니어링' | string;
 }
 
 export interface InternalEvent {
@@ -99,1096 +99,1094 @@ const CATEGORY_CONFIG: Record<
   }
 > = {
   SESSION: {
-    title: "BASE Term 출결 관리",
-    subTitle: "분석, 시각화, 엔지니어링 3개 트랙별 BASE 출석 현황을 실시간으로 관리합니다.",
+    title: 'BASE Term 출결 관리',
+    subTitle: '분석, 시각화, 엔지니어링 3개 트랙별 BASE 출석 현황을 실시간으로 관리합니다.',
     icon: Calendar,
-    themeColor: "#0f172a",
-    badgeBg: "#f8fafc",
-    badgeBorder: "#e2e8f0",
-    teamLabel: "트랙",
+    themeColor: '#0f172a',
+    badgeBg: '#f8fafc',
+    badgeBorder: '#e2e8f0',
+    teamLabel: '트랙',
     teams: [
       {
-        id: "base_analysis",
-        name: "분석",
-        leader: "김서하",
-        description: "데이터 분석 & 머신러닝",
+        id: 'base_analysis',
+        name: '분석',
+        leader: '김서하',
+        description: '데이터 분석 & 머신러닝',
         memberCount: 6,
       },
       {
-        id: "base_vis",
-        name: "시각화",
-        leader: "최민혁",
-        description: "데이터 시각화 & 대시보드",
+        id: 'base_vis',
+        name: '시각화',
+        leader: '최민혁',
+        description: '데이터 시각화 & 대시보드',
         memberCount: 5,
       },
       {
-        id: "base_eng",
-        name: "엔지니어링",
-        leader: "강태양",
-        description: "데이터 엔지니어링 & MLOps",
+        id: 'base_eng',
+        name: '엔지니어링',
+        leader: '강태양',
+        description: '데이터 엔지니어링 & MLOps',
         memberCount: 5,
       },
     ],
     initialEvents: [
       {
-        id: "evt_sess_03",
-        category: "SESSION",
-        title: "제28기 3주차 BASE 세션",
-        status: "IN_PROGRESS",
-        date: "2026-08-15",
-        startTime: "14:00",
-        endTime: "18:00",
-        location: "연세대학교 백양관 101호",
-        description: "28기 BASE 전체 출결 및 트랙별 과제 발표",
-        checkinMethod: "CODE",
-        checkinCode: "9055",
-        createdAt: "2026-08-15",
+        id: 'evt_sess_03',
+        category: 'SESSION',
+        title: '제28기 3주차 BASE 세션',
+        status: 'IN_PROGRESS',
+        date: '2026-08-15',
+        startTime: '14:00',
+        endTime: '18:00',
+        location: '연세대학교 백양관 101호',
+        description: '28기 BASE 전체 출결 및 트랙별 과제 발표',
+        checkinMethod: 'CODE',
+        checkinCode: '9055',
+        createdAt: '2026-08-15',
       },
       {
-        id: "evt_sess_02",
-        category: "SESSION",
-        title: "제28기 2주차 BASE 세션",
-        status: "FINISHED",
-        date: "2026-08-08",
-        startTime: "14:00",
-        endTime: "18:00",
-        location: "연세대학교 백양관 101호",
-        description: "트랙별 기초 과제 발표 및 피드백 세션",
-        checkinMethod: "CODE",
-        checkinCode: "4312",
-        createdAt: "2026-08-08",
+        id: 'evt_sess_02',
+        category: 'SESSION',
+        title: '제28기 2주차 BASE 세션',
+        status: 'FINISHED',
+        date: '2026-08-08',
+        startTime: '14:00',
+        endTime: '18:00',
+        location: '연세대학교 백양관 101호',
+        description: '트랙별 기초 과제 발표 및 피드백 세션',
+        checkinMethod: 'CODE',
+        checkinCode: '4312',
+        createdAt: '2026-08-08',
       },
       {
-        id: "evt_sess_01",
-        category: "SESSION",
-        title: "제28기 1주차 BASE 세션 (OT & 킥오프)",
-        status: "FINISHED",
-        date: "2026-08-01",
-        startTime: "13:00",
-        endTime: "17:00",
-        location: "서울대학교 글로벌공학관",
-        description: "신입 기수 오리엔테이션 및 활동 로드맵 안내",
-        checkinMethod: "QR_CODE",
-        checkinCode: "1024",
-        createdAt: "2026-08-01",
+        id: 'evt_sess_01',
+        category: 'SESSION',
+        title: '제28기 1주차 BASE 세션 (OT & 킥오프)',
+        status: 'FINISHED',
+        date: '2026-08-01',
+        startTime: '13:00',
+        endTime: '17:00',
+        location: '서울대학교 글로벌공학관',
+        description: '신입 기수 오리엔테이션 및 활동 로드맵 안내',
+        checkinMethod: 'QR_CODE',
+        checkinCode: '1024',
+        createdAt: '2026-08-01',
       },
     ],
     initialAttendees: [
       {
-        id: "att_s_1",
-        eventId: "evt_sess_03",
-        teamId: "base_analysis",
-        teamName: "분석",
-        name: "김서하",
+        id: 'att_s_1',
+        eventId: 'evt_sess_03',
+        teamId: 'base_analysis',
+        teamName: '분석',
+        name: '김서하',
         term: 28,
-        track: "분석",
-        status: "present",
-        checkedInAt: "13:50",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '13:50',
       },
       {
-        id: "att_s_2",
-        eventId: "evt_sess_03",
-        teamId: "base_analysis",
-        teamName: "분석",
-        name: "정채원",
+        id: 'att_s_2',
+        eventId: 'evt_sess_03',
+        teamId: 'base_analysis',
+        teamName: '분석',
+        name: '정채원',
         term: 28,
-        track: "분석",
-        status: "present",
-        checkedInAt: "13:54",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '13:54',
       },
       {
-        id: "att_s_3",
-        eventId: "evt_sess_03",
-        teamId: "base_analysis",
-        teamName: "분석",
-        name: "박지훈",
+        id: 'att_s_3',
+        eventId: 'evt_sess_03',
+        teamId: 'base_analysis',
+        teamName: '분석',
+        name: '박지훈',
         term: 28,
-        track: "분석",
-        status: "present",
-        checkedInAt: "13:58",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '13:58',
       },
       {
-        id: "att_s_4",
-        eventId: "evt_sess_03",
-        teamId: "base_analysis",
-        teamName: "분석",
-        name: "이민준",
+        id: 'att_s_4',
+        eventId: 'evt_sess_03',
+        teamId: 'base_analysis',
+        teamName: '분석',
+        name: '이민준',
         term: 28,
-        track: "분석",
-        status: "present",
-        checkedInAt: "13:48",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '13:48',
       },
       {
-        id: "att_s_5",
-        eventId: "evt_sess_03",
-        teamId: "base_analysis",
-        teamName: "분석",
-        name: "고준서",
+        id: 'att_s_5',
+        eventId: 'evt_sess_03',
+        teamId: 'base_analysis',
+        teamName: '분석',
+        name: '고준서',
         term: 27,
-        track: "분석",
-        status: "present",
-        checkedInAt: "13:52",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '13:52',
       },
       {
-        id: "att_s_6",
-        eventId: "evt_sess_03",
-        teamId: "base_analysis",
-        teamName: "분석",
-        name: "오승현",
+        id: 'att_s_6',
+        eventId: 'evt_sess_03',
+        teamId: 'base_analysis',
+        teamName: '분석',
+        name: '오승현',
         term: 28,
-        track: "분석",
-        status: "absent",
-        checkedInAt: "-",
-        memo: "사전 공결 신청 승인",
+        track: '분석',
+        status: 'absent',
+        checkedInAt: '-',
+        memo: '사전 공결 신청 승인',
       },
 
       {
-        id: "att_s_7",
-        eventId: "evt_sess_03",
-        teamId: "base_vis",
-        teamName: "시각화",
-        name: "최민혁",
+        id: 'att_s_7',
+        eventId: 'evt_sess_03',
+        teamId: 'base_vis',
+        teamName: '시각화',
+        name: '최민혁',
         term: 28,
-        track: "시각화",
-        status: "present",
-        checkedInAt: "13:47",
+        track: '시각화',
+        status: 'present',
+        checkedInAt: '13:47',
       },
       {
-        id: "att_s_8",
-        eventId: "evt_sess_03",
-        teamId: "base_vis",
-        teamName: "시각화",
-        name: "한예린",
+        id: 'att_s_8',
+        eventId: 'evt_sess_03',
+        teamId: 'base_vis',
+        teamName: '시각화',
+        name: '한예린',
         term: 28,
-        track: "시각화",
-        status: "present",
-        checkedInAt: "13:51",
+        track: '시각화',
+        status: 'present',
+        checkedInAt: '13:51',
       },
       {
-        id: "att_s_9",
-        eventId: "evt_sess_03",
-        teamId: "base_vis",
-        teamName: "시각화",
-        name: "윤재혁",
+        id: 'att_s_9',
+        eventId: 'evt_sess_03',
+        teamId: 'base_vis',
+        teamName: '시각화',
+        name: '윤재혁',
         term: 28,
-        track: "시각화",
-        status: "present",
-        checkedInAt: "13:53",
+        track: '시각화',
+        status: 'present',
+        checkedInAt: '13:53',
       },
       {
-        id: "att_s_10",
-        eventId: "evt_sess_03",
-        teamId: "base_vis",
-        teamName: "시각화",
-        name: "문지훈",
+        id: 'att_s_10',
+        eventId: 'evt_sess_03',
+        teamId: 'base_vis',
+        teamName: '시각화',
+        name: '문지훈',
         term: 27,
-        track: "시각화",
-        status: "present",
-        checkedInAt: "13:56",
+        track: '시각화',
+        status: 'present',
+        checkedInAt: '13:56',
       },
       {
-        id: "att_s_11",
-        eventId: "evt_sess_03",
-        teamId: "base_vis",
-        teamName: "시각화",
-        name: "장나연",
+        id: 'att_s_11',
+        eventId: 'evt_sess_03',
+        teamId: 'base_vis',
+        teamName: '시각화',
+        name: '장나연',
         term: 28,
-        track: "시각화",
-        status: "late",
-        checkedInAt: "14:10",
-        memo: "10분 지각",
+        track: '시각화',
+        status: 'late',
+        checkedInAt: '14:10',
+        memo: '10분 지각',
       },
 
       {
-        id: "att_s_12",
-        eventId: "evt_sess_03",
-        teamId: "base_eng",
-        teamName: "엔지니어링",
-        name: "강태양",
+        id: 'att_s_12',
+        eventId: 'evt_sess_03',
+        teamId: 'base_eng',
+        teamName: '엔지니어링',
+        name: '강태양',
         term: 28,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:42",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '13:42',
       },
       {
-        id: "att_s_13",
-        eventId: "evt_sess_03",
-        teamId: "base_eng",
-        teamName: "엔지니어링",
-        name: "이도현",
+        id: 'att_s_13',
+        eventId: 'evt_sess_03',
+        teamId: 'base_eng',
+        teamName: '엔지니어링',
+        name: '이도현',
         term: 28,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:45",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '13:45',
       },
       {
-        id: "att_s_14",
-        eventId: "evt_sess_03",
-        teamId: "base_eng",
-        teamName: "엔지니어링",
-        name: "임수진",
+        id: 'att_s_14',
+        eventId: 'evt_sess_03',
+        teamId: 'base_eng',
+        teamName: '엔지니어링',
+        name: '임수진',
         term: 28,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:56",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '13:56',
       },
       {
-        id: "att_s_15",
-        eventId: "evt_sess_03",
-        teamId: "base_eng",
-        teamName: "엔지니어링",
-        name: "백민혁",
+        id: 'att_s_15',
+        eventId: 'evt_sess_03',
+        teamId: 'base_eng',
+        teamName: '엔지니어링',
+        name: '백민혁',
         term: 28,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:59",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '13:59',
       },
       {
-        id: "att_s_16",
-        eventId: "evt_sess_03",
-        teamId: "base_eng",
-        teamName: "엔지니어링",
-        name: "남소희",
+        id: 'att_s_16',
+        eventId: 'evt_sess_03',
+        teamId: 'base_eng',
+        teamName: '엔지니어링',
+        name: '남소희',
         term: 27,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "13:40",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '13:40',
       },
     ],
   },
   STUDY: {
-    title: "스터디 출결 관리",
-    subTitle: "A~D팀 정규/방학 스터디별 주차별 출석 및 인증 내역을 관리합니다.",
+    title: '스터디 출결 관리',
+    subTitle: 'A~D팀 정규/방학 스터디별 주차별 출석 및 인증 내역을 관리합니다.',
     icon: BookOpen,
-    themeColor: "#0f172a",
-    badgeBg: "#f8fafc",
-    badgeBorder: "#e2e8f0",
-    teamLabel: "스터디 팀",
+    themeColor: '#0f172a',
+    badgeBg: '#f8fafc',
+    badgeBorder: '#e2e8f0',
+    teamLabel: '스터디 팀',
     teams: [
       {
-        id: "study_a",
-        name: "A팀 (머신러닝 & 딥러닝 실전)",
-        leader: "이민준",
-        description: "논문 리뷰 및 캐글 경진대회 베이스라인 구축",
+        id: 'study_a',
+        name: 'A팀 (머신러닝 & 딥러닝 실전)',
+        leader: '이민준',
+        description: '논문 리뷰 및 캐글 경진대회 베이스라인 구축',
         memberCount: 4,
       },
       {
-        id: "study_b",
-        name: "B팀 (대용량 분산 데이터 파이프라인)",
-        leader: "강태양",
-        description: "Kafka & Spark 기반 실시간 ETL 파이프라인",
+        id: 'study_b',
+        name: 'B팀 (대용량 분산 데이터 파이프라인)',
+        leader: '강태양',
+        description: 'Kafka & Spark 기반 실시간 ETL 파이프라인',
         memberCount: 4,
       },
       {
-        id: "study_c",
-        name: "C팀 (Tableau & D3.js 대시보드)",
-        leader: "문지훈",
-        description: "인터랙티브 웹 데이터 시각화 & 대시보드",
+        id: 'study_c',
+        name: 'C팀 (Tableau & D3.js 대시보드)',
+        leader: '문지훈',
+        description: '인터랙티브 웹 데이터 시각화 & 대시보드',
         memberCount: 4,
       },
       {
-        id: "study_d",
-        name: "D팀 (LLM Agent & RAG 시스템)",
-        leader: "고준서",
-        description: "LangChain & LlamaIndex 기반 프로덕션 RAG",
+        id: 'study_d',
+        name: 'D팀 (LLM Agent & RAG 시스템)',
+        leader: '고준서',
+        description: 'LangChain & LlamaIndex 기반 프로덕션 RAG',
         memberCount: 4,
       },
     ],
     initialEvents: [
       {
-        id: "evt_std_03",
-        category: "STUDY",
-        title: "2026 하계 스터디 3주차 통합 세션",
-        status: "IN_PROGRESS",
-        date: "2026-08-18",
-        startTime: "19:00",
-        endTime: "22:00",
-        location: "강남 드림플러스 & 온라인 Zoom",
-        description: "각 스터디 팀별 3주차 발표 및 실습 결과 공유",
-        checkinMethod: "CODE",
-        checkinCode: "3319",
-        imageUrl:
-          "/sample-study-photo.jpg?v=2",
-        createdAt: "2026-08-18",
+        id: 'evt_std_03',
+        category: 'STUDY',
+        title: '2026 하계 스터디 3주차 통합 세션',
+        status: 'IN_PROGRESS',
+        date: '2026-08-18',
+        startTime: '19:00',
+        endTime: '22:00',
+        location: '강남 드림플러스 & 온라인 Zoom',
+        description: '각 스터디 팀별 3주차 발표 및 실습 결과 공유',
+        checkinMethod: 'CODE',
+        checkinCode: '3319',
+        imageUrl: '/sample-study-photo.jpg?v=2',
+        createdAt: '2026-08-18',
       },
       {
-        id: "evt_std_02",
-        category: "STUDY",
-        title: "2026 하계 스터디 2주차 통합 세션",
-        status: "FINISHED",
-        date: "2026-08-11",
-        startTime: "19:00",
-        endTime: "22:00",
-        location: "강남 드림플러스 & 온라인 Zoom",
-        description: "각 스터디 팀별 2주차 진도 발표 및 코드 리뷰",
-        checkinMethod: "CODE",
-        checkinCode: "2201",
-        createdAt: "2026-08-11",
+        id: 'evt_std_02',
+        category: 'STUDY',
+        title: '2026 하계 스터디 2주차 통합 세션',
+        status: 'FINISHED',
+        date: '2026-08-11',
+        startTime: '19:00',
+        endTime: '22:00',
+        location: '강남 드림플러스 & 온라인 Zoom',
+        description: '각 스터디 팀별 2주차 진도 발표 및 코드 리뷰',
+        checkinMethod: 'CODE',
+        checkinCode: '2201',
+        createdAt: '2026-08-11',
       },
       {
-        id: "evt_std_01",
-        category: "STUDY",
-        title: "2026 하계 스터디 1주차 통합 킥오프",
-        status: "FINISHED",
-        date: "2026-08-04",
-        startTime: "19:00",
-        endTime: "21:30",
-        location: "강남 드림플러스",
-        description: "스터디 커리큘럼 확정 및 1회차 리딩 발표",
-        checkinMethod: "CODE",
-        checkinCode: "1190",
-        createdAt: "2026-08-04",
+        id: 'evt_std_01',
+        category: 'STUDY',
+        title: '2026 하계 스터디 1주차 통합 킥오프',
+        status: 'FINISHED',
+        date: '2026-08-04',
+        startTime: '19:00',
+        endTime: '21:30',
+        location: '강남 드림플러스',
+        description: '스터디 커리큘럼 확정 및 1회차 리딩 발표',
+        checkinMethod: 'CODE',
+        checkinCode: '1190',
+        createdAt: '2026-08-04',
       },
       {
-        id: "evt_std_04",
-        category: "STUDY",
-        title: "2026 하계 스터디 4주차 통합 세션",
-        status: "UPCOMING",
-        date: "2026-08-25",
-        startTime: "19:00",
-        endTime: "22:00",
-        location: "강남 드림플러스 & 온라인 Zoom",
-        description: "스터디 최종 산출물 정리 및 발표",
-        checkinMethod: "CODE",
-        checkinCode: "4412",
-        createdAt: "2026-08-19",
+        id: 'evt_std_04',
+        category: 'STUDY',
+        title: '2026 하계 스터디 4주차 통합 세션',
+        status: 'UPCOMING',
+        date: '2026-08-25',
+        startTime: '19:00',
+        endTime: '22:00',
+        location: '강남 드림플러스 & 온라인 Zoom',
+        description: '스터디 최종 산출물 정리 및 발표',
+        checkinMethod: 'CODE',
+        checkinCode: '4412',
+        createdAt: '2026-08-19',
       },
     ],
     initialAttendees: [
       {
-        id: "att_st_a1",
-        eventId: "evt_std_03",
-        teamId: "study_a",
-        teamName: "A팀 (머신러닝 & 딥러닝 실전)",
-        name: "이민준",
+        id: 'att_st_a1',
+        eventId: 'evt_std_03',
+        teamId: 'study_a',
+        teamName: 'A팀 (머신러닝 & 딥러닝 실전)',
+        name: '이민준',
         term: 28,
-        track: "분석",
-        status: "present",
-        checkedInAt: "18:50",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '18:50',
       },
       {
-        id: "att_st_a2",
-        eventId: "evt_std_03",
-        teamId: "study_a",
-        teamName: "A팀 (머신러닝 & 딥러닝 실전)",
-        name: "김서하",
+        id: 'att_st_a2',
+        eventId: 'evt_std_03',
+        teamId: 'study_a',
+        teamName: 'A팀 (머신러닝 & 딥러닝 실전)',
+        name: '김서하',
         term: 28,
-        track: "분석",
-        status: "present",
-        checkedInAt: "18:55",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '18:55',
       },
       {
-        id: "att_st_a3",
-        eventId: "evt_std_03",
-        teamId: "study_a",
-        teamName: "A팀 (머신러닝 & 딥러닝 실전)",
-        name: "정채원",
+        id: 'att_st_a3',
+        eventId: 'evt_std_03',
+        teamId: 'study_a',
+        teamName: 'A팀 (머신러닝 & 딥러닝 실전)',
+        name: '정채원',
         term: 28,
-        track: "분석",
-        status: "present",
-        checkedInAt: "18:58",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '18:58',
       },
       {
-        id: "att_st_a4",
-        eventId: "evt_std_03",
-        teamId: "study_a",
-        teamName: "A팀 (머신러닝 & 딥러닝 실전)",
-        name: "오승현",
+        id: 'att_st_a4',
+        eventId: 'evt_std_03',
+        teamId: 'study_a',
+        teamName: 'A팀 (머신러닝 & 딥러닝 실전)',
+        name: '오승현',
         term: 28,
-        track: "분석",
-        status: "absent",
-        checkedInAt: "-",
-        memo: "개인 일정 불참",
+        track: '분석',
+        status: 'absent',
+        checkedInAt: '-',
+        memo: '개인 일정 불참',
       },
 
       {
-        id: "att_st_b1",
-        eventId: "evt_std_03",
-        teamId: "study_b",
-        teamName: "B팀 (대용량 분산 데이터 파이프라인)",
-        name: "강태양",
+        id: 'att_st_b1',
+        eventId: 'evt_std_03',
+        teamId: 'study_b',
+        teamName: 'B팀 (대용량 분산 데이터 파이프라인)',
+        name: '강태양',
         term: 28,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "18:45",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '18:45',
       },
       {
-        id: "att_st_b2",
-        eventId: "evt_std_03",
-        teamId: "study_b",
-        teamName: "B팀 (대용량 분산 데이터 파이프라인)",
-        name: "이도현",
+        id: 'att_st_b2',
+        eventId: 'evt_std_03',
+        teamId: 'study_b',
+        teamName: 'B팀 (대용량 분산 데이터 파이프라인)',
+        name: '이도현',
         term: 28,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "18:48",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '18:48',
       },
       {
-        id: "att_st_b3",
-        eventId: "evt_std_03",
-        teamId: "study_b",
-        teamName: "B팀 (대용량 분산 데이터 파이프라인)",
-        name: "임수진",
+        id: 'att_st_b3',
+        eventId: 'evt_std_03',
+        teamId: 'study_b',
+        teamName: 'B팀 (대용량 분산 데이터 파이프라인)',
+        name: '임수진',
         term: 28,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "18:52",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '18:52',
       },
       {
-        id: "att_st_b4",
-        eventId: "evt_std_03",
-        teamId: "study_b",
-        teamName: "B팀 (대용량 분산 데이터 파이프라인)",
-        name: "백민혁",
+        id: 'att_st_b4',
+        eventId: 'evt_std_03',
+        teamId: 'study_b',
+        teamName: 'B팀 (대용량 분산 데이터 파이프라인)',
+        name: '백민혁',
         term: 28,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "18:59",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '18:59',
       },
 
       {
-        id: "att_st_c1",
-        eventId: "evt_std_03",
-        teamId: "study_c",
-        teamName: "C팀 (Tableau & D3.js 대시보드)",
-        name: "문지훈",
+        id: 'att_st_c1',
+        eventId: 'evt_std_03',
+        teamId: 'study_c',
+        teamName: 'C팀 (Tableau & D3.js 대시보드)',
+        name: '문지훈',
         term: 27,
-        track: "시각화",
-        status: "present",
-        checkedInAt: "18:50",
+        track: '시각화',
+        status: 'present',
+        checkedInAt: '18:50',
       },
       {
-        id: "att_st_c2",
-        eventId: "evt_std_03",
-        teamId: "study_c",
-        teamName: "C팀 (Tableau & D3.js 대시보드)",
-        name: "최민혁",
+        id: 'att_st_c2',
+        eventId: 'evt_std_03',
+        teamId: 'study_c',
+        teamName: 'C팀 (Tableau & D3.js 대시보드)',
+        name: '최민혁',
         term: 28,
-        track: "시각화",
-        status: "present",
-        checkedInAt: "18:53",
+        track: '시각화',
+        status: 'present',
+        checkedInAt: '18:53',
       },
       {
-        id: "att_st_c3",
-        eventId: "evt_std_03",
-        teamId: "study_c",
-        teamName: "C팀 (Tableau & D3.js 대시보드)",
-        name: "한예린",
+        id: 'att_st_c3',
+        eventId: 'evt_std_03',
+        teamId: 'study_c',
+        teamName: 'C팀 (Tableau & D3.js 대시보드)',
+        name: '한예린',
         term: 28,
-        track: "시각화",
-        status: "present",
-        checkedInAt: "18:56",
+        track: '시각화',
+        status: 'present',
+        checkedInAt: '18:56',
       },
       {
-        id: "att_st_c4",
-        eventId: "evt_std_03",
-        teamId: "study_c",
-        teamName: "C팀 (Tableau & D3.js 대시보드)",
-        name: "윤재혁",
+        id: 'att_st_c4',
+        eventId: 'evt_std_03',
+        teamId: 'study_c',
+        teamName: 'C팀 (Tableau & D3.js 대시보드)',
+        name: '윤재혁',
         term: 28,
-        track: "시각화",
-        status: "absent",
-        checkedInAt: "-",
-        memo: "교통 지연 결석",
+        track: '시각화',
+        status: 'absent',
+        checkedInAt: '-',
+        memo: '교통 지연 결석',
       },
 
       {
-        id: "att_st_d1",
-        eventId: "evt_std_03",
-        teamId: "study_d",
-        teamName: "D팀 (LLM Agent & RAG 시스템)",
-        name: "고준서",
+        id: 'att_st_d1',
+        eventId: 'evt_std_03',
+        teamId: 'study_d',
+        teamName: 'D팀 (LLM Agent & RAG 시스템)',
+        name: '고준서',
         term: 27,
-        track: "분석",
-        status: "present",
-        checkedInAt: "18:40",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '18:40',
       },
       {
-        id: "att_st_d2",
-        eventId: "evt_std_03",
-        teamId: "study_d",
-        teamName: "D팀 (LLM Agent & RAG 시스템)",
-        name: "남소희",
+        id: 'att_st_d2',
+        eventId: 'evt_std_03',
+        teamId: 'study_d',
+        teamName: 'D팀 (LLM Agent & RAG 시스템)',
+        name: '남소희',
         term: 27,
-        track: "엔지니어링",
-        status: "present",
-        checkedInAt: "18:46",
+        track: '엔지니어링',
+        status: 'present',
+        checkedInAt: '18:46',
       },
       {
-        id: "att_st_d3",
-        eventId: "evt_std_03",
-        teamId: "study_d",
-        teamName: "D팀 (LLM Agent & RAG 시스템)",
-        name: "박지훈",
+        id: 'att_st_d3',
+        eventId: 'evt_std_03',
+        teamId: 'study_d',
+        teamName: 'D팀 (LLM Agent & RAG 시스템)',
+        name: '박지훈',
         term: 28,
-        track: "분석",
-        status: "present",
-        checkedInAt: "18:51",
+        track: '분석',
+        status: 'present',
+        checkedInAt: '18:51',
       },
       {
-        id: "att_st_d4",
-        eventId: "evt_std_03",
-        teamId: "study_d",
-        teamName: "D팀 (LLM Agent & RAG 시스템)",
-        name: "장나연",
+        id: 'att_st_d4',
+        eventId: 'evt_std_03',
+        teamId: 'study_d',
+        teamName: 'D팀 (LLM Agent & RAG 시스템)',
+        name: '장나연',
         term: 28,
-        track: "시각화",
-        status: "present",
-        checkedInAt: "18:54",
+        track: '시각화',
+        status: 'present',
+        checkedInAt: '18:54',
       },
     ],
   },
   ADV: {
-    title: "ADV Term 출결 관리",
-    subTitle: "산학 연계 및 실무 프로젝트 어드브 팀별 마일스톤 및 멘토링 출결을 관리합니다.",
+    title: 'ADV Term 출결 관리',
+    subTitle: '산학 연계 및 실무 프로젝트 어드브 팀별 마일스톤 및 멘토링 출결을 관리합니다.',
     icon: Rocket,
-    themeColor: "#0f172a",
-    badgeBg: "#f8fafc",
-    badgeBorder: "#e2e8f0",
-    teamLabel: "프로젝트 팀",
+    themeColor: '#0f172a',
+    badgeBg: '#f8fafc',
+    badgeBorder: '#e2e8f0',
+    teamLabel: '프로젝트 팀',
     teams: [
       {
-        id: "adv_t1",
-        track: "분석",
-        name: "1팀 (LLM Agentic 워크플로우)",
-        leader: "고준서",
-        description: "LangGraph 기반 다중 에이전트 협업 시스템 구축",
+        id: 'adv_t1',
+        track: '분석',
+        name: '1팀 (LLM Agentic 워크플로우)',
+        leader: '고준서',
+        description: 'LangGraph 기반 다중 에이전트 협업 시스템 구축',
         memberCount: 4,
       },
       {
-        id: "adv_t2",
-        track: "분석",
-        name: "2팀 (시계열 예측 솔루션)",
-        leader: "김서하",
-        description: "금융 및 이상탐지 시계열 파운데이션 모델링",
+        id: 'adv_t2',
+        track: '분석',
+        name: '2팀 (시계열 예측 솔루션)',
+        leader: '김서하',
+        description: '금융 및 이상탐지 시계열 파운데이션 모델링',
         memberCount: 4,
       },
       {
-        id: "adv_t3",
-        track: "분석",
-        name: "3팀 (금융 FDS 이상거래 탐지 AI)",
-        leader: "박성준",
-        description: "그래프 신경망 기반 금융 사기 및 이상 거래 실시간 탐지",
-        memberCount: 4,
-      },
-
-      {
-        id: "adv_t4",
-        track: "시각화",
-        name: "1팀 (인터랙티브 웹 시각화 대시보드)",
-        leader: "최민혁",
-        description: "Next.js & D3.js 기반 엔터프라이즈 데이터 시각화",
-        memberCount: 4,
-      },
-      {
-        id: "adv_t5",
-        track: "시각화",
-        name: "2팀 (지리공간 맵핑 & 인포그래픽)",
-        leader: "문지훈",
-        description: "Mapbox & Deck.gl 기반 공간 데이터 시각화",
-        memberCount: 4,
-      },
-      {
-        id: "adv_t6",
-        track: "시각화",
-        name: "3팀 (3D 바이오 메디컬 시각화)",
-        leader: "한예린",
-        description: "Three.js 기반 인체 장기 3D 렌더링 및 헬스케어 차트",
+        id: 'adv_t3',
+        track: '분석',
+        name: '3팀 (금융 FDS 이상거래 탐지 AI)',
+        leader: '박성준',
+        description: '그래프 신경망 기반 금융 사기 및 이상 거래 실시간 탐지',
         memberCount: 4,
       },
 
       {
-        id: "adv_t7",
-        track: "엔지니어링",
-        name: "1팀 (실시간 분산 스트리밍 추천)",
-        leader: "강태양",
-        description: "Kafka & Redis 기반 초개인화 실시간 추천 엔진",
+        id: 'adv_t4',
+        track: '시각화',
+        name: '1팀 (인터랙티브 웹 시각화 대시보드)',
+        leader: '최민혁',
+        description: 'Next.js & D3.js 기반 엔터프라이즈 데이터 시각화',
         memberCount: 4,
       },
       {
-        id: "adv_t8",
-        track: "엔지니어링",
-        name: "2팀 (멀티모달 헬스케어 AI 솔루션)",
-        leader: "이도현",
-        description: "의료 영상 및 EMR 텍스트 통합 분석 솔루션",
+        id: 'adv_t5',
+        track: '시각화',
+        name: '2팀 (지리공간 맵핑 & 인포그래픽)',
+        leader: '문지훈',
+        description: 'Mapbox & Deck.gl 기반 공간 데이터 시각화',
         memberCount: 4,
       },
       {
-        id: "adv_t9",
-        track: "엔지니어링",
-        name: "3팀 (엔터프라이즈 RAG MLOps 파이프라인)",
-        leader: "백민혁",
-        description: "vLLM 및 Ray 기반 고성능 분산 서빙 인프라 구축",
+        id: 'adv_t6',
+        track: '시각화',
+        name: '3팀 (3D 바이오 메디컬 시각화)',
+        leader: '한예린',
+        description: 'Three.js 기반 인체 장기 3D 렌더링 및 헬스케어 차트',
+        memberCount: 4,
+      },
+
+      {
+        id: 'adv_t7',
+        track: '엔지니어링',
+        name: '1팀 (실시간 분산 스트리밍 추천)',
+        leader: '강태양',
+        description: 'Kafka & Redis 기반 초개인화 실시간 추천 엔진',
+        memberCount: 4,
+      },
+      {
+        id: 'adv_t8',
+        track: '엔지니어링',
+        name: '2팀 (멀티모달 헬스케어 AI 솔루션)',
+        leader: '이도현',
+        description: '의료 영상 및 EMR 텍스트 통합 분석 솔루션',
+        memberCount: 4,
+      },
+      {
+        id: 'adv_t9',
+        track: '엔지니어링',
+        name: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
+        leader: '백민혁',
+        description: 'vLLM 및 Ray 기반 고성능 분산 서빙 인프라 구축',
         memberCount: 4,
       },
     ],
     initialEvents: [
       {
-        id: "evt_adv_03",
-        category: "ADV",
-        title: "2026 하계 어드브 3주차 심화 개발 및 중간 세션",
-        status: "IN_PROGRESS",
-        date: "2026-08-20",
-        startTime: "13:30",
-        endTime: "17:30",
-        location: "서울대학교 글로벌공학센터 다목적홀",
-        description: "프로젝트 중간 아키텍처 다이어그램 발표 및 현직 멘토 피드백",
-        checkinMethod: "QR_CODE",
-        checkinCode: "8220",
-        imageUrl:
-          "/sample-study-photo.jpg?v=2",
-        createdAt: "2026-08-15",
+        id: 'evt_adv_03',
+        category: 'ADV',
+        title: '2026 하계 어드브 3주차 심화 개발 및 중간 세션',
+        status: 'IN_PROGRESS',
+        date: '2026-08-20',
+        startTime: '13:30',
+        endTime: '17:30',
+        location: '서울대학교 글로벌공학센터 다목적홀',
+        description: '프로젝트 중간 아키텍처 다이어그램 발표 및 현직 멘토 피드백',
+        checkinMethod: 'QR_CODE',
+        checkinCode: '8220',
+        imageUrl: '/sample-study-photo.jpg?v=2',
+        createdAt: '2026-08-15',
       },
       {
-        id: "evt_adv_02",
-        category: "ADV",
-        title: "2026 하계 어드브 2주차 중간 점검 & 현직 멘토링",
-        status: "FINISHED",
-        date: "2026-08-15",
-        startTime: "13:30",
-        endTime: "17:30",
-        location: "서울대학교 글로벌공학센터 다목적홀",
-        description: "프로젝트 2차 중간 점검 및 멘토링 세션",
-        checkinMethod: "QR_CODE",
-        checkinCode: "7110",
-        createdAt: "2026-08-12",
+        id: 'evt_adv_02',
+        category: 'ADV',
+        title: '2026 하계 어드브 2주차 중간 점검 & 현직 멘토링',
+        status: 'FINISHED',
+        date: '2026-08-15',
+        startTime: '13:30',
+        endTime: '17:30',
+        location: '서울대학교 글로벌공학센터 다목적홀',
+        description: '프로젝트 2차 중간 점검 및 멘토링 세션',
+        checkinMethod: 'QR_CODE',
+        checkinCode: '7110',
+        createdAt: '2026-08-12',
       },
       {
-        id: "evt_adv_01",
-        category: "ADV",
-        title: "2026 하계 어드브 1주차 기획 및 아키텍처 발표회",
-        status: "FINISHED",
-        date: "2026-08-10",
-        startTime: "14:00",
-        endTime: "18:00",
-        location: "강남 드림플러스 메인홀",
-        description: "팀별 프로젝트 주제 선정 및 데이터 파이프라인 기획 발표",
-        checkinMethod: "CODE",
-        checkinCode: "9102",
-        createdAt: "2026-08-10",
+        id: 'evt_adv_01',
+        category: 'ADV',
+        title: '2026 하계 어드브 1주차 기획 및 아키텍처 발표회',
+        status: 'FINISHED',
+        date: '2026-08-10',
+        startTime: '14:00',
+        endTime: '18:00',
+        location: '강남 드림플러스 메인홀',
+        description: '팀별 프로젝트 주제 선정 및 데이터 파이프라인 기획 발표',
+        checkinMethod: 'CODE',
+        checkinCode: '9102',
+        createdAt: '2026-08-10',
       },
       {
-        id: "evt_adv_04",
-        category: "ADV",
-        title: "2026 하계 어드브 4주차 최종 성과 공유회 (데모데이)",
-        status: "UPCOMING",
-        date: "2026-08-29",
-        startTime: "13:00",
-        endTime: "18:30",
-        location: "서울대학교 글로벌공학센터 대강당",
-        description: "어드밴스드 프로젝트 최종 배포 결과 시연 및 우수팀 시상",
-        checkinMethod: "QR_CODE",
-        checkinCode: "9981",
-        createdAt: "2026-08-18",
+        id: 'evt_adv_04',
+        category: 'ADV',
+        title: '2026 하계 어드브 4주차 최종 성과 공유회 (데모데이)',
+        status: 'UPCOMING',
+        date: '2026-08-29',
+        startTime: '13:00',
+        endTime: '18:30',
+        location: '서울대학교 글로벌공학센터 대강당',
+        description: '어드밴스드 프로젝트 최종 배포 결과 시연 및 우수팀 시상',
+        checkinMethod: 'QR_CODE',
+        checkinCode: '9981',
+        createdAt: '2026-08-18',
       },
     ],
     initialAttendees: [
       {
-        id: "att_adv_1_1",
-        eventId: "evt_adv_03",
-        teamId: "adv_t1",
-        teamName: "1팀 (LLM Agentic 워크플로우)",
-        name: "고준서",
+        id: 'att_adv_1_1',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t1',
+        teamName: '1팀 (LLM Agentic 워크플로우)',
+        name: '고준서',
         term: 27,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_1_2",
-        eventId: "evt_adv_03",
-        teamId: "adv_t1",
-        teamName: "1팀 (LLM Agentic 워크플로우)",
-        name: "김서하",
+        id: 'att_adv_1_2',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t1',
+        teamName: '1팀 (LLM Agentic 워크플로우)',
+        name: '김서하',
         term: 28,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_1_3",
-        eventId: "evt_adv_03",
-        teamId: "adv_t1",
-        teamName: "1팀 (LLM Agentic 워크플로우)",
-        name: "이민준",
+        id: 'att_adv_1_3',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t1',
+        teamName: '1팀 (LLM Agentic 워크플로우)',
+        name: '이민준',
         term: 28,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_1_4",
-        eventId: "evt_adv_03",
-        teamId: "adv_t1",
-        teamName: "1팀 (LLM Agentic 워크플로우)",
-        name: "정채원",
+        id: 'att_adv_1_4',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t1',
+        teamName: '1팀 (LLM Agentic 워크플로우)',
+        name: '정채원',
         term: 28,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
 
       {
-        id: "att_adv_2_1",
-        eventId: "evt_adv_03",
-        teamId: "adv_t2",
-        teamName: "2팀 (시계열 예측 솔루션)",
-        name: "박지훈",
+        id: 'att_adv_2_1',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t2',
+        teamName: '2팀 (시계열 예측 솔루션)',
+        name: '박지훈',
         term: 28,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_2_2",
-        eventId: "evt_adv_03",
-        teamId: "adv_t2",
-        teamName: "2팀 (시계열 예측 솔루션)",
-        name: "오승현",
+        id: 'att_adv_2_2',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t2',
+        teamName: '2팀 (시계열 예측 솔루션)',
+        name: '오승현',
         term: 28,
-        track: "분석",
-        status: "absent",
-        checkedInAt: "-",
-        memo: "사전 공결 승인",
+        track: '분석',
+        status: 'absent',
+        checkedInAt: '-',
+        memo: '사전 공결 승인',
       },
       {
-        id: "att_adv_2_3",
-        eventId: "evt_adv_03",
-        teamId: "adv_t2",
-        teamName: "2팀 (시계열 예측 솔루션)",
-        name: "도현진",
+        id: 'att_adv_2_3',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t2',
+        teamName: '2팀 (시계열 예측 솔루션)',
+        name: '도현진',
         term: 27,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_2_4",
-        eventId: "evt_adv_03",
-        teamId: "adv_t2",
-        teamName: "2팀 (시계열 예측 솔루션)",
-        name: "마지원",
+        id: 'att_adv_2_4',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t2',
+        teamName: '2팀 (시계열 예측 솔루션)',
+        name: '마지원',
         term: 28,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
 
       {
-        id: "att_adv_3_1",
-        eventId: "evt_adv_03",
-        teamId: "adv_t3",
-        teamName: "3팀 (금융 FDS 이상거래 탐지 AI)",
-        name: "박성준",
+        id: 'att_adv_3_1',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t3',
+        teamName: '3팀 (금융 FDS 이상거래 탐지 AI)',
+        name: '박성준',
         term: 27,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_3_2",
-        eventId: "evt_adv_03",
-        teamId: "adv_t3",
-        teamName: "3팀 (금융 FDS 이상거래 탐지 AI)",
-        name: "신유진",
+        id: 'att_adv_3_2',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t3',
+        teamName: '3팀 (금융 FDS 이상거래 탐지 AI)',
+        name: '신유진',
         term: 28,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_3_3",
-        eventId: "evt_adv_03",
-        teamId: "adv_t3",
-        teamName: "3팀 (금융 FDS 이상거래 탐지 AI)",
-        name: "안서연",
+        id: 'att_adv_3_3',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t3',
+        teamName: '3팀 (금융 FDS 이상거래 탐지 AI)',
+        name: '안서연',
         term: 28,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_3_4",
-        eventId: "evt_adv_03",
-        teamId: "adv_t3",
-        teamName: "3팀 (금융 FDS 이상거래 탐지 AI)",
-        name: "조민규",
+        id: 'att_adv_3_4',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t3',
+        teamName: '3팀 (금융 FDS 이상거래 탐지 AI)',
+        name: '조민규',
         term: 28,
-        track: "분석",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '분석',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
 
       {
-        id: "att_adv_4_1",
-        eventId: "evt_adv_03",
-        teamId: "adv_t4",
-        teamName: "1팀 (인터랙티브 웹 시각화 대시보드)",
-        name: "최민혁",
+        id: 'att_adv_4_1',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t4',
+        teamName: '1팀 (인터랙티브 웹 시각화 대시보드)',
+        name: '최민혁',
         term: 28,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_4_2",
-        eventId: "evt_adv_03",
-        teamId: "adv_t4",
-        teamName: "1팀 (인터랙티브 웹 시각화 대시보드)",
-        name: "한예린",
+        id: 'att_adv_4_2',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t4',
+        teamName: '1팀 (인터랙티브 웹 시각화 대시보드)',
+        name: '한예린',
         term: 28,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_4_3",
-        eventId: "evt_adv_03",
-        teamId: "adv_t4",
-        teamName: "1팀 (인터랙티브 웹 시각화 대시보드)",
-        name: "문지훈",
+        id: 'att_adv_4_3',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t4',
+        teamName: '1팀 (인터랙티브 웹 시각화 대시보드)',
+        name: '문지훈',
         term: 27,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_4_4",
-        eventId: "evt_adv_03",
-        teamId: "adv_t4",
-        teamName: "1팀 (인터랙티브 웹 시각화 대시보드)",
-        name: "장나연",
+        id: 'att_adv_4_4',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t4',
+        teamName: '1팀 (인터랙티브 웹 시각화 대시보드)',
+        name: '장나연',
         term: 28,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
 
       {
-        id: "att_adv_5_1",
-        eventId: "evt_adv_03",
-        teamId: "adv_t5",
-        teamName: "2팀 (지리공간 맵핑 & 인포그래픽)",
-        name: "윤재혁",
+        id: 'att_adv_5_1',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t5',
+        teamName: '2팀 (지리공간 맵핑 & 인포그래픽)',
+        name: '윤재혁',
         term: 28,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_5_2",
-        eventId: "evt_adv_03",
-        teamId: "adv_t5",
-        teamName: "2팀 (지리공간 맵핑 & 인포그래픽)",
-        name: "송하늘",
+        id: 'att_adv_5_2',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t5',
+        teamName: '2팀 (지리공간 맵핑 & 인포그래픽)',
+        name: '송하늘',
         term: 27,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_5_3",
-        eventId: "evt_adv_03",
-        teamId: "adv_t5",
-        teamName: "2팀 (지리공간 맵핑 & 인포그래픽)",
-        name: "노유진",
+        id: 'att_adv_5_3',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t5',
+        teamName: '2팀 (지리공간 맵핑 & 인포그래픽)',
+        name: '노유진',
         term: 27,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_5_4",
-        eventId: "evt_adv_03",
-        teamId: "adv_t5",
-        teamName: "2팀 (지리공간 맵핑 & 인포그래픽)",
-        name: "원승민",
+        id: 'att_adv_5_4',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t5',
+        teamName: '2팀 (지리공간 맵핑 & 인포그래픽)',
+        name: '원승민',
         term: 28,
-        track: "시각화",
-        status: "absent",
-        checkedInAt: "-",
-        memo: "개인 사정 결석",
+        track: '시각화',
+        status: 'absent',
+        checkedInAt: '-',
+        memo: '개인 사정 결석',
       },
 
       {
-        id: "att_adv_6_1",
-        eventId: "evt_adv_03",
-        teamId: "adv_t6",
-        teamName: "3팀 (3D 바이오 메디컬 시각화)",
-        name: "배준호",
+        id: 'att_adv_6_1',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t6',
+        teamName: '3팀 (3D 바이오 메디컬 시각화)',
+        name: '배준호',
         term: 28,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_6_2",
-        eventId: "evt_adv_03",
-        teamId: "adv_t6",
-        teamName: "3팀 (3D 바이오 메디컬 시각화)",
-        name: "권나현",
+        id: 'att_adv_6_2',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t6',
+        teamName: '3팀 (3D 바이오 메디컬 시각화)',
+        name: '권나현',
         term: 28,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_6_3",
-        eventId: "evt_adv_03",
-        teamId: "adv_t6",
-        teamName: "3팀 (3D 바이오 메디컬 시각화)",
-        name: "서진우",
+        id: 'att_adv_6_3',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t6',
+        teamName: '3팀 (3D 바이오 메디컬 시각화)',
+        name: '서진우',
         term: 27,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_6_4",
-        eventId: "evt_adv_03",
-        teamId: "adv_t6",
-        teamName: "3팀 (3D 바이오 메디컬 시각화)",
-        name: "하예원",
+        id: 'att_adv_6_4',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t6',
+        teamName: '3팀 (3D 바이오 메디컬 시각화)',
+        name: '하예원',
         term: 28,
-        track: "시각화",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '시각화',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
 
       {
-        id: "att_adv_7_1",
-        eventId: "evt_adv_03",
-        teamId: "adv_t7",
-        teamName: "1팀 (실시간 분산 스트리밍 추천)",
-        name: "강태양",
+        id: 'att_adv_7_1',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t7',
+        teamName: '1팀 (실시간 분산 스트리밍 추천)',
+        name: '강태양',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_7_2",
-        eventId: "evt_adv_03",
-        teamId: "adv_t7",
-        teamName: "1팀 (실시간 분산 스트리밍 추천)",
-        name: "이도현",
+        id: 'att_adv_7_2',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t7',
+        teamName: '1팀 (실시간 분산 스트리밍 추천)',
+        name: '이도현',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_7_3",
-        eventId: "evt_adv_03",
-        teamId: "adv_t7",
-        teamName: "1팀 (실시간 분산 스트리밍 추천)",
-        name: "임수진",
+        id: 'att_adv_7_3',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t7',
+        teamName: '1팀 (실시간 분산 스트리밍 추천)',
+        name: '임수진',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_7_4",
-        eventId: "evt_adv_03",
-        teamId: "adv_t7",
-        teamName: "1팀 (실시간 분산 스트리밍 추천)",
-        name: "남소희",
+        id: 'att_adv_7_4',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t7',
+        teamName: '1팀 (실시간 분산 스트리밍 추천)',
+        name: '남소희',
         term: 27,
-        track: "엔지니어링",
-        status: "absent",
-        checkedInAt: "-",
-        memo: "개인 일정 결석",
+        track: '엔지니어링',
+        status: 'absent',
+        checkedInAt: '-',
+        memo: '개인 일정 결석',
       },
 
       {
-        id: "att_adv_8_1",
-        eventId: "evt_adv_03",
-        teamId: "adv_t8",
-        teamName: "2팀 (멀티모달 헬스케어 AI 솔루션)",
-        name: "박성훈",
+        id: 'att_adv_8_1',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t8',
+        teamName: '2팀 (멀티모달 헬스케어 AI 솔루션)',
+        name: '박성훈',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_8_2",
-        eventId: "evt_adv_03",
-        teamId: "adv_t8",
-        teamName: "2팀 (멀티모달 헬스케어 AI 솔루션)",
-        name: "백민혁",
+        id: 'att_adv_8_2',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t8',
+        teamName: '2팀 (멀티모달 헬스케어 AI 솔루션)',
+        name: '백민혁',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_8_3",
-        eventId: "evt_adv_03",
-        teamId: "adv_t8",
-        teamName: "2팀 (멀티모달 헬스케어 AI 솔루션)",
-        name: "류현우",
+        id: 'att_adv_8_3',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t8',
+        teamName: '2팀 (멀티모달 헬스케어 AI 솔루션)',
+        name: '류현우',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_8_4",
-        eventId: "evt_adv_03",
-        teamId: "adv_t8",
-        teamName: "2팀 (멀티모달 헬스케어 AI 솔루션)",
-        name: "조영준",
+        id: 'att_adv_8_4',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t8',
+        teamName: '2팀 (멀티모달 헬스케어 AI 솔루션)',
+        name: '조영준',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
 
       {
-        id: "att_adv_9_1",
-        eventId: "evt_adv_03",
-        teamId: "adv_t9",
-        teamName: "3팀 (엔터프라이즈 RAG MLOps 파이프라인)",
-        name: "황지수",
+        id: 'att_adv_9_1',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t9',
+        teamName: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
+        name: '황지수',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_9_2",
-        eventId: "evt_adv_03",
-        teamId: "adv_t9",
-        teamName: "3팀 (엔터프라이즈 RAG MLOps 파이프라인)",
-        name: "김동현",
+        id: 'att_adv_9_2',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t9',
+        teamName: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
+        name: '김동현',
         term: 27,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_9_3",
-        eventId: "evt_adv_03",
-        teamId: "adv_t9",
-        teamName: "3팀 (엔터프라이즈 RAG MLOps 파이프라인)",
-        name: "문가영",
+        id: 'att_adv_9_3',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t9',
+        teamName: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
+        name: '문가영',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
       {
-        id: "att_adv_9_4",
-        eventId: "evt_adv_03",
-        teamId: "adv_t9",
-        teamName: "3팀 (엔터프라이즈 RAG MLOps 파이프라인)",
-        name: "유재성",
+        id: 'att_adv_9_4',
+        eventId: 'evt_adv_03',
+        teamId: 'adv_t9',
+        teamName: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
+        name: '유재성',
         term: 28,
-        track: "엔지니어링",
-        status: "unmarked",
-        checkedInAt: "-",
+        track: '엔지니어링',
+        status: 'unmarked',
+        checkedInAt: '-',
       },
     ],
   },
@@ -1198,123 +1196,123 @@ const ATTEND_STATUS_CFG: Record<
   AttendStatus,
   { label: string; code: string; color: string; bg: string; border: string }
 > = {
-  present: { label: "출석", code: "0", color: "#0f5132", bg: "#def2e6", border: "#b6e3c9" },
-  late: { label: "지각", code: "1", color: "#7c4a03", bg: "#fceed2", border: "#f5d5a4" },
-  earlyLeave: { label: "조퇴", code: "1E", color: "#7c4a03", bg: "#fef3c7", border: "#fde68a" },
-  absent: { label: "결석", code: "2", color: "#8a1c32", bg: "#fce4e6", border: "#f8b4bc" },
+  present: { label: '출석', code: '0', color: '#0f5132', bg: '#def2e6', border: '#b6e3c9' },
+  late: { label: '지각', code: '1', color: '#7c4a03', bg: '#fceed2', border: '#f5d5a4' },
+  earlyLeave: { label: '조퇴', code: '1E', color: '#7c4a03', bg: '#fef3c7', border: '#fde68a' },
+  absent: { label: '결석', code: '2', color: '#8a1c32', bg: '#fce4e6', border: '#f8b4bc' },
   excusedAbsent: {
-    label: "인정결석",
-    code: "3",
-    color: "#1e40af",
-    bg: "#eff6ff",
-    border: "#bfdbfe",
+    label: '인정결석',
+    code: '3',
+    color: '#1e40af',
+    bg: '#eff6ff',
+    border: '#bfdbfe',
   },
-  remote: { label: "비대면", code: "ON", color: "#4338ca", bg: "#eef2ff", border: "#c7d2fe" },
+  remote: { label: '비대면', code: 'ON', color: '#4338ca', bg: '#eef2ff', border: '#c7d2fe' },
   unexcusedLate: {
-    label: "무단지각",
-    code: "4",
-    color: "#c2410c",
-    bg: "#fff7ed",
-    border: "#fed7aa",
+    label: '무단지각',
+    code: '4',
+    color: '#c2410c',
+    bg: '#fff7ed',
+    border: '#fed7aa',
   },
   unexcusedAbsent: {
-    label: "무단결석",
-    code: "5",
-    color: "#991b1b",
-    bg: "#fee2e2",
-    border: "#fca5a5",
+    label: '무단결석',
+    code: '5',
+    color: '#991b1b',
+    bg: '#fee2e2',
+    border: '#fca5a5',
   },
-  unmarked: { label: "미정", code: "-", color: "#334155", bg: "#e9eef4", border: "#cbd5e1" },
+  unmarked: { label: '미정', code: '-', color: '#334155', bg: '#e9eef4', border: '#cbd5e1' },
 };
 
 const ATTEND_STATUS_STYLES: Record<AttendStatus, { active: string; inactive: string }> = {
   present: {
-    active: "bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs",
+    active: 'bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#0f5132] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#0f5132] hover:bg-white/60 border border-transparent font-medium',
   },
   late: {
-    active: "bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs",
+    active: 'bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium',
   },
   earlyLeave: {
-    active: "bg-[#fef3c7] text-[#7c4a03] font-bold border border-[#fde68a] shadow-2xs",
+    active: 'bg-[#fef3c7] text-[#7c4a03] font-bold border border-[#fde68a] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#7c4a03] hover:bg-white/60 border border-transparent font-medium',
   },
   absent: {
-    active: "bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs",
+    active: 'bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#8a1c32] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#8a1c32] hover:bg-white/60 border border-transparent font-medium',
   },
   excusedAbsent: {
-    active: "bg-[#eff6ff] text-[#1e40af] font-bold border border-[#bfdbfe] shadow-2xs",
+    active: 'bg-[#eff6ff] text-[#1e40af] font-bold border border-[#bfdbfe] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#1e40af] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#1e40af] hover:bg-white/60 border border-transparent font-medium',
   },
   remote: {
-    active: "bg-[#eef2ff] text-[#4338ca] font-bold border border-[#c7d2fe] shadow-2xs",
+    active: 'bg-[#eef2ff] text-[#4338ca] font-bold border border-[#c7d2fe] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#4338ca] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#4338ca] hover:bg-white/60 border border-transparent font-medium',
   },
   unexcusedLate: {
-    active: "bg-[#fff7ed] text-[#c2410c] font-bold border border-[#fed7aa] shadow-2xs",
+    active: 'bg-[#fff7ed] text-[#c2410c] font-bold border border-[#fed7aa] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#c2410c] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#c2410c] hover:bg-white/60 border border-transparent font-medium',
   },
   unexcusedAbsent: {
-    active: "bg-[#fee2e2] text-[#991b1b] font-bold border border-[#fca5a5] shadow-2xs",
+    active: 'bg-[#fee2e2] text-[#991b1b] font-bold border border-[#fca5a5] shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-[#991b1b] hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-[#991b1b] hover:bg-white/60 border border-transparent font-medium',
   },
   unmarked: {
-    active: "bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs",
+    active: 'bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs',
     inactive:
-      "text-slate-400 hover:text-slate-700 hover:bg-white/60 border border-transparent font-medium",
+      'text-slate-400 hover:text-slate-700 hover:bg-white/60 border border-transparent font-medium',
   },
 };
 
 // CSV 추출 및 미리보기용 출결 상태 코드 매핑 (출석:1, 지각:2, 조퇴:3, 결석:4, 인정결석:5, 비대면:6, 무단지각:0, 무단결석:X)
 export const EXPORT_ATTEND_STATUS_CODE: Record<AttendStatus, string> = {
-  present: "1",
-  late: "2",
-  earlyLeave: "3",
-  absent: "4",
-  excusedAbsent: "5",
-  remote: "6",
-  unexcusedLate: "0",
-  unexcusedAbsent: "X",
-  unmarked: "-",
+  present: '1',
+  late: '2',
+  earlyLeave: '3',
+  absent: '4',
+  excusedAbsent: '5',
+  remote: '6',
+  unexcusedLate: '0',
+  unexcusedAbsent: 'X',
+  unmarked: '-',
 };
 
 export const EXPORT_ATTEND_STATUS_STYLE: Record<AttendStatus, string> = {
-  present: "text-slate-800 font-medium",
-  late: "text-slate-800 font-medium",
-  earlyLeave: "text-slate-800 font-medium",
-  absent: "text-slate-800 font-medium",
-  excusedAbsent: "text-slate-800 font-medium",
-  remote: "text-slate-800 font-medium",
-  unexcusedLate: "text-slate-800 font-medium",
-  unexcusedAbsent: "text-slate-800 font-medium",
-  unmarked: "text-slate-300 font-normal",
+  present: 'text-slate-800 font-medium',
+  late: 'text-slate-800 font-medium',
+  earlyLeave: 'text-slate-800 font-medium',
+  absent: 'text-slate-800 font-medium',
+  excusedAbsent: 'text-slate-800 font-medium',
+  remote: 'text-slate-800 font-medium',
+  unexcusedLate: 'text-slate-800 font-medium',
+  unexcusedAbsent: 'text-slate-800 font-medium',
+  unmarked: 'text-slate-300 font-normal',
 };
 
 export interface ExportColumnConfig {
   id:
-    | "term"
-    | "name"
-    | "week"
-    | "absence"
-    | "unexcusedAbsence"
-    | "lateEarlyLeave"
-    | "remote"
-    | "totalScore"
-    | "track"
-    | "teamName"
-    | "status"
-    | "checkedInAt"
-    | "memo";
+    | 'term'
+    | 'name'
+    | 'week'
+    | 'absence'
+    | 'unexcusedAbsence'
+    | 'lateEarlyLeave'
+    | 'remote'
+    | 'totalScore'
+    | 'track'
+    | 'teamName'
+    | 'status'
+    | 'checkedInAt'
+    | 'memo';
   label: string;
   enabled: boolean;
 }
@@ -1328,33 +1326,33 @@ export interface ModalColItem {
 }
 
 const DEFAULT_EXPORT_COLUMNS: ExportColumnConfig[] = [
-  { id: "term", label: "기수", enabled: true },
-  { id: "name", label: "이름", enabled: true },
-  { id: "week", label: "날짜", enabled: true },
-  { id: "absence", label: "결석", enabled: true },
-  { id: "unexcusedAbsence", label: "무단결석", enabled: true },
-  { id: "lateEarlyLeave", label: "지각조퇴", enabled: true },
-  { id: "remote", label: "비대면 횟수", enabled: true },
-  { id: "totalScore", label: "총점", enabled: true },
+  { id: 'term', label: '기수', enabled: true },
+  { id: 'name', label: '이름', enabled: true },
+  { id: 'week', label: '날짜', enabled: true },
+  { id: 'absence', label: '결석', enabled: true },
+  { id: 'unexcusedAbsence', label: '무단결석', enabled: true },
+  { id: 'lateEarlyLeave', label: '지각조퇴', enabled: true },
+  { id: 'remote', label: '비대면 횟수', enabled: true },
+  { id: 'totalScore', label: '총점', enabled: true },
 ];
 
 const DEFAULT_WEEK_DATE_MAPPING: Record<number, string> = {
-  1: "2026-01-26",
-  2: "2026-07-13",
-  3: "2026-07-20",
-  4: "2026-07-27",
-  5: "2026-08-03",
-  6: "2026-08-10",
-  7: "2026-08-17",
-  8: "2026-08-24",
-  9: "2026-09-07",
-  10: "2026-09-14",
-  11: "2026-09-21",
-  12: "2026-09-28",
-  13: "2026-10-05",
-  14: "2026-10-12",
-  15: "2026-10-19",
-  16: "2026-10-26",
+  1: '2026-01-26',
+  2: '2026-07-13',
+  3: '2026-07-20',
+  4: '2026-07-27',
+  5: '2026-08-03',
+  6: '2026-08-10',
+  7: '2026-08-17',
+  8: '2026-08-24',
+  9: '2026-09-07',
+  10: '2026-09-14',
+  11: '2026-09-21',
+  12: '2026-09-28',
+  13: '2026-10-05',
+  14: '2026-10-12',
+  15: '2026-10-19',
+  16: '2026-10-26',
 };
 
 const VACATION_WEEKS_8 = Array.from({ length: 8 }, (_, i) => ({
@@ -1370,18 +1368,18 @@ const SEMESTER_WEEKS_8 = Array.from({ length: 8 }, (_, i) => ({
 }));
 
 const WEEK_SAMPLE_PHOTOS: Record<number, string> = {
-  1: "/sample-study-photo.jpg?v=2",
-  2: "/sample-study-photo.jpg?v=2",
-  3: "/sample-study-photo.jpg?v=2",
-  4: "/sample-study-photo.jpg?v=2",
-  5: "/sample-study-photo.jpg?v=2",
-  6: "/sample-study-photo.jpg?v=2",
-  7: "/sample-study-photo.jpg?v=2",
-  8: "/sample-study-photo.jpg?v=2",
-  9: "/sample-study-photo.jpg?v=2",
-  10: "/sample-study-photo.jpg?v=2",
-  11: "/sample-study-photo.jpg?v=2",
-  12: "/sample-study-photo.jpg?v=2",
+  1: '/sample-study-photo.jpg?v=2',
+  2: '/sample-study-photo.jpg?v=2',
+  3: '/sample-study-photo.jpg?v=2',
+  4: '/sample-study-photo.jpg?v=2',
+  5: '/sample-study-photo.jpg?v=2',
+  6: '/sample-study-photo.jpg?v=2',
+  7: '/sample-study-photo.jpg?v=2',
+  8: '/sample-study-photo.jpg?v=2',
+  9: '/sample-study-photo.jpg?v=2',
+  10: '/sample-study-photo.jpg?v=2',
+  11: '/sample-study-photo.jpg?v=2',
+  12: '/sample-study-photo.jpg?v=2',
 };
 
 export interface InternalCategoryAttendancePageProps {
@@ -1408,11 +1406,11 @@ export function InternalCategoryAttendancePage({
   useEffect(() => {
     const handleRulesChange = () => {
       try {
-        const saved = localStorage.getItem("boaz_score_rules");
+        const saved = localStorage.getItem('boaz_score_rules');
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            const active = parsed.find((r: ScoreRule) => r.status === "ACTIVE");
+            const active = parsed.find((r: ScoreRule) => r.status === 'ACTIVE');
             if (active) {
               setSyncedScoreRule(active);
             }
@@ -1422,8 +1420,8 @@ export function InternalCategoryAttendancePage({
         // ignore malformed localStorage data, fall back to defaults
       }
     };
-    window.addEventListener("boaz_score_rules_changed", handleRulesChange);
-    return () => window.removeEventListener("boaz_score_rules_changed", handleRulesChange);
+    window.addEventListener('boaz_score_rules_changed', handleRulesChange);
+    return () => window.removeEventListener('boaz_score_rules_changed', handleRulesChange);
   }, []);
 
   const currentScoreRule: ScoreRule =
@@ -1431,11 +1429,11 @@ export function InternalCategoryAttendancePage({
     activeScoreRule ||
     (() => {
       try {
-        const saved = localStorage.getItem("boaz_score_rules");
+        const saved = localStorage.getItem('boaz_score_rules');
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            const active = parsed.find((r: ScoreRule) => r.status === "ACTIVE");
+            const active = parsed.find((r: ScoreRule) => r.status === 'ACTIVE');
             if (active) {
               return active;
             }
@@ -1446,9 +1444,9 @@ export function InternalCategoryAttendancePage({
       }
       return {
         version: 3,
-        status: "ACTIVE" as const,
-        activatedAt: "2026-08-01",
-        createdBy: "차기대표진",
+        status: 'ACTIVE' as const,
+        activatedAt: '2026-08-01',
+        createdBy: '차기대표진',
         absentPenalty: -3,
         unexcusedAbsentPenalty: -4,
         latePenalty: -1,
@@ -1458,22 +1456,22 @@ export function InternalCategoryAttendancePage({
     })();
 
   // Selected Team & Event & Week & Term Period (방학: 1~8주차 / 학기: 9~16주차)
-  const [termPeriod, setTermPeriod] = useState<"VACATION" | "SEMESTER">(() => {
+  const [termPeriod, setTermPeriod] = useState<'VACATION' | 'SEMESTER'>(() => {
     try {
       const saved = localStorage.getItem(`boaz_${category}_term_period`);
-      if (saved === "VACATION" || saved === "SEMESTER") return saved;
+      if (saved === 'VACATION' || saved === 'SEMESTER') return saved;
     } catch {}
-    return "VACATION";
+    return 'VACATION';
   });
-  const weekList = termPeriod === "VACATION" ? VACATION_WEEKS_8 : SEMESTER_WEEKS_8;
+  const weekList = termPeriod === 'VACATION' ? VACATION_WEEKS_8 : SEMESTER_WEEKS_8;
   const [selectedTeamId, setSelectedTeamId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem(`boaz_${category}_selected_team`);
       if (saved) return saved;
     } catch {}
-    return category === "ADV" || category === "STUDY" ? "ALL" : config.teams[0]?.id || "";
+    return category === 'ADV' || category === 'STUDY' ? 'ALL' : config.teams[0]?.id || '';
   });
-  const [selectedEventId, setSelectedEventId] = useState<string>(config.initialEvents[0]?.id || "");
+  const [selectedEventId, setSelectedEventId] = useState<string>(config.initialEvents[0]?.id || '');
 
   // 방학과 학기 주차 선택을 완전히 분리하여 독립 관리 (기본값: 전체 주차 0)
   const [selectedWeekVacation, setSelectedWeekVacation] = useState<number>(() => {
@@ -1490,12 +1488,12 @@ export function InternalCategoryAttendancePage({
     } catch {}
     return 0;
   });
-  const selectedWeek = termPeriod === "VACATION" ? selectedWeekVacation : selectedWeekSemester;
+  const selectedWeek = termPeriod === 'VACATION' ? selectedWeekVacation : selectedWeekSemester;
   const setSelectedWeek = (week: number) => {
     if (week !== 0) {
       setIsTableEditMode(false);
     }
-    if (termPeriod === "VACATION") {
+    if (termPeriod === 'VACATION') {
       setSelectedWeekVacation(week);
     } else {
       setSelectedWeekSemester(week);
@@ -1507,7 +1505,7 @@ export function InternalCategoryAttendancePage({
 
   const isFutureWeekNum = (wNum: number) => {
     if (wNum === 0) return false;
-    return termPeriod === "VACATION" ? wNum > 3 : wNum > 11;
+    return termPeriod === 'VACATION' ? wNum > 3 : wNum > 11;
   };
 
   const handleSelectWeek = (targetWeek: number) => {
@@ -1569,14 +1567,14 @@ export function InternalCategoryAttendancePage({
   useEffect(() => {
     checkWeekScroll();
     const handleResize = () => checkWeekScroll();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [category, weekList]);
 
-  const handleScrollWeeks = (direction: "left" | "right") => {
+  const handleScrollWeeks = (direction: 'left' | 'right') => {
     if (weekScrollRef.current) {
-      const offset = direction === "left" ? -240 : 240;
-      weekScrollRef.current.scrollBy({ left: offset, behavior: "smooth" });
+      const offset = direction === 'left' ? -240 : 240;
+      weekScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
       setTimeout(checkWeekScroll, 300);
     }
   };
@@ -1591,8 +1589,8 @@ export function InternalCategoryAttendancePage({
   const [attendees, setAttendees] = useState<InternalAttendee[]>(config.initialAttendees);
 
   // Controls in Peek
-  const [attendeeSearch] = useState("");
-  const [attendStatusFilter] = useState<"ALL" | AttendStatus>("ALL");
+  const [attendeeSearch] = useState('');
+  const [attendStatusFilter] = useState<'ALL' | AttendStatus>('ALL');
   const [isTableEditMode, setIsTableEditMode] = useState(false);
   const [activeStudyEditCell, setActiveStudyEditCell] = useState<{
     rowId: string;
@@ -1611,15 +1609,15 @@ export function InternalCategoryAttendancePage({
 
   // Track Filter State
   const TRACK_FILTER_OPTIONS = [
-    { id: "ALL", label: "전체" },
-    { id: "분석", label: "분석" },
-    { id: "시각화", label: "시각화" },
-    { id: "엔지니어링", label: "엔지" },
+    { id: 'ALL', label: '전체' },
+    { id: '분석', label: '분석' },
+    { id: '시각화', label: '시각화' },
+    { id: '엔지니어링', label: '엔지' },
   ];
-  const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>("ALL");
-  const [studySortMode, setStudySortMode] = useState<"TERM" | "TEAM">("TERM"); // "TERM" (기수별 기본) | "TEAM" (팀별)
-  const [termFilter] = useState<string>("ALL"); // "ALL" | "28" | "27" | "26"
-  const [sortOption] = useState<"DEFAULT" | "TERM_ASC" | "TERM_DESC" | "NAME_ASC">("TERM_ASC");
+  const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>('ALL');
+  const [studySortMode, setStudySortMode] = useState<'TERM' | 'TEAM'>('TERM'); // "TERM" (기수별 기본) | "TEAM" (팀별)
+  const [termFilter] = useState<string>('ALL'); // "ALL" | "28" | "27" | "26"
+  const [sortOption] = useState<'DEFAULT' | 'TERM_ASC' | 'TERM_DESC' | 'NAME_ASC'>('TERM_ASC');
 
   // Settings: Committed/Saved State vs Modal Draft State
   const [savedWeekDateMapping, setSavedWeekDateMapping] =
@@ -1709,7 +1707,7 @@ export function InternalCategoryAttendancePage({
   useEffect(() => {
     setColWidths((prev) => ({
       ...prev,
-      status: category === "SESSION" ? 360 : 110,
+      status: category === 'SESSION' ? 360 : 110,
     }));
   }, [category]);
 
@@ -1722,7 +1720,7 @@ export function InternalCategoryAttendancePage({
 
   const updateGuidelinePos = (targetEl?: HTMLElement | null) => {
     const cell = targetEl
-      ? ((targetEl.closest("th") || targetEl.closest("td")) as HTMLElement | null)
+      ? ((targetEl.closest('th') || targetEl.closest('td')) as HTMLElement | null)
       : activeThRef.current;
     if (!cell || !tableContainerRef.current) {
       return;
@@ -1738,8 +1736,8 @@ export function InternalCategoryAttendancePage({
   const handleResizeStart = (e: React.MouseEvent<HTMLElement>, key: string, minWidth = 50) => {
     e.preventDefault();
     e.stopPropagation();
-    const cell = (e.currentTarget.closest("th") ||
-      e.currentTarget.closest("td")) as HTMLElement | null;
+    const cell = (e.currentTarget.closest('th') ||
+      e.currentTarget.closest('td')) as HTMLElement | null;
     activeThRef.current = cell;
     const startX = e.clientX;
     const startWidth = cell ? cell.offsetWidth : colWidths[key] || minWidth;
@@ -1747,8 +1745,8 @@ export function InternalCategoryAttendancePage({
     setResizingColKey(key);
     updateGuidelinePos(e.currentTarget);
 
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!resizingCol.current) {
@@ -1769,27 +1767,27 @@ export function InternalCategoryAttendancePage({
       setResizingColKey(null);
       setGuidelineX(null);
       activeThRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
   };
 
   // Column Drag & Drop State with | indicator between columns
   const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<{
     index: number;
-    position: "left" | "right";
+    position: 'left' | 'right';
   } | null>(null);
 
   const handleColDragStart = (e: React.DragEvent, index: number) => {
     setDraggedColIdx(index);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(index));
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
   };
 
   const handleColDragOver = (e: React.DragEvent, index: number) => {
@@ -1799,7 +1797,7 @@ export function InternalCategoryAttendancePage({
     }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
-    const position: "left" | "right" = mouseX < rect.width / 2 ? "left" : "right";
+    const position: 'left' | 'right' = mouseX < rect.width / 2 ? 'left' : 'right';
     setDropTarget({ index, position });
   };
 
@@ -1811,7 +1809,7 @@ export function InternalCategoryAttendancePage({
       return;
     }
 
-    let insertIndex = dropTarget.position === "left" ? dropTarget.index : dropTarget.index + 1;
+    let insertIndex = dropTarget.position === 'left' ? dropTarget.index : dropTarget.index + 1;
     if (draggedColIdx < insertIndex) {
       insertIndex--;
     }
@@ -1833,13 +1831,13 @@ export function InternalCategoryAttendancePage({
   };
 
   // New Event Form
-  const [newEventTitle, setNewEventTitle] = useState("");
+  const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().slice(0, 10));
-  const [newEventStart] = useState("14:00");
-  const [newEventEnd] = useState("18:00");
-  const [newEventLoc, setNewEventLoc] = useState("연세대학교 백양관 101호");
-  const [newEventDesc] = useState("");
-  const [newEventMethod, setNewEventMethod] = useState<CheckinMethod>("CODE");
+  const [newEventStart] = useState('14:00');
+  const [newEventEnd] = useState('18:00');
+  const [newEventLoc, setNewEventLoc] = useState('연세대학교 백양관 101호');
+  const [newEventDesc] = useState('');
+  const [newEventMethod, setNewEventMethod] = useState<CheckinMethod>('CODE');
   const [newEventCode, setNewEventCode] = useState(String(Math.floor(1000 + Math.random() * 9000)));
 
   // Keep state synced when switching category prop
@@ -1847,9 +1845,9 @@ export function InternalCategoryAttendancePage({
     setEvents(config.initialEvents);
     setAttendees(config.initialAttendees);
     setSelectedTeamId(
-      category === "ADV" || category === "STUDY" ? "ALL" : config.teams[0]?.id || ""
+      category === 'ADV' || category === 'STUDY' ? 'ALL' : config.teams[0]?.id || '',
     );
-    setSelectedEventId(config.initialEvents[0]?.id || "");
+    setSelectedEventId(config.initialEvents[0]?.id || '');
     setIsPeekOpen(true);
     setIsFullScreen(false);
   }, [category]);
@@ -1864,7 +1862,7 @@ export function InternalCategoryAttendancePage({
       if (!containerRef.current) {
         return;
       }
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
       const rect = containerRef.current.getBoundingClientRect();
       const rawRatio = ((clientX - rect.left) / rect.width) * 100;
       const clampedRatio = Math.min(Math.max(rawRatio, 15), 65);
@@ -1873,24 +1871,24 @@ export function InternalCategoryAttendancePage({
 
     function handlePointerUp() {
       setIsDragging(false);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     }
 
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("mousemove", handlePointerMove);
-    window.addEventListener("mouseup", handlePointerUp);
-    window.addEventListener("touchmove", handlePointerMove);
-    window.addEventListener("touchend", handlePointerUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handlePointerMove);
+    window.addEventListener('mouseup', handlePointerUp);
+    window.addEventListener('touchmove', handlePointerMove);
+    window.addEventListener('touchend', handlePointerUp);
 
     return () => {
-      window.removeEventListener("mousemove", handlePointerMove);
-      window.removeEventListener("mouseup", handlePointerUp);
-      window.removeEventListener("touchmove", handlePointerMove);
-      window.removeEventListener("touchend", handlePointerUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseup', handlePointerUp);
+      window.removeEventListener('touchmove', handlePointerMove);
+      window.removeEventListener('touchend', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
   }, [isDragging]);
 
@@ -1901,48 +1899,48 @@ export function InternalCategoryAttendancePage({
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) ||
     events[0] || {
-      id: "evt_fallback",
+      id: 'evt_fallback',
       category,
       title: `${config.title} 세션`,
-      status: "IN_PROGRESS" as EventStatus,
-      date: "2026-08-20",
-      startTime: "14:00",
-      endTime: "18:00",
-      location: "-",
-      description: "",
-      checkinMethod: "CODE" as CheckinMethod,
-      checkinCode: "1234",
-      createdAt: "2026-08-20",
+      status: 'IN_PROGRESS' as EventStatus,
+      date: '2026-08-20',
+      startTime: '14:00',
+      endTime: '18:00',
+      location: '-',
+      description: '',
+      checkinMethod: 'CODE' as CheckinMethod,
+      checkinCode: '1234',
+      createdAt: '2026-08-20',
     };
-  const isAllSelected = selectedTeamId === "ALL";
+  const isAllSelected = selectedTeamId === 'ALL';
   const selectedTeam: TeamMeta = isAllSelected
     ? {
-        id: "ALL",
-        name: "전체 통합 출결 현황",
-        leader: "",
-        description: "전체 트랙 및 소속 팀 통합 명단",
-        memberCount: attendees.filter((a) => a.eventId === (selectedEvent?.id || "")).length,
+        id: 'ALL',
+        name: '전체 통합 출결 현황',
+        leader: '',
+        description: '전체 트랙 및 소속 팀 통합 명단',
+        memberCount: attendees.filter((a) => a.eventId === (selectedEvent?.id || '')).length,
       }
     : config.teams.find((t) => t.id === selectedTeamId) ||
       config.teams[0] || {
-        id: "",
-        name: "선택된 팀",
-        leader: "",
-        description: "",
+        id: '',
+        name: '선택된 팀',
+        leader: '',
+        description: '',
         memberCount: 0,
       };
 
   // Current Attendees for Live View (filter by Event & selected Team & selectedWeek & termPeriod)
   const isWeekSubmitted =
     selectedWeek === 0 ||
-    (termPeriod === "VACATION" ? selectedWeek <= 3 : selectedWeek >= 9 && selectedWeek <= 11);
+    (termPeriod === 'VACATION' ? selectedWeek <= 3 : selectedWeek >= 9 && selectedWeek <= 11);
 
   const baseAttendees = isAllSelected
     ? attendees
-    : attendees.filter((a) => a.teamId === (selectedTeam?.id || ""));
+    : attendees.filter((a) => a.teamId === (selectedTeam?.id || ''));
 
   const activeSubmittedWeeks =
-    termPeriod === "VACATION"
+    termPeriod === 'VACATION'
       ? VACATION_WEEKS_8.filter((w) => w.weekNum <= 3)
       : SEMESTER_WEEKS_8.filter((w) => w.weekNum <= 11);
 
@@ -1963,28 +1961,28 @@ export function InternalCategoryAttendancePage({
                 status: override.status,
                 checkedInAt:
                   override.checkedInAt ||
-                  (override.status === "present" || override.status === "late" ? "14:00" : "-"),
+                  (override.status === 'present' || override.status === 'late' ? '14:00' : '-'),
                 memo: override.memo !== undefined ? override.memo : a.memo,
               };
             }
 
-            if (termPeriod === "VACATION") {
+            if (termPeriod === 'VACATION') {
               const isAbsentThisWeek =
-                (a.name === "오승현" &&
+                (a.name === '오승현' &&
                   (currentWeekNum === 2 || currentWeekNum === 3 || currentWeekNum === 7)) ||
-                (a.name === "원승민" && (currentWeekNum === 3 || currentWeekNum === 5)) ||
-                (a.name === "남소희" && (currentWeekNum === 3 || currentWeekNum === 6));
+                (a.name === '원승민' && (currentWeekNum === 3 || currentWeekNum === 5)) ||
+                (a.name === '남소희' && (currentWeekNum === 3 || currentWeekNum === 6));
 
               const isLateThisWeek =
-                category === "SESSION" &&
-                ((a.name === "장나연" && currentWeekNum === 3) ||
-                  (a.name === "문지훈" && currentWeekNum === 2));
+                category === 'SESSION' &&
+                ((a.name === '장나연' && currentWeekNum === 3) ||
+                  (a.name === '문지훈' && currentWeekNum === 2));
 
               const status: AttendStatus = isLateThisWeek
-                ? "late"
+                ? 'late'
                 : isAbsentThisWeek
-                  ? "absent"
-                  : "unmarked";
+                  ? 'absent'
+                  : 'unmarked';
 
               return {
                 ...a,
@@ -1993,29 +1991,29 @@ export function InternalCategoryAttendancePage({
                 weekNum: currentWeekNum,
                 weekLabel: w.label,
                 status,
-                checkedInAt: status === "late" ? "14:15" : "-",
+                checkedInAt: status === 'late' ? '14:15' : '-',
                 memo: isAbsentThisWeek
-                  ? "방학 개인 사정 (사전 공결 신청 승인)"
-                  : status === "late"
-                    ? "15분 지각"
-                    : a.memo || "",
+                  ? '방학 개인 사정 (사전 공결 신청 승인)'
+                  : status === 'late'
+                    ? '15분 지각'
+                    : a.memo || '',
               };
             } else {
               const isAbsentThisWeek =
-                (a.name === "장나연" && (currentWeekNum === 11 || currentWeekNum === 15)) ||
-                (a.name === "박성준" && currentWeekNum === 10) ||
-                (a.name === "이도현" && currentWeekNum === 11);
+                (a.name === '장나연' && (currentWeekNum === 11 || currentWeekNum === 15)) ||
+                (a.name === '박성준' && currentWeekNum === 10) ||
+                (a.name === '이도현' && currentWeekNum === 11);
 
               const isLateThisWeek =
-                (a.name === "김서하" && currentWeekNum === 11) ||
-                (a.name === "한예린" && currentWeekNum === 10) ||
-                (a.name === "고준서" && currentWeekNum === 12);
+                (a.name === '김서하' && currentWeekNum === 11) ||
+                (a.name === '한예린' && currentWeekNum === 10) ||
+                (a.name === '고준서' && currentWeekNum === 12);
 
               const status: AttendStatus = isLateThisWeek
-                ? "late"
+                ? 'late'
                 : isAbsentThisWeek
-                  ? "absent"
-                  : "unmarked";
+                  ? 'absent'
+                  : 'unmarked';
 
               return {
                 ...a,
@@ -2024,15 +2022,15 @@ export function InternalCategoryAttendancePage({
                 weekNum: currentWeekNum,
                 weekLabel: w.label,
                 status,
-                checkedInAt: status === "late" ? "14:15" : "-",
+                checkedInAt: status === 'late' ? '14:15' : '-',
                 memo: isAbsentThisWeek
-                  ? "학기 과제/시험 일정 결석"
-                  : status === "late"
-                    ? "수업 종료 후 15분 지각"
-                    : a.memo || "",
+                  ? '학기 과제/시험 일정 결석'
+                  : status === 'late'
+                    ? '수업 종료 후 15분 지각'
+                    : a.memo || '',
               };
             }
-          })
+          }),
         )
       : baseAttendees.map((a) => {
           const overrideKey = `${category}_${termPeriod}_${selectedWeek}_${a.id}`;
@@ -2046,41 +2044,41 @@ export function InternalCategoryAttendancePage({
               status: override.status,
               checkedInAt:
                 override.checkedInAt ||
-                (override.status === "present" || override.status === "late" ? "14:00" : "-"),
+                (override.status === 'present' || override.status === 'late' ? '14:00' : '-'),
               memo: override.memo !== undefined ? override.memo : a.memo,
             };
           }
 
           // If week is not yet submitted by team leader
-          if (!isWeekSubmitted && category !== "SESSION") {
+          if (!isWeekSubmitted && category !== 'SESSION') {
             return {
               ...a,
               originalId: a.id,
               weekNum: selectedWeek,
               weekLabel: `${selectedWeek}주차`,
-              status: "unmarked" as AttendStatus,
-              checkedInAt: "-",
+              status: 'unmarked' as AttendStatus,
+              checkedInAt: '-',
               memo: undefined,
             };
           }
 
-          if (termPeriod === "VACATION") {
+          if (termPeriod === 'VACATION') {
             const isAbsentThisWeek =
-              (a.name === "오승현" &&
+              (a.name === '오승현' &&
                 (selectedWeek === 2 || selectedWeek === 3 || selectedWeek === 7)) ||
-              (a.name === "원승민" && (selectedWeek === 3 || selectedWeek === 5)) ||
-              (a.name === "남소희" && (selectedWeek === 3 || selectedWeek === 6));
+              (a.name === '원승민' && (selectedWeek === 3 || selectedWeek === 5)) ||
+              (a.name === '남소희' && (selectedWeek === 3 || selectedWeek === 6));
 
             const isLateThisWeek =
-              category === "SESSION" &&
-              ((a.name === "장나연" && selectedWeek === 3) ||
-                (a.name === "문지훈" && selectedWeek === 2));
+              category === 'SESSION' &&
+              ((a.name === '장나연' && selectedWeek === 3) ||
+                (a.name === '문지훈' && selectedWeek === 2));
 
             const status: AttendStatus = isLateThisWeek
-              ? "late"
+              ? 'late'
               : isAbsentThisWeek
-                ? "absent"
-                : "unmarked";
+                ? 'absent'
+                : 'unmarked';
 
             return {
               ...a,
@@ -2088,29 +2086,29 @@ export function InternalCategoryAttendancePage({
               weekNum: selectedWeek,
               weekLabel: `${selectedWeek}주차`,
               status,
-              checkedInAt: status === "late" ? "14:15" : "-",
+              checkedInAt: status === 'late' ? '14:15' : '-',
               memo: isAbsentThisWeek
-                ? "방학 개인 사정 (사전 공결 신청 승인)"
-                : status === "late"
-                  ? "15분 지각"
-                  : a.memo || "",
+                ? '방학 개인 사정 (사전 공결 신청 승인)'
+                : status === 'late'
+                  ? '15분 지각'
+                  : a.memo || '',
             };
           } else {
             const isAbsentThisWeek =
-              (a.name === "장나연" && (selectedWeek === 11 || selectedWeek === 15)) ||
-              (a.name === "박성준" && selectedWeek === 10) ||
-              (a.name === "이도현" && selectedWeek === 11);
+              (a.name === '장나연' && (selectedWeek === 11 || selectedWeek === 15)) ||
+              (a.name === '박성준' && selectedWeek === 10) ||
+              (a.name === '이도현' && selectedWeek === 11);
 
             const isLateThisWeek =
-              (a.name === "김서하" && selectedWeek === 11) ||
-              (a.name === "한예린" && selectedWeek === 10) ||
-              (a.name === "고준서" && selectedWeek === 12);
+              (a.name === '김서하' && selectedWeek === 11) ||
+              (a.name === '한예린' && selectedWeek === 10) ||
+              (a.name === '고준서' && selectedWeek === 12);
 
             const status: AttendStatus = isLateThisWeek
-              ? "late"
+              ? 'late'
               : isAbsentThisWeek
-                ? "absent"
-                : "unmarked";
+                ? 'absent'
+                : 'unmarked';
 
             return {
               ...a,
@@ -2118,43 +2116,43 @@ export function InternalCategoryAttendancePage({
               weekNum: selectedWeek,
               weekLabel: `${selectedWeek}주차`,
               status,
-              checkedInAt: status === "late" ? "14:15" : "-",
+              checkedInAt: status === 'late' ? '14:15' : '-',
               memo: isAbsentThisWeek
-                ? "학기 과제/시험 일정 결석"
-                : status === "late"
-                  ? "수업 종료 후 15분 지각"
-                  : a.memo || "",
+                ? '학기 과제/시험 일정 결석'
+                : status === 'late'
+                  ? '수업 종료 후 15분 지각'
+                  : a.memo || '',
             };
           }
         });
 
   const filteredAttendees = useMemo(() => {
     let list = currentTeamAttendees.filter((a) => {
-      if (selectedTrackFilter !== "ALL") {
+      if (selectedTrackFilter !== 'ALL') {
         const matchesTrack = (t: string) => {
-          if (selectedTrackFilter === "엔지니어링" || selectedTrackFilter === "엔지") {
-            return t === "엔지니어링" || t === "엔지" || t.includes("엔지");
+          if (selectedTrackFilter === '엔지니어링' || selectedTrackFilter === '엔지') {
+            return t === '엔지니어링' || t === '엔지' || t.includes('엔지');
           }
           return t === selectedTrackFilter;
         };
-        if (!matchesTrack(a.track || "")) {
+        if (!matchesTrack(a.track || '')) {
           return false;
         }
       }
-      if (termFilter !== "ALL") {
+      if (termFilter !== 'ALL') {
         if (`${a.term}` !== termFilter) {
           return false;
         }
       }
-      if (attendStatusFilter !== "ALL" && a.status !== attendStatusFilter) {
+      if (attendStatusFilter !== 'ALL' && a.status !== attendStatusFilter) {
         return false;
       }
       if (attendeeSearch.trim()) {
         const q = attendeeSearch.toLowerCase();
-        const matchName = (a.name || "").toLowerCase().includes(q);
-        const matchMemo = (a.memo || "").toLowerCase().includes(q);
-        const matchTrack = (a.track || "").toLowerCase().includes(q);
-        const matchTeam = (a.teamName || "").toLowerCase().includes(q);
+        const matchName = (a.name || '').toLowerCase().includes(q);
+        const matchMemo = (a.memo || '').toLowerCase().includes(q);
+        const matchTrack = (a.track || '').toLowerCase().includes(q);
+        const matchTeam = (a.teamName || '').toLowerCase().includes(q);
         if (!matchName && !matchMemo && !matchTrack && !matchTeam) {
           return false;
         }
@@ -2162,16 +2160,16 @@ export function InternalCategoryAttendancePage({
       return true;
     });
 
-    if (sortOption === "TERM_ASC") {
+    if (sortOption === 'TERM_ASC') {
       list = [...list].sort(
-        (a, b) => (a.term || 0) - (b.term || 0) || a.name.localeCompare(b.name, "ko")
+        (a, b) => (a.term || 0) - (b.term || 0) || a.name.localeCompare(b.name, 'ko'),
       );
-    } else if (sortOption === "TERM_DESC") {
+    } else if (sortOption === 'TERM_DESC') {
       list = [...list].sort(
-        (a, b) => (b.term || 0) - (a.term || 0) || a.name.localeCompare(b.name, "ko")
+        (a, b) => (b.term || 0) - (a.term || 0) || a.name.localeCompare(b.name, 'ko'),
       );
-    } else if (sortOption === "NAME_ASC") {
-      list = [...list].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    } else if (sortOption === 'NAME_ASC') {
+      list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     }
 
     return list;
@@ -2186,13 +2184,13 @@ export function InternalCategoryAttendancePage({
 
   // ADV Overall Matrix Rows calculation & BASE Term (전체 주차) Matrix calculation
   const isMatrixMode =
-    (category === "ADV" && isAllSelected) || (category === "SESSION" && selectedWeek === 0);
+    (category === 'ADV' && isAllSelected) || (category === 'SESSION' && selectedWeek === 0);
 
   const distinctMembers = useMemo(() => {
     const map = new Map<string, InternalAttendee>();
     baseAttendees.forEach((a) => {
-      const safeId = String(a.id || "");
-      const baseId = a.originalId || (safeId.includes("_w") ? safeId.split("_w")[0] : safeId);
+      const safeId = String(a.id || '');
+      const baseId = a.originalId || (safeId.includes('_w') ? safeId.split('_w')[0] : safeId);
       if (!map.has(baseId)) {
         map.set(baseId, { ...a, id: baseId, originalId: baseId });
       }
@@ -2200,7 +2198,7 @@ export function InternalCategoryAttendancePage({
     return Array.from(map.values());
   }, [baseAttendees]);
 
-  const currentTermWeeks = termPeriod === "VACATION" ? VACATION_WEEKS_8 : SEMESTER_WEEKS_8;
+  const currentTermWeeks = termPeriod === 'VACATION' ? VACATION_WEEKS_8 : SEMESTER_WEEKS_8;
 
   // 주차 선택 시 매트릭스 표에서 해당 주차 컬럼만 필터링 (0주차는 전체 8주차 표시)
   const displayedMatrixWeeks = useMemo(() => {
@@ -2212,7 +2210,7 @@ export function InternalCategoryAttendancePage({
 
   // 1~3주차(방학)만 직접 출결 선택 가능 (9주차 이상은 4주차 등과 동일하게 일반 상태 표시)
   const isWeekDirectEditable = (weekNum: number) => {
-    return termPeriod === "VACATION" && weekNum >= 1 && weekNum <= 3;
+    return termPeriod === 'VACATION' && weekNum >= 1 && weekNum <= 3;
   };
 
   // 매트릭스 표 최소 너비 계산 (각 컬럼이 찌그러지지 않도록 합산)
@@ -2221,7 +2219,7 @@ export function InternalCategoryAttendancePage({
       (colWidths.matrix_index || 42) +
       (colWidths.matrix_term || 52) +
       (colWidths.matrix_name || 80) +
-      (category !== "SESSION" && selectedTrackFilter === "ALL" ? colWidths.matrix_track || 72 : 0) +
+      (category !== 'SESSION' && selectedTrackFilter === 'ALL' ? colWidths.matrix_track || 72 : 0) +
       (colWidths.matrix_total || 75);
 
     if (selectedWeek === 0) {
@@ -2229,16 +2227,16 @@ export function InternalCategoryAttendancePage({
         (colWidths.matrix_absence || 60) +
         (colWidths.matrix_unexcusedAbsence || 68) +
         (colWidths.matrix_late || 68) +
-        (category === "ADV" ? colWidths.matrix_remote || 80 : 0);
+        (category === 'ADV' ? colWidths.matrix_remote || 80 : 0);
     }
 
     displayedMatrixWeeks.forEach((w) => {
       const isEditable = isWeekDirectEditable(w.weekNum) && selectedWeek !== 0;
       const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
-      const hasDate = Boolean(rawDate && rawDate !== "-");
+      const hasDate = Boolean(rawDate && rawDate !== '-');
       const colKey = `matrix_w_${w.weekNum}`;
-      const minColWidth = isEditable ? 435 : (hasDate ? 92 : 55);
-      const defaultColWidth = isEditable ? 445 : (hasDate ? 92 : 72);
+      const minColWidth = isEditable ? 435 : hasDate ? 92 : 55;
+      const defaultColWidth = isEditable ? 445 : hasDate ? 92 : 72;
       const effectiveWidth = Math.max(colWidths[colKey] || defaultColWidth, minColWidth);
       sum += effectiveWidth;
     });
@@ -2246,25 +2244,35 @@ export function InternalCategoryAttendancePage({
     return Math.max(
       sum,
       selectedWeek === 0
-        ? selectedTrackFilter === "ALL"
+        ? selectedTrackFilter === 'ALL'
           ? 850
           : 750
-        : selectedTrackFilter === "ALL"
+        : selectedTrackFilter === 'ALL'
           ? 550
-          : 490
+          : 490,
     );
-  }, [category, colWidths, displayedMatrixWeeks, selectedWeek, selectedTrackFilter, termPeriod, savedWeekDateMapping]);
+  }, [
+    category,
+    colWidths,
+    displayedMatrixWeeks,
+    selectedWeek,
+    selectedTrackFilter,
+    termPeriod,
+    savedWeekDateMapping,
+  ]);
 
   // 단일 팀 표 최소 너비 계산
   const singleTeamTableMinWidth = useMemo(() => {
     const isSingleTeamEditable =
-      category === "SESSION" ||
-      (category === "ADV" && isWeekDirectEditable(selectedWeek) && selectedWeek !== 0);
+      category === 'SESSION' ||
+      (category === 'ADV' && isWeekDirectEditable(selectedWeek) && selectedWeek !== 0);
     const statusMinWidth = isSingleTeamEditable ? 435 : 70;
     const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
     const statusEffectiveWidth = isSingleTeamEditable
       ? Math.max(colWidths.status || statusDefaultWidth, statusMinWidth)
-      : (colWidths.status && colWidths.status < 200 ? colWidths.status : statusDefaultWidth);
+      : colWidths.status && colWidths.status < 200
+        ? colWidths.status
+        : statusDefaultWidth;
 
     let sum =
       (colWidths.name || 70) +
@@ -2274,13 +2282,13 @@ export function InternalCategoryAttendancePage({
     if (selectedWeek === 0) {
       sum += colWidths.week || 60;
     }
-    if (category !== "SESSION" && isAllSelected) {
+    if (category !== 'SESSION' && isAllSelected) {
       sum += colWidths.track || 60;
     }
-    if (isAllSelected && category !== "SESSION") {
+    if (isAllSelected && category !== 'SESSION') {
       sum += colWidths.teamName || 90;
     }
-    if (category !== "SESSION" && !isAllSelected) {
+    if (category !== 'SESSION' && !isAllSelected) {
       sum += colWidths.track || 60;
     }
     if (isTableEditMode) {
@@ -2320,7 +2328,7 @@ export function InternalCategoryAttendancePage({
 
     displayedMatrixWeeks.forEach((w) => {
       const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
-      const hasDate = Boolean(rawDate && rawDate !== "-");
+      const hasDate = Boolean(rawDate && rawDate !== '-');
       const colKey = `study_w_${w.weekNum}`;
       const minColWidth = hasDate ? 92 : 55;
       const defaultColWidth = hasDate ? 92 : 72;
@@ -2346,85 +2354,85 @@ export function InternalCategoryAttendancePage({
         const overrideKey = `${category}_${termPeriod}_${currentWeekNum}_${member.id}`;
         const override = attendanceOverrides[overrideKey];
 
-        let status: AttendStatus = "unmarked";
+        let status: AttendStatus = 'unmarked';
         let memo: string | undefined = member.memo;
-        let checkedInAt: string | undefined = "-";
+        let checkedInAt: string | undefined = '-';
 
         if (override && override.status) {
           status = override.status;
           memo = override.memo;
           checkedInAt = override.checkedInAt;
         } else {
-          if (termPeriod === "VACATION") {
-            if (currentWeekNum > 3 && category !== "SESSION") {
-              status = "unmarked";
-              checkedInAt = "-";
+          if (termPeriod === 'VACATION') {
+            if (currentWeekNum > 3 && category !== 'SESSION') {
+              status = 'unmarked';
+              checkedInAt = '-';
               memo = undefined;
             } else {
               const isAbsentThisWeek =
-                (member.name === "오승현" &&
+                (member.name === '오승현' &&
                   (currentWeekNum === 2 || currentWeekNum === 3 || currentWeekNum === 7)) ||
-                (member.name === "원승민" && (currentWeekNum === 3 || currentWeekNum === 5)) ||
-                (member.name === "남소희" && (currentWeekNum === 3 || currentWeekNum === 6));
+                (member.name === '원승민' && (currentWeekNum === 3 || currentWeekNum === 5)) ||
+                (member.name === '남소희' && (currentWeekNum === 3 || currentWeekNum === 6));
               const isLateThisWeek =
-                category === "SESSION" &&
-                ((member.name === "장나연" && currentWeekNum === 3) ||
-                  (member.name === "문지훈" && currentWeekNum === 2));
+                category === 'SESSION' &&
+                ((member.name === '장나연' && currentWeekNum === 3) ||
+                  (member.name === '문지훈' && currentWeekNum === 2));
               const isRemoteThisWeek =
-                (member.name === "안서연" && currentWeekNum === 2) ||
-                (member.name === "조민규" && (currentWeekNum === 1 || currentWeekNum === 3)) ||
-                (member.name === "도현진" && currentWeekNum === 2);
+                (member.name === '안서연' && currentWeekNum === 2) ||
+                (member.name === '조민규' && (currentWeekNum === 1 || currentWeekNum === 3)) ||
+                (member.name === '도현진' && currentWeekNum === 2);
 
               if (isAbsentThisWeek) {
-                status = "absent";
-                memo = "방학 개인 사정 (사전 공결 신청 승인)";
-                checkedInAt = "-";
+                status = 'absent';
+                memo = '방학 개인 사정 (사전 공결 신청 승인)';
+                checkedInAt = '-';
               } else if (isLateThisWeek) {
-                status = "late";
-                memo = "15분 지각";
-                checkedInAt = "14:15";
+                status = 'late';
+                memo = '15분 지각';
+                checkedInAt = '14:15';
               } else if (isRemoteThisWeek) {
-                status = "remote";
-                memo = "비대면 참여 승인";
-                checkedInAt = "14:00 (온라인)";
+                status = 'remote';
+                memo = '비대면 참여 승인';
+                checkedInAt = '14:00 (온라인)';
               } else {
-                status = "unmarked";
-                checkedInAt = "-";
+                status = 'unmarked';
+                checkedInAt = '-';
               }
             }
           } else {
-            if (currentWeekNum > 11 && category !== "SESSION") {
-              status = "unmarked";
-              checkedInAt = "-";
+            if (currentWeekNum > 11 && category !== 'SESSION') {
+              status = 'unmarked';
+              checkedInAt = '-';
               memo = undefined;
             } else {
               const isAbsentThisWeek =
-                (member.name === "장나연" && (currentWeekNum === 11 || currentWeekNum === 15)) ||
-                (member.name === "박성준" && currentWeekNum === 10) ||
-                (member.name === "이도현" && currentWeekNum === 11);
+                (member.name === '장나연' && (currentWeekNum === 11 || currentWeekNum === 15)) ||
+                (member.name === '박성준' && currentWeekNum === 10) ||
+                (member.name === '이도현' && currentWeekNum === 11);
               const isLateThisWeek =
-                (member.name === "김서하" && currentWeekNum === 11) ||
-                (member.name === "한예린" && currentWeekNum === 10) ||
-                (member.name === "고준서" && currentWeekNum === 12);
+                (member.name === '김서하' && currentWeekNum === 11) ||
+                (member.name === '한예린' && currentWeekNum === 10) ||
+                (member.name === '고준서' && currentWeekNum === 12);
               const isRemoteThisWeek =
-                (member.name === "한예린" && currentWeekNum === 11) ||
-                (member.name === "안서연" && currentWeekNum === 10);
+                (member.name === '한예린' && currentWeekNum === 11) ||
+                (member.name === '안서연' && currentWeekNum === 10);
 
               if (isAbsentThisWeek) {
-                status = "absent";
-                memo = "학기 과제/시험 일정 결석";
-                checkedInAt = "-";
+                status = 'absent';
+                memo = '학기 과제/시험 일정 결석';
+                checkedInAt = '-';
               } else if (isLateThisWeek) {
-                status = "late";
-                memo = "수업 종료 후 15분 지각";
-                checkedInAt = "14:15";
+                status = 'late';
+                memo = '수업 종료 후 15분 지각';
+                checkedInAt = '14:15';
               } else if (isRemoteThisWeek) {
-                status = "remote";
-                memo = "비대면 참여 승인";
-                checkedInAt = "14:00 (온라인)";
+                status = 'remote';
+                memo = '비대면 참여 승인';
+                checkedInAt = '14:00 (온라인)';
               } else {
-                status = "unmarked";
-                checkedInAt = "-";
+                status = 'unmarked';
+                checkedInAt = '-';
               }
             }
           }
@@ -2432,16 +2440,16 @@ export function InternalCategoryAttendancePage({
 
         weekData[currentWeekNum] = { status, memo, checkedInAt };
 
-        if (status === "absent") {
+        if (status === 'absent') {
           absenceCount++;
-        } else if (status === "unexcusedAbsent") {
+        } else if (status === 'unexcusedAbsent') {
           unexcusedAbsenceCount++;
-        } else if (status === "late" || status === "earlyLeave" || status === "unexcusedLate") {
+        } else if (status === 'late' || status === 'earlyLeave' || status === 'unexcusedLate') {
           lateEarlyLeaveCount++;
         } else if (
-          status === "remote" ||
-          (memo?.includes("비대면") ?? false) ||
-          (memo?.includes("온라인") ?? false)
+          status === 'remote' ||
+          (memo?.includes('비대면') ?? false) ||
+          (memo?.includes('온라인') ?? false)
         ) {
           remoteCount++;
         }
@@ -2450,14 +2458,14 @@ export function InternalCategoryAttendancePage({
       let totalScore = 0;
       let attendedCount = 0;
 
-      if (category === "STUDY") {
+      if (category === 'STUDY') {
         currentTermWeeks.forEach((w) => {
-          if (weekData[w.weekNum]?.status === "present") {
+          if (weekData[w.weekNum]?.status === 'present') {
             attendedCount++;
           }
         });
         const isLeader = config.teams.some(
-          (t) => t.id === member.teamId && t.leader === member.name
+          (t) => t.id === member.teamId && t.leader === member.name,
         );
         const failPenalty = currentScoreRule.studyFailPenalty ?? -5;
         const passBonus = currentScoreRule.studyPassBonus ?? 1;
@@ -2483,8 +2491,8 @@ export function InternalCategoryAttendancePage({
         name: member.name,
         term: member.term,
         track: member.track,
-        teamId: member.teamId || "",
-        teamName: member.teamName || "",
+        teamId: member.teamId || '',
+        teamName: member.teamName || '',
         weekData,
         absenceCount,
         unexcusedAbsenceCount,
@@ -2505,18 +2513,18 @@ export function InternalCategoryAttendancePage({
 
   const filteredMatrixRows = useMemo(() => {
     let rows = matrixRows.filter((row) => {
-      if (category !== "STUDY" && selectedTrackFilter !== "ALL") {
+      if (category !== 'STUDY' && selectedTrackFilter !== 'ALL') {
         const matchesTrack = (t: string) => {
-          if (selectedTrackFilter === "엔지니어링" || selectedTrackFilter === "엔지") {
-            return t === "엔지니어링" || t === "엔지" || t.includes("엔지");
+          if (selectedTrackFilter === '엔지니어링' || selectedTrackFilter === '엔지') {
+            return t === '엔지니어링' || t === '엔지' || t.includes('엔지');
           }
           return t === selectedTrackFilter;
         };
-        if (!matchesTrack(row.track || "")) {
+        if (!matchesTrack(row.track || '')) {
           return false;
         }
       }
-      if (termFilter !== "ALL") {
+      if (termFilter !== 'ALL') {
         if (`${row.term}` !== termFilter) {
           return false;
         }
@@ -2524,17 +2532,17 @@ export function InternalCategoryAttendancePage({
       if (attendeeSearch.trim()) {
         const q = attendeeSearch.toLowerCase();
         const match =
-          (row.name || "").toLowerCase().includes(q) ||
-          (row.track || "").toLowerCase().includes(q) ||
-          (row.teamName || "").toLowerCase().includes(q) ||
-          `${row.term || ""}`.includes(q);
+          (row.name || '').toLowerCase().includes(q) ||
+          (row.track || '').toLowerCase().includes(q) ||
+          (row.teamName || '').toLowerCase().includes(q) ||
+          `${row.term || ''}`.includes(q);
         if (!match) {
           return false;
         }
       }
-      if (attendStatusFilter !== "ALL") {
+      if (attendStatusFilter !== 'ALL') {
         const hasStatus = displayedMatrixWeeks.some(
-          (w) => row.weekData[w.weekNum]?.status === attendStatusFilter
+          (w) => row.weekData[w.weekNum]?.status === attendStatusFilter,
         );
         if (!hasStatus) {
           return false;
@@ -2543,8 +2551,8 @@ export function InternalCategoryAttendancePage({
       return true;
     });
 
-    if (category === "STUDY") {
-      if (studySortMode === "TEAM") {
+    if (category === 'STUDY') {
+      if (studySortMode === 'TEAM') {
         const teamOrderMap = new Map<string, number>();
         config.teams.forEach((t, i) => teamOrderMap.set(t.id, i));
         rows = [...rows].sort((a, b) => {
@@ -2553,27 +2561,27 @@ export function InternalCategoryAttendancePage({
           if (teamA !== teamB) {
             return teamA - teamB;
           }
-          return a.name.localeCompare(b.name, "ko");
+          return a.name.localeCompare(b.name, 'ko');
         });
       } else {
         rows = [...rows].sort((a, b) => {
           if ((a.term || 0) !== (b.term || 0)) {
             return (a.term || 0) - (b.term || 0);
           }
-          return a.name.localeCompare(b.name, "ko");
+          return a.name.localeCompare(b.name, 'ko');
         });
       }
     } else {
-      if (sortOption === "TERM_ASC") {
+      if (sortOption === 'TERM_ASC') {
         rows = [...rows].sort(
-          (a, b) => (a.term || 0) - (b.term || 0) || a.name.localeCompare(b.name, "ko")
+          (a, b) => (a.term || 0) - (b.term || 0) || a.name.localeCompare(b.name, 'ko'),
         );
-      } else if (sortOption === "TERM_DESC") {
+      } else if (sortOption === 'TERM_DESC') {
         rows = [...rows].sort(
-          (a, b) => (b.term || 0) - (a.term || 0) || a.name.localeCompare(b.name, "ko")
+          (a, b) => (b.term || 0) - (a.term || 0) || a.name.localeCompare(b.name, 'ko'),
         );
-      } else if (sortOption === "NAME_ASC") {
-        rows = [...rows].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      } else if (sortOption === 'NAME_ASC') {
+        rows = [...rows].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
       }
     }
 
@@ -2592,26 +2600,26 @@ export function InternalCategoryAttendancePage({
   ]);
 
   const studyTeamRows = useMemo(() => {
-    if (category !== "STUDY") {
+    if (category !== 'STUDY') {
       return [];
     }
     if (isAllSelected) {
       return filteredMatrixRows;
     }
-    const teamMembers = filteredMatrixRows.filter((r) => r.teamId === (selectedTeam?.id || ""));
+    const teamMembers = filteredMatrixRows.filter((r) => r.teamId === (selectedTeam?.id || ''));
     return [...teamMembers].sort((a, b) => {
       if ((a.term || 0) !== (b.term || 0)) {
         return (a.term || 0) - (b.term || 0);
       }
-      return a.name.localeCompare(b.name, "ko");
+      return a.name.localeCompare(b.name, 'ko');
     });
   }, [category, isAllSelected, filteredMatrixRows, selectedTeam]);
 
   function handleStatusChange(attendeeId: string, newStatus: AttendStatus, targetWeekNum?: number) {
-    const rawId = attendeeId.includes("_w") ? attendeeId.split("_w")[0] : attendeeId;
+    const rawId = attendeeId.includes('_w') ? attendeeId.split('_w')[0] : attendeeId;
     const nowTime = new Date().toTimeString().slice(0, 5);
     const targetWeek =
-      targetWeekNum || (selectedWeek === 0 ? (termPeriod === "VACATION" ? 3 : 11) : selectedWeek);
+      targetWeekNum || (selectedWeek === 0 ? (termPeriod === 'VACATION' ? 3 : 11) : selectedWeek);
     const key = `${category}_${termPeriod}_${targetWeek}_${rawId}`;
     setAttendanceOverrides((prev) => ({
       ...prev,
@@ -2619,32 +2627,32 @@ export function InternalCategoryAttendancePage({
         ...prev[key],
         status: newStatus,
         checkedInAt:
-          newStatus === "present" ||
-          newStatus === "late" ||
-          newStatus === "earlyLeave" ||
-          newStatus === "unexcusedLate"
+          newStatus === 'present' ||
+          newStatus === 'late' ||
+          newStatus === 'earlyLeave' ||
+          newStatus === 'unexcusedLate'
             ? nowTime
-            : "-",
+            : '-',
       },
     }));
   }
 
   function handleMemoChange(attendeeId: string, memo: string, targetWeekNum?: number) {
     const targetWeek =
-      targetWeekNum || (selectedWeek === 0 ? (termPeriod === "VACATION" ? 3 : 11) : selectedWeek);
+      targetWeekNum || (selectedWeek === 0 ? (termPeriod === 'VACATION' ? 3 : 11) : selectedWeek);
     const key = `${category}_${termPeriod}_${targetWeek}_${attendeeId}`;
     setAttendanceOverrides((prev) => ({
       ...prev,
       [key]: {
         ...prev[key],
-        status: prev[key]?.status || "present",
+        status: prev[key]?.status || 'present',
         memo,
       },
     }));
   }
 
   function handleDeleteAttendee(attendeeId: string) {
-    if (!window.confirm("정말 이 부원을 명단에서 제외하시겠습니까?")) {
+    if (!window.confirm('정말 이 부원을 명단에서 제외하시겠습니까?')) {
       return;
     }
     setAttendees((prev) => prev.filter((a) => a.id !== attendeeId));
@@ -2652,7 +2660,7 @@ export function InternalCategoryAttendancePage({
 
   function handleCreateNewEvent() {
     if (!newEventTitle.trim()) {
-      alert("세션/활동 명칭을 입력해 주세요.");
+      alert('세션/활동 명칭을 입력해 주세요.');
       return;
     }
     const newId = `evt_${category.toLowerCase()}_${Date.now()}`;
@@ -2660,7 +2668,7 @@ export function InternalCategoryAttendancePage({
       id: newId,
       category,
       title: newEventTitle.trim(),
-      status: "IN_PROGRESS",
+      status: 'IN_PROGRESS',
       date: newEventDate,
       startTime: newEventStart,
       endTime: newEventEnd,
@@ -2676,8 +2684,8 @@ export function InternalCategoryAttendancePage({
       ...a,
       id: `att_${newId}_${idx}`,
       eventId: newId,
-      status: "unmarked",
-      checkedInAt: "-",
+      status: 'unmarked',
+      checkedInAt: '-',
       memo: undefined,
     }));
 
@@ -2689,15 +2697,15 @@ export function InternalCategoryAttendancePage({
   }
 
   const { defaultModalCols, previewRows, defaultExportFilename } = useMemo(() => {
-    const periodLabel = termPeriod === "VACATION" ? "방학" : "학기";
+    const periodLabel = termPeriod === 'VACATION' ? '방학' : '학기';
 
-    if (category === "STUDY") {
+    if (category === 'STUDY') {
       if (!isAllSelected) {
-        const teamNameClean = (selectedTeam?.name || "개별스터디").replace(/[^\w가-힣]/g, "_");
+        const teamNameClean = (selectedTeam?.name || '개별스터디').replace(/[^\w가-힣]/g, '_');
         const cols: ModalColItem[] = [
           {
-            id: "term",
-            label: "기수",
+            id: 'term',
+            label: '기수',
             renderCell: (row) => (
               <span className="font-mono text-slate-600 text-xs px-3 whitespace-nowrap">
                 {row?.term ?? 28}기
@@ -2706,30 +2714,30 @@ export function InternalCategoryAttendancePage({
             exportValue: (row) => `${row?.term ?? 28}기`,
           },
           {
-            id: "name",
-            label: "이름",
+            id: 'name',
+            label: '이름',
             renderCell: (row) => (
               <span className="font-bold text-slate-900 text-xs px-4 whitespace-nowrap">
-                {row?.name ?? ""}
+                {row?.name ?? ''}
               </span>
             ),
-            exportValue: (row) => row?.name ?? "",
+            exportValue: (row) => row?.name ?? '',
           },
           ...displayedMatrixWeeks.map((w) => {
             const rawDate = (
               weekDateMapping[w.weekNum] ||
               savedWeekDateMapping[w.weekNum] ||
-              ""
+              ''
             )?.trim();
-            const hasDate = Boolean(rawDate && rawDate !== "-");
+            const hasDate = Boolean(rawDate && rawDate !== '-');
             return {
               id: `w_${w.weekNum}`,
               label: hasDate ? rawDate : w.label,
               renderCell: (row: any) => {
                 const cell = row?.weekData ? row.weekData[w.weekNum] : undefined;
-                const st: AttendStatus = cell?.status || "unmarked";
-                const code = EXPORT_ATTEND_STATUS_CODE[st] || "-";
-                const styleClass = EXPORT_ATTEND_STATUS_STYLE[st] || "text-slate-300";
+                const st: AttendStatus = cell?.status || 'unmarked';
+                const code = EXPORT_ATTEND_STATUS_CODE[st] || '-';
+                const styleClass = EXPORT_ATTEND_STATUS_STYLE[st] || 'text-slate-300';
                 return (
                   <span className={`font-mono text-xs whitespace-nowrap ${styleClass}`}>
                     {code}
@@ -2737,14 +2745,14 @@ export function InternalCategoryAttendancePage({
                 );
               },
               exportValue: (row: any) => {
-                const st: AttendStatus = row?.weekData?.[w.weekNum]?.status || "unmarked";
-                return EXPORT_ATTEND_STATUS_CODE[st] || "-";
+                const st: AttendStatus = row?.weekData?.[w.weekNum]?.status || 'unmarked';
+                return EXPORT_ATTEND_STATUS_CODE[st] || '-';
               },
             };
           }),
           {
-            id: "attendedCount",
-            label: "참여 횟수",
+            id: 'attendedCount',
+            label: '참여 횟수',
             renderCell: (row) => (
               <span className="font-mono text-xs text-slate-800 font-bold whitespace-nowrap">
                 {row?.attendedCount ?? 0}회
@@ -2753,36 +2761,36 @@ export function InternalCategoryAttendancePage({
             exportValue: (row) => `${row?.attendedCount ?? 0}회`,
           },
           {
-            id: "isLeader",
-            label: "스터디장",
+            id: 'isLeader',
+            label: '스터디장',
             renderCell: (row) => {
               const isLeader = row?.isLeader || row?.name === selectedTeam?.leader;
               return (
                 <span
-                  className={`text-xs font-bold font-mono whitespace-nowrap ${isLeader ? "text-slate-900" : "text-slate-300 font-normal"}`}
+                  className={`text-xs font-bold font-mono whitespace-nowrap ${isLeader ? 'text-slate-900' : 'text-slate-300 font-normal'}`}
                 >
-                  {isLeader ? "1" : "-"}
+                  {isLeader ? '1' : '-'}
                 </span>
               );
             },
             exportValue: (row) => {
               const isLeader = row?.isLeader || row?.name === selectedTeam?.leader;
-              return isLeader ? "1" : "-";
+              return isLeader ? '1' : '-';
             },
           },
           {
-            id: "totalScore",
-            label: "점수",
+            id: 'totalScore',
+            label: '점수',
             renderCell: (row) => {
               const score = row?.totalScore ?? 0;
               return (
                 <span
                   className={`font-bold font-mono whitespace-nowrap ${
                     score === 0
-                      ? "text-slate-400 font-medium"
+                      ? 'text-slate-400 font-medium'
                       : score < 0
-                        ? "text-rose-600"
-                        : "text-emerald-700"
+                        ? 'text-rose-600'
+                        : 'text-emerald-700'
                   }`}
                 >
                   {score}
@@ -2800,8 +2808,8 @@ export function InternalCategoryAttendancePage({
       } else {
         const cols: ModalColItem[] = [
           {
-            id: "term",
-            label: "기수",
+            id: 'term',
+            label: '기수',
             renderCell: (row) => (
               <span className="font-mono text-slate-600 text-xs px-3 whitespace-nowrap">
                 {row?.term ?? 28}기
@@ -2810,24 +2818,24 @@ export function InternalCategoryAttendancePage({
             exportValue: (row) => `${row?.term ?? 28}기`,
           },
           {
-            id: "track",
-            label: "부문",
+            id: 'track',
+            label: '부문',
             renderCell: (row) => (
               <span className="text-slate-600 text-xs px-3 whitespace-nowrap">
-                {row?.track ?? ""}
+                {row?.track ?? ''}
               </span>
             ),
-            exportValue: (row) => row?.track ?? "",
+            exportValue: (row) => row?.track ?? '',
           },
           {
-            id: "name",
-            label: "이름",
+            id: 'name',
+            label: '이름',
             renderCell: (row) => (
               <span className="font-bold text-slate-900 text-xs px-4 whitespace-nowrap">
-                {row?.name ?? ""}
+                {row?.name ?? ''}
               </span>
             ),
-            exportValue: (row) => row?.name ?? "",
+            exportValue: (row) => row?.name ?? '',
           },
           ...(config.teams || []).map((team) => ({
             id: `team_${team.id}`,
@@ -2842,10 +2850,10 @@ export function InternalCategoryAttendancePage({
                 <span
                   className={`font-bold font-mono whitespace-nowrap ${
                     sc === 0
-                      ? "text-slate-400 font-medium"
+                      ? 'text-slate-400 font-medium'
                       : sc < 0
-                        ? "text-rose-600"
-                        : "text-emerald-700"
+                        ? 'text-rose-600'
+                        : 'text-emerald-700'
                   }`}
                 >
                   {sc}
@@ -2855,24 +2863,24 @@ export function InternalCategoryAttendancePage({
             exportValue: (row: any) => {
               const isMember = row?.teamId === team.id;
               if (!isMember) {
-                return "-";
+                return '-';
               }
               return String(row?.totalScore ?? 0);
             },
           })),
           {
-            id: "totalScore",
-            label: "총점",
+            id: 'totalScore',
+            label: '총점',
             renderCell: (row) => {
               const score = row?.totalScore ?? 0;
               return (
                 <span
                   className={`font-bold font-mono whitespace-nowrap ${
                     score === 0
-                      ? "text-slate-400 font-medium"
+                      ? 'text-slate-400 font-medium'
                       : score < 0
-                        ? "text-rose-600"
-                        : "text-emerald-700"
+                        ? 'text-rose-600'
+                        : 'text-emerald-700'
                   }`}
                 >
                   {score}
@@ -2888,11 +2896,11 @@ export function InternalCategoryAttendancePage({
           defaultExportFilename: `BOAZ_스터디_전체통합_출결_${periodLabel}.csv`,
         };
       }
-    } else if (category === "ADV") {
+    } else if (category === 'ADV') {
       const cols: ModalColItem[] = [
         {
-          id: "term",
-          label: "기수",
+          id: 'term',
+          label: '기수',
           renderCell: (row) => (
             <span className="font-mono text-slate-600 text-xs px-2 whitespace-nowrap">
               {row?.term ?? 28}기
@@ -2901,61 +2909,61 @@ export function InternalCategoryAttendancePage({
           exportValue: (row) => `${row?.term ?? 28}기`,
         },
         {
-          id: "name",
-          label: "이름",
+          id: 'name',
+          label: '이름',
           renderCell: (row) => (
             <span className="font-bold text-slate-900 text-xs px-3 whitespace-nowrap">
-              {row?.name ?? ""}
+              {row?.name ?? ''}
             </span>
           ),
-          exportValue: (row) => row?.name ?? "",
+          exportValue: (row) => row?.name ?? '',
         },
         {
-          id: "track",
-          label: "부문",
+          id: 'track',
+          label: '부문',
           renderCell: (row) => (
             <span className="text-slate-600 text-xs px-2.5 whitespace-nowrap">
-              {row?.track ?? ""}
+              {row?.track ?? ''}
             </span>
           ),
-          exportValue: (row) => row?.track ?? "",
+          exportValue: (row) => row?.track ?? '',
         },
         ...displayedMatrixWeeks.map((w) => {
           const rawDate = (
             weekDateMapping[w.weekNum] ||
             savedWeekDateMapping[w.weekNum] ||
-            ""
+            ''
           )?.trim();
-          const hasDate = Boolean(rawDate && rawDate !== "-");
+          const hasDate = Boolean(rawDate && rawDate !== '-');
           return {
             id: `w_${w.weekNum}`,
             label: hasDate ? rawDate : w.label,
             renderCell: (row: any) => {
               const cell = row?.weekData ? row.weekData[w.weekNum] : undefined;
-              const st: AttendStatus = cell?.status || "unmarked";
-              const code = EXPORT_ATTEND_STATUS_CODE[st] || "-";
-              const styleClass = EXPORT_ATTEND_STATUS_STYLE[st] || "text-slate-300";
+              const st: AttendStatus = cell?.status || 'unmarked';
+              const code = EXPORT_ATTEND_STATUS_CODE[st] || '-';
+              const styleClass = EXPORT_ATTEND_STATUS_STYLE[st] || 'text-slate-300';
               return (
                 <span className={`font-mono text-xs whitespace-nowrap ${styleClass}`}>{code}</span>
               );
             },
             exportValue: (row: any) => {
-              const st: AttendStatus = row?.weekData?.[w.weekNum]?.status || "unmarked";
-              return EXPORT_ATTEND_STATUS_CODE[st] || "-";
+              const st: AttendStatus = row?.weekData?.[w.weekNum]?.status || 'unmarked';
+              return EXPORT_ATTEND_STATUS_CODE[st] || '-';
             },
           };
         }),
         {
-          id: "absence",
-          label: "결석",
+          id: 'absence',
+          label: '결석',
           renderCell: (row) => (
             <span className="font-mono text-xs whitespace-nowrap">{row?.absenceCount ?? 0}</span>
           ),
           exportValue: (row) => String(row?.absenceCount ?? 0),
         },
         {
-          id: "unexcusedAbsence",
-          label: "무단결석",
+          id: 'unexcusedAbsence',
+          label: '무단결석',
           renderCell: (row) => (
             <span className="font-mono text-xs whitespace-nowrap">
               {row?.unexcusedAbsenceCount ?? 0}
@@ -2964,8 +2972,8 @@ export function InternalCategoryAttendancePage({
           exportValue: (row) => String(row?.unexcusedAbsenceCount ?? 0),
         },
         {
-          id: "lateEarlyLeave",
-          label: "지각조퇴",
+          id: 'lateEarlyLeave',
+          label: '지각조퇴',
           renderCell: (row) => (
             <span className="font-mono text-xs whitespace-nowrap">
               {row?.lateEarlyLeaveCount ?? 0}
@@ -2974,26 +2982,26 @@ export function InternalCategoryAttendancePage({
           exportValue: (row) => String(row?.lateEarlyLeaveCount ?? 0),
         },
         {
-          id: "remote",
-          label: "비대면 횟수",
+          id: 'remote',
+          label: '비대면 횟수',
           renderCell: (row) => (
             <span className="font-mono text-xs whitespace-nowrap">{row?.remoteCount ?? 0}</span>
           ),
           exportValue: (row) => String(row?.remoteCount ?? 0),
         },
         {
-          id: "totalScore",
-          label: "총점",
+          id: 'totalScore',
+          label: '총점',
           renderCell: (row) => {
             const score = row?.totalScore ?? 0;
             return (
               <span
                 className={`font-bold font-mono whitespace-nowrap ${
                   score === 0
-                    ? "text-slate-400 font-medium"
+                    ? 'text-slate-400 font-medium'
                     : score < 0
-                      ? "text-rose-600"
-                      : "text-emerald-700"
+                      ? 'text-rose-600'
+                      : 'text-emerald-700'
                 }`}
               >
                 {score}
@@ -3009,11 +3017,11 @@ export function InternalCategoryAttendancePage({
         defaultExportFilename: `BOAZ_ADV_출결통합집계_${periodLabel}.csv`,
       };
     } else {
-      const trackNameClean = (selectedTeam?.name || "분석").replace(/[^\w가-힣]/g, "_");
+      const trackNameClean = (selectedTeam?.name || '분석').replace(/[^\w가-힣]/g, '_');
       const cols: ModalColItem[] = [
         {
-          id: "term",
-          label: "기수",
+          id: 'term',
+          label: '기수',
           renderCell: (row) => (
             <span className="font-mono text-slate-600 text-xs px-3 whitespace-nowrap">
               {row?.term ?? 28}기
@@ -3022,51 +3030,51 @@ export function InternalCategoryAttendancePage({
           exportValue: (row) => `${row?.term ?? 28}기`,
         },
         {
-          id: "name",
-          label: "이름",
+          id: 'name',
+          label: '이름',
           renderCell: (row) => (
             <span className="font-bold text-slate-900 text-xs px-4 whitespace-nowrap">
-              {row?.name ?? ""}
+              {row?.name ?? ''}
             </span>
           ),
-          exportValue: (row) => row?.name ?? "",
+          exportValue: (row) => row?.name ?? '',
         },
         ...displayedMatrixWeeks.map((w) => {
           const rawDate = (
             weekDateMapping[w.weekNum] ||
             savedWeekDateMapping[w.weekNum] ||
-            ""
+            ''
           )?.trim();
-          const hasDate = Boolean(rawDate && rawDate !== "-");
+          const hasDate = Boolean(rawDate && rawDate !== '-');
           return {
             id: `w_${w.weekNum}`,
             label: hasDate ? rawDate : w.label,
             renderCell: (row: any) => {
               const cell = row?.weekData ? row.weekData[w.weekNum] : undefined;
-              const st: AttendStatus = cell?.status || "unmarked";
-              const code = EXPORT_ATTEND_STATUS_CODE[st] || "-";
-              const styleClass = EXPORT_ATTEND_STATUS_STYLE[st] || "text-slate-300";
+              const st: AttendStatus = cell?.status || 'unmarked';
+              const code = EXPORT_ATTEND_STATUS_CODE[st] || '-';
+              const styleClass = EXPORT_ATTEND_STATUS_STYLE[st] || 'text-slate-300';
               return (
                 <span className={`font-mono text-xs whitespace-nowrap ${styleClass}`}>{code}</span>
               );
             },
             exportValue: (row: any) => {
-              const st: AttendStatus = row?.weekData?.[w.weekNum]?.status || "unmarked";
-              return EXPORT_ATTEND_STATUS_CODE[st] || "-";
+              const st: AttendStatus = row?.weekData?.[w.weekNum]?.status || 'unmarked';
+              return EXPORT_ATTEND_STATUS_CODE[st] || '-';
             },
           };
         }),
         {
-          id: "absence",
-          label: "결석",
+          id: 'absence',
+          label: '결석',
           renderCell: (row) => (
             <span className="font-mono text-xs whitespace-nowrap">{row?.absenceCount ?? 0}</span>
           ),
           exportValue: (row) => String(row?.absenceCount ?? 0),
         },
         {
-          id: "unexcusedAbsence",
-          label: "무단결석",
+          id: 'unexcusedAbsence',
+          label: '무단결석',
           renderCell: (row) => (
             <span className="font-mono text-xs whitespace-nowrap">
               {row?.unexcusedAbsenceCount ?? 0}
@@ -3075,8 +3083,8 @@ export function InternalCategoryAttendancePage({
           exportValue: (row) => String(row?.unexcusedAbsenceCount ?? 0),
         },
         {
-          id: "lateEarlyLeave",
-          label: "지각조퇴",
+          id: 'lateEarlyLeave',
+          label: '지각조퇴',
           renderCell: (row) => (
             <span className="font-mono text-xs whitespace-nowrap">
               {row?.lateEarlyLeaveCount ?? 0}
@@ -3085,18 +3093,18 @@ export function InternalCategoryAttendancePage({
           exportValue: (row) => String(row?.lateEarlyLeaveCount ?? 0),
         },
         {
-          id: "totalScore",
-          label: "총점",
+          id: 'totalScore',
+          label: '총점',
           renderCell: (row) => {
             const score = row?.totalScore ?? 0;
             return (
               <span
                 className={`font-bold font-mono whitespace-nowrap ${
                   score === 0
-                    ? "text-slate-400 font-medium"
+                    ? 'text-slate-400 font-medium'
                     : score < 0
-                      ? "text-rose-600"
-                      : "text-emerald-700"
+                      ? 'text-rose-600'
+                      : 'text-emerald-700'
                 }`}
               >
                 {score}
@@ -3146,16 +3154,16 @@ export function InternalCategoryAttendancePage({
     const headers = activeModalCols.map((col) => col.label);
     const exportData = previewRows.map((row) => activeModalCols.map((col) => col.exportValue(row)));
     const csvContent =
-      "\uFEFF" +
+      '\uFEFF' +
       [
-        headers.join(","),
-        ...exportData.map((row) => row.map((c) => `"${(c ?? "").replace(/"/g, '""')}"`).join(",")),
-      ].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        headers.join(','),
+        ...exportData.map((row) => row.map((c) => `"${(c ?? '').replace(/"/g, '""')}"`).join(',')),
+      ].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", defaultExportFilename);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', defaultExportFilename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -3175,44 +3183,44 @@ export function InternalCategoryAttendancePage({
 
       const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
       if (lines.length <= 1) {
-        alert("유효한 CSV 데이터가 없습니다.");
+        alert('유효한 CSV 데이터가 없습니다.');
         return;
       }
 
       // Parse header row
-      const rawHeaderCols = lines[0].split(",").map((c) =>
+      const rawHeaderCols = lines[0].split(',').map((c) =>
         c
-          .replace(/^["']|["']$/g, "")
+          .replace(/^["']|["']$/g, '')
           .trim()
-          .toLowerCase()
+          .toLowerCase(),
       );
       const hasHeader = rawHeaderCols.some(
         (h) =>
-          h.includes("이름") ||
-          h.includes("성명") ||
-          h.includes("트랙") ||
-          h.includes("부문") ||
-          h.includes("팀") ||
-          h.includes("기수")
+          h.includes('이름') ||
+          h.includes('성명') ||
+          h.includes('트랙') ||
+          h.includes('부문') ||
+          h.includes('팀') ||
+          h.includes('기수'),
       );
 
       const nameIdx = rawHeaderCols.findIndex(
-        (h) => h.includes("이름") || h.includes("성명") || h.includes("부원") || h === "name"
+        (h) => h.includes('이름') || h.includes('성명') || h.includes('부원') || h === 'name',
       );
       const trackIdx = rawHeaderCols.findIndex(
-        (h) => h.includes("트랙") || h.includes("부문") || h.includes("분야") || h === "track"
+        (h) => h.includes('트랙') || h.includes('부문') || h.includes('분야') || h === 'track',
       );
       const teamIdx = rawHeaderCols.findIndex(
-        (h) => h.includes("팀") || h.includes("소속") || h === "team"
+        (h) => h.includes('팀') || h.includes('소속') || h === 'team',
       );
       const termIdx = rawHeaderCols.findIndex(
-        (h) => h.includes("기수") || h.includes("기") || h === "term"
+        (h) => h.includes('기수') || h.includes('기') || h === 'term',
       );
       const statusIdx = rawHeaderCols.findIndex(
-        (h) => h.includes("출결") || h.includes("상태") || h.includes("출석") || h === "status"
+        (h) => h.includes('출결') || h.includes('상태') || h.includes('출석') || h === 'status',
       );
       const memoIdx = rawHeaderCols.findIndex(
-        (h) => h.includes("비고") || h.includes("메모") || h.includes("사유") || h === "memo"
+        (h) => h.includes('비고') || h.includes('메모') || h.includes('사유') || h === 'memo',
       );
 
       const dataRows = hasHeader ? lines.slice(1) : lines;
@@ -3220,18 +3228,18 @@ export function InternalCategoryAttendancePage({
       const trackCountMap: Record<string, number> = {};
 
       dataRows.forEach((row, idx) => {
-        const cols = row.split(",").map((c) => c.replace(/^["']|["']$/g, "").trim());
-        if (cols.length === 0 || cols.every((c) => c === "")) {
+        const cols = row.split(',').map((c) => c.replace(/^["']|["']$/g, '').trim());
+        if (cols.length === 0 || cols.every((c) => c === '')) {
           return;
         }
 
         // Fallback index assignment if not recognized by header
-        let trackRaw = (trackIdx >= 0 ? cols[trackIdx] : "") || "";
-        let teamRaw = (teamIdx >= 0 ? cols[teamIdx] : "") || "";
-        let nameRaw = (nameIdx >= 0 ? cols[nameIdx] : "") || "";
-        let termRaw = (termIdx >= 0 ? cols[termIdx] : "") || "";
-        let statusRaw = (statusIdx >= 0 ? cols[statusIdx] : "") || "";
-        let memoRaw = (memoIdx >= 0 ? cols[memoIdx] : "") || "";
+        let trackRaw = (trackIdx >= 0 ? cols[trackIdx] : '') || '';
+        let teamRaw = (teamIdx >= 0 ? cols[teamIdx] : '') || '';
+        let nameRaw = (nameIdx >= 0 ? cols[nameIdx] : '') || '';
+        let termRaw = (termIdx >= 0 ? cols[termIdx] : '') || '';
+        let statusRaw = (statusIdx >= 0 ? cols[statusIdx] : '') || '';
+        let memoRaw = (memoIdx >= 0 ? cols[memoIdx] : '') || '';
 
         if (!hasHeader) {
           if (cols.length >= 6) {
@@ -3247,21 +3255,21 @@ export function InternalCategoryAttendancePage({
             termRaw = cols[1];
             trackRaw = cols[2];
             statusRaw = cols[3];
-            memoRaw = cols[4] || "";
+            memoRaw = cols[4] || '';
           }
         }
 
         const name = nameRaw || `부원_${idx + 1}`;
-        const term = parseInt(termRaw.replace(/[^0-9]/g, ""), 10) || 28;
+        const term = parseInt(termRaw.replace(/[^0-9]/g, ''), 10) || 28;
 
         // 1. Normalize track (부문)
-        const normalizedTrack = trackRaw.includes("분석")
-          ? "분석"
-          : trackRaw.includes("시각")
-            ? "시각화"
-            : trackRaw.includes("엔지")
-              ? "엔지니어링"
-              : trackRaw || selectedTeam.track || "분석";
+        const normalizedTrack = trackRaw.includes('분석')
+          ? '분석'
+          : trackRaw.includes('시각')
+            ? '시각화'
+            : trackRaw.includes('엔지')
+              ? '엔지니어링'
+              : trackRaw || selectedTeam.track || '분석';
 
         // 2. Intelligently match team in config.teams by track and team name / number
         let matchedTeam = config.teams.find((t) => {
@@ -3272,8 +3280,8 @@ export function InternalCategoryAttendancePage({
             return true;
           }
 
-          const cleanTeamName = t.name.replace(/\s+/g, "");
-          const cleanTeamRaw = teamRaw.replace(/\s+/g, "");
+          const cleanTeamName = t.name.replace(/\s+/g, '');
+          const cleanTeamRaw = teamRaw.replace(/\s+/g, '');
           if (
             cleanTeamName &&
             cleanTeamRaw &&
@@ -3293,8 +3301,8 @@ export function InternalCategoryAttendancePage({
         // If no track-filtered team matched, try matching by team name across all teams
         if (!matchedTeam && teamRaw) {
           matchedTeam = config.teams.find((t) => {
-            const cleanTeamName = t.name.replace(/\s+/g, "");
-            const cleanTeamRaw = teamRaw.replace(/\s+/g, "");
+            const cleanTeamName = t.name.replace(/\s+/g, '');
+            const cleanTeamRaw = teamRaw.replace(/\s+/g, '');
             return cleanTeamName.includes(cleanTeamRaw) || cleanTeamRaw.includes(cleanTeamName);
           });
         }
@@ -3310,13 +3318,13 @@ export function InternalCategoryAttendancePage({
         // 3. Determine status
         const stLower = statusRaw.toLowerCase();
         const status: AttendStatus =
-          stLower.includes("지각") || stLower === "late"
-            ? category === "SESSION"
-              ? "late"
-              : "present"
-            : stLower.includes("결석") || stLower === "absent"
-              ? "absent"
-              : "present";
+          stLower.includes('지각') || stLower === 'late'
+            ? category === 'SESSION'
+              ? 'late'
+              : 'present'
+            : stLower.includes('결석') || stLower === 'absent'
+              ? 'absent'
+              : 'present';
 
         const resolvedTeamId = matchedTeam.id;
         const resolvedTeamName = matchedTeam.name;
@@ -3330,7 +3338,7 @@ export function InternalCategoryAttendancePage({
           term,
           track: normalizedTrack,
           status,
-          checkedInAt: status === "present" || status === "late" ? "14:00" : "-",
+          checkedInAt: status === 'present' || status === 'late' ? '14:00' : '-',
           memo: memoRaw || undefined,
         });
 
@@ -3349,24 +3357,24 @@ export function InternalCategoryAttendancePage({
           setAttendees((prev) => [
             ...newAttendeesList,
             ...prev.filter(
-              (a) => !(a.eventId === selectedEvent.id && a.teamId === selectedTeam.id)
+              (a) => !(a.eventId === selectedEvent.id && a.teamId === selectedTeam.id),
             ),
           ]);
         }
 
         const summaryText = Object.entries(trackCountMap)
           .map(([track, count]) => `${track} ${count}명`)
-          .join(", ");
+          .join(', ');
 
         alert(
-          `✅ CSV 업로드 완료!\n총 ${newAttendeesList.length}명의 출석 데이터를 팀/부문별로 자동 분류하여 등록했습니다.\n(${summaryText})`
+          `✅ CSV 업로드 완료!\n총 ${newAttendeesList.length}명의 출석 데이터를 팀/부문별로 자동 분류하여 등록했습니다.\n(${summaryText})`,
         );
       } else {
-        alert("업로드할 수 있는 유효한 데이터 행이 없습니다.");
+        alert('업로드할 수 있는 유효한 데이터 행이 없습니다.');
       }
     };
     reader.readAsText(file);
-    e.target.value = "";
+    e.target.value = '';
   }
 
   return (
@@ -3389,13 +3397,13 @@ export function InternalCategoryAttendancePage({
             <button
               type="button"
               onClick={() => {
-                setTermPeriod("VACATION");
+                setTermPeriod('VACATION');
                 setSelectedWeekVacation(0);
               }}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-bold ${
-                termPeriod === "VACATION"
-                  ? "bg-white text-slate-900 shadow-2xs"
-                  : "text-slate-500 hover:text-slate-800"
+                termPeriod === 'VACATION'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               방학
@@ -3403,13 +3411,13 @@ export function InternalCategoryAttendancePage({
             <button
               type="button"
               onClick={() => {
-                setTermPeriod("SEMESTER");
+                setTermPeriod('SEMESTER');
                 setSelectedWeekSemester(0);
               }}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-bold ${
-                termPeriod === "SEMESTER"
-                  ? "bg-white text-slate-900 shadow-2xs"
-                  : "text-slate-500 hover:text-slate-800"
+                termPeriod === 'SEMESTER'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               학기
@@ -3419,7 +3427,7 @@ export function InternalCategoryAttendancePage({
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2">
-          {category === "SESSION" && (
+          {category === 'SESSION' && (
             <label className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]">
               <Upload size={13} />
               <span>CSV 업로드</span>
@@ -3441,7 +3449,7 @@ export function InternalCategoryAttendancePage({
           <div className="absolute left-0 z-20 flex items-center h-full pr-4 bg-gradient-to-r from-slate-50 via-slate-50/90 to-transparent pointer-events-none">
             <button
               type="button"
-              onClick={() => handleScrollWeeks("left")}
+              onClick={() => handleScrollWeeks('left')}
               className="pointer-events-auto w-6 h-6 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-700 hover:text-slate-950 hover:bg-slate-50 transition-colors cursor-pointer"
               title="이전 주차 보기"
             >
@@ -3455,15 +3463,15 @@ export function InternalCategoryAttendancePage({
           ref={weekScrollRef}
           onScroll={checkWeekScroll}
           className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 w-full flex-nowrap"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           <button
             type="button"
             onClick={() => setSelectedWeek(0)}
             className={`w-[74px] h-[34px] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
               selectedWeek === 0
-                ? "bg-slate-900 text-white border border-slate-900 shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs"
+                ? 'bg-slate-900 text-white border border-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
             }`}
           >
             <span>전체 주차</span>
@@ -3478,10 +3486,10 @@ export function InternalCategoryAttendancePage({
                 onClick={() => handleSelectWeek(w.weekNum)}
                 className={`w-[58px] h-[34px] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
                   isActive
-                    ? "bg-slate-900 text-white border border-slate-900 shadow-xs"
+                    ? 'bg-slate-900 text-white border border-slate-900 shadow-xs'
                     : isWeekFuture
-                    ? "text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs"
+                      ? 'text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
                 }`}
               >
                 <span>{w.label}</span>
@@ -3495,7 +3503,7 @@ export function InternalCategoryAttendancePage({
           <div className="absolute right-0 z-20 flex items-center h-full pl-4 bg-gradient-to-l from-slate-50 via-slate-50/90 to-transparent pointer-events-none">
             <button
               type="button"
-              onClick={() => handleScrollWeeks("right")}
+              onClick={() => handleScrollWeeks('right')}
               className="pointer-events-auto w-6 h-6 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-700 hover:text-slate-950 hover:bg-slate-50 transition-colors cursor-pointer"
               title="다음 주차 보기"
             >
@@ -3511,31 +3519,31 @@ export function InternalCategoryAttendancePage({
         className={`relative w-full flex-1 min-h-0 transition-all ${
           isPeekOpen
             ? isFullScreen
-              ? "block h-full"
-              : "flex flex-row gap-0 h-full min-w-0"
-            : "block h-full"
+              ? 'block h-full'
+              : 'flex flex-row gap-0 h-full min-w-0'
+            : 'block h-full'
         }`}
       >
         {/* ─── LEFT PANE: 팀별 목록 (Team List) ─── */}
         {(!isFullScreen || !isPeekOpen) && (
           <div
             style={{
-              width: isPeekOpen ? `${splitRatio}%` : "100%",
-              minWidth: isPeekOpen ? "200px" : undefined,
+              width: isPeekOpen ? `${splitRatio}%` : '100%',
+              minWidth: isPeekOpen ? '200px' : undefined,
             }}
-            className={`space-y-2.5 shrink-0 h-full overflow-y-auto ${isPeekOpen ? "pr-1.5" : "w-full"}`}
+            className={`space-y-2.5 shrink-0 h-full overflow-y-auto ${isPeekOpen ? 'pr-1.5' : 'w-full'}`}
           >
             {/* Master '전체' 통합 Card (ADV / STUDY 전용) */}
-            {(category === "ADV" || category === "STUDY") && (
+            {(category === 'ADV' || category === 'STUDY') && (
               <div
                 onClick={() => {
-                  setSelectedTeamId("ALL");
+                  setSelectedTeamId('ALL');
                   setIsPeekOpen(true);
                 }}
                 className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
                   isAllSelected && isPeekOpen
-                    ? "bg-slate-100/80 border-slate-300 shadow-2xs"
-                    : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs"
+                    ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -3543,11 +3551,11 @@ export function InternalCategoryAttendancePage({
                     <h4
                       className={`text-sm font-bold truncate ${
                         isAllSelected && isPeekOpen
-                          ? "text-slate-950 font-bold"
-                          : "text-slate-900 group-hover:text-slate-800"
+                          ? 'text-slate-950 font-bold'
+                          : 'text-slate-900 group-hover:text-slate-800'
                       }`}
                     >
-                      {category === "STUDY" ? "전체 스터디" : "전체"}
+                      {category === 'STUDY' ? '전체 스터디' : '전체'}
                     </h4>
                   </div>
 
@@ -3555,8 +3563,8 @@ export function InternalCategoryAttendancePage({
                     size={16}
                     className={`shrink-0 transition-transform ${
                       isAllSelected && isPeekOpen
-                        ? "text-slate-500 translate-x-0.5"
-                        : "text-slate-300 group-hover:text-slate-500"
+                        ? 'text-slate-500 translate-x-0.5'
+                        : 'text-slate-300 group-hover:text-slate-500'
                     }`}
                   />
                 </div>
@@ -3564,9 +3572,9 @@ export function InternalCategoryAttendancePage({
             )}
 
             {/* Team Cards List */}
-            {category === "ADV" ? (
+            {category === 'ADV' ? (
               <div className="space-y-4">
-                {(["분석", "시각화", "엔지니어링"] as const).map((trackName) => {
+                {(['분석', '시각화', '엔지니어링'] as const).map((trackName) => {
                   const trackTeams = config.teams.filter((t) => t.track === trackName);
 
                   return (
@@ -3588,8 +3596,8 @@ export function InternalCategoryAttendancePage({
                               }}
                               className={`relative rounded-2xl border transition-all cursor-pointer p-3.5 group select-none ${
                                 isSelected
-                                  ? "bg-slate-100/80 border-slate-300 shadow-2xs"
-                                  : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs"
+                                  ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+                                  : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
                               }`}
                             >
                               <div className="flex items-center justify-between gap-3">
@@ -3597,8 +3605,8 @@ export function InternalCategoryAttendancePage({
                                   <h4
                                     className={`text-sm font-bold truncate ${
                                       isSelected
-                                        ? "text-slate-950 font-bold"
-                                        : "text-slate-900 group-hover:text-slate-950"
+                                        ? 'text-slate-950 font-bold'
+                                        : 'text-slate-900 group-hover:text-slate-950'
                                     }`}
                                   >
                                     {team.name}
@@ -3615,8 +3623,8 @@ export function InternalCategoryAttendancePage({
                                   size={16}
                                   className={`shrink-0 transition-transform ${
                                     isSelected
-                                      ? "text-slate-500 translate-x-0.5"
-                                      : "text-slate-300 group-hover:text-slate-500"
+                                      ? 'text-slate-500 translate-x-0.5'
+                                      : 'text-slate-300 group-hover:text-slate-500'
                                   }`}
                                 />
                               </div>
@@ -3630,7 +3638,7 @@ export function InternalCategoryAttendancePage({
               </div>
             ) : (
               <div className="space-y-2.5">
-                {category === "STUDY" && (
+                {category === 'STUDY' && (
                   <div className="px-1 pt-1 text-[11px] font-bold text-slate-400 select-none">
                     개별 스터디
                   </div>
@@ -3647,8 +3655,8 @@ export function InternalCategoryAttendancePage({
                       }}
                       className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
                         isSelected
-                          ? "bg-slate-100/80 border-slate-300 shadow-2xs"
-                          : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs"
+                          ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+                          : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -3656,16 +3664,16 @@ export function InternalCategoryAttendancePage({
                           <h4
                             className={`text-sm font-bold truncate ${
                               isSelected
-                                ? "text-slate-950 font-bold"
-                                : "text-slate-900 group-hover:text-slate-950"
+                                ? 'text-slate-950 font-bold'
+                                : 'text-slate-900 group-hover:text-slate-950'
                             }`}
                           >
                             {team.name}
                           </h4>
 
-                          {category !== "SESSION" && team.leader && (
+                          {category !== 'SESSION' && team.leader && (
                             <p className="text-[11px] text-slate-500 font-medium">
-                              {category === "STUDY" ? "스터디장" : "팀장"}: {team.leader}
+                              {category === 'STUDY' ? '스터디장' : '팀장'}: {team.leader}
                             </p>
                           )}
                         </div>
@@ -3674,8 +3682,8 @@ export function InternalCategoryAttendancePage({
                           size={16}
                           className={`shrink-0 transition-transform ${
                             isSelected
-                              ? "text-slate-500 translate-x-0.5"
-                              : "text-slate-300 group-hover:text-slate-500"
+                              ? 'text-slate-500 translate-x-0.5'
+                              : 'text-slate-300 group-hover:text-slate-500'
                           }`}
                         />
                       </div>
@@ -3696,15 +3704,15 @@ export function InternalCategoryAttendancePage({
               setIsDragging(true);
             }}
             className={`flex w-4 shrink-0 -mx-0.5 items-center justify-center cursor-col-resize group self-stretch z-20 select-none py-12 transition-colors ${
-              isDragging ? "bg-slate-200/50" : "hover:bg-slate-100/80"
+              isDragging ? 'bg-slate-200/50' : 'hover:bg-slate-100/80'
             }`}
             title="마우스로 드래그하여 패널 너비 조절"
           >
             <div
               className={`w-1 h-14 rounded-full transition-all flex flex-col items-center justify-center ${
                 isDragging
-                  ? "bg-slate-700 h-20"
-                  : "bg-slate-300 group-hover:bg-slate-500 group-hover:h-16"
+                  ? 'bg-slate-700 h-20'
+                  : 'bg-slate-300 group-hover:bg-slate-500 group-hover:h-16'
               }`}
             >
               <GripVertical
@@ -3719,8 +3727,8 @@ export function InternalCategoryAttendancePage({
         {isPeekOpen && (
           <div
             style={{
-              width: isFullScreen ? "100%" : `${100 - splitRatio}%`,
-              minWidth: isFullScreen ? undefined : "340px",
+              width: isFullScreen ? '100%' : `${100 - splitRatio}%`,
+              minWidth: isFullScreen ? undefined : '340px',
             }}
             className="rounded-2xl border border-slate-200/90 bg-white p-6 lg:p-7 shadow-sm space-y-4 animate-in slide-in-from-right duration-150 min-w-0 flex-1 h-full overflow-y-auto"
           >
@@ -3737,7 +3745,7 @@ export function InternalCategoryAttendancePage({
                   type="button"
                   onClick={() => setIsFullScreen(!isFullScreen)}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer hidden sm:flex items-center gap-0.5 text-xs font-semibold"
-                  title={isFullScreen ? "분할 뷰로 축소" : "전체 화면으로 확장"}
+                  title={isFullScreen ? '분할 뷰로 축소' : '전체 화면으로 확장'}
                 >
                   {isFullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
                 </button>
@@ -3758,26 +3766,27 @@ export function InternalCategoryAttendancePage({
 
             {/* Photo Section: 원래처럼 사진만 깔끔하게 노출 */}
             {(() => {
-              const studyTeamShortName = selectedTeam.name.includes("A팀")
-                ? "A팀"
-                : selectedTeam.name.includes("B팀")
-                  ? "B팀"
-                  : selectedTeam.name.includes("C팀")
-                    ? "C팀"
-                    : selectedTeam.name.includes("D팀")
-                      ? "D팀"
-                      : selectedTeam.name.split(" ")[0];
+              const studyTeamShortName = selectedTeam.name.includes('A팀')
+                ? 'A팀'
+                : selectedTeam.name.includes('B팀')
+                  ? 'B팀'
+                  : selectedTeam.name.includes('C팀')
+                    ? 'C팀'
+                    : selectedTeam.name.includes('D팀')
+                      ? 'D팀'
+                      : selectedTeam.name.split(' ')[0];
               const currentWeekKey = selectedWeek === 0 ? 3 : selectedWeek;
               const teamUploadedPhoto =
-                category === "STUDY"
-                  ? attendance?.[sessionKey(`w${currentWeekKey}`, "study", studyTeamShortName)]?.photoUrl
+                category === 'STUDY'
+                  ? attendance?.[sessionKey(`w${currentWeekKey}`, 'study', studyTeamShortName)]
+                      ?.photoUrl
                   : undefined;
               const currentDisplayPhoto =
                 teamUploadedPhoto ||
                 WEEK_SAMPLE_PHOTOS[selectedWeek] ||
-                "/sample-study-photo.jpg?v=2";
+                '/sample-study-photo.jpg?v=2';
 
-              if (isAllSelected || category === "SESSION" || !currentDisplayPhoto) {
+              if (isAllSelected || category === 'SESSION' || !currentDisplayPhoto) {
                 return null;
               }
 
@@ -3790,7 +3799,7 @@ export function InternalCategoryAttendancePage({
                   >
                     <img
                       src={currentDisplayPhoto}
-                      alt={`${selectedTeam.name} ${selectedWeek === 0 ? "활동" : `${selectedWeek}주차`} 사진`}
+                      alt={`${selectedTeam.name} ${selectedWeek === 0 ? '활동' : `${selectedWeek}주차`} 사진`}
                       className="w-full h-auto max-h-56 sm:max-h-64 object-contain block transition-transform duration-300 ease-out group-hover:scale-[1.03]"
                     />
                   </div>
@@ -3802,36 +3811,36 @@ export function InternalCategoryAttendancePage({
             <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1.5 pb-1 px-0.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="text-xs font-bold text-slate-900 tracking-tight whitespace-nowrap">
-                  {category === "STUDY"
+                  {category === 'STUDY'
                     ? isAllSelected
-                      ? termPeriod === "VACATION"
+                      ? termPeriod === 'VACATION'
                         ? selectedWeek === 0
-                          ? "방학 전체 스터디 명단"
+                          ? '방학 전체 스터디 명단'
                           : `방학 ${selectedWeek}주차 스터디 명단`
                         : selectedWeek === 0
-                          ? "학기 전체 스터디 명단"
+                          ? '학기 전체 스터디 명단'
                           : `학기 ${selectedWeek}주차 스터디 명단`
-                      : `${selectedTeam?.name || "스터디"} (${
-                          termPeriod === "VACATION"
+                      : `${selectedTeam?.name || '스터디'} (${
+                          termPeriod === 'VACATION'
                             ? selectedWeek === 0
-                              ? "방학 전체"
+                              ? '방학 전체'
                               : `방학 ${selectedWeek}주차`
                             : selectedWeek === 0
-                              ? "학기 전체"
+                              ? '학기 전체'
                               : `학기 ${selectedWeek}주차`
                         }) 출결 명단`
-                    : termPeriod === "VACATION"
+                    : termPeriod === 'VACATION'
                       ? selectedWeek === 0
-                        ? "방학 전체 (1~8주차)"
+                        ? '방학 전체 (1~8주차)'
                         : `방학 ${selectedWeek}주차`
                       : selectedWeek === 0
-                        ? "학기 전체 (9~16주차)"
-                        : `학기 ${selectedWeek}주차`}{" "}
-                  {category !== "STUDY" && "출결 명단"}
+                        ? '학기 전체 (9~16주차)'
+                        : `학기 ${selectedWeek}주차`}{' '}
+                  {category !== 'STUDY' && '출결 명단'}
                 </h4>
 
                 {/* Track Filter Pill Buttons (스터디 및 BASE 출결에서는 숨김) */}
-                {category !== "STUDY" && category !== "SESSION" && (
+                {category !== 'STUDY' && category !== 'SESSION' && (
                   <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
                     {TRACK_FILTER_OPTIONS.map((tf) => {
                       const isSelected = selectedTrackFilter === tf.id;
@@ -3842,8 +3851,8 @@ export function InternalCategoryAttendancePage({
                           onClick={() => setSelectedTrackFilter(tf.id)}
                           className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                             isSelected
-                              ? "bg-white text-slate-950 shadow-xs border border-slate-200/60"
-                              : "text-slate-500 hover:text-slate-800"
+                              ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
+                              : 'text-slate-500 hover:text-slate-800'
                           }`}
                         >
                           {tf.label}
@@ -3854,26 +3863,26 @@ export function InternalCategoryAttendancePage({
                 )}
 
                 {/* 전체 스터디 정렬 기준 토글: 기수별(기본) vs 팀별 */}
-                {category === "STUDY" && isAllSelected && (
+                {category === 'STUDY' && isAllSelected && (
                   <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
                     <button
                       type="button"
-                      onClick={() => setStudySortMode("TERM")}
+                      onClick={() => setStudySortMode('TERM')}
                       className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                        studySortMode === "TERM"
-                          ? "bg-white text-slate-950 shadow-xs border border-slate-200/60"
-                          : "text-slate-500 hover:text-slate-800"
+                        studySortMode === 'TERM'
+                          ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
+                          : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
                       기수별
                     </button>
                     <button
                       type="button"
-                      onClick={() => setStudySortMode("TEAM")}
+                      onClick={() => setStudySortMode('TEAM')}
                       className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                        studySortMode === "TEAM"
-                          ? "bg-white text-slate-950 shadow-xs border border-slate-200/60"
-                          : "text-slate-500 hover:text-slate-800"
+                        studySortMode === 'TEAM'
+                          ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
+                          : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
                       팀별
@@ -3886,16 +3895,16 @@ export function InternalCategoryAttendancePage({
                 {/* 수정 버튼: ADV 팀별 탭 & 스터디 개별 탭에서 전체 주차일 때 표시 */}
                 {!isAllSelected &&
                   selectedWeek === 0 &&
-                  (category === "ADV" || category === "STUDY") && (
+                  (category === 'ADV' || category === 'STUDY') && (
                     <button
                       type="button"
                       onClick={() => setIsTableEditMode((prev) => !prev)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
                         isTableEditMode
-                          ? "bg-slate-900 hover:bg-slate-800 text-white border border-slate-900 shadow-xs"
-                          : "text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300"
+                          ? 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-900 shadow-xs'
+                          : 'text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300'
                       }`}
-                      title={isTableEditMode ? "출결 수정 완료" : "출결 수정 모드 활성화"}
+                      title={isTableEditMode ? '출결 수정 완료' : '출결 수정 모드 활성화'}
                     >
                       {isTableEditMode ? (
                         <>
@@ -3912,7 +3921,7 @@ export function InternalCategoryAttendancePage({
                   )}
 
                 {/* CSV 추출 버튼: 전체 주차일 때 표시 (단, ADV 팀별 탭은 제외) */}
-                {selectedWeek === 0 && !(category === "ADV" && !isAllSelected) && (
+                {selectedWeek === 0 && !(category === 'ADV' && !isAllSelected) && (
                   <button
                     type="button"
                     onClick={handleOpenSettingsModal}
@@ -3929,7 +3938,7 @@ export function InternalCategoryAttendancePage({
             {/* Table Container: 상단 모서리 깨짐 없는 깔끔한 솔리드 라운드 박스 */}
             <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
               <div ref={tableContainerRef} className="overflow-x-auto select-none relative">
-                {category === "STUDY" ? (
+                {category === 'STUDY' ? (
                   isAllSelected ? (
                     /* ─── 전체 스터디 테이블 ─── */
                     /* 컬럼: 기수, 부문, 이름, 각 스터디명 컬럼들 (누적 점수 표시), 총점 */
@@ -3945,10 +3954,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">#</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_all_index", 35)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_all_index', 35)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_all_index");
+                                  setActiveHoverCol('study_all_index');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -3968,10 +3977,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">기수</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_all_term", 45)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_all_term', 45)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_all_term");
+                                  setActiveHoverCol('study_all_term');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -3991,10 +4000,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">부문</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_all_track", 55)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_all_track', 55)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_all_track");
+                                  setActiveHoverCol('study_all_track');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4014,10 +4023,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">이름</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_all_name", 60)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_all_name', 60)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_all_name");
+                                  setActiveHoverCol('study_all_name');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4037,7 +4046,7 @@ export function InternalCategoryAttendancePage({
                             const minWidth = 100;
                             const effectiveWidth = Math.max(
                               colWidths[colKey] || defaultWidth,
-                              minWidth
+                              minWidth,
                             );
 
                             return (
@@ -4082,10 +4091,10 @@ export function InternalCategoryAttendancePage({
                               총점
                             </div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_all_score", 55)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_all_score', 55)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_all_score");
+                                  setActiveHoverCol('study_all_score');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4153,10 +4162,10 @@ export function InternalCategoryAttendancePage({
                                         <span
                                           className={`text-xs font-bold ${
                                             row.totalScore === 0
-                                              ? "text-slate-400 font-medium"
+                                              ? 'text-slate-400 font-medium'
                                               : row.totalScore < 0
-                                                ? "text-rose-600 font-bold"
-                                                : "text-emerald-700 font-bold"
+                                                ? 'text-rose-600 font-bold'
+                                                : 'text-emerald-700 font-bold'
                                           }`}
                                         >
                                           {row.totalScore > 0
@@ -4175,10 +4184,10 @@ export function InternalCategoryAttendancePage({
                                   <span
                                     className={`text-xs font-bold ${
                                       row.totalScore === 0
-                                        ? "text-slate-400 font-medium"
+                                        ? 'text-slate-400 font-medium'
                                         : row.totalScore < 0
-                                          ? "text-rose-600 font-bold"
-                                          : "text-emerald-700 font-bold"
+                                          ? 'text-rose-600 font-bold'
+                                          : 'text-emerald-700 font-bold'
                                     }`}
                                   >
                                     {row.totalScore > 0
@@ -4207,10 +4216,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">#</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_team_index", 35)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_team_index', 35)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_team_index");
+                                  setActiveHoverCol('study_team_index');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4230,10 +4239,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">기수</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_team_term", 45)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_team_term', 45)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_team_term");
+                                  setActiveHoverCol('study_team_term');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4253,10 +4262,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">이름</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_team_name", 60)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_team_name', 60)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_team_name");
+                                  setActiveHoverCol('study_team_name');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4272,13 +4281,13 @@ export function InternalCategoryAttendancePage({
                           </th>
                           {displayedMatrixWeeks.map((w) => {
                             const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
-                            const hasDate = Boolean(rawDate && rawDate !== "-");
+                            const hasDate = Boolean(rawDate && rawDate !== '-');
                             const colKey = `study_w_${w.weekNum}`;
                             const minColWidth = hasDate ? 92 : 55;
                             const defaultColWidth = hasDate ? 92 : 72;
                             const effectiveColWidth = Math.max(
                               colWidths[colKey] || defaultColWidth,
-                              minColWidth
+                              minColWidth,
                             );
                             return (
                               <th
@@ -4328,10 +4337,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">참여 횟수</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_team_attended", 60)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_team_attended', 60)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_team_attended");
+                                  setActiveHoverCol('study_team_attended');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4351,10 +4360,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">스터디장</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_team_leader", 60)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_team_leader', 60)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_team_leader");
+                                  setActiveHoverCol('study_team_leader');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4374,10 +4383,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">점수</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "study_team_score", 60)}
+                              onMouseDown={(e) => handleResizeStart(e, 'study_team_score', 60)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("study_team_score");
+                                  setActiveHoverCol('study_team_score');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4410,23 +4419,23 @@ export function InternalCategoryAttendancePage({
                           studyTeamRows.map((row, idx) => {
                             const isLeader = row.name === selectedTeam?.leader;
                             const attendedCount = currentTermWeeks.filter(
-                              (w) => row.weekData[w.weekNum]?.status === "present"
+                              (w) => row.weekData[w.weekNum]?.status === 'present',
                             ).length;
                             const effectiveScore = (() => {
                               if (selectedWeek === 0) {
                                 return row.totalScore;
                               }
                               const currentStatus = row.weekData[selectedWeek]?.status;
-                              if (currentStatus === "absent") {
+                              if (currentStatus === 'absent') {
                                 return currentScoreRule.absentPenalty ?? -3;
                               }
-                              if (currentStatus === "unexcusedAbsent") {
+                              if (currentStatus === 'unexcusedAbsent') {
                                 return currentScoreRule.unexcusedAbsentPenalty ?? -4;
                               }
                               if (
-                                currentStatus === "late" ||
-                                currentStatus === "earlyLeave" ||
-                                currentStatus === "unexcusedLate"
+                                currentStatus === 'late' ||
+                                currentStatus === 'earlyLeave' ||
+                                currentStatus === 'unexcusedLate'
                               ) {
                                 return currentScoreRule.latePenalty ?? -1;
                               }
@@ -4455,10 +4464,10 @@ export function InternalCategoryAttendancePage({
                                 </td>
                                 {displayedMatrixWeeks.map((w) => {
                                   const cell = row.weekData[w.weekNum];
-                                  const st = cell?.status || "unmarked";
+                                  const st = cell?.status || 'unmarked';
                                   const cfg = ATTEND_STATUS_CFG[st] || ATTEND_STATUS_CFG.unmarked;
                                   const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
-                                  const hasDate = Boolean(rawDate && rawDate !== "-");
+                                  const hasDate = Boolean(rawDate && rawDate !== '-');
 
                                   return (
                                     <td
@@ -4466,7 +4475,7 @@ export function InternalCategoryAttendancePage({
                                       className="relative text-center px-1 py-1.5 font-sans"
                                     >
                                       <div className="h-8 flex items-center justify-center w-full">
-                                        {isTableEditMode && st !== "unmarked" ? (
+                                        {isTableEditMode && st !== 'unmarked' ? (
                                           (() => {
                                             const isOpen =
                                               activeStudyEditCell?.rowId === row.id &&
@@ -4475,10 +4484,10 @@ export function InternalCategoryAttendancePage({
                                             const isLastRow = idx >= studyTeamRows.length - 1;
                                             const isFirstRow = idx === 0;
                                             const vAlignClass = isLastRow
-                                              ? "bottom-0"
+                                              ? 'bottom-0'
                                               : isFirstRow
-                                                ? "top-0"
-                                                : "top-1/2 -translate-y-1/2";
+                                                ? 'top-0'
+                                                : 'top-1/2 -translate-y-1/2';
 
                                             return (
                                               <div className="relative flex items-center justify-center">
@@ -4488,27 +4497,27 @@ export function InternalCategoryAttendancePage({
                                                     setActiveStudyEditCell(
                                                       isOpen
                                                         ? null
-                                                        : { rowId: row.id, weekNum: w.weekNum }
+                                                        : { rowId: row.id, weekNum: w.weekNum },
                                                     )
                                                   }
                                                   className={`w-[56px] h-[26px] rounded-md text-[11px] font-bold transition-all cursor-pointer shadow-2xs flex items-center justify-between px-1.5 border ${
                                                     isOpen
-                                                      ? "bg-white border-slate-800 ring-2 ring-slate-200 shadow-xs"
-                                                      : "bg-white border-slate-300 hover:border-slate-400 hover:bg-slate-50"
+                                                      ? 'bg-white border-slate-800 ring-2 ring-slate-200 shadow-xs'
+                                                      : 'bg-white border-slate-300 hover:border-slate-400 hover:bg-slate-50'
                                                   }`}
                                                 >
                                                   <span
                                                     className={
-                                                      st === "present"
-                                                        ? "text-emerald-700"
-                                                        : "text-rose-600"
+                                                      st === 'present'
+                                                        ? 'text-emerald-700'
+                                                        : 'text-rose-600'
                                                     }
                                                   >
-                                                    {st === "present" ? "출석" : "결석"}
+                                                    {st === 'present' ? '출석' : '결석'}
                                                   </span>
                                                   <ChevronRight
                                                     size={10}
-                                                    className={`text-slate-400 transition-transform duration-150 ${isOpen ? "text-slate-800" : ""}`}
+                                                    className={`text-slate-400 transition-transform duration-150 ${isOpen ? 'text-slate-800' : ''}`}
                                                   />
                                                 </button>
 
@@ -4521,7 +4530,7 @@ export function InternalCategoryAttendancePage({
                                                     />
                                                     {/* Modern Compact Popover Dropdown (Right-aligned) */}
                                                     <div
-                                                      className={`absolute ${isRightEdge ? "right-full mr-1" : "left-full ml-1"} ${vAlignClass} w-[78px] bg-white rounded-lg shadow-lg border border-slate-200 p-0.5 z-50 animate-in fade-in zoom-in-95 duration-100 font-sans`}
+                                                      className={`absolute ${isRightEdge ? 'right-full mr-1' : 'left-full ml-1'} ${vAlignClass} w-[78px] bg-white rounded-lg shadow-lg border border-slate-200 p-0.5 z-50 animate-in fade-in zoom-in-95 duration-100 font-sans`}
                                                     >
                                                       <div className="space-y-0.5">
                                                         <button
@@ -4529,19 +4538,19 @@ export function InternalCategoryAttendancePage({
                                                           onClick={() => {
                                                             handleStatusChange(
                                                               row.id,
-                                                              "present",
-                                                              w.weekNum
+                                                              'present',
+                                                              w.weekNum,
                                                             );
                                                             setActiveStudyEditCell(null);
                                                           }}
                                                           className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-[11px] transition-colors cursor-pointer ${
-                                                            st === "present"
-                                                              ? "bg-emerald-50 text-emerald-700 font-bold"
-                                                              : "text-slate-700 font-medium hover:bg-slate-50 hover:text-emerald-700"
+                                                            st === 'present'
+                                                              ? 'bg-emerald-50 text-emerald-700 font-bold'
+                                                              : 'text-slate-700 font-medium hover:bg-slate-50 hover:text-emerald-700'
                                                           }`}
                                                         >
                                                           <span>출석</span>
-                                                          {st === "present" && (
+                                                          {st === 'present' && (
                                                             <Check
                                                               size={11}
                                                               className="text-emerald-600 stroke-[2.5]"
@@ -4554,19 +4563,19 @@ export function InternalCategoryAttendancePage({
                                                           onClick={() => {
                                                             handleStatusChange(
                                                               row.id,
-                                                              "absent",
-                                                              w.weekNum
+                                                              'absent',
+                                                              w.weekNum,
                                                             );
                                                             setActiveStudyEditCell(null);
                                                           }}
                                                           className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-[11px] transition-colors cursor-pointer ${
-                                                            st === "absent"
-                                                              ? "bg-rose-50 text-rose-600 font-bold"
-                                                              : "text-slate-700 font-medium hover:bg-slate-50 hover:text-rose-600"
+                                                            st === 'absent'
+                                                              ? 'bg-rose-50 text-rose-600 font-bold'
+                                                              : 'text-slate-700 font-medium hover:bg-slate-50 hover:text-rose-600'
                                                           }`}
                                                         >
                                                           <span>결석</span>
-                                                          {st === "absent" && (
+                                                          {st === 'absent' && (
                                                             <Check
                                                               size={11}
                                                               className="text-rose-600 stroke-[2.5]"
@@ -4583,23 +4592,23 @@ export function InternalCategoryAttendancePage({
                                         ) : (
                                           <div className="relative w-[66px] h-[30px] flex items-center justify-center">
                                             <span
-                                              title={`${row.name} - ${w.label}${hasDate ? ` (${rawDate})` : ""}: ${cfg.label}${cell?.memo ? `\n비고: ${cell.memo}` : ""}`}
+                                              title={`${row.name} - ${w.label}${hasDate ? ` (${rawDate})` : ''}: ${cfg.label}${cell?.memo ? `\n비고: ${cell.memo}` : ''}`}
                                               className={`text-xs whitespace-nowrap select-none font-bold ${
-                                                st === "present"
-                                                  ? "text-emerald-700"
-                                                  : st === "late" || st === "earlyLeave"
-                                                    ? "text-amber-700"
-                                                    : st === "absent"
-                                                      ? "text-rose-600"
-                                                      : st === "excusedAbsent"
-                                                        ? "text-blue-700"
-                                                        : st === "remote"
-                                                          ? "text-indigo-700"
-                                                          : st === "unexcusedLate"
-                                                            ? "text-orange-700"
-                                                            : st === "unexcusedAbsent"
-                                                              ? "text-red-700"
-                                                              : "text-slate-400 font-medium"
+                                                st === 'present'
+                                                  ? 'text-emerald-700'
+                                                  : st === 'late' || st === 'earlyLeave'
+                                                    ? 'text-amber-700'
+                                                    : st === 'absent'
+                                                      ? 'text-rose-600'
+                                                      : st === 'excusedAbsent'
+                                                        ? 'text-blue-700'
+                                                        : st === 'remote'
+                                                          ? 'text-indigo-700'
+                                                          : st === 'unexcusedLate'
+                                                            ? 'text-orange-700'
+                                                            : st === 'unexcusedAbsent'
+                                                              ? 'text-red-700'
+                                                              : 'text-slate-400 font-medium'
                                               }`}
                                             >
                                               {cfg.label}
@@ -4629,10 +4638,10 @@ export function InternalCategoryAttendancePage({
                                     <span
                                       className={`text-xs font-bold ${
                                         effectiveScore === 0
-                                          ? "text-slate-400 font-medium"
+                                          ? 'text-slate-400 font-medium'
                                           : effectiveScore < 0
-                                            ? "text-rose-600 font-bold"
-                                            : "text-emerald-700 font-bold"
+                                            ? 'text-rose-600 font-bold'
+                                            : 'text-emerald-700 font-bold'
                                       }`}
                                     >
                                       {effectiveScore > 0
@@ -4661,10 +4670,10 @@ export function InternalCategoryAttendancePage({
                         >
                           <div className="h-9 flex items-center justify-center">#</div>
                           <div
-                            onMouseDown={(e) => handleResizeStart(e, "matrix_index", 35)}
+                            onMouseDown={(e) => handleResizeStart(e, 'matrix_index', 35)}
                             onMouseEnter={(e) => {
                               if (!resizingColKey) {
-                                setActiveHoverCol("matrix_index");
+                                setActiveHoverCol('matrix_index');
                                 updateGuidelinePos(e.currentTarget);
                               }
                             }}
@@ -4684,10 +4693,10 @@ export function InternalCategoryAttendancePage({
                         >
                           <div className="h-9 flex items-center justify-center">기수</div>
                           <div
-                            onMouseDown={(e) => handleResizeStart(e, "matrix_term", 45)}
+                            onMouseDown={(e) => handleResizeStart(e, 'matrix_term', 45)}
                             onMouseEnter={(e) => {
                               if (!resizingColKey) {
-                                setActiveHoverCol("matrix_term");
+                                setActiveHoverCol('matrix_term');
                                 updateGuidelinePos(e.currentTarget);
                               }
                             }}
@@ -4707,10 +4716,10 @@ export function InternalCategoryAttendancePage({
                         >
                           <div className="h-9 flex items-center justify-center">이름</div>
                           <div
-                            onMouseDown={(e) => handleResizeStart(e, "matrix_name", 60)}
+                            onMouseDown={(e) => handleResizeStart(e, 'matrix_name', 60)}
                             onMouseEnter={(e) => {
                               if (!resizingColKey) {
-                                setActiveHoverCol("matrix_name");
+                                setActiveHoverCol('matrix_name');
                                 updateGuidelinePos(e.currentTarget);
                               }
                             }}
@@ -4724,17 +4733,17 @@ export function InternalCategoryAttendancePage({
                             title="열 너비 조절"
                           />
                         </th>
-                        {category !== "SESSION" && selectedTrackFilter === "ALL" && (
+                        {category !== 'SESSION' && selectedTrackFilter === 'ALL' && (
                           <th
                             style={{ width: `${colWidths.matrix_track || 72}px` }}
                             className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                           >
                             <div className="h-9 flex items-center justify-center">부문</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "matrix_track", 72)}
+                              onMouseDown={(e) => handleResizeStart(e, 'matrix_track', 72)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("matrix_track");
+                                  setActiveHoverCol('matrix_track');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4752,13 +4761,13 @@ export function InternalCategoryAttendancePage({
                         {displayedMatrixWeeks.map((w) => {
                           const isEditable = isWeekDirectEditable(w.weekNum) && selectedWeek !== 0;
                           const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
-                          const hasDate = Boolean(rawDate && rawDate !== "-");
+                          const hasDate = Boolean(rawDate && rawDate !== '-');
                           const colKey = `matrix_w_${w.weekNum}`;
-                          const minColWidth = isEditable ? 435 : (hasDate ? 92 : 55);
-                          const defaultColWidth = isEditable ? 445 : (hasDate ? 92 : 72);
+                          const minColWidth = isEditable ? 435 : hasDate ? 92 : 55;
+                          const defaultColWidth = isEditable ? 445 : hasDate ? 92 : 72;
                           const effectiveColWidth = Math.max(
                             colWidths[colKey] || defaultColWidth,
-                            minColWidth
+                            minColWidth,
                           );
                           return (
                             <th
@@ -4810,10 +4819,10 @@ export function InternalCategoryAttendancePage({
                             >
                               <div className="h-9 flex items-center justify-center">결석</div>
                               <div
-                                onMouseDown={(e) => handleResizeStart(e, "matrix_absence", 48)}
+                                onMouseDown={(e) => handleResizeStart(e, 'matrix_absence', 48)}
                                 onMouseEnter={(e) => {
                                   if (!resizingColKey) {
-                                    setActiveHoverCol("matrix_absence");
+                                    setActiveHoverCol('matrix_absence');
                                     updateGuidelinePos(e.currentTarget);
                                   }
                                 }}
@@ -4834,11 +4843,11 @@ export function InternalCategoryAttendancePage({
                               <div className="h-9 flex items-center justify-center">무단결석</div>
                               <div
                                 onMouseDown={(e) =>
-                                  handleResizeStart(e, "matrix_unexcusedAbsence", 68)
+                                  handleResizeStart(e, 'matrix_unexcusedAbsence', 68)
                                 }
                                 onMouseEnter={(e) => {
                                   if (!resizingColKey) {
-                                    setActiveHoverCol("matrix_unexcusedAbsence");
+                                    setActiveHoverCol('matrix_unexcusedAbsence');
                                     updateGuidelinePos(e.currentTarget);
                                   }
                                 }}
@@ -4858,10 +4867,10 @@ export function InternalCategoryAttendancePage({
                             >
                               <div className="h-9 flex items-center justify-center">지각조퇴</div>
                               <div
-                                onMouseDown={(e) => handleResizeStart(e, "matrix_late", 68)}
+                                onMouseDown={(e) => handleResizeStart(e, 'matrix_late', 68)}
                                 onMouseEnter={(e) => {
                                   if (!resizingColKey) {
-                                    setActiveHoverCol("matrix_late");
+                                    setActiveHoverCol('matrix_late');
                                     updateGuidelinePos(e.currentTarget);
                                   }
                                 }}
@@ -4875,7 +4884,7 @@ export function InternalCategoryAttendancePage({
                                 title="열 너비 조절"
                               />
                             </th>
-                            {category === "ADV" && (
+                            {category === 'ADV' && (
                               <th
                                 style={{ width: `${colWidths.matrix_remote || 80}px` }}
                                 className="relative text-center px-2 py-1 text-slate-800 font-bold bg-indigo-100"
@@ -4884,10 +4893,10 @@ export function InternalCategoryAttendancePage({
                                   비대면 횟수
                                 </div>
                                 <div
-                                  onMouseDown={(e) => handleResizeStart(e, "matrix_remote", 80)}
+                                  onMouseDown={(e) => handleResizeStart(e, 'matrix_remote', 80)}
                                   onMouseEnter={(e) => {
                                     if (!resizingColKey) {
-                                      setActiveHoverCol("matrix_remote");
+                                      setActiveHoverCol('matrix_remote');
                                       updateGuidelinePos(e.currentTarget);
                                     }
                                   }}
@@ -4909,13 +4918,13 @@ export function InternalCategoryAttendancePage({
                           className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
                         >
                           <div className="h-9 flex items-center justify-center">
-                            {selectedWeek === 0 ? "총점" : "점수"}
+                            {selectedWeek === 0 ? '총점' : '점수'}
                           </div>
                           <div
-                            onMouseDown={(e) => handleResizeStart(e, "matrix_total", 55)}
+                            onMouseDown={(e) => handleResizeStart(e, 'matrix_total', 55)}
                             onMouseEnter={(e) => {
                               if (!resizingColKey) {
-                                setActiveHoverCol("matrix_total");
+                                setActiveHoverCol('matrix_total');
                                 updateGuidelinePos(e.currentTarget);
                               }
                             }}
@@ -4936,9 +4945,9 @@ export function InternalCategoryAttendancePage({
                         <tr>
                           <td
                             colSpan={
-                              (category !== "SESSION" && selectedTrackFilter === "ALL" ? 4 : 3) +
+                              (category !== 'SESSION' && selectedTrackFilter === 'ALL' ? 4 : 3) +
                               displayedMatrixWeeks.length +
-                              (selectedWeek === 0 ? (category === "ADV" ? 4 : 3) : 0) +
+                              (selectedWeek === 0 ? (category === 'ADV' ? 4 : 3) : 0) +
                               1
                             }
                             className="py-12 text-center text-slate-400 space-y-1 font-sans"
@@ -4952,26 +4961,26 @@ export function InternalCategoryAttendancePage({
                       ) : (
                         filteredMatrixRows.map((row, idx) => {
                           const availableStatuses: AttendStatus[] = [
-                            "present",
-                            "late",
-                            "earlyLeave",
-                            "absent",
-                            "excusedAbsent",
-                            "unexcusedLate",
-                            "unexcusedAbsent",
-                            "unmarked",
+                            'present',
+                            'late',
+                            'earlyLeave',
+                            'absent',
+                            'excusedAbsent',
+                            'unexcusedLate',
+                            'unexcusedAbsent',
+                            'unmarked',
                           ];
 
                           const editDropdownStatuses: AttendStatus[] = [
-                            "present",
-                            "late",
-                            "earlyLeave",
-                            "absent",
-                            "excusedAbsent",
-                            "remote",
-                            "unexcusedLate",
-                            "unexcusedAbsent",
-                            "unmarked",
+                            'present',
+                            'late',
+                            'earlyLeave',
+                            'absent',
+                            'excusedAbsent',
+                            'remote',
+                            'unexcusedLate',
+                            'unexcusedAbsent',
+                            'unmarked',
                           ];
 
                           const effectiveScore = (() => {
@@ -4979,16 +4988,16 @@ export function InternalCategoryAttendancePage({
                               return row.totalScore;
                             }
                             const currentStatus = row.weekData[selectedWeek]?.status;
-                            if (currentStatus === "absent") {
+                            if (currentStatus === 'absent') {
                               return currentScoreRule.absentPenalty ?? -3;
                             }
-                            if (currentStatus === "unexcusedAbsent") {
+                            if (currentStatus === 'unexcusedAbsent') {
                               return currentScoreRule.unexcusedAbsentPenalty ?? -4;
                             }
                             if (
-                              currentStatus === "late" ||
-                              currentStatus === "earlyLeave" ||
-                              currentStatus === "unexcusedLate"
+                              currentStatus === 'late' ||
+                              currentStatus === 'earlyLeave' ||
+                              currentStatus === 'unexcusedLate'
                             ) {
                               return currentScoreRule.latePenalty ?? -1;
                             }
@@ -5015,7 +5024,7 @@ export function InternalCategoryAttendancePage({
                                   {row.name}
                                 </div>
                               </td>
-                              {category !== "SESSION" && selectedTrackFilter === "ALL" && (
+                              {category !== 'SESSION' && selectedTrackFilter === 'ALL' && (
                                 <td className="relative px-1.5 py-1.5 text-center text-slate-600 text-xs font-sans">
                                   <div className="h-8 flex items-center justify-center font-medium">
                                     {row.track}
@@ -5026,10 +5035,10 @@ export function InternalCategoryAttendancePage({
                                 const isEditableDirect =
                                   isWeekDirectEditable(w.weekNum) && selectedWeek !== 0;
                                 const cell = row.weekData[w.weekNum];
-                                const st = cell?.status || "unmarked";
+                                const st = cell?.status || 'unmarked';
                                 const cfg = ATTEND_STATUS_CFG[st] || ATTEND_STATUS_CFG.unmarked;
                                 const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
-                                const hasDate = Boolean(rawDate && rawDate !== "-");
+                                const hasDate = Boolean(rawDate && rawDate !== '-');
 
                                 if (isEditableDirect && !isTableEditMode) {
                                   return (
@@ -5064,7 +5073,7 @@ export function InternalCategoryAttendancePage({
                                 return (
                                   <td
                                     key={w.id}
-                                    className={`relative text-center px-1 py-1.5 font-sans transition-colors ${isTableEditMode ? "bg-slate-100/50" : ""}`}
+                                    className={`relative text-center px-1 py-1.5 font-sans transition-colors ${isTableEditMode ? 'bg-slate-100/50' : ''}`}
                                   >
                                     <div className="h-8 flex items-center justify-center w-full">
                                       {isTableEditMode ? (
@@ -5075,7 +5084,7 @@ export function InternalCategoryAttendancePage({
                                               handleStatusChange(
                                                 row.id,
                                                 e.target.value as AttendStatus,
-                                                w.weekNum
+                                                w.weekNum,
                                               )
                                             }
                                             className="w-full h-full appearance-none text-center text-xs font-semibold text-slate-900 bg-white border border-slate-300 hover:border-slate-500 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 rounded-lg outline-none cursor-pointer px-1.5 shadow-2xs transition-colors"
@@ -5098,23 +5107,23 @@ export function InternalCategoryAttendancePage({
                                       ) : (
                                         <div className="relative w-[66px] h-[30px] flex items-center justify-center">
                                           <span
-                                            title={`${row.name} - ${w.label}${hasDate ? ` (${rawDate})` : ""}: ${cfg.label}${cell?.memo ? `\n비고: ${cell.memo}` : ""}`}
+                                            title={`${row.name} - ${w.label}${hasDate ? ` (${rawDate})` : ''}: ${cfg.label}${cell?.memo ? `\n비고: ${cell.memo}` : ''}`}
                                             className={`text-xs whitespace-nowrap select-none font-bold ${
-                                              st === "present"
-                                                ? "text-emerald-700"
-                                                : st === "late" || st === "earlyLeave"
-                                                  ? "text-amber-700"
-                                                  : st === "absent"
-                                                    ? "text-rose-600"
-                                                    : st === "excusedAbsent"
-                                                      ? "text-blue-700"
-                                                      : st === "remote"
-                                                        ? "text-indigo-700"
-                                                        : st === "unexcusedLate"
-                                                          ? "text-orange-700"
-                                                          : st === "unexcusedAbsent"
-                                                            ? "text-red-700"
-                                                            : "text-slate-400 font-medium"
+                                              st === 'present'
+                                                ? 'text-emerald-700'
+                                                : st === 'late' || st === 'earlyLeave'
+                                                  ? 'text-amber-700'
+                                                  : st === 'absent'
+                                                    ? 'text-rose-600'
+                                                    : st === 'excusedAbsent'
+                                                      ? 'text-blue-700'
+                                                      : st === 'remote'
+                                                        ? 'text-indigo-700'
+                                                        : st === 'unexcusedLate'
+                                                          ? 'text-orange-700'
+                                                          : st === 'unexcusedAbsent'
+                                                            ? 'text-red-700'
+                                                            : 'text-slate-400 font-medium'
                                             }`}
                                           >
                                             {cfg.label}
@@ -5164,7 +5173,7 @@ export function InternalCategoryAttendancePage({
                                     </div>
                                   </td>
                                   {/* 비대면 카운트 (ADV 전용) */}
-                                  {category === "ADV" && (
+                                  {category === 'ADV' && (
                                     <td className="relative text-center px-1.5 py-1.5 font-mono bg-indigo-50/80">
                                       <div className="h-8 flex items-center justify-center">
                                         {row.remoteCount > 0 ? (
@@ -5185,10 +5194,10 @@ export function InternalCategoryAttendancePage({
                                   <span
                                     className={`text-xs font-bold ${
                                       effectiveScore === 0
-                                        ? "text-slate-400 font-medium"
+                                        ? 'text-slate-400 font-medium'
                                         : effectiveScore < 0
-                                          ? "text-rose-600 font-bold"
-                                          : "text-emerald-700 font-bold"
+                                          ? 'text-rose-600 font-bold'
+                                          : 'text-emerald-700 font-bold'
                                     }`}
                                   >
                                     {effectiveScore > 0
@@ -5217,10 +5226,10 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">주차</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "week", 60)}
+                              onMouseDown={(e) => handleResizeStart(e, 'week', 60)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("week");
+                                  setActiveHoverCol('week');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -5235,19 +5244,19 @@ export function InternalCategoryAttendancePage({
                             />
                           </th>
                         )}
-                        {category !== "SESSION" &&
+                        {category !== 'SESSION' &&
                           isAllSelected &&
-                          selectedTrackFilter === "ALL" && (
+                          selectedTrackFilter === 'ALL' && (
                             <th
                               style={{ width: `${colWidths.track}px` }}
                               className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                             >
                               <div className="h-9 flex items-center justify-center">부문</div>
                               <div
-                                onMouseDown={(e) => handleResizeStart(e, "track", 72)}
+                                onMouseDown={(e) => handleResizeStart(e, 'track', 72)}
                                 onMouseEnter={(e) => {
                                   if (!resizingColKey) {
-                                    setActiveHoverCol("track");
+                                    setActiveHoverCol('track');
                                     updateGuidelinePos(e.currentTarget);
                                   }
                                 }}
@@ -5262,17 +5271,17 @@ export function InternalCategoryAttendancePage({
                               />
                             </th>
                           )}
-                        {isAllSelected && category !== "SESSION" && (
+                        {isAllSelected && category !== 'SESSION' && (
                           <th
                             style={{ width: `${colWidths.teamName}px` }}
                             className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                           >
                             <div className="h-9 flex items-center justify-center">소속 팀</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, "teamName", 90)}
+                              onMouseDown={(e) => handleResizeStart(e, 'teamName', 90)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol("teamName");
+                                  setActiveHoverCol('teamName');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -5293,10 +5302,10 @@ export function InternalCategoryAttendancePage({
                         >
                           <div className="h-9 flex items-center justify-center">이름</div>
                           <div
-                            onMouseDown={(e) => handleResizeStart(e, "name", 70)}
+                            onMouseDown={(e) => handleResizeStart(e, 'name', 70)}
                             onMouseEnter={(e) => {
                               if (!resizingColKey) {
-                                setActiveHoverCol("name");
+                                setActiveHoverCol('name');
                                 updateGuidelinePos(e.currentTarget);
                               }
                             }}
@@ -5316,10 +5325,10 @@ export function InternalCategoryAttendancePage({
                         >
                           <div className="h-9 flex items-center justify-center">기수</div>
                           <div
-                            onMouseDown={(e) => handleResizeStart(e, "term", 50)}
+                            onMouseDown={(e) => handleResizeStart(e, 'term', 50)}
                             onMouseEnter={(e) => {
                               if (!resizingColKey) {
-                                setActiveHoverCol("term");
+                                setActiveHoverCol('term');
                                 updateGuidelinePos(e.currentTarget);
                               }
                             }}
@@ -5333,19 +5342,19 @@ export function InternalCategoryAttendancePage({
                             title="열 너비 조절"
                           />
                         </th>
-                        {category !== "SESSION" &&
+                        {category !== 'SESSION' &&
                           !isAllSelected &&
-                          selectedTrackFilter === "ALL" && (
+                          selectedTrackFilter === 'ALL' && (
                             <th
                               style={{ width: `${colWidths.track}px` }}
                               className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                             >
                               <div className="h-9 flex items-center justify-center">부문</div>
                               <div
-                                onMouseDown={(e) => handleResizeStart(e, "track", 72)}
+                                onMouseDown={(e) => handleResizeStart(e, 'track', 72)}
                                 onMouseEnter={(e) => {
                                   if (!resizingColKey) {
-                                    setActiveHoverCol("track");
+                                    setActiveHoverCol('track');
                                     updateGuidelinePos(e.currentTarget);
                                   }
                                 }}
@@ -5362,15 +5371,17 @@ export function InternalCategoryAttendancePage({
                           )}
                         {(() => {
                           const isSingleTeamEditable =
-                            category === "SESSION" ||
-                            (category === "ADV" &&
+                            category === 'SESSION' ||
+                            (category === 'ADV' &&
                               isWeekDirectEditable(selectedWeek) &&
                               selectedWeek !== 0);
                           const statusMinWidth = isSingleTeamEditable ? 435 : 70;
                           const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
                           const effectiveStatusWidth = isSingleTeamEditable
                             ? Math.max(colWidths.status || statusDefaultWidth, statusMinWidth)
-                            : (colWidths.status && colWidths.status < 200 ? colWidths.status : statusDefaultWidth);
+                            : colWidths.status && colWidths.status < 200
+                              ? colWidths.status
+                              : statusDefaultWidth;
 
                           return (
                             <th
@@ -5382,16 +5393,10 @@ export function InternalCategoryAttendancePage({
                             >
                               <div className="h-9 flex items-center justify-center">출결</div>
                               <div
-                                onMouseDown={(e) =>
-                                  handleResizeStart(
-                                    e,
-                                    "status",
-                                    statusMinWidth
-                                  )
-                                }
+                                onMouseDown={(e) => handleResizeStart(e, 'status', statusMinWidth)}
                                 onMouseEnter={(e) => {
                                   if (!resizingColKey) {
-                                    setActiveHoverCol("status");
+                                    setActiveHoverCol('status');
                                     updateGuidelinePos(e.currentTarget);
                                   }
                                 }}
@@ -5408,14 +5413,14 @@ export function InternalCategoryAttendancePage({
                           );
                         })()}
                         <th
-                          style={{ width: `${colWidths.memo || 240}px`, minWidth: "220px" }}
+                          style={{ width: `${colWidths.memo || 240}px`, minWidth: '220px' }}
                           className="relative text-center px-3 py-1 text-slate-700 font-semibold"
                         >
                           <div className="h-9 flex items-center justify-center">비고</div>
                         </th>
                         {isTableEditMode && (
                           <th
-                            style={{ width: "40px" }}
+                            style={{ width: '40px' }}
                             className="text-center px-1 py-1 text-slate-400 font-semibold w-10"
                           >
                             <div className="h-9 flex items-center justify-center">관리</div>
@@ -5429,8 +5434,8 @@ export function InternalCategoryAttendancePage({
                           <td
                             colSpan={
                               (selectedWeek === 0 ? 1 : 0) +
-                              (category !== "SESSION" && selectedTrackFilter === "ALL" ? 1 : 0) +
-                              (isAllSelected && category !== "SESSION" ? 1 : 0) +
+                              (category !== 'SESSION' && selectedTrackFilter === 'ALL' ? 1 : 0) +
+                              (isAllSelected && category !== 'SESSION' ? 1 : 0) +
                               3 +
                               (isTableEditMode ? 1 : 0)
                             }
@@ -5445,43 +5450,43 @@ export function InternalCategoryAttendancePage({
                       ) : (
                         filteredAttendees.map((att) => {
                           const availableStatuses: AttendStatus[] = [
-                            "present",
-                            "late",
-                            "earlyLeave",
-                            "absent",
-                            "excusedAbsent",
-                            "unexcusedLate",
-                            "unexcusedAbsent",
-                            "unmarked",
+                            'present',
+                            'late',
+                            'earlyLeave',
+                            'absent',
+                            'excusedAbsent',
+                            'unexcusedLate',
+                            'unexcusedAbsent',
+                            'unmarked',
                           ];
 
                           const editDropdownStatuses: AttendStatus[] =
-                            category === "ADV"
+                            category === 'ADV'
                               ? [
-                                  "present",
-                                  "late",
-                                  "earlyLeave",
-                                  "absent",
-                                  "excusedAbsent",
-                                  "remote",
-                                  "unexcusedLate",
-                                  "unexcusedAbsent",
-                                  "unmarked",
+                                  'present',
+                                  'late',
+                                  'earlyLeave',
+                                  'absent',
+                                  'excusedAbsent',
+                                  'remote',
+                                  'unexcusedLate',
+                                  'unexcusedAbsent',
+                                  'unmarked',
                                 ]
                               : [
-                                  "present",
-                                  "late",
-                                  "earlyLeave",
-                                  "absent",
-                                  "excusedAbsent",
-                                  "unexcusedLate",
-                                  "unexcusedAbsent",
-                                  "unmarked",
+                                  'present',
+                                  'late',
+                                  'earlyLeave',
+                                  'absent',
+                                  'excusedAbsent',
+                                  'unexcusedLate',
+                                  'unexcusedAbsent',
+                                  'unmarked',
                                 ];
 
                           const isDirectEditable =
-                            category === "SESSION" ||
-                            (category === "ADV" &&
+                            category === 'SESSION' ||
+                            (category === 'ADV' &&
                               isWeekDirectEditable(selectedWeek) &&
                               selectedWeek !== 0);
 
@@ -5497,16 +5502,16 @@ export function InternalCategoryAttendancePage({
                                   </span>
                                 </td>
                               )}
-                              {category !== "SESSION" &&
+                              {category !== 'SESSION' &&
                                 isAllSelected &&
-                                selectedTrackFilter === "ALL" && (
+                                selectedTrackFilter === 'ALL' && (
                                   <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans whitespace-nowrap">
-                                    {att.track || "-"}
+                                    {att.track || '-'}
                                   </td>
                                 )}
-                              {isAllSelected && category !== "SESSION" && (
+                              {isAllSelected && category !== 'SESSION' && (
                                 <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans truncate whitespace-nowrap">
-                                  {att.teamName || "-"}
+                                  {att.teamName || '-'}
                                 </td>
                               )}
                               <td className="relative px-2 py-1.5 text-center font-bold text-slate-900 text-xs font-sans whitespace-nowrap">
@@ -5515,11 +5520,11 @@ export function InternalCategoryAttendancePage({
                               <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs whitespace-nowrap">
                                 {att.term}기
                               </td>
-                              {category !== "SESSION" &&
+                              {category !== 'SESSION' &&
                                 !isAllSelected &&
-                                selectedTrackFilter === "ALL" && (
+                                selectedTrackFilter === 'ALL' && (
                                   <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans whitespace-nowrap">
-                                    {att.track || "-"}
+                                    {att.track || '-'}
                                   </td>
                                 )}
 
@@ -5537,7 +5542,7 @@ export function InternalCategoryAttendancePage({
                                               handleStatusChange(
                                                 att.originalId || att.id,
                                                 s,
-                                                att.weekNum
+                                                att.weekNum,
                                               )
                                             }
                                             className={`py-1 text-[10.5px] font-semibold rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
@@ -5558,12 +5563,12 @@ export function InternalCategoryAttendancePage({
                                   <div className="flex items-center justify-center w-full">
                                     <div className="relative w-[70px] h-[30px] flex items-center justify-center">
                                       <select
-                                        value={att.status || "unmarked"}
+                                        value={att.status || 'unmarked'}
                                         onChange={(e) =>
                                           handleStatusChange(
                                             att.originalId || att.id,
                                             e.target.value as AttendStatus,
-                                            att.weekNum
+                                            att.weekNum,
                                           )
                                         }
                                         className="w-full h-full appearance-none text-center text-xs font-semibold text-slate-900 bg-white border border-slate-300 hover:border-slate-500 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 rounded-lg outline-none cursor-pointer px-1.5 shadow-2xs transition-colors"
@@ -5591,25 +5596,25 @@ export function InternalCategoryAttendancePage({
                                     <div className="relative w-[70px] h-[30px] flex items-center justify-center">
                                       <span
                                         className={`text-xs font-bold font-sans ${
-                                          att.status === "present"
-                                            ? "text-emerald-700 font-bold"
-                                            : att.status === "late" || att.status === "earlyLeave"
-                                              ? "text-amber-700 font-bold"
-                                              : att.status === "absent"
-                                                ? "text-rose-700 font-bold"
-                                                : att.status === "excusedAbsent"
-                                                  ? "text-blue-700 font-bold"
-                                                  : att.status === "remote"
-                                                    ? "text-indigo-700 font-bold"
-                                                    : att.status === "unexcusedLate"
-                                                      ? "text-orange-700 font-bold"
-                                                      : att.status === "unexcusedAbsent"
-                                                        ? "text-red-700 font-bold"
-                                                        : "text-slate-300 font-normal font-mono"
+                                          att.status === 'present'
+                                            ? 'text-emerald-700 font-bold'
+                                            : att.status === 'late' || att.status === 'earlyLeave'
+                                              ? 'text-amber-700 font-bold'
+                                              : att.status === 'absent'
+                                                ? 'text-rose-700 font-bold'
+                                                : att.status === 'excusedAbsent'
+                                                  ? 'text-blue-700 font-bold'
+                                                  : att.status === 'remote'
+                                                    ? 'text-indigo-700 font-bold'
+                                                    : att.status === 'unexcusedLate'
+                                                      ? 'text-orange-700 font-bold'
+                                                      : att.status === 'unexcusedAbsent'
+                                                        ? 'text-red-700 font-bold'
+                                                        : 'text-slate-300 font-normal font-mono'
                                         }`}
                                       >
-                                        {att.status === "unmarked"
-                                          ? "—"
+                                        {att.status === 'unmarked'
+                                          ? '—'
                                           : ATTEND_STATUS_CFG[att.status]?.label || att.status}
                                       </span>
                                     </div>
@@ -5617,20 +5622,20 @@ export function InternalCategoryAttendancePage({
                                 </td>
                               )}
 
-                              {category === "SESSION" ||
-                              (category === "ADV" &&
+                              {category === 'SESSION' ||
+                              (category === 'ADV' &&
                                 isWeekDirectEditable(selectedWeek) &&
                                 selectedWeek !== 0) ? (
                                 <td className="relative px-3 py-2 text-center">
                                   <div className="h-8 flex items-center justify-center">
                                     <input
                                       type="text"
-                                      value={att.memo || ""}
+                                      value={att.memo || ''}
                                       onChange={(e) =>
                                         handleMemoChange(
                                           att.originalId || att.id,
                                           e.target.value,
-                                          att.weekNum
+                                          att.weekNum,
                                         )
                                       }
                                       placeholder="—"
@@ -5690,7 +5695,7 @@ export function InternalCategoryAttendancePage({
               <div className="flex items-center gap-2">
                 <Plus size={16} className="text-slate-800" />
                 <h3 className="text-sm font-bold text-slate-900">
-                  새 {config.title.split(" ")[0]} 회차 생성
+                  새 {config.title.split(' ')[0]} 회차 생성
                 </h3>
               </div>
               <button
@@ -5707,7 +5712,7 @@ export function InternalCategoryAttendancePage({
                 <input
                   value={newEventTitle}
                   onChange={(e) => setNewEventTitle(e.target.value)}
-                  placeholder={`예: 2026 하계 ${config.title.split(" ")[0]} 4주차`}
+                  placeholder={`예: 2026 하계 ${config.title.split(' ')[0]} 4주차`}
                   className="w-full px-3.5 py-2.5 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 font-semibold focus:border-slate-400"
                 />
               </div>
@@ -5797,11 +5802,11 @@ export function InternalCategoryAttendancePage({
             <img
               src={
                 selectedEvent.imageUrl ||
-                (category === "STUDY"
-                  ? "/sample-study-photo.jpg?v=2"
-                  : category === "ADV"
-                    ? "/sample-study-photo.jpg?v=2"
-                    : "/sample-study-photo.jpg?v=2")
+                (category === 'STUDY'
+                  ? '/sample-study-photo.jpg?v=2'
+                  : category === 'ADV'
+                    ? '/sample-study-photo.jpg?v=2'
+                    : '/sample-study-photo.jpg?v=2')
               }
               alt={selectedTeam.name}
               className="w-full h-auto max-h-[80vh] object-contain rounded-2xl"
@@ -5844,15 +5849,15 @@ export function InternalCategoryAttendancePage({
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-800">
-                    주차별 날짜 입력 ({termPeriod === "VACATION" ? "방학 1~8주차" : "학기 9~16주차"}
+                    주차별 날짜 입력 ({termPeriod === 'VACATION' ? '방학 1~8주차' : '학기 9~16주차'}
                     )
                   </span>
                 </div>
 
                 <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                  {(termPeriod === "VACATION" ? VACATION_WEEKS_8 : SEMESTER_WEEKS_8).map((w) => {
+                  {(termPeriod === 'VACATION' ? VACATION_WEEKS_8 : SEMESTER_WEEKS_8).map((w) => {
                     const raw = weekDateMapping[w.weekNum];
-                    const displayVal = !raw || raw === "-" ? "" : raw;
+                    const displayVal = !raw || raw === '-' ? '' : raw;
 
                     return (
                       <div
@@ -5937,7 +5942,7 @@ export function InternalCategoryAttendancePage({
                 <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto shadow-2xs">
                   <table
                     className="w-full text-xs border-collapse table-auto whitespace-nowrap"
-                    style={{ minWidth: "1150px" }}
+                    style={{ minWidth: '1150px' }}
                   >
                     <thead className="select-none divide-x divide-slate-200 border-b border-slate-200">
                       <tr className="h-10">
@@ -5947,22 +5952,22 @@ export function InternalCategoryAttendancePage({
                         {activeModalCols.map((col, idx) => {
                           const isBeingDragged = draggedColIdx === idx;
                           const isDropLeft =
-                            dropTarget?.index === idx && dropTarget?.position === "left";
+                            dropTarget?.index === idx && dropTarget?.position === 'left';
                           const isDropRight =
-                            dropTarget?.index === idx && dropTarget?.position === "right";
+                            dropTarget?.index === idx && dropTarget?.position === 'right';
 
                           const headerBg =
-                            col.id === "absence"
-                              ? "bg-pink-100/90 text-slate-800"
-                              : col.id === "unexcusedAbsence"
-                                ? "bg-red-200/90 text-slate-900"
-                                : col.id === "lateEarlyLeave"
-                                  ? "bg-amber-100 text-slate-800"
-                                  : col.id === "remote"
-                                    ? "bg-indigo-100 text-slate-800"
-                                    : col.id === "totalScore"
-                                      ? "bg-slate-100/90 text-slate-900"
-                                      : "bg-slate-50 text-slate-800";
+                            col.id === 'absence'
+                              ? 'bg-pink-100/90 text-slate-800'
+                              : col.id === 'unexcusedAbsence'
+                                ? 'bg-red-200/90 text-slate-900'
+                                : col.id === 'lateEarlyLeave'
+                                  ? 'bg-amber-100 text-slate-800'
+                                  : col.id === 'remote'
+                                    ? 'bg-indigo-100 text-slate-800'
+                                    : col.id === 'totalScore'
+                                      ? 'bg-slate-100/90 text-slate-900'
+                                      : 'bg-slate-50 text-slate-800';
 
                           return (
                             <th
@@ -5973,7 +5978,7 @@ export function InternalCategoryAttendancePage({
                               onDrop={handleColDrop}
                               onDragEnd={handleColDragEnd}
                               className={`relative px-2.5 py-2 text-center text-xs font-bold transition-all select-none cursor-grab active:cursor-grabbing ${headerBg} ${
-                                isBeingDragged ? "opacity-20 bg-slate-200" : "hover:brightness-95"
+                                isBeingDragged ? 'opacity-20 bg-slate-200' : 'hover:brightness-95'
                               }`}
                               title="마우스로 드래그하여 순서 변경"
                             >
@@ -6005,7 +6010,7 @@ export function InternalCategoryAttendancePage({
                           {activeModalCols.map((col) => (
                             <td
                               key={col.id}
-                              className={`text-center px-2.5 py-1.5 whitespace-nowrap ${col.id === "totalScore" ? "bg-slate-50/50 font-bold" : ""}`}
+                              className={`text-center px-2.5 py-1.5 whitespace-nowrap ${col.id === 'totalScore' ? 'bg-slate-50/50 font-bold' : ''}`}
                             >
                               {col.renderCell(row)}
                             </td>
@@ -6029,7 +6034,7 @@ export function InternalCategoryAttendancePage({
                   onClick={handleSaveSettings}
                   className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors cursor-pointer"
                 >
-                  {isSavedFeedback ? "저장 완료 ✓" : "설정 저장"}
+                  {isSavedFeedback ? '저장 완료 ✓' : '설정 저장'}
                 </button>
                 <button
                   type="button"

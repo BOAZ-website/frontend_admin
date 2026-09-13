@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { LogIn, X } from "lucide-react";
+import { useState } from 'react';
+import { LogIn, X } from 'lucide-react';
 
-import type { HostAccount } from "@/entities/host-account/model/types";
-import type { StudyTeamInfo } from "@/entities/study-team/model/types";
-import type { UserRole } from "@/entities/user/model/types";
+import type { HostAccount } from '@/entities/host-account/model/types';
+import type { StudyTeamInfo } from '@/entities/study-team/model/types';
+import type { UserRole } from '@/entities/user/model/types';
 
 export function LoginModal({
   onClose,
@@ -16,71 +16,71 @@ export function LoginModal({
   hosts: HostAccount[];
   studyTeams: StudyTeamInfo[];
 }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const [selectedQuickHostTeam, setSelectedQuickHostTeam] = useState(
-    studyTeams[0]?.teamName || "A팀"
+    studyTeams[0]?.teamName || 'A팀',
   );
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setErrorMsg("");
+    setErrorMsg('');
 
     const u = username.trim();
     const p = password.trim();
 
     if (!u || !p) {
-      setErrorMsg("아이디와 비밀번호를 모두 입력해 주세요.");
+      setErrorMsg('아이디와 비밀번호를 모두 입력해 주세요.');
       return;
     }
 
     // 0. 최고 관리자 (SUPER)
-    if (u === "super" && (p === "super1234" || p === "1234")) {
-      onLoginSuccess("SUPER", undefined, "super");
+    if (u === 'super' && (p === 'super1234' || p === '1234')) {
+      onLoginSuccess('SUPER', undefined, 'super');
       onClose();
       return;
     }
 
     // 1. 운영지원팀 마스터 계정 (TEAM)
-    if (u === "admin" && (p === "admin1234" || p === "1234")) {
-      onLoginSuccess("TEAM", undefined, "admin");
+    if (u === 'admin' && (p === 'admin1234' || p === '1234')) {
+      onLoginSuccess('TEAM', undefined, 'admin');
       onClose();
       return;
     }
 
     // 2. 서비스운영팀(콘텐츠) 계정
-    if (u === "content" && (p === "content1234" || p === "1234")) {
-      onLoginSuccess("CONTENT_ADMIN", undefined, "content");
+    if (u === 'content' && (p === 'content1234' || p === '1234')) {
+      onLoginSuccess('CONTENT_ADMIN', undefined, 'content');
       onClose();
       return;
     }
 
     // 3. HOST (스터디장) 발급 계정 대조
     const foundHost = hosts.find(
-      (h) => h.username === u && (h.initialPassword === p || p === "boaz2026!a" || p === "1234")
+      (h) => h.username === u && (h.initialPassword === p || p === 'boaz2026!a' || p === '1234'),
     );
     if (foundHost) {
       if (!foundHost.active) {
-        setErrorMsg("해당 HOST 계정은 현재 회수(잠금) 상태입니다. 운영지원팀에 문의하세요.");
+        setErrorMsg('해당 HOST 계정은 현재 회수(잠금) 상태입니다. 운영지원팀에 문의하세요.');
         return;
       }
-      onLoginSuccess("HOST", foundHost.team, foundHost.username);
+      onLoginSuccess('HOST', foundHost.team, foundHost.username);
       onClose();
       return;
     }
 
     // 4. ADV 팀장 계정 테스트 지원 (host_adv1, adv1 등)
     if (
-      (u === "host_adv" || u === "host_adv1" || u === "adv1") &&
-      (p === "boaz2026!a" || p === "1234")
+      (u === 'host_adv' || u === 'host_adv1' || u === 'adv1') &&
+      (p === 'boaz2026!a' || p === '1234')
     ) {
-      onLoginSuccess("HOST", "분석 1팀", u);
+      onLoginSuccess('HOST', '분석 1팀', u);
       onClose();
       return;
     }
 
-    setErrorMsg("아이디 또는 비밀번호가 일치하지 않습니다. (아래 퀵 로그인 버튼을 이용해 보세요)");
+    setErrorMsg('아이디 또는 비밀번호가 일치하지 않습니다. (아래 퀵 로그인 버튼을 이용해 보세요)');
   }
 
   const currentSelectedHost = hosts.find((h) => h.team === selectedQuickHostTeam) || hosts[0];
@@ -139,7 +139,7 @@ export function LoginModal({
           <div className="grid grid-cols-2 gap-2 text-[11px]">
             <button
               onClick={() => {
-                onLoginSuccess("SUPER", undefined, "super");
+                onLoginSuccess('SUPER', undefined, 'super');
                 onClose();
               }}
               className="p-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-left cursor-pointer transition-colors"
@@ -149,7 +149,7 @@ export function LoginModal({
             </button>
             <button
               onClick={() => {
-                onLoginSuccess("TEAM", undefined, "admin");
+                onLoginSuccess('TEAM', undefined, 'admin');
                 onClose();
               }}
               className="p-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-left cursor-pointer transition-colors"
@@ -162,13 +162,13 @@ export function LoginModal({
                 const targetTeam = selectedQuickHostTeam;
                 const h = hosts.find((item) => item.team === targetTeam);
                 const isAdvTarget =
-                  targetTeam.startsWith("분석") ||
-                  targetTeam.startsWith("시각화") ||
-                  targetTeam.startsWith("엔지");
+                  targetTeam.startsWith('분석') ||
+                  targetTeam.startsWith('시각화') ||
+                  targetTeam.startsWith('엔지');
                 onLoginSuccess(
-                  "HOST",
+                  'HOST',
                   targetTeam,
-                  h?.username || (isAdvTarget ? "host_adv1" : `host_${targetTeam.toLowerCase()}`)
+                  h?.username || (isAdvTarget ? 'host_adv1' : `host_${targetTeam.toLowerCase()}`),
                 );
                 onClose();
               }}
@@ -201,13 +201,18 @@ export function LoginModal({
                 </select>
               </div>
               <p className="text-[10px] text-emerald-600 font-mono">
-                {currentSelectedHost?.username || (selectedQuickHostTeam.startsWith("분석") || selectedQuickHostTeam.startsWith("시각화") || selectedQuickHostTeam.startsWith("엔지") ? "host_adv" : `host_${selectedQuickHostTeam.toLowerCase()}`)}{" "}
+                {currentSelectedHost?.username ||
+                  (selectedQuickHostTeam.startsWith('분석') ||
+                  selectedQuickHostTeam.startsWith('시각화') ||
+                  selectedQuickHostTeam.startsWith('엔지')
+                    ? 'host_adv'
+                    : `host_${selectedQuickHostTeam.toLowerCase()}`)}{' '}
                 (HOST)
               </p>
             </button>
             <button
               onClick={() => {
-                onLoginSuccess("CONTENT_ADMIN", undefined, "content");
+                onLoginSuccess('CONTENT_ADMIN', undefined, 'content');
                 onClose();
               }}
               className="p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-left cursor-pointer transition-colors"

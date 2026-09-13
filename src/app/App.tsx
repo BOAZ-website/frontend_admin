@@ -1,91 +1,91 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, KeyRound, PanelLeft, ShieldCheck, User, X } from "lucide-react";
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronRight, KeyRound, PanelLeft, ShieldCheck, User, X } from 'lucide-react';
 
-import { DashboardPage } from "@/pages/attendance-dashboard/ui/DashboardPage";
-import { EventAttendanceManagePage } from "@/pages/attendance-events/ui/EventAttendanceManagePage";
-import { HostsPage } from "@/pages/attendance-hosts/ui/HostsPage";
-import { InputPage } from "@/pages/attendance-input/ui/InputPage";
-import { InternalCategoryAttendancePage } from "@/pages/attendance-internal-category/ui/InternalCategoryAttendancePage";
-import { RulesPage } from "@/pages/attendance-rules/ui/RulesPage";
-import { ScoresPage } from "@/pages/attendance-scores/ui/ScoresPage";
-import { ArchivingSection } from "@/pages/content-archive/ui/ArchivingSection";
-import { CurriculumSection } from "@/pages/content-curriculum/ui/CurriculumSection";
-import { FaqSection } from "@/pages/content-faq/ui/FaqSection";
-import { ReviewsSection } from "@/pages/content-reviews/ui/ReviewsSection";
-import { EvaluationManagePage } from "@/pages/recruiting-evaluation/ui/EvaluationManagePage";
-import { RecruitmentManagePage } from "@/pages/recruiting-manage/ui/RecruitmentManagePage";
-import { SystemAccountsPage } from "@/pages/system-accounts/ui/SystemAccountsPage";
-import { LoginModal } from "@/widgets/login-modal/ui/LoginModal";
-import { Sidebar } from "@/widgets/sidebar/ui/Sidebar";
-import { WEEKS } from "@/entities/attendance/model/constants";
-import { buildInitialAttendance, sessionKey } from "@/entities/attendance/model/lib";
-import type { AttendanceState, AttendanceStatus } from "@/entities/attendance/model/types";
-import { INITIAL_EXCEPTIONS } from "@/entities/exception-request/model/constants";
-import type { ExceptionRequest } from "@/entities/exception-request/model/types";
-import { INITIAL_HOSTS } from "@/entities/host-account/model/constants";
-import type { HostAccount } from "@/entities/host-account/model/types";
-import { INITIAL_RULES } from "@/entities/score-rule/model/constants";
-import type { ScoreRule } from "@/entities/score-rule/model/types";
-import { INITIAL_STUDY_TEAMS, MEMBERS } from "@/entities/study-team/model/constants";
-import type { Member, StudyPeriodType, StudyTeamInfo } from "@/entities/study-team/model/types";
-import type { UserRole } from "@/entities/user/model/types";
-import type { ActivePage } from "@/shared/config/activePage";
-import { PAGE_LABELS } from "@/shared/config/pageLabels";
+import { DashboardPage } from '@/pages/attendance-dashboard/ui/DashboardPage';
+import { EventAttendanceManagePage } from '@/pages/attendance-events/ui/EventAttendanceManagePage';
+import { HostsPage } from '@/pages/attendance-hosts/ui/HostsPage';
+import { InputPage } from '@/pages/attendance-input/ui/InputPage';
+import { InternalCategoryAttendancePage } from '@/pages/attendance-internal-category/ui/InternalCategoryAttendancePage';
+import { RulesPage } from '@/pages/attendance-rules/ui/RulesPage';
+import { ScoresPage } from '@/pages/attendance-scores/ui/ScoresPage';
+import { ArchivingSection } from '@/pages/content-archive/ui/ArchivingSection';
+import { CurriculumSection } from '@/pages/content-curriculum/ui/CurriculumSection';
+import { FaqSection } from '@/pages/content-faq/ui/FaqSection';
+import { ReviewsSection } from '@/pages/content-reviews/ui/ReviewsSection';
+import { EvaluationManagePage } from '@/pages/recruiting-evaluation/ui/EvaluationManagePage';
+import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentManagePage';
+import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
+import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
+import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
+import { WEEKS } from '@/entities/attendance/model/constants';
+import { buildInitialAttendance, sessionKey } from '@/entities/attendance/model/lib';
+import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
+import { INITIAL_EXCEPTIONS } from '@/entities/exception-request/model/constants';
+import type { ExceptionRequest } from '@/entities/exception-request/model/types';
+import { INITIAL_HOSTS } from '@/entities/host-account/model/constants';
+import type { HostAccount } from '@/entities/host-account/model/types';
+import { INITIAL_RULES } from '@/entities/score-rule/model/constants';
+import type { ScoreRule } from '@/entities/score-rule/model/types';
+import { INITIAL_STUDY_TEAMS, MEMBERS } from '@/entities/study-team/model/constants';
+import type { Member, StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
+import type { UserRole } from '@/entities/user/model/types';
+import type { ActivePage } from '@/shared/config/activePage';
+import { PAGE_LABELS } from '@/shared/config/pageLabels';
 
 const VALID_ACTIVE_PAGES = new Set<string>([
-  "att-dashboard",
-  "att-events",
-  "att-hosts",
-  "att-scores",
-  "att-rules",
-  "att-input",
-  "att-input-adv",
-  "att-input-study",
-  "att-session",
-  "att-adv",
-  "att-study",
-  "att-internal",
-  "content-archive",
-  "content-faq",
-  "content-curriculum",
-  "content-reviews",
-  "content",
-  "recruiting",
-  "recruiting-posts",
-  "recruiting-questions",
-  "recruiting-preview",
-  "recruiting-csv",
-  "recruiting-leads",
-  "evaluation",
-  "evaluation-evals",
-  "evaluation-applicants",
-  "evaluation-promote",
-  "system",
-  "system-accounts",
-  "system-permissions",
-  "system-audit",
+  'att-dashboard',
+  'att-events',
+  'att-hosts',
+  'att-scores',
+  'att-rules',
+  'att-input',
+  'att-input-adv',
+  'att-input-study',
+  'att-session',
+  'att-adv',
+  'att-study',
+  'att-internal',
+  'content-archive',
+  'content-faq',
+  'content-curriculum',
+  'content-reviews',
+  'content',
+  'recruiting',
+  'recruiting-posts',
+  'recruiting-questions',
+  'recruiting-preview',
+  'recruiting-csv',
+  'recruiting-leads',
+  'evaluation',
+  'evaluation-evals',
+  'evaluation-applicants',
+  'evaluation-promote',
+  'system',
+  'system-accounts',
+  'system-permissions',
+  'system-audit',
 ]);
 
 function getInitialActivePage(): ActivePage {
   try {
-    const hash = window.location.hash.replace(/^#/, "");
+    const hash = window.location.hash.replace(/^#/, '');
     if (hash && VALID_ACTIVE_PAGES.has(hash)) {
       return hash as ActivePage;
     }
-    const saved = localStorage.getItem("boaz_active_page");
+    const saved = localStorage.getItem('boaz_active_page');
     if (saved && VALID_ACTIVE_PAGES.has(saved)) {
       return saved as ActivePage;
     }
   } catch {
     // ignore
   }
-  return "recruiting-posts";
+  return 'recruiting-posts';
 }
 
 export default function App() {
   const [scoreRules, setScoreRules] = useState<ScoreRule[]>(() => {
     try {
-      const saved = localStorage.getItem("boaz_score_rules");
+      const saved = localStorage.getItem('boaz_score_rules');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -101,8 +101,8 @@ export default function App() {
   const handleUpdateScoreRules = (newRules: ScoreRule[]) => {
     setScoreRules(newRules);
     try {
-      localStorage.setItem("boaz_score_rules", JSON.stringify(newRules));
-      window.dispatchEvent(new Event("storage"));
+      localStorage.setItem('boaz_score_rules', JSON.stringify(newRules));
+      window.dispatchEvent(new Event('storage'));
     } catch (e) {
       // ignore localStorage write failures (e.g. quota exceeded, private mode)
     }
@@ -112,9 +112,9 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem("boaz_active_page", activePage);
-      if (window.location.hash.replace(/^#/, "") !== activePage) {
-        window.history.replaceState(null, "", `#${activePage}`);
+      localStorage.setItem('boaz_active_page', activePage);
+      if (window.location.hash.replace(/^#/, '') !== activePage) {
+        window.history.replaceState(null, '', `#${activePage}`);
       }
     } catch {
       // ignore
@@ -123,19 +123,19 @@ export default function App() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace(/^#/, "");
+      const hash = window.location.hash.replace(/^#/, '');
       if (hash && VALID_ACTIVE_PAGES.has(hash)) {
         setActivePage(hash as ActivePage);
       }
     };
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem("boaz_sidebar_open_v2");
-      return saved !== null ? saved === "true" : true;
+      const saved = localStorage.getItem('boaz_sidebar_open_v2');
+      return saved !== null ? saved === 'true' : true;
     } catch {
       return true;
     }
@@ -145,7 +145,7 @@ export default function App() {
     setSidebarOpen((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem("boaz_sidebar_open_v2", String(next));
+        localStorage.setItem('boaz_sidebar_open_v2', String(next));
       } catch {
         // ignore
       }
@@ -156,13 +156,13 @@ export default function App() {
   // Notion-style Ctrl+\ (or Cmd+\) shortcut to toggle sidebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "\\") {
+      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
         e.preventDefault();
         toggleSidebar();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
   const [studyTeams, setStudyTeams] = useState<StudyTeamInfo[]>(INITIAL_STUDY_TEAMS);
   const [membersMap, setMembersMap] = useState<Record<string, Member[]>>(MEMBERS);
@@ -171,67 +171,67 @@ export default function App() {
   const [exceptions, setExceptions] = useState<ExceptionRequest[]>(INITIAL_EXCEPTIONS);
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     try {
-      const saved = localStorage.getItem("boaz_user_role");
-      if (saved && ["TEAM", "HOST", "CONTENT_ADMIN", "SUPER"].includes(saved)) {
+      const saved = localStorage.getItem('boaz_user_role');
+      if (saved && ['TEAM', 'HOST', 'CONTENT_ADMIN', 'SUPER'].includes(saved)) {
         return saved as UserRole;
       }
     } catch {}
-    return "SUPER";
+    return 'SUPER';
   });
 
   const [loggedHostTeam, setLoggedHostTeam] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem("boaz_host_team");
+      const saved = localStorage.getItem('boaz_host_team');
       if (saved) return saved;
     } catch {}
-    return "A팀";
+    return 'A팀';
   });
 
   const [loggedUsername, setLoggedUsername] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem("boaz_username");
+      const saved = localStorage.getItem('boaz_username');
       if (saved) return saved;
     } catch {}
-    return "super";
+    return 'super';
   });
 
   useEffect(() => {
     try {
-      localStorage.setItem("boaz_user_role", currentRole);
+      localStorage.setItem('boaz_user_role', currentRole);
     } catch {}
   }, [currentRole]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("boaz_host_team", loggedHostTeam);
+      localStorage.setItem('boaz_host_team', loggedHostTeam);
     } catch {}
   }, [loggedHostTeam]);
 
   useEffect(() => {
     try {
-      localStorage.setItem("boaz_username", loggedUsername);
+      localStorage.setItem('boaz_username', loggedUsername);
     } catch {}
   }, [loggedUsername]);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     try {
-      return localStorage.getItem("boaz_is_logged_in") !== "false";
+      return localStorage.getItem('boaz_is_logged_in') !== 'false';
     } catch {
       return true;
     }
   });
 
   const displayName = useMemo(() => {
-    if (currentRole === "HOST") {
+    if (currentRole === 'HOST') {
       return loggedUsername || `${loggedHostTeam} 팀장`;
     }
-    return "남민서";
+    return '남민서';
   }, [currentRole, loggedHostTeam, loggedUsername]);
 
   function handleLogout() {
-    if (window.confirm("로그아웃 하시겠습니까?")) {
+    if (window.confirm('로그아웃 하시겠습니까?')) {
       setIsLoggedIn(false);
       try {
-        localStorage.setItem("boaz_is_logged_in", "false");
+        localStorage.setItem('boaz_is_logged_in', 'false');
       } catch {}
       setLoginModalOpen(true);
     }
@@ -239,11 +239,11 @@ export default function App() {
 
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
-  const [myCurrentPw, setMyCurrentPw] = useState("");
-  const [myNewPw, setMyNewPw] = useState("");
-  const [myConfirmPw, setMyConfirmPw] = useState("");
-  const [masterPassword, setMasterPassword] = useState("super1234");
-  const [myPwError, setMyPwError] = useState("");
+  const [myCurrentPw, setMyCurrentPw] = useState('');
+  const [myNewPw, setMyNewPw] = useState('');
+  const [myConfirmPw, setMyConfirmPw] = useState('');
+  const [masterPassword, setMasterPassword] = useState('super1234');
+  const [myPwError, setMyPwError] = useState('');
 
   function handleRegisterStudyTeam(teamData: {
     teamName: string;
@@ -258,21 +258,21 @@ export default function App() {
     memberNames?: string[];
   }): HostAccount {
     const newStudy: StudyTeamInfo = {
-      id: "st_" + Date.now(),
+      id: 'st_' + Date.now(),
       teamName: teamData.teamName,
       studyName: teamData.studyName,
       category: teamData.category,
       leaderName: teamData.leaderName,
       schedule: teamData.schedule,
-      studyType: teamData.studyType || "방학 스터디",
-      description: teamData.description || "",
+      studyType: teamData.studyType || '방학 스터디',
+      description: teamData.description || '',
       createdAt: new Date().toISOString().slice(0, 10),
     };
 
     const newHost: HostAccount = {
-      id: "h_" + Date.now(),
+      id: 'h_' + Date.now(),
       username: teamData.customUsername,
-      initialPassword: teamData.customPassword || "boaz2026!a",
+      initialPassword: teamData.customPassword || 'boaz2026!a',
       hostName: `${teamData.leaderName} (${teamData.teamName}장)`,
       team: teamData.teamName,
       createdAt: new Date().toISOString().slice(0, 10),
@@ -282,7 +282,7 @@ export default function App() {
     const parsedNames =
       teamData.memberNames && teamData.memberNames.length > 0 ? teamData.memberNames : [];
     const newMemberList: Member[] = parsedNames.map((name, idx) => ({
-      id: `${teamData.teamName.toLowerCase().replace(/[^a-z0-9]/g, "")}_${idx + 1}`,
+      id: `${teamData.teamName.toLowerCase().replace(/[^a-z0-9]/g, '')}_${idx + 1}`,
       name,
       year: `${22 + (idx % 3)}`,
     }));
@@ -307,11 +307,11 @@ export default function App() {
     setAttendance((prev) => {
       const updated = { ...prev };
       WEEKS.forEach((w) => {
-        const k = sessionKey(w.id, "study", teamData.teamName);
+        const k = sessionKey(w.id, 'study', teamData.teamName);
         if (!updated[k]) {
           const statuses: Record<string, AttendanceStatus> = {};
           newMemberList.forEach((m) => {
-            statuses[m.id] = "present";
+            statuses[m.id] = 'present';
           });
           updated[k] = {
             statuses,
@@ -332,9 +332,9 @@ export default function App() {
   function approveException(id: string) {
     const ex = exceptions.find((e) => e.id === id);
     if (ex) {
-      const weekNum = ex.week.replace(/[^0-9]/g, "");
+      const weekNum = ex.week.replace(/[^0-9]/g, '');
       const wId = `w${weekNum}`;
-      const actId = "study";
+      const actId = 'study';
       const key = sessionKey(wId, actId, ex.team);
       const members = membersMap[ex.team] ?? [];
       const mem = members.find((m) => m.name === ex.memberName);
@@ -361,7 +361,7 @@ export default function App() {
     memberName: string,
     from: AttendanceStatus,
     to: AttendanceStatus,
-    reason: string
+    reason: string,
   ) {
     setExceptions((prev) => [
       {
@@ -383,7 +383,7 @@ export default function App() {
     t: string,
     memberId: string,
     to: AttendanceStatus,
-    reason: string
+    reason: string,
   ) {
     const key = sessionKey(w, a, t);
     setAttendance((prev) => {
@@ -420,80 +420,80 @@ export default function App() {
   }
 
   function handleToggleRole() {
-    if (currentRole === "SUPER") {
-      setCurrentRole("TEAM");
-      setLoggedUsername("admin");
-      setActivePage("att-dashboard");
-    } else if (currentRole === "TEAM") {
-      setCurrentRole("HOST");
-      setLoggedHostTeam(studyTeams[0]?.teamName || "A팀");
-      setLoggedUsername("host_a");
-      setActivePage("att-input");
-    } else if (currentRole === "HOST") {
-      setCurrentRole("CONTENT_ADMIN");
-      setLoggedUsername("content");
-      setActivePage("content-archive");
+    if (currentRole === 'SUPER') {
+      setCurrentRole('TEAM');
+      setLoggedUsername('admin');
+      setActivePage('att-dashboard');
+    } else if (currentRole === 'TEAM') {
+      setCurrentRole('HOST');
+      setLoggedHostTeam(studyTeams[0]?.teamName || 'A팀');
+      setLoggedUsername('host_a');
+      setActivePage('att-input');
+    } else if (currentRole === 'HOST') {
+      setCurrentRole('CONTENT_ADMIN');
+      setLoggedUsername('content');
+      setActivePage('content-archive');
     } else {
-      setCurrentRole("SUPER");
-      setLoggedUsername("super");
-      setActivePage("recruiting");
+      setCurrentRole('SUPER');
+      setLoggedUsername('super');
+      setActivePage('recruiting');
     }
   }
 
   function handleLoginSuccess(role: UserRole, hostTeam?: string, username?: string) {
     setIsLoggedIn(true);
     try {
-      localStorage.setItem("boaz_is_logged_in", "true");
+      localStorage.setItem('boaz_is_logged_in', 'true');
     } catch {}
     setCurrentRole(role);
-    if (role === "HOST") {
-      const chosenTeam = hostTeam || studyTeams[0]?.teamName || "A팀";
+    if (role === 'HOST') {
+      const chosenTeam = hostTeam || studyTeams[0]?.teamName || 'A팀';
       setLoggedHostTeam(chosenTeam);
-      setLoggedUsername(username || "host_a");
+      setLoggedUsername(username || 'host_a');
       const isAdvTeam =
-        chosenTeam.startsWith("분석") ||
-        chosenTeam.startsWith("시각화") ||
-        chosenTeam.startsWith("엔지");
-      setActivePage(isAdvTeam ? "att-input-adv" : "att-input-study");
-    } else if (role === "CONTENT_ADMIN") {
-      setLoggedUsername("content");
-      setActivePage("content-archive");
-    } else if (role === "SUPER") {
-      setLoggedUsername("super");
-      setActivePage("recruiting");
+        chosenTeam.startsWith('분석') ||
+        chosenTeam.startsWith('시각화') ||
+        chosenTeam.startsWith('엔지');
+      setActivePage(isAdvTeam ? 'att-input-adv' : 'att-input-study');
+    } else if (role === 'CONTENT_ADMIN') {
+      setLoggedUsername('content');
+      setActivePage('content-archive');
+    } else if (role === 'SUPER') {
+      setLoggedUsername('super');
+      setActivePage('recruiting');
     } else {
-      setLoggedUsername("admin");
-      setActivePage("att-dashboard");
+      setLoggedUsername('admin');
+      setActivePage('att-dashboard');
     }
   }
 
   function handleSaveMyPassword() {
-    setMyPwError("");
+    setMyPwError('');
 
     if (!myCurrentPw.trim() || !myNewPw.trim() || !myConfirmPw.trim()) {
-      setMyPwError("모든 항목을 입력해 주세요.");
+      setMyPwError('모든 항목을 입력해 주세요.');
       return;
     }
     if (myCurrentPw !== masterPassword) {
-      setMyPwError("현재 비밀번호가 일치하지 않습니다.");
+      setMyPwError('현재 비밀번호가 일치하지 않습니다.');
       return;
     }
     if (myNewPw !== myConfirmPw) {
-      setMyPwError("새 비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+      setMyPwError('새 비밀번호와 비밀번호 확인이 일치하지 않습니다.');
       return;
     }
 
     setMasterPassword(myNewPw);
-    setMyCurrentPw("");
-    setMyNewPw("");
-    setMyConfirmPw("");
+    setMyCurrentPw('');
+    setMyNewPw('');
+    setMyConfirmPw('');
     setShowMyProfileModal(false);
   }
 
-  const isRecruiting = Boolean(activePage?.startsWith("recruiting"));
-  const isEvaluation = Boolean(activePage?.startsWith("evaluation"));
-  const isContentPage = Boolean(activePage?.startsWith("content"));
-  const isAttendancePage = Boolean(activePage?.startsWith("att-"));
+  const isRecruiting = Boolean(activePage?.startsWith('recruiting'));
+  const isEvaluation = Boolean(activePage?.startsWith('evaluation'));
+  const isContentPage = Boolean(activePage?.startsWith('content'));
+  const isAttendancePage = Boolean(activePage?.startsWith('att-'));
 
   return (
     <div
@@ -510,7 +510,7 @@ export default function App() {
         onClose={() => {
           setSidebarOpen(false);
           try {
-            localStorage.setItem("boaz_sidebar_open_v2", "false");
+            localStorage.setItem('boaz_sidebar_open_v2', 'false');
           } catch {}
         }}
         currentRole={currentRole}
@@ -527,7 +527,7 @@ export default function App() {
             <button
               onClick={toggleSidebar}
               className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
-              title={sidebarOpen ? "사이드바 접기" : "사이드바 열기"}
+              title={sidebarOpen ? '사이드바 접기' : '사이드바 열기'}
             >
               <PanelLeft size={16} />
             </button>
@@ -562,7 +562,7 @@ export default function App() {
                     </>
                   )}
                   <span className="text-slate-900 font-semibold tracking-tight">
-                    {PAGE_LABELS[activePage] || "관리자 콘솔"}
+                    {PAGE_LABELS[activePage] || '관리자 콘솔'}
                   </span>
                 </div>
               </>
@@ -607,21 +607,21 @@ export default function App() {
         </header>
 
         {/* Content Main Body */}
-        <main className="flex-1 overflow-y-auto px-8 py-7" style={{ scrollbarWidth: "none" }}>
+        <main className="flex-1 overflow-y-auto px-8 py-7" style={{ scrollbarWidth: 'none' }}>
           {/* 1. Recruiting Management */}
           {isRecruiting && (
             <RecruitmentManagePage
               key={activePage}
               initialTab={
-                activePage === "recruiting-questions"
-                  ? "questions"
-                  : activePage === "recruiting-preview"
-                    ? "preview"
-                    : activePage === "recruiting-csv"
-                      ? "csv"
-                      : activePage === "recruiting-leads"
-                        ? "leads"
-                        : "posts"
+                activePage === 'recruiting-questions'
+                  ? 'questions'
+                  : activePage === 'recruiting-preview'
+                    ? 'preview'
+                    : activePage === 'recruiting-csv'
+                      ? 'csv'
+                      : activePage === 'recruiting-leads'
+                        ? 'leads'
+                        : 'posts'
               }
               onTabChange={(pageId) => setActivePage(pageId as ActivePage)}
             />
@@ -631,55 +631,53 @@ export default function App() {
           {isEvaluation && (
             <EvaluationManagePage
               initialTab={
-                activePage === "evaluation-applicants"
-                  ? "applicants"
-                  : activePage === "evaluation-promote"
-                    ? "promotions"
-                    : "evaluations"
+                activePage === 'evaluation-applicants'
+                  ? 'applicants'
+                  : activePage === 'evaluation-promote'
+                    ? 'promotions'
+                    : 'evaluations'
               }
             />
           )}
 
           {/* 3. Content Management */}
-          {(activePage === "content-archive" || activePage === "content") && <ArchivingSection />}
-          {activePage === "content-faq" && <FaqSection />}
-          {activePage === "content-curriculum" && <CurriculumSection />}
-          {activePage === "content-reviews" && <ReviewsSection />}
+          {(activePage === 'content-archive' || activePage === 'content') && <ArchivingSection />}
+          {activePage === 'content-faq' && <FaqSection />}
+          {activePage === 'content-curriculum' && <CurriculumSection />}
+          {activePage === 'content-reviews' && <ReviewsSection />}
 
           {/* 4. Attendance Management */}
-          {activePage === "att-session" && (
+          {activePage === 'att-session' && (
             <InternalCategoryAttendancePage
               category="SESSION"
-              activeScoreRule={scoreRules.find((r) => r.status === "ACTIVE")}
+              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
               attendance={attendance}
             />
           )}
-          {activePage === "att-adv" && (
+          {activePage === 'att-adv' && (
             <InternalCategoryAttendancePage
               category="ADV"
-              activeScoreRule={scoreRules.find((r) => r.status === "ACTIVE")}
+              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
               attendance={attendance}
             />
           )}
-          {activePage === "att-study" && (
+          {activePage === 'att-study' && (
             <InternalCategoryAttendancePage
               category="STUDY"
-              activeScoreRule={scoreRules.find((r) => r.status === "ACTIVE")}
+              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
               attendance={attendance}
             />
           )}
-          {activePage === "att-events" && <EventAttendanceManagePage />}
-          {activePage === "att-scores" && (
+          {activePage === 'att-events' && <EventAttendanceManagePage />}
+          {activePage === 'att-scores' && (
             <ScoresPage attendance={attendance} studyTeams={studyTeams} membersMap={membersMap} />
           )}
-          {(activePage === "att-input" ||
-            activePage === "att-input-adv" ||
-            activePage === "att-input-study") && (
+          {(activePage === 'att-input' ||
+            activePage === 'att-input-adv' ||
+            activePage === 'att-input-study') && (
             <InputPage
               pageTitle={
-                activePage === "att-input-study"
-                  ? "스터디 출결 입력"
-                  : "ADV Term 출결 입력"
+                activePage === 'att-input-study' ? '스터디 출결 입력' : 'ADV Term 출결 입력'
               }
               attendance={attendance}
               setAttendance={setAttendance}
@@ -690,10 +688,10 @@ export default function App() {
               membersMap={membersMap}
               setMembersMap={setMembersMap}
               currentRole={currentRole}
-              onOpenAddStudy={() => setActivePage("att-hosts")}
+              onOpenAddStudy={() => setActivePage('att-hosts')}
             />
           )}
-          {activePage === "att-hosts" && (
+          {activePage === 'att-hosts' && (
             <HostsPage
               hosts={hosts}
               setHosts={setHosts}
@@ -701,10 +699,10 @@ export default function App() {
               onRegisterStudyTeam={handleRegisterStudyTeam}
             />
           )}
-          {activePage === "att-rules" && (
+          {activePage === 'att-rules' && (
             <RulesPage rules={scoreRules} onUpdateRules={handleUpdateScoreRules} />
           )}
-          {activePage === "att-dashboard" && (
+          {activePage === 'att-dashboard' && (
             <DashboardPage
               attendance={attendance}
               exceptions={exceptions}
@@ -714,19 +712,19 @@ export default function App() {
               onReject={rejectException}
               onDirectEdit={handleDirectEdit}
               onConfirmAdmin={handleConfirmAdmin}
-              onOpenAddStudy={() => setActivePage("att-hosts")}
+              onOpenAddStudy={() => setActivePage('att-hosts')}
             />
           )}
 
           {/* 5. System Section */}
-          {(activePage.startsWith("system") || activePage === "system") && (
+          {(activePage.startsWith('system') || activePage === 'system') && (
             <SystemAccountsPage
               initialSubTab={
-                activePage === "system-permissions"
-                  ? "permissions"
-                  : activePage === "system-audit"
-                    ? "audit"
-                    : "accounts"
+                activePage === 'system-permissions'
+                  ? 'permissions'
+                  : activePage === 'system-audit'
+                    ? 'audit'
+                    : 'accounts'
               }
             />
           )}
@@ -772,7 +770,7 @@ export default function App() {
             <div className="space-y-3 text-xs">
               <p className="font-bold text-foreground flex items-center gap-1.5">
                 <KeyRound size={13} className="text-[#8ba5ff]" />
-                <span>비밀번호 변경 (PATCH /api/v1/admin/accounts/{"{id}"}/password)</span>
+                <span>비밀번호 변경 (PATCH /api/v1/admin/accounts/{'{id}'}/password)</span>
               </p>
 
               <div>
