@@ -25,13 +25,10 @@
 
 | 영역 | 티켓 | 담당 | 도메인 의존 |
 | --- | --- | --- | --- |
-| 배포 | PLT-DEPLOY 프론트 CD 파이프라인 | FE + 인프라 | 전체 |
-| 라우팅 | PLT-ROUTER 라우터 도입 · PLT-STATE 출결 공유 상태 해체 | FE | 전체 · 출결 |
-| 인증 | PLT-SESSION 로그인 · 토큰 · 인증 컨텍스트 | FE + BE | 전체 (SYS-GATE 전제) |
-| 통신 | PLT-CLIENT API 클라이언트 · PLT-QUERY 서버 상태 관리 | FE + BE | 전체 |
-| 공용 UI | PLT-STATUS-UI 로딩·에러·빈 상태 · PLT-FORM 폼·검증·업로드 · PLT-CONFIRM 확인 모달 | FE | 전체 |
-| 메시지 | PLT-ERRMSG 에러 코드 → 한글 매핑 | FE + BE | 전체 |
-| 검증 | PLT-PILOT 파일럿 1화면(FAQ) · PLT-TEST 테스트 도구 · PLT-MONITOR 오류 수집 | FE | 콘텐츠 |
+| 배포 · 라우팅 · 상태 해체 | `PLT-DEPLOY` 프론트 CD 파이프라인 · `PLT-ROUTER` 라우터 도입 · `PLT-STATE` 출결 공유 상태 해체 | FE (`PLT-DEPLOY`는 + 인프라) | 전체 · 출결(`PLT-STATE`) |
+| 인증 · 통신 | `PLT-SESSION` 로그인 · 토큰 · 인증 컨텍스트 · `PLT-CLIENT` API 클라이언트 · `PLT-QUERY` 서버 상태 관리 | FE + BE (`PLT-QUERY`는 FE) | 전체 (`PLT-SESSION`은 SYS-GATE 전제) |
+| 공용 UI · 메시지 | `PLT-STATUS-UI` 로딩·에러·빈 상태 · `PLT-FORM` 폼·검증·업로드 · `PLT-CONFIRM` 확인 모달 · `PLT-ERRMSG` 에러 코드 → 한글 매핑 | FE (`PLT-ERRMSG`는 + BE) | 전체 |
+| 검증 | `PLT-PILOT` 파일럿 1화면(FAQ) · `PLT-TEST` 테스트 도구 · `PLT-MONITOR` 오류 수집 | FE | 콘텐츠(`PLT-PILOT`) |
 
 ---
 
