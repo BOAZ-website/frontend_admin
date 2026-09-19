@@ -519,6 +519,9 @@
 | API-05 | 인증 제출·컨펌 상태 전이 | 제출 / 확인 / 반려 / 재제출 + 반려 사유 | High |
 | API-06 | 개인 출결·점수 이력 조회 | `ATT-TL` — 원본·환산 대조 포함 | Mid |
 | API-07 | 최종 집계 export 3종 | 세션 / 행사 / 스터디 | High |
+| API-08 | 그룹 CRUD · 장 지정 · 계정 발급/회수 | `ATT-GROUP` — `API-01`~`07`에 대응 화면이 없었다 | High |
+| API-09 | Term 설정 · 무효 주차 · 점수 규칙 CRUD | `SET-RULE` — `RULE-01`·`RULE-02`가 `ATT-LDR`의 선행이라 함께 앞선다 | High |
+| API-10 | 명단 출결 종합 조회 (read-only) | `ATT-VIEW` | Mid |
 
 ---
 
