@@ -29,6 +29,7 @@
 | 화면을 디자인한다 | 담당 도메인 기능명세서 (`spec/03`~`07`) → 현재 구현은 `screens/01`~`05` |
 | 화면 ID·기능 ID가 무엇인지 찾는다 | 담당 도메인 기능명세서 (`spec/03`~`07`) — `01-wbs.md`의 티켓 키와 1:1 대응 |
 | 공통 기반(라우터·인증·API·공용 컴포넌트)을 만든다 | [`spec/00-platform.md`](spec/00-platform.md) — 도메인 요구가 어느 `T0.x`에 귀속되는지 §5 |
+| 기능명세서 표기 규칙을 확인한다 | [`spec/README.md`](spec/README.md) — 읽는 순서 · Epic↔티켓 키 대응 · Open Issue 접두사 · 미결 목록 위치 |
 | 메뉴 구조를 바꾸려 한다 | [`ia/01-ia-strategy.md`](ia/01-ia-strategy.md)를 **먼저** 읽는다. 판단 기준이 거기 있다 |
 | 권한을 구현한다 | [`spec/06-system.md`](spec/06-system.md) §3 (정본, Permission 41개) → [`spec/02-role-model.md`](spec/02-role-model.md) §1 역할 4종 |
 | 백엔드를 연동한다 | [`screens/91-ia-gap.md`](screens/91-ia-gap.md) §4 (API 근거 없는 기능) → 담당 도메인 문서 |
@@ -48,6 +49,7 @@ docs/
 │   ├── 01-ia-strategy.md              IA를 어떤 기준으로 짰는가 (판단 근거)
 │   └── 02-ia-tree.md                  목표 IA 트리 · 권한 매트릭스 · 라우트 맵
 ├── spec/
+│   ├── README.md                      기능명세서 세트 색인 — 읽는 순서 · 표기 규칙
 │   ├── 00-platform.md                 플랫폼 기반 기능명세서    — Epic 0 (공통 바닥)
 │   ├── 01-attendance-system.md        출결 시스템 · 권한 체계 설계 (기준선. 출결 설계는 05가 대체)
 │   ├── 02-role-model.md               역할 4종 정의 (Permission 10종은 06이 대체)
