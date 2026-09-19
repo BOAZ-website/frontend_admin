@@ -13,7 +13,7 @@
 | 왜 | [`ia/01-ia-strategy.md`](ia/01-ia-strategy.md) | 어떤 기준으로 판단했는가 | 규범 | IA 설계 |
 | 어디에 | [`ia/02-ia-tree.md`](ia/02-ia-tree.md) | 무엇이 어디에 있어야 하는가 | 당위 | IA 설계 |
 | 어떤 규칙으로 | [`spec/01-attendance-system.md`](spec/01-attendance-system.md)<br>[`spec/02-role-model.md`](spec/02-role-model.md) | 권한·출결 규칙은 무엇인가 (기준선) | 당위 | 백엔드 + 운영지원팀 |
-| **무엇을 만드나** | [`spec/03-recruiting.md`](spec/03-recruiting.md) ~ [`spec/07-content.md`](spec/07-content.md) | 도메인별 화면과 기능이 무엇인가. 화면 ID·기능 ID의 출처 | **당위** | PM + 도메인 담당팀 |
+| **무엇을 만드나** | [`spec/00-platform.md`](spec/00-platform.md) · [`spec/03-recruiting.md`](spec/03-recruiting.md) ~ [`spec/07-content.md`](spec/07-content.md) | 공통 바닥과 도메인별 화면·기능이 무엇인가. 화면 ID·기능 ID의 출처 | **당위** | PM + 도메인 담당팀 |
 | **지금 무엇이 있나** | [`screens/00-common.md`](screens/00-common.md) 외 | 현재 화면에 무엇이 되는가 | **사실** | 프론트 |
 | 무엇이 다른가 | [`screens/91-ia-gap.md`](screens/91-ia-gap.md) | 당위와 사실의 차이 | 사실 | 전원 |
 | 무엇을 정할까 | [`screens/92-open-items.md`](screens/92-open-items.md) | 결정해야 할 안건 | 미정 | 전원 |
@@ -28,6 +28,7 @@
 | 처음 합류했다 | [`screens/00-common.md`](screens/00-common.md) → 담당 도메인 문서 |
 | 화면을 디자인한다 | 담당 도메인 기능명세서 (`spec/03`~`07`) → 현재 구현은 `screens/01`~`05` |
 | 화면 ID·기능 ID가 무엇인지 찾는다 | 담당 도메인 기능명세서 (`spec/03`~`07`) — `01-wbs.md`의 티켓 키와 1:1 대응 |
+| 공통 기반(라우터·인증·API·공용 컴포넌트)을 만든다 | [`spec/00-platform.md`](spec/00-platform.md) — 도메인 요구가 어느 `T0.x`에 귀속되는지 §5 |
 | 메뉴 구조를 바꾸려 한다 | [`ia/01-ia-strategy.md`](ia/01-ia-strategy.md)를 **먼저** 읽는다. 판단 기준이 거기 있다 |
 | 권한을 구현한다 | [`spec/06-system.md`](spec/06-system.md) §3 (정본, Permission 41개) → [`spec/02-role-model.md`](spec/02-role-model.md) §1 역할 4종 |
 | 백엔드를 연동한다 | [`screens/91-ia-gap.md`](screens/91-ia-gap.md) §4 (API 근거 없는 기능) → 담당 도메인 문서 |
@@ -47,6 +48,7 @@ docs/
 │   ├── 01-ia-strategy.md              IA를 어떤 기준으로 짰는가 (판단 근거)
 │   └── 02-ia-tree.md                  목표 IA 트리 · 권한 매트릭스 · 라우트 맵
 ├── spec/
+│   ├── 00-platform.md                 플랫폼 기반 기능명세서    — Epic 0 (공통 바닥)
 │   ├── 01-attendance-system.md        출결 시스템 · 권한 체계 설계 (기준선. 출결 설계는 05가 대체)
 │   ├── 02-role-model.md               역할 4종 정의 (Permission 10종은 06이 대체)
 │   ├── 03-recruiting.md               리크루팅 기능명세서       — Epic 1
@@ -88,4 +90,4 @@ docs/
 
 원본 3개(`ia/01`, `ia/02`, `spec/01`)는 **기준선이므로 내용을 고치지 않는다.** 갱신이 필요하면 상단 상태 배너에 무엇이 대체되었는지 적고, 실제 판단은 `91-ia-gap.md` §3에 기록한다. 기준선을 고치면 격차를 측정할 근거가 사라진다.
 
-**규범 문서가 두 층이 됐다.** `spec/01`·`spec/02`는 기준선이고, 도메인별 기능명세서(`spec/03`~`07`)가 그 위에 얹히는 현재 정본이다. 충돌하면 기능명세서를 따르고, 무엇이 대체됐는지는 기준선 문서의 상단 배너가 밝힌다.
+**규범 문서가 두 층이 됐다.** `spec/01`·`spec/02`는 기준선이고, 기능명세서(`spec/00`과 `spec/03`~`07`)가 그 위에 얹히는 현재 정본이다. 충돌하면 기능명세서를 따르고, 무엇이 대체됐는지는 기준선 문서의 상단 배너가 밝힌다.
