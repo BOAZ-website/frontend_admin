@@ -164,7 +164,7 @@
 | ID | 기능 | 설명 |
 | --- | --- | --- |
 | ALM-01 | 신청자 명단 조회 | 검색 + 관심 분야 필터, 결과 건수 표시. `PRE_NOTIFICATION_READ` |
-| ALM-02 | 신청자 삭제 | 개별 삭제 · 전체 삭제. `PRE_NOTIFICATION_DELETE`, T0.7 확인 모달 |
+| ALM-02 | 신청자 삭제 | 개별 삭제 · 전체 삭제. `PRE_NOTIFICATION_DELETE`, PLT-CONFIRM 확인 모달 |
 | ALM-03 | 메시지 양식 편집 | 기본 양식 설정 · 복원 · 복사, 치환 변수 `{name} {term} {track} {start_date} {end_date}`. 양식은 **서버 저장** (현재 localStorage → 이전) |
 | ALM-04 | 실시간 미리보기 | 카카오톡 / 문자 화면 형태로 최종 문구 확인 |
 | ALM-05 | 메시지 복사 | 개별 · 전체 명단용 복사. 필터 적용 시 전체 선택 범위는 필터 결과로 한정 |
