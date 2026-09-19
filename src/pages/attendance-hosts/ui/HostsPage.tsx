@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react';
 import {
   BookOpen,
   Check,
@@ -16,13 +16,13 @@ import {
   Save,
   Unlock,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-import type { HostAccount } from "@/entities/host-account/model/types";
-import type { StudyPeriodType, StudyTeamInfo } from "@/entities/study-team/model/types";
-import { CardHeader } from "@/shared/ui/CardHeader";
-import { SectionCard } from "@/shared/ui/SectionCard";
-import { Tag } from "@/shared/ui/Tag";
+import type { HostAccount } from '@/entities/host-account/model/types';
+import type { StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
+import { CardHeader } from '@/shared/ui/CardHeader';
+import { SectionCard } from '@/shared/ui/SectionCard';
+import { Tag } from '@/shared/ui/Tag';
 
 export function HostsPage({
   hosts,
@@ -47,13 +47,13 @@ export function HostsPage({
   }) => HostAccount;
 }) {
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newTeam, setNewTeam] = useState("E팀");
-  const [newStudyType, setNewStudyType] = useState<StudyPeriodType>("방학 스터디");
-  const [newStudyName, setNewStudyName] = useState("");
-  const [newHostName, setNewHostName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [customUsername, setCustomUsername] = useState("");
-  const [customPassword, setCustomPassword] = useState("");
+  const [newTeam, setNewTeam] = useState('E팀');
+  const [newStudyType, setNewStudyType] = useState<StudyPeriodType>('방학 스터디');
+  const [newStudyName, setNewStudyName] = useState('');
+  const [newHostName, setNewHostName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [customUsername, setCustomUsername] = useState('');
+  const [customPassword, setCustomPassword] = useState('');
   const [visiblePwId, setVisiblePwId] = useState<string | null>(null);
 
   const DEFAULT_DELIVERY_TEMPLATE = `[BOAZ 스터디 출결 관리 - HOST(스터디장) 계정 발급 안내]
@@ -70,12 +70,12 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
 ※ 문의: BOAZ 운영지원팀`;
 
   const [savedTemplate, setSavedTemplate] = useState<string>(() => {
-    return localStorage.getItem("boaz_delivery_template") || DEFAULT_DELIVERY_TEMPLATE;
+    return localStorage.getItem('boaz_delivery_template') || DEFAULT_DELIVERY_TEMPLATE;
   });
   const [savedTemplateNotice, setSavedTemplateNotice] = useState(false);
 
   const [issuedHost, setIssuedHost] = useState<HostAccount | null>(null);
-  const [issuedDeliveryText, setIssuedDeliveryText] = useState("");
+  const [issuedDeliveryText, setIssuedDeliveryText] = useState('');
   const [copiedNotice, setCopiedNotice] = useState(false);
   const [resetModalHost, setResetModalHost] = useState<{
     host: HostAccount;
@@ -89,19 +89,19 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
   } | null>(null);
 
   function generateRandomPassword() {
-    return "Boaz77!!";
+    return 'Boaz77!!';
   }
 
   function generateDeliveryText(host: HostAccount, password?: string, customTpl?: string) {
-    const pw = password || host.initialPassword || "Boaz77!!";
+    const pw = password || host.initialPassword || 'Boaz77!!';
     const matchedStudy = studyTeams.find((s) => s.teamName === host.team);
     const studyName = matchedStudy?.studyName || host.team;
-    const rawName = matchedStudy?.leaderName || host.hostName || "";
+    const rawName = matchedStudy?.leaderName || host.hostName || '';
     const cleanLeaderName =
       rawName
-        .replace(/\s*\(.*?\)\s*/g, "")
-        .replace(/팀장/g, "")
-        .trim() || "보아즈";
+        .replace(/\s*\(.*?\)\s*/g, '')
+        .replace(/팀장/g, '')
+        .trim() || '보아즈';
 
     const tpl = customTpl || savedTemplate || DEFAULT_DELIVERY_TEMPLATE;
     return tpl
@@ -109,36 +109,36 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
       .replace(/\{스터디명\}/g, studyName)
       .replace(/\{아이디\}/g, host.username)
       .replace(/\{비밀번호\}/g, pw)
-      .replace(/\{접속URL\}/g, "http://localhost:5173");
+      .replace(/\{접속URL\}/g, 'http://localhost:5173');
   }
 
   function handleSaveAsDefaultTemplate(currentText: string, host: HostAccount, password?: string) {
-    const pw = password || host.initialPassword || "Boaz77!!";
+    const pw = password || host.initialPassword || 'Boaz77!!';
     const matchedStudy = studyTeams.find((s) => s.teamName === host.team);
     const studyName = matchedStudy?.studyName || host.team;
-    const rawName = matchedStudy?.leaderName || host.hostName || "";
+    const rawName = matchedStudy?.leaderName || host.hostName || '';
     const cleanLeaderName =
       rawName
-        .replace(/\s*\(.*?\)\s*/g, "")
-        .replace(/팀장/g, "")
-        .trim() || "보아즈";
+        .replace(/\s*\(.*?\)\s*/g, '')
+        .replace(/팀장/g, '')
+        .trim() || '보아즈';
 
     let tpl = currentText;
     if (cleanLeaderName) {
-      tpl = tpl.split(cleanLeaderName).join("{이름}");
+      tpl = tpl.split(cleanLeaderName).join('{이름}');
     }
     if (studyName) {
-      tpl = tpl.split(studyName).join("{스터디명}");
+      tpl = tpl.split(studyName).join('{스터디명}');
     }
     if (host.username) {
-      tpl = tpl.split(host.username).join("{아이디}");
+      tpl = tpl.split(host.username).join('{아이디}');
     }
     if (pw) {
-      tpl = tpl.split(pw).join("{비밀번호}");
+      tpl = tpl.split(pw).join('{비밀번호}');
     }
 
     setSavedTemplate(tpl);
-    localStorage.setItem("boaz_delivery_template", tpl);
+    localStorage.setItem('boaz_delivery_template', tpl);
     setSavedTemplateNotice(true);
     setTimeout(() => setSavedTemplateNotice(false), 2500);
   }
@@ -167,33 +167,33 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
 
   function handleOpenAddModal() {
     // Generate next team letter automatically based on existing teams
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const nextIdx = studyTeams.length;
-    const defaultTeam = `${alphabet[nextIdx] || "E"}팀`;
+    const defaultTeam = `${alphabet[nextIdx] || 'E'}팀`;
 
     setNewTeam(defaultTeam);
-    setNewStudyType("방학 스터디");
-    setNewStudyName("");
-    setNewHostName("");
-    setNewDescription("");
-    setCustomUsername("");
-    setCustomPassword("");
+    setNewStudyType('방학 스터디');
+    setNewStudyName('');
+    setNewHostName('');
+    setNewDescription('');
+    setCustomUsername('');
+    setCustomPassword('');
     setShowAddModal(true);
   }
 
   function handleCreateStudyAndHost() {
-    const finalStudyName = newStudyName.trim() || "Terraform 스터디";
-    const finalHostName = newHostName.trim() || "보아즈";
-    const finalUsername = customUsername.trim() || "Boaz2013";
-    const finalPassword = customPassword.trim() || "Boaz77!!";
+    const finalStudyName = newStudyName.trim() || 'Terraform 스터디';
+    const finalHostName = newHostName.trim() || '보아즈';
+    const finalUsername = customUsername.trim() || 'Boaz2013';
+    const finalPassword = customPassword.trim() || 'Boaz77!!';
 
     const createdHost = onRegisterStudyTeam({
       teamName: newTeam.trim(),
       studyName: finalStudyName,
       leaderName: finalHostName,
       studyType: newStudyType,
-      category: "스터디",
-      schedule: "정기 세션",
+      category: '스터디',
+      schedule: '정기 세션',
       description: newDescription.trim(),
       customUsername: finalUsername,
       customPassword: finalPassword,
@@ -207,7 +207,7 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
   function handleResetPassword(host: HostAccount) {
     const newPass = generateRandomPassword();
     setHosts((prev) =>
-      prev.map((h) => (h.id === host.id ? { ...h, initialPassword: newPass } : h))
+      prev.map((h) => (h.id === host.id ? { ...h, initialPassword: newPass } : h)),
     );
     setResetModalHost({ host, newPass });
   }
@@ -225,17 +225,17 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
       <SectionCard>
         <div className="flex items-center gap-0 px-5 py-4 overflow-x-auto">
           {[
-            { num: "①", title: "스터디 등록", desc: "스터디명·구분·팀장 입력" },
-            { num: "②", title: "HOST 계정 자동 발급", desc: "아이디 & 임시 비밀번호 생성" },
+            { num: '①', title: '스터디 등록', desc: '스터디명·구분·팀장 입력' },
+            { num: '②', title: 'HOST 계정 자동 발급', desc: '아이디 & 임시 비밀번호 생성' },
             {
-              num: "③",
-              title: "출결 탭 & 대시보드 연동",
-              desc: "출결 매트릭스 및 점수 집계 탭 자동 생성",
+              num: '③',
+              title: '출결 탭 & 대시보드 연동',
+              desc: '출결 매트릭스 및 점수 집계 탭 자동 생성',
             },
             {
-              num: "④",
-              title: "스터디장에게 정보 전달",
-              desc: "카카오톡/슬랙으로 접속 정보 복사 전달",
+              num: '④',
+              title: '스터디장에게 정보 전달',
+              desc: '카카오톡/슬랙으로 접속 정보 복사 전달',
             },
           ].map((step, i) => (
             <div key={step.title} className="flex items-center gap-0 shrink-0">
@@ -277,7 +277,7 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
         <div className="overflow-x-auto">
           <table className="w-full text-xs min-w-[780px]">
             <thead>
-              <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+              <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                 <th className="text-left px-5 py-3 font-semibold text-slate-500">
                   스터디명 / 구분
                 </th>
@@ -299,16 +299,16 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
             <tbody className="divide-y divide-slate-100">
               {studyTeams.map((st) => {
                 const h = hosts.find((host) => host.team === st.teamName) || {
-                  id: "h_" + st.teamName,
+                  id: 'h_' + st.teamName,
                   team: st.teamName,
                   username: `host_${st.teamName.toLowerCase()}`,
-                  initialPassword: "boaz2026!a",
+                  initialPassword: 'boaz2026!a',
                   hostName: `${st.leaderName} (${st.teamName}장)`,
-                  createdAt: st.createdAt || "2025-02-28",
+                  createdAt: st.createdAt || '2025-02-28',
                   active: true,
                 };
                 const isPwVisible = visiblePwId === h.id;
-                const pw = h.initialPassword || "boaz2026!a";
+                const pw = h.initialPassword || 'boaz2026!a';
 
                 return (
                   <tr key={st.id} className="hover:bg-slate-50/50 transition-colors">
@@ -316,9 +316,9 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
                       <div className="flex items-center gap-2.5">
                         <span
                           className={`px-2 py-0.5 rounded-md text-[10px] font-bold border shrink-0 ${
-                            st.studyType === "방학 스터디"
-                              ? "bg-amber-50 text-amber-800 border-amber-200"
-                              : "bg-blue-50 text-blue-800 border-blue-200"
+                            st.studyType === '방학 스터디'
+                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              : 'bg-blue-50 text-blue-800 border-blue-200'
                           }`}
                         >
                           {st.studyType}
@@ -344,12 +344,12 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5 font-mono">
                         <span className="text-slate-800 font-medium">
-                          {isPwVisible ? pw : "••••••••"}
+                          {isPwVisible ? pw : '••••••••'}
                         </span>
                         <button
                           onClick={() => setVisiblePwId(isPwVisible ? null : h.id)}
                           className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                          title={isPwVisible ? "비밀번호 숨김" : "비밀번호 확인"}
+                          title={isPwVisible ? '비밀번호 숨김' : '비밀번호 확인'}
                         >
                           {isPwVisible ? <EyeOff size={13} /> : <Eye size={13} />}
                         </button>
@@ -437,22 +437,22 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
                 <div className="flex gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200">
                   <button
                     type="button"
-                    onClick={() => setNewStudyType("방학 스터디")}
+                    onClick={() => setNewStudyType('방학 스터디')}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      newStudyType === "방학 스터디"
-                        ? "bg-white text-slate-900 shadow-2xs border border-slate-200"
-                        : "text-slate-500 hover:text-slate-800"
+                      newStudyType === '방학 스터디'
+                        ? 'bg-white text-slate-900 shadow-2xs border border-slate-200'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     방학 스터디
                   </button>
                   <button
                     type="button"
-                    onClick={() => setNewStudyType("학기 스터디")}
+                    onClick={() => setNewStudyType('학기 스터디')}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      newStudyType === "학기 스터디"
-                        ? "bg-white text-slate-900 shadow-2xs border border-slate-200"
-                        : "text-slate-500 hover:text-slate-800"
+                      newStudyType === '학기 스터디'
+                        ? 'bg-white text-slate-900 shadow-2xs border border-slate-200'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     학기 스터디
@@ -568,7 +568,7 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
                 title="현재 수정한 문구를 영구 기본 양식으로 저장합니다."
               >
                 <Save size={12} />
-                <span>{savedTemplateNotice ? "저장 완료!" : "기본 양식으로 설정"}</span>
+                <span>{savedTemplateNotice ? '저장 완료!' : '기본 양식으로 설정'}</span>
               </button>
 
               {/* [기본 양식 복원] Button */}
@@ -593,7 +593,7 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
                 ) : (
                   <Copy size={12} />
                 )}
-                <span>{copiedNotice ? "복사 완료!" : "양식 복사"}</span>
+                <span>{copiedNotice ? '복사 완료!' : '양식 복사'}</span>
               </button>
             </div>
 
@@ -611,7 +611,7 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
               <button
                 onClick={() => {
                   setIssuedHost(null);
-                  setIssuedDeliveryText("");
+                  setIssuedDeliveryText('');
                 }}
                 className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 cursor-pointer"
               >
@@ -700,7 +700,7 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
                 title="현재 수정한 문구를 영구 기본 양식으로 저장합니다."
               >
                 <Save size={12} />
-                <span>{savedTemplateNotice ? "저장 완료!" : "기본 양식으로 설정"}</span>
+                <span>{savedTemplateNotice ? '저장 완료!' : '기본 양식으로 설정'}</span>
               </button>
 
               {/* [기본 양식 복원] Button */}
@@ -728,7 +728,7 @@ BOAZ 출결 관리 시스템 스터디장 계정이 발급되었습니다.
                 ) : (
                   <Copy size={12} />
                 )}
-                <span>{copiedNotice ? "복사 완료!" : "양식 복사"}</span>
+                <span>{copiedNotice ? '복사 완료!' : '양식 복사'}</span>
               </button>
             </div>
 

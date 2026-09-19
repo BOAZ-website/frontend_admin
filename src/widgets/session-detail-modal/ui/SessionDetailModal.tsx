@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -11,14 +11,14 @@ import {
   ShieldCheck,
   X,
   ZoomIn,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { STATUS_BUTTON_STYLES, STATUS_CFG, WEEKS } from "@/entities/attendance/model/constants";
-import type { AttendanceStatus, SessionRecord } from "@/entities/attendance/model/types";
-import { ACTIVITIES, MEMBERS } from "@/entities/study-team/model/constants";
-import type { Member } from "@/entities/study-team/model/types";
-import { Btn } from "@/shared/ui/Btn";
-import { Tag } from "@/shared/ui/Tag";
+import { STATUS_BUTTON_STYLES, STATUS_CFG, WEEKS } from '@/entities/attendance/model/constants';
+import type { AttendanceStatus, SessionRecord } from '@/entities/attendance/model/types';
+import { ACTIVITIES, MEMBERS } from '@/entities/study-team/model/constants';
+import type { Member } from '@/entities/study-team/model/types';
+import { Btn } from '@/shared/ui/Btn';
+import { Tag } from '@/shared/ui/Tag';
 
 interface SessionDetailModalProps {
   weekId: string;
@@ -33,7 +33,7 @@ interface SessionDetailModalProps {
     t: string,
     memberId: string,
     to: AttendanceStatus,
-    reason: string
+    reason: string,
   ) => void;
   membersMap?: Record<string, Member[]>;
 }
@@ -54,8 +54,8 @@ export function SessionDetailModal({
     name: string;
     current: AttendanceStatus;
   } | null>(null);
-  const [editStatus, setEditStatus] = useState<AttendanceStatus>("present");
-  const [editReason, setEditReason] = useState("");
+  const [editStatus, setEditStatus] = useState<AttendanceStatus>('present');
+  const [editReason, setEditReason] = useState('');
 
   const weekObj = WEEKS.find((w) => w.id === weekId);
   const actObj = ACTIVITIES.find((a) => a.id === actId);
@@ -70,12 +70,12 @@ export function SessionDetailModal({
       return;
     }
     if (!editReason.trim()) {
-      alert("운영지원팀 수정 시 수정 사유 입력은 필수입니다.");
+      alert('운영지원팀 수정 시 수정 사유 입력은 필수입니다.');
       return;
     }
     onDirectEdit(weekId, actId, team, editingMember.id, editStatus, editReason);
     setEditingMember(null);
-    setEditReason("");
+    setEditReason('');
   }
 
   return (
@@ -84,7 +84,7 @@ export function SessionDetailModal({
         {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4"
-          style={{ borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}
+          style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}
         >
           <div className="flex items-center gap-3">
             <span
@@ -107,14 +107,14 @@ export function SessionDetailModal({
                 {record.submitted ? (
                   <span
                     className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded font-medium"
-                    style={{ background: "rgba(52,211,153,0.15)", color: "#34d399" }}
+                    style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399' }}
                   >
                     <CheckCircle2 size={11} /> 제출완료
                   </span>
                 ) : (
                   <span
                     className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded font-medium"
-                    style={{ background: "rgba(248,113,113,0.15)", color: "#f87171" }}
+                    style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171' }}
                   >
                     <AlertCircle size={11} /> 미제출
                   </span>
@@ -123,7 +123,7 @@ export function SessionDetailModal({
               <p className="text-xs text-muted-foreground mt-0.5">
                 {record.submitted
                   ? `제출일시: ${record.submittedAt} (HOST 스터디장 입력)`
-                  : "스터디장의 출결 입력 대기 중"}
+                  : '스터디장의 출결 입력 대기 중'}
               </p>
             </div>
           </div>
@@ -140,18 +140,18 @@ export function SessionDetailModal({
           {/* Section: Proof Image Review */}
           <div
             className="rounded-xl p-4.5"
-            style={{ background: "#f8fafc", border: "1px solid rgba(255,255,255,0.06)" }}
+            style={{ background: '#f8fafc', border: '1px solid rgba(255,255,255,0.06)' }}
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Camera size={15} style={{ color: "#5b7fff" }} />
+                <Camera size={15} style={{ color: '#5b7fff' }} />
                 <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
                   출석 인증 사진 (증빙 자료)
                 </h3>
                 {record.photoUrl && (
                   <span className="text-[10px] text-muted-foreground font-mono">
-                    {record.photoName ?? record.photo}{" "}
-                    {record.photoSize ? `(${record.photoSize})` : ""}
+                    {record.photoName ?? record.photo}{' '}
+                    {record.photoSize ? `(${record.photoSize})` : ''}
                   </span>
                 )}
               </div>
@@ -169,7 +169,7 @@ export function SessionDetailModal({
               <div
                 className="relative rounded-lg overflow-hidden group cursor-pointer border border-slate-200"
                 onClick={() => setLightboxOpen(true)}
-                style={{ maxHeight: "260px", background: "#f8fafc" }}
+                style={{ maxHeight: '260px', background: '#f8fafc' }}
               >
                 <img
                   src={record.photoUrl}
@@ -180,7 +180,7 @@ export function SessionDetailModal({
                   <Eye size={16} /> 클릭하여 원본 사진 확인
                 </div>
                 <div className="absolute bottom-2 left-2 px-2 py-1 rounded bg-black/40 backdrop-blur-xs text-[11px] text-slate-800 flex items-center gap-1.5">
-                  <CheckCircle2 size={11} style={{ color: "#34d399" }} />
+                  <CheckCircle2 size={11} style={{ color: '#34d399' }} />
                   <span>운영지원팀 확인용 인증 사진 정상 등록됨</span>
                 </div>
               </div>
@@ -199,23 +199,23 @@ export function SessionDetailModal({
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <ClipboardList size={15} style={{ color: "#5b7fff" }} />
+                <ClipboardList size={15} style={{ color: '#5b7fff' }} />
                 <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
                   부원별 출결 상태 및 사유
                 </h3>
               </div>
               <span className="text-[11px] text-muted-foreground">
-                총 {members.length}명 (출석{" "}
-                {members.filter((m) => (record.statuses[m.id] ?? "present") === "present").length} ·
-                지각 {members.filter((m) => record.statuses[m.id] === "late").length} · 결석{" "}
-                {members.filter((m) => record.statuses[m.id] === "absent").length})
+                총 {members.length}명 (출석{' '}
+                {members.filter((m) => (record.statuses[m.id] ?? 'present') === 'present').length} ·
+                지각 {members.filter((m) => record.statuses[m.id] === 'late').length} · 결석{' '}
+                {members.filter((m) => record.statuses[m.id] === 'absent').length})
               </span>
             </div>
 
             <div className="rounded-xl overflow-hidden border border-slate-200">
               <table className="w-full text-xs">
                 <thead>
-                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                     <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground w-12">
                       #
                     </th>
@@ -235,7 +235,7 @@ export function SessionDetailModal({
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {members.map((m, idx) => {
-                    const st: AttendanceStatus = record.statuses[m.id] ?? "present";
+                    const st: AttendanceStatus = record.statuses[m.id] ?? 'present';
                     const memo = record.memos?.[m.id];
                     const cfg = STATUS_CFG[st] ?? STATUS_CFG.present;
 
@@ -267,7 +267,7 @@ export function SessionDetailModal({
                             onClick={() => {
                               setEditingMember({ id: m.id, name: m.name, current: st });
                               setEditStatus(st);
-                              setEditReason(memo ?? "");
+                              setEditReason(memo ?? '');
                             }}
                             className="text-[10px] px-2 py-1 rounded bg-slate-100 hover:bg-slate-100 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
                           >
@@ -298,7 +298,7 @@ export function SessionDetailModal({
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs text-slate-500 mr-1 font-medium">변경 상태:</span>
-                  {(["present", "late", "absent"] as AttendanceStatus[]).map((s) => {
+                  {(['present', 'late', 'absent'] as AttendanceStatus[]).map((s) => {
                     const active = editStatus === s;
                     const styleCfg = STATUS_BUTTON_STYLES[s];
                     return (
@@ -322,9 +322,9 @@ export function SessionDetailModal({
                   placeholder="수정 사유를 반드시 입력하세요 (예: 증빙 서류 확인 완료, 스터디장 오기재 인정)"
                   className="flex-1 px-3 py-1.5 text-xs rounded-lg outline-none"
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid rgba(251,146,60,0.3)",
-                    color: "#fff",
+                    background: '#ffffff',
+                    border: '1px solid rgba(251,146,60,0.3)',
+                    color: '#fff',
                   }}
                 />
                 <Btn variant="success" size="xs" onClick={handleSaveEdit}>
@@ -341,7 +341,7 @@ export function SessionDetailModal({
         {/* Footer Actions */}
         <div
           className="flex items-center justify-between px-6 py-4"
-          style={{ borderTop: "1px solid #e2e8f0", background: "#ffffff" }}
+          style={{ borderTop: '1px solid #e2e8f0', background: '#ffffff' }}
         >
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <ShieldCheck size={14} className="text-[#34d399]" />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BookOpen,
@@ -18,27 +18,27 @@ import {
   Users,
   X,
   ZoomIn,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { SAMPLE_PROOF_IMAGES, STATUS_CFG } from "@/entities/attendance/model/constants";
-import { sessionKey } from "@/entities/attendance/model/lib";
+import { SAMPLE_PROOF_IMAGES, STATUS_CFG } from '@/entities/attendance/model/constants';
+import { sessionKey } from '@/entities/attendance/model/lib';
 import type {
   AttendanceState,
   AttendanceStatus,
   SessionRecord,
-} from "@/entities/attendance/model/types";
-import { INITIAL_STUDY_TEAMS, MEMBERS } from "@/entities/study-team/model/constants";
-import type { Member, StudyPeriodType, StudyTeamInfo } from "@/entities/study-team/model/types";
-import type { UserRole } from "@/entities/user/model/types";
-import { Btn } from "@/shared/ui/Btn";
-import { SectionCard } from "@/shared/ui/SectionCard";
+} from '@/entities/attendance/model/types';
+import { INITIAL_STUDY_TEAMS, MEMBERS } from '@/entities/study-team/model/constants';
+import type { Member, StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
+import type { UserRole } from '@/entities/user/model/types';
+import { Btn } from '@/shared/ui/Btn';
+import { SectionCard } from '@/shared/ui/SectionCard';
 
 // ─── Page: 출결 입력 (HOST 스터디장 전용 페이지) ───────────────────────────────
 
 const EXT_STATUS_BTNS: { id: AttendanceStatus; label: string }[] = [
-  { id: "present", label: "출석" },
-  { id: "late", label: "지각" },
-  { id: "absent", label: "결석" },
+  { id: 'present', label: '출석' },
+  { id: 'late', label: '지각' },
+  { id: 'absent', label: '결석' },
 ];
 
 export function InputPage({
@@ -60,7 +60,7 @@ export function InputPage({
     memberName: string,
     from: AttendanceStatus,
     to: AttendanceStatus,
-    reason: string
+    reason: string,
   ) => void;
   currentHostTeam: string;
   studyTeams: StudyTeamInfo[];
@@ -70,12 +70,12 @@ export function InputPage({
   onOpenAddStudy?: () => void;
 }) {
   const [selectedTeam, setSelectedTeam] = useState(
-    currentRole === "HOST" ? currentHostTeam || "A팀" : studyTeams[0]?.teamName || "A팀"
+    currentRole === 'HOST' ? currentHostTeam || 'A팀' : studyTeams[0]?.teamName || 'A팀',
   );
   const TOTAL_WEEKS = 8;
 
   useEffect(() => {
-    if (currentRole === "HOST" && currentHostTeam) {
+    if (currentRole === 'HOST' && currentHostTeam) {
       setSelectedTeam(currentHostTeam);
     }
   }, [currentRole, currentHostTeam]);
@@ -83,7 +83,7 @@ export function InputPage({
   const [weekNum, setWeekNum] = useState(3);
   const [memos, setMemos] = useState<Record<string, string>>({});
   const [extStatuses, setExtStatuses] = useState<Record<string, Record<string, AttendanceStatus>>>(
-    {}
+    {},
   );
 
   const [uploadedImage, setUploadedImage] = useState<{
@@ -100,21 +100,21 @@ export function InputPage({
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [reqMember, setReqMember] = useState("");
-  const [reqToStatus, setReqToStatus] = useState<AttendanceStatus>("present");
-  const [reqReason, setReqReason] = useState("");
+  const [reqMember, setReqMember] = useState('');
+  const [reqToStatus, setReqToStatus] = useState<AttendanceStatus>('present');
+  const [reqReason, setReqReason] = useState('');
   const [imageWarning, setImageWarning] = useState(false);
 
   // Member management states for study leader (HOST)
   const [showAddMember, setShowAddMember] = useState(false);
-  const [newMemberName, setNewMemberName] = useState("");
-  const [newMemberYear, setNewMemberYear] = useState("23");
+  const [newMemberName, setNewMemberName] = useState('');
+  const [newMemberYear, setNewMemberYear] = useState('23');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const weekId = `w${weekNum <= 4 ? weekNum : weekNum}`;
   const hasData = weekNum <= 4;
-  const key = hasData ? sessionKey(`w${weekNum}`, "study", selectedTeam) : "";
+  const key = hasData ? sessionKey(`w${weekNum}`, 'study', selectedTeam) : '';
   const rec: SessionRecord =
     hasData && key && attendance?.[key]
       ? attendance[key]
@@ -131,7 +131,7 @@ export function InputPage({
 
   function handleAddMember() {
     if (!newMemberName.trim()) {
-      alert("추가할 스터디원 이름을 입력해주세요.");
+      alert('추가할 스터디원 이름을 입력해주세요.');
       return;
     }
 
@@ -146,7 +146,7 @@ export function InputPage({
     const newMembers: Member[] = rawNames.map((name, idx) => ({
       id: `m_${Date.now()}_${idx}`,
       name,
-      year: newMemberYear.trim() || "23",
+      year: newMemberYear.trim() || '23',
     }));
 
     if (setMembersMap) {
@@ -159,7 +159,7 @@ export function InputPage({
       });
     }
 
-    setNewMemberName("");
+    setNewMemberName('');
     setShowAddMember(false);
   }
 
@@ -167,7 +167,7 @@ export function InputPage({
     if (rec?.submitted) {
       return;
     }
-    if (window.confirm("해당 부원을 스터디 명단에서 삭제하시겠습니까?")) {
+    if (window.confirm('해당 부원을 스터디 명단에서 삭제하시겠습니까?')) {
       if (setMembersMap) {
         setMembersMap((prev) => {
           const existing = prev[selectedTeam] || [];
@@ -188,7 +188,7 @@ export function InputPage({
   const currentPhotoSize = uploadedImage?.size || rec?.photoSize || null;
 
   function getStatus(memberId: string): AttendanceStatus {
-    return extStatuses[weekId]?.[memberId] ?? rec?.statuses?.[memberId] ?? "present";
+    return extStatuses[weekId]?.[memberId] ?? rec?.statuses?.[memberId] ?? 'present';
   }
 
   function setStatus(memberId: string, val: AttendanceStatus) {
@@ -221,7 +221,7 @@ export function InputPage({
 
   function getMemo(memberId: string): string {
     const memoKey = `${weekId}-${memberId}`;
-    return memos[memoKey] ?? rec?.memos?.[memberId] ?? "";
+    return memos[memoKey] ?? rec?.memos?.[memberId] ?? '';
   }
 
   function setMemo(memberId: string, val: string) {
@@ -277,14 +277,14 @@ export function InputPage({
       file: null,
       url: SAMPLE_PROOF_IMAGES[0],
       name: `스터디_${selectedTeam}_${weekNum}주차_단체인증.jpg`,
-      size: "2.8 MB",
+      size: '2.8 MB',
     });
   }
 
   function handleRemoveImage() {
     setUploadedImage({ file: null, url: null, name: null, size: null });
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
     }
   }
 
@@ -296,7 +296,7 @@ export function InputPage({
     if (!currentPhotoUrl) {
       setImageWarning(true);
       const confirmNoPhoto = window.confirm(
-        "출석 인증 사진이 첨부되지 않았습니다.\n운영지원팀의 확인을 위해 사진 업로드가 필요합니다.\n사진 없이 그대로 제출하시겠습니까?"
+        '출석 인증 사진이 첨부되지 않았습니다.\n운영지원팀의 확인을 위해 사진 업로드가 필요합니다.\n사진 없이 그대로 제출하시겠습니까?',
       );
       if (!confirmNoPhoto) {
         return;
@@ -322,8 +322,8 @@ export function InputPage({
         photo: currentPhotoName || `스터디_${selectedTeam}_${weekNum}주차.jpg`,
         photoUrl: currentPhotoUrl,
         photoName: currentPhotoName || `스터디_${selectedTeam}_${weekNum}주차.jpg`,
-        photoSize: currentPhotoSize || "2.1 MB",
-        submittedAt: new Date().toLocaleString("ko-KR", { hour12: false }).slice(0, 16),
+        photoSize: currentPhotoSize || '2.1 MB',
+        submittedAt: new Date().toLocaleString('ko-KR', { hour12: false }).slice(0, 16),
         confirmedByAdmin: false,
       },
     }));
@@ -333,7 +333,7 @@ export function InputPage({
 
   function handleSendRequest() {
     if (!reqMember || !reqReason.trim()) {
-      alert("부원과 수정 사유를 입력해 주세요.");
+      alert('부원과 수정 사유를 입력해 주세요.');
       return;
     }
     const mem = members.find((m) => m.id === reqMember);
@@ -347,14 +347,14 @@ export function InputPage({
       mem.name,
       fromStatus,
       reqToStatus,
-      reqReason
+      reqReason,
     );
     setShowRequestModal(false);
-    setReqReason("");
-    alert("운영지원팀에 출결 수정 요청이 전송되었습니다.");
+    setReqReason('');
+    alert('운영지원팀에 출결 수정 요청이 전송되었습니다.');
   }
 
-  const [periodFilter, setPeriodFilter] = useState<StudyPeriodType>("학기 스터디");
+  const [periodFilter, setPeriodFilter] = useState<StudyPeriodType>('학기 스터디');
   const filteredStudyTeams = studyTeams.filter((s) => s.studyType === periodFilter);
 
   const counts = (members || []).reduce(
@@ -363,11 +363,11 @@ export function InputPage({
       acc[s] = (acc[s] ?? 0) + 1;
       return acc;
     },
-    {} as Record<AttendanceStatus, number>
+    {} as Record<AttendanceStatus, number>,
   );
-  const presentN = counts["present"] ?? 0;
-  const lateN = counts["late"] ?? 0;
-  const absentN = counts["absent"] ?? 0;
+  const presentN = counts['present'] ?? 0;
+  const lateN = counts['late'] ?? 0;
+  const absentN = counts['absent'] ?? 0;
 
   return (
     <div className="space-y-6">
@@ -381,23 +381,23 @@ export function InputPage({
             <div className="mb-1">
               <span
                 className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold border ${
-                  currentStudy?.studyType === "방학 스터디"
-                    ? "bg-amber-50 text-amber-800 border-amber-200"
-                    : "bg-blue-50 text-blue-800 border-blue-200"
+                  currentStudy?.studyType === '방학 스터디'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : 'bg-blue-50 text-blue-800 border-blue-200'
                 }`}
               >
-                {currentStudy?.studyType || "학기 스터디"}
+                {currentStudy?.studyType || '학기 스터디'}
               </span>
             </div>
             <h1 className="text-lg font-extrabold text-slate-900 tracking-tight">
-              {currentStudy?.studyName || "스터디 출결 관리"}
+              {currentStudy?.studyName || '스터디 출결 관리'}
             </h1>
           </div>
         </div>
 
         {/* Role-based Controls */}
         <div className="flex items-center gap-2 self-start md:self-center shrink-0 flex-wrap">
-          {currentRole === "HOST" ? (
+          {currentRole === 'HOST' ? (
             <div className="px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200/80 flex items-center gap-1.5 shadow-2xs">
               <ShieldCheck size={14} className="text-emerald-600" />
               <span>내 담당 스터디 출결 뷰</span>
@@ -406,7 +406,7 @@ export function InputPage({
             <div className="flex items-center gap-2 flex-wrap">
               {/* Serial Season Toggle */}
               <div className="flex gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200">
-                {(["방학 스터디", "학기 스터디"] as const).map((p) => (
+                {(['방학 스터디', '학기 스터디'] as const).map((p) => (
                   <button
                     key={p}
                     onClick={() => {
@@ -418,8 +418,8 @@ export function InputPage({
                     }}
                     className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                       periodFilter === p
-                        ? "bg-white text-slate-900 shadow-2xs border border-slate-200/80"
-                        : "text-slate-500 hover:text-slate-800"
+                        ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     {p}
@@ -470,17 +470,17 @@ export function InputPage({
           {Array.from({ length: TOTAL_WEEKS }, (_, i) => i + 1).map((w) => {
             const isActive = w === weekNum;
             const isPast =
-              w <= 4 && attendance[sessionKey(`w${w}`, "study", selectedTeam)]?.submitted;
+              w <= 4 && attendance[sessionKey(`w${w}`, 'study', selectedTeam)]?.submitted;
             return (
               <button
                 key={w}
                 onClick={() => setWeekNum(w)}
                 className={`w-9 h-9 rounded-xl text-xs font-bold transition-all relative cursor-pointer flex items-center justify-center ${
                   isActive
-                    ? "bg-slate-900 text-white shadow-xs"
+                    ? 'bg-slate-900 text-white shadow-xs'
                     : isPast
-                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100"
-                      : "bg-slate-100 text-slate-500 border border-slate-200/80 hover:bg-slate-200"
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100'
+                      : 'bg-slate-100 text-slate-500 border border-slate-200/80 hover:bg-slate-200'
                 }`}
               >
                 {w}주
@@ -502,11 +502,11 @@ export function InputPage({
             <div className="p-4.5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Camera size={16} style={{ color: "#ef4444" }} />
+                  <Camera size={16} style={{ color: '#ef4444' }} />
                   <h3 className="text-xs font-bold text-foreground">출석 인증 사진 업로드</h3>
                   <span
                     className="text-[10px] px-1.5 py-0.5 rounded font-mono font-medium"
-                    style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444" }}
+                    style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
                   >
                     필수
                   </span>
@@ -554,10 +554,10 @@ export function InputPage({
                       </p>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      용량:{" "}
+                      용량:{' '}
                       <span className="font-mono text-foreground/80">
-                        {currentPhotoSize ?? "2.4 MB"}
-                      </span>{" "}
+                        {currentPhotoSize ?? '2.4 MB'}
+                      </span>{' '}
                       · 형식: 이미지
                     </p>
                     <p className="text-[10px] text-[#34d399] mt-1 flex items-center gap-1">
@@ -586,15 +586,15 @@ export function InputPage({
                   onClick={() => !rec.submitted && fileInputRef.current?.click()}
                   className={`rounded-xl border-2 border-dashed p-6 text-center transition-all cursor-pointer ${
                     imageWarning
-                      ? "border-amber-500/50 bg-amber-500/5"
-                      : "border-slate-200 bg-white/[0.01] hover:bg-slate-50 hover:border-slate-300"
-                  } ${rec.submitted ? "opacity-50 cursor-not-allowed" : ""}`}
+                      ? 'border-amber-500/50 bg-amber-500/5'
+                      : 'border-slate-200 bg-white/[0.01] hover:bg-slate-50 hover:border-slate-300'
+                  } ${rec.submitted ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div
                     className="w-10 h-10 rounded-full mx-auto mb-2 flex items-center justify-center"
-                    style={{ background: "rgba(239,68,68,0.12)" }}
+                    style={{ background: 'rgba(239,68,68,0.12)' }}
                   >
-                    <Upload size={18} style={{ color: "#ef4444" }} />
+                    <Upload size={18} style={{ color: '#ef4444' }} />
                   </div>
                   <p className="text-xs font-semibold text-foreground">
                     클릭하여 스터디 출석 인증 사진 업로드
@@ -673,7 +673,7 @@ export function InputPage({
                       value={newMemberName}
                       onChange={(e) => setNewMemberName(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === 'Enter') {
                           handleAddMember();
                         }
                       }}
@@ -726,8 +726,8 @@ export function InputPage({
                     <div
                       className="grid text-xs font-semibold text-slate-500 pb-2.5 mb-1.5 items-center"
                       style={{
-                        gridTemplateColumns: "36px 120px 130px 1fr 180px 40px",
-                        borderBottom: "1px solid #e2e8f0",
+                        gridTemplateColumns: '36px 120px 130px 1fr 180px 40px',
+                        borderBottom: '1px solid #e2e8f0',
                       }}
                     >
                       <span className="text-center"></span>
@@ -747,7 +747,7 @@ export function InputPage({
                           <div
                             key={m.id}
                             className="grid items-center py-2.5 gap-2 hover:bg-slate-50/60 px-1 rounded-xl transition-colors"
-                            style={{ gridTemplateColumns: "36px 120px 130px 1fr 180px 40px" }}
+                            style={{ gridTemplateColumns: '36px 120px 130px 1fr 180px 40px' }}
                           >
                             <span className="text-xs text-slate-400 font-mono text-center">
                               {i + 1}
@@ -759,7 +759,7 @@ export function InputPage({
 
                             <div>
                               <span className="text-xs text-slate-700 font-medium">
-                                {m.year ? `${m.year}기 부원` : "부원"}
+                                {m.year ? `${m.year}기 부원` : '부원'}
                               </span>
                             </div>
 
@@ -772,28 +772,28 @@ export function InputPage({
                                 > = {
                                   present: {
                                     active:
-                                      "bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs",
+                                      'bg-[#def2e6] text-[#0f5132] font-bold border border-[#b6e3c9] shadow-2xs',
                                     inactive:
-                                      "bg-white text-slate-400 hover:text-[#0f5132] hover:bg-slate-50 border border-slate-200/90 shadow-2xs font-medium",
+                                      'bg-white text-slate-400 hover:text-[#0f5132] hover:bg-slate-50 border border-slate-200/90 shadow-2xs font-medium',
                                   },
                                   late: {
                                     active:
-                                      "bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs",
+                                      'bg-[#fceed2] text-[#7c4a03] font-bold border border-[#f5d5a4] shadow-2xs',
                                     inactive:
-                                      "bg-white text-slate-400 hover:text-[#7c4a03] hover:bg-slate-50 border border-slate-200/90 shadow-2xs font-medium",
+                                      'bg-white text-slate-400 hover:text-[#7c4a03] hover:bg-slate-50 border border-slate-200/90 shadow-2xs font-medium',
                                   },
                                   absent: {
                                     active:
-                                      "bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs",
+                                      'bg-[#fce4e6] text-[#8a1c32] font-bold border border-[#f8b4bc] shadow-2xs',
                                     inactive:
-                                      "bg-white text-slate-400 hover:text-[#8a1c32] hover:bg-slate-50 border border-slate-200/90 shadow-2xs font-medium",
+                                      'bg-white text-slate-400 hover:text-[#8a1c32] hover:bg-slate-50 border border-slate-200/90 shadow-2xs font-medium',
                                   },
                                 };
                                 const styleCfg = statusStyles[btn.id] || {
                                   active:
-                                    "bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs",
+                                    'bg-[#e9eef4] text-slate-800 font-bold border border-slate-300 shadow-2xs',
                                   inactive:
-                                    "bg-white text-slate-400 hover:bg-slate-50 border border-slate-200/90 shadow-2xs font-medium",
+                                    'bg-white text-slate-400 hover:bg-slate-50 border border-slate-200/90 shadow-2xs font-medium',
                                 };
                                 return (
                                   <button
@@ -855,7 +855,7 @@ export function InputPage({
                     {weekNum}주차 출결 요약
                   </p>
                   <p className="text-[11px] text-slate-500 font-medium truncate max-w-[150px]">
-                    {currentStudy?.studyName || "스터디"}
+                    {currentStudy?.studyName || '스터디'}
                   </p>
                 </div>
                 {rec?.submitted ? (
@@ -873,22 +873,22 @@ export function InputPage({
               <div className="grid grid-cols-3 gap-2">
                 {[
                   {
-                    label: "출석",
+                    label: '출석',
                     val: presentN,
-                    badge: "bg-emerald-50 text-emerald-800 border-emerald-200/70",
-                    numColor: "text-emerald-700",
+                    badge: 'bg-emerald-50 text-emerald-800 border-emerald-200/70',
+                    numColor: 'text-emerald-700',
                   },
                   {
-                    label: "지각",
+                    label: '지각',
                     val: lateN,
-                    badge: "bg-amber-50 text-amber-800 border-amber-200/70",
-                    numColor: "text-amber-700",
+                    badge: 'bg-amber-50 text-amber-800 border-amber-200/70',
+                    numColor: 'text-amber-700',
                   },
                   {
-                    label: "결석",
+                    label: '결석',
                     val: absentN,
-                    badge: "bg-rose-50 text-rose-800 border-rose-200/70",
-                    numColor: "text-rose-700",
+                    badge: 'bg-rose-50 text-rose-800 border-rose-200/70',
+                    numColor: 'text-rose-700',
                   },
                 ].map(({ label, val, badge, numColor }) => (
                   <div
@@ -914,7 +914,7 @@ export function InputPage({
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-slate-900">인증 사진 첨부됨</p>
                       <p className="text-[10px] text-slate-500 font-mono truncate max-w-[110px]">
-                        {currentPhotoName || "인증사진.jpg"}
+                        {currentPhotoName || '인증사진.jpg'}
                       </p>
                     </div>
                   </div>
@@ -1062,15 +1062,15 @@ export function InputPage({
               <div>
                 <label className="text-muted-foreground block mb-1">변경 희망 상태</label>
                 <div className="flex gap-2">
-                  {(["present", "late", "absent"] as AttendanceStatus[]).map((s) => (
+                  {(['present', 'late', 'absent'] as AttendanceStatus[]).map((s) => (
                     <button
                       key={s}
                       onClick={() => setReqToStatus(s)}
                       className="flex-1 py-1.5 text-xs font-medium rounded transition-all cursor-pointer"
                       style={
                         reqToStatus === s
-                          ? { background: STATUS_CFG[s].color, color: "#000", fontWeight: "bold" }
-                          : { background: "#f1f5f9", color: "#64748b" }
+                          ? { background: STATUS_CFG[s].color, color: '#000', fontWeight: 'bold' }
+                          : { background: '#f1f5f9', color: '#64748b' }
                       }
                     >
                       {STATUS_CFG[s].label}

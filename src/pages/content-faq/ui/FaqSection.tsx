@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Edit3, Eye, EyeOff, Plus, Search, Trash2, X } from "lucide-react";
+import { useState } from 'react';
+import { ChevronDown, ChevronUp, Edit3, Eye, EyeOff, Plus, Search, Trash2, X } from 'lucide-react';
 
-export type FaqCategory = "RECRUITMENT" | "ACTIVITY" | "ETC";
+export type FaqCategory = 'RECRUITMENT' | 'ACTIVITY' | 'ETC';
 
 export interface FaqItem {
   id: string;
@@ -15,74 +15,74 @@ export interface FaqItem {
 
 const INITIAL_FAQ_DATA: FaqItem[] = [
   {
-    id: "f1",
-    category: "RECRUITMENT",
-    question: "비전공자도 지원 가능한가요?",
+    id: 'f1',
+    category: 'RECRUITMENT',
+    question: '비전공자도 지원 가능한가요?',
     answer:
-      "네, 전공과 무관하게 데이터에 대한 열정과 기초적인 학습 의지가 있다면 누구나 지원 가능합니다. 각 트랙별 기초 지식(Python, 기초 통계 등)에 대한 이해도가 있다면 서류 및 면접에서 좋은 평가를 받을 수 있습니다.",
+      '네, 전공과 무관하게 데이터에 대한 열정과 기초적인 학습 의지가 있다면 누구나 지원 가능합니다. 각 트랙별 기초 지식(Python, 기초 통계 등)에 대한 이해도가 있다면 서류 및 면접에서 좋은 평가를 받을 수 있습니다.',
     orderNum: 1,
     visible: true,
-    updatedAt: "2026-07-20",
+    updatedAt: '2026-07-20',
   },
   {
-    id: "f2",
-    category: "RECRUITMENT",
-    question: "서류 평가 기준과 면접 진행 방식이 궁금합니다.",
+    id: 'f2',
+    category: 'RECRUITMENT',
+    question: '서류 평가 기준과 면접 진행 방식이 궁금합니다.',
     answer:
-      "서류 평가는 지원 동기, 문제 해결 경험, 트랙 적합성을 종합적으로 검토합니다. 면접은 지원서 기반의 개별 인터뷰로 진행되며 실무적인 지식뿐만 아니라 협업 태도와 성장 잠재력을 중점적으로 평가합니다.",
+      '서류 평가는 지원 동기, 문제 해결 경험, 트랙 적합성을 종합적으로 검토합니다. 면접은 지원서 기반의 개별 인터뷰로 진행되며 실무적인 지식뿐만 아니라 협업 태도와 성장 잠재력을 중점적으로 평가합니다.',
     orderNum: 2,
     visible: true,
-    updatedAt: "2026-07-20",
+    updatedAt: '2026-07-20',
   },
   {
-    id: "f3",
-    category: "ACTIVITY",
-    question: "정규 세션 일정 및 활동 시간은 어떻게 되나요?",
+    id: 'f3',
+    category: 'ACTIVITY',
+    question: '정규 세션 일정 및 활동 시간은 어떻게 되나요?',
     answer:
-      "정규 세션은 매주 토요일 오후 2시부터 6시까지 진행됩니다. 방학 중에는 온/오프라인 병행 스터디가 추가로 진행될 수 있습니다.",
+      '정규 세션은 매주 토요일 오후 2시부터 6시까지 진행됩니다. 방학 중에는 온/오프라인 병행 스터디가 추가로 진행될 수 있습니다.',
     orderNum: 1,
     visible: true,
-    updatedAt: "2026-06-15",
+    updatedAt: '2026-06-15',
   },
   {
-    id: "f4",
-    category: "ACTIVITY",
-    question: "출석 인정 기준과 점수 제도는 어떻게 운영되나요?",
+    id: 'f4',
+    category: 'ACTIVITY',
+    question: '출석 인정 기준과 점수 제도는 어떻게 운영되나요?',
     answer:
-      "출석 시 +1점, 지각 시 +0.5점, 결석 시 0점이 부여됩니다. 스터디장이 매주 출결을 입력하고 운영지원팀에서 승인하며, 총 활동 점수가 수료 기준에 반영됩니다.",
+      '출석 시 +1점, 지각 시 +0.5점, 결석 시 0점이 부여됩니다. 스터디장이 매주 출결을 입력하고 운영지원팀에서 승인하며, 총 활동 점수가 수료 기준에 반영됩니다.',
     orderNum: 2,
     visible: true,
-    updatedAt: "2026-06-15",
+    updatedAt: '2026-06-15',
   },
   {
-    id: "f5",
-    category: "ETC",
-    question: "활동 증명서 및 수료증 발급 기준은 무엇인가요?",
+    id: 'f5',
+    category: 'ETC',
+    question: '활동 증명서 및 수료증 발급 기준은 무엇인가요?',
     answer:
-      "정규 활동 기간(2학기) 동안 출석률 80% 이상 및 최종 프로젝트 컨퍼런스 발표를 완료한 부원에게 정식 수료증이 발급됩니다.",
+      '정규 활동 기간(2학기) 동안 출석률 80% 이상 및 최종 프로젝트 컨퍼런스 발표를 완료한 부원에게 정식 수료증이 발급됩니다.',
     orderNum: 1,
     visible: true,
-    updatedAt: "2026-05-10",
+    updatedAt: '2026-05-10',
   },
 ];
 
 const CATEGORY_LABELS: Record<FaqCategory, string> = {
-  RECRUITMENT: "리크루팅",
-  ACTIVITY: "활동 안내",
-  ETC: "기타",
+  RECRUITMENT: '리크루팅',
+  ACTIVITY: '활동 안내',
+  ETC: '기타',
 };
 
 const CATEGORY_STYLES: Record<FaqCategory, string> = {
-  RECRUITMENT: "bg-blue-50 text-blue-700 border-blue-200/80",
-  ACTIVITY: "bg-indigo-50 text-indigo-700 border-indigo-200/80",
-  ETC: "bg-slate-100 text-slate-700 border-slate-200",
+  RECRUITMENT: 'bg-blue-50 text-blue-700 border-blue-200/80',
+  ACTIVITY: 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
+  ETC: 'bg-slate-100 text-slate-700 border-slate-200',
 };
 
 export function FaqSection() {
-  const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [faqs, setFaqs] = useState<FaqItem[]>(INITIAL_FAQ_DATA);
-  const [expandedId, setExpandedId] = useState<string | null>("f1");
+  const [expandedId, setExpandedId] = useState<string | null>('f1');
 
   // Edit / Add modal
   const [editingFaq, setEditingFaq] = useState<FaqItem | null>(null);
@@ -90,7 +90,7 @@ export function FaqSection() {
 
   const filteredFaqs = faqs
     .filter((f) => {
-      if (selectedCategory !== "ALL" && f.category !== selectedCategory) {
+      if (selectedCategory !== 'ALL' && f.category !== selectedCategory) {
         return false;
       }
       if (searchQuery.trim()) {
@@ -104,10 +104,10 @@ export function FaqSection() {
   function handleAddNew() {
     setIsNew(true);
     setEditingFaq({
-      id: "f_" + Date.now(),
-      category: selectedCategory === "ALL" ? "RECRUITMENT" : (selectedCategory as FaqCategory),
-      question: "",
-      answer: "",
+      id: 'f_' + Date.now(),
+      category: selectedCategory === 'ALL' ? 'RECRUITMENT' : (selectedCategory as FaqCategory),
+      question: '',
+      answer: '',
       orderNum: faqs.length + 1,
       visible: true,
       updatedAt: new Date().toISOString().slice(0, 10),
@@ -124,7 +124,7 @@ export function FaqSection() {
       return;
     }
     if (!editingFaq.question.trim() || !editingFaq.answer.trim()) {
-      alert("질문과 답변을 모두 입력해 주세요.");
+      alert('질문과 답변을 모두 입력해 주세요.');
       return;
     }
     if (isNew) {
@@ -136,7 +136,7 @@ export function FaqSection() {
   }
 
   function handleDelete(id: string) {
-    if (confirm("정말 이 FAQ 항목을 삭제하시겠습니까?")) {
+    if (confirm('정말 이 FAQ 항목을 삭제하시겠습니까?')) {
       setFaqs((prev) => prev.filter((f) => f.id !== id));
       if (editingFaq?.id === id) {
         setEditingFaq(null);
@@ -158,18 +158,18 @@ export function FaqSection() {
         <div className="flex items-center gap-2.5 flex-1 min-w-[320px]">
           {/* Category Filter */}
           <div className="flex gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-            {["ALL", "RECRUITMENT", "ACTIVITY", "ETC"].map((cat) => (
+            {['ALL', 'RECRUITMENT', 'ACTIVITY', 'ETC'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className="px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer"
                 style={
                   selectedCategory === cat
-                    ? { background: "#ef4444", color: "#fff" }
-                    : { color: "#64748b" }
+                    ? { background: '#ef4444', color: '#fff' }
+                    : { color: '#64748b' }
                 }
               >
-                {cat === "ALL" ? "전체 카테고리" : CATEGORY_LABELS[cat as FaqCategory]}
+                {cat === 'ALL' ? '전체 카테고리' : CATEGORY_LABELS[cat as FaqCategory]}
               </button>
             ))}
           </div>
@@ -195,7 +195,7 @@ export function FaqSection() {
         <button
           onClick={handleAddNew}
           className="px-4 py-1.5 rounded-md text-xs font-bold text-white transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
-          style={{ background: "#ef4444" }}
+          style={{ background: '#ef4444' }}
         >
           <Plus size={13} /> 새 FAQ 등록
         </button>
@@ -240,7 +240,7 @@ export function FaqSection() {
                     <button
                       onClick={() => toggleVisibility(faq.id)}
                       className="p-1.5 rounded hover:bg-slate-100 text-muted-foreground hover:text-foreground cursor-pointer"
-                      title={faq.visible ? "숨기기" : "노출하기"}
+                      title={faq.visible ? '숨기기' : '노출하기'}
                     >
                       {faq.visible ? (
                         <Eye size={13} />
@@ -295,7 +295,7 @@ export function FaqSection() {
           <div className="w-full max-w-lg rounded-2xl overflow-hidden p-6 space-y-4 bg-white border border-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-sm font-bold text-foreground">
-                {isNew ? "새 FAQ 등록" : "FAQ 항목 수정"}
+                {isNew ? '새 FAQ 등록' : 'FAQ 항목 수정'}
               </h3>
               <button
                 onClick={() => setEditingFaq(null)}
@@ -313,7 +313,7 @@ export function FaqSection() {
                     value={editingFaq.category}
                     onChange={(e) =>
                       setEditingFaq((prev) =>
-                        prev ? { ...prev, category: e.target.value as FaqCategory } : null
+                        prev ? { ...prev, category: e.target.value as FaqCategory } : null,
                       )
                     }
                     className="w-full px-3 py-2 rounded-md outline-none bg-slate-100 border border-slate-200 text-foreground cursor-pointer"
@@ -336,7 +336,7 @@ export function FaqSection() {
                     value={editingFaq.orderNum}
                     onChange={(e) =>
                       setEditingFaq((prev) =>
-                        prev ? { ...prev, orderNum: Number(e.target.value) } : null
+                        prev ? { ...prev, orderNum: Number(e.target.value) } : null,
                       )
                     }
                     className="w-full px-3 py-2 rounded-md outline-none bg-slate-100 border border-slate-200 text-foreground font-mono"
@@ -376,7 +376,7 @@ export function FaqSection() {
                     checked={editingFaq.visible}
                     onChange={(e) =>
                       setEditingFaq((prev) =>
-                        prev ? { ...prev, visible: e.target.checked } : null
+                        prev ? { ...prev, visible: e.target.checked } : null,
                       )
                     }
                     className="rounded accent-red-500 cursor-pointer w-4 h-4"
@@ -396,7 +396,7 @@ export function FaqSection() {
               <button
                 onClick={handleSave}
                 className="px-5 py-2 rounded-md text-xs font-bold text-white cursor-pointer hover:opacity-90"
-                style={{ background: "#ef4444" }}
+                style={{ background: '#ef4444' }}
               >
                 저장
               </button>

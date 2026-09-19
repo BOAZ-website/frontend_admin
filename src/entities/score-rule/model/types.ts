@@ -1,6 +1,6 @@
 export interface ScoreRule {
   version: number;
-  status: "ACTIVE" | "INACTIVE" | "DRAFT";
+  status: 'ACTIVE' | 'INACTIVE' | 'DRAFT';
   activatedAt: string | null;
   createdBy: string;
   present: number;

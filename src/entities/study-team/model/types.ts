@@ -4,7 +4,7 @@ export interface Member {
   year: string;
 }
 
-export type StudyPeriodType = "방학 스터디" | "학기 스터디";
+export type StudyPeriodType = '방학 스터디' | '학기 스터디';
 
 export interface StudyTeamInfo {
   id: string;

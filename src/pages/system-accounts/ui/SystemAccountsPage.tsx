@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   Edit3,
@@ -14,19 +14,19 @@ import {
   UserCog,
   UserPlus,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-export type AdminRole = "MASTER" | "SUPER" | "TEAM";
-export type AdminTrack = "ANALYSIS" | "VISUALIZATION" | "ENGINEERING";
+export type AdminRole = 'MASTER' | 'SUPER' | 'TEAM';
+export type AdminTrack = 'ANALYSIS' | 'VISUALIZATION' | 'ENGINEERING';
 export type AdminTeamName =
-  | "대표진"
-  | "차기대표진"
-  | "서비스운영팀"
-  | "운영지원팀"
-  | "기획팀"
-  | "대외협력팀"
-  | "디자인팀"
-  | "자료연구팀";
+  | '대표진'
+  | '차기대표진'
+  | '서비스운영팀'
+  | '운영지원팀'
+  | '기획팀'
+  | '대외협력팀'
+  | '디자인팀'
+  | '자료연구팀';
 
 // 5. 전체 계정 조회 DTO (AdminAccountResponse)
 export interface AdminAccountDto {
@@ -48,249 +48,249 @@ export interface SecurityAuditLog {
   actor: string;
   target: string;
   actionType:
-    "ACCOUNT_CREATE" | "ROLE_CHANGE" | "ACCOUNT_DELETE" | "PASSWORD_RESET" | "PERMISSION_GRANT";
+    'ACCOUNT_CREATE' | 'ROLE_CHANGE' | 'ACCOUNT_DELETE' | 'PASSWORD_RESET' | 'PERMISSION_GRANT';
   description: string;
   ipAddress: string;
 }
 
 const TEAM_NAMES: AdminTeamName[] = [
-  "대표진",
-  "차기대표진",
-  "서비스운영팀",
-  "운영지원팀",
-  "기획팀",
-  "대외협력팀",
-  "디자인팀",
-  "자료연구팀",
+  '대표진',
+  '차기대표진',
+  '서비스운영팀',
+  '운영지원팀',
+  '기획팀',
+  '대외협력팀',
+  '디자인팀',
+  '자료연구팀',
 ];
 
-const TRACK_NAMES: AdminTrack[] = ["ANALYSIS", "ENGINEERING", "VISUALIZATION"];
+const TRACK_NAMES: AdminTrack[] = ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'];
 
 const INITIAL_ACCOUNTS: AdminAccountDto[] = [
   {
     id: 1,
-    username: "boaz_master_lead",
-    role: "MASTER",
-    name: "남민서 (팀장)",
-    track: "ANALYSIS",
+    username: 'boaz_master_lead',
+    role: 'MASTER',
+    name: '남민서 (팀장)',
+    track: 'ANALYSIS',
     term: 28,
-    team_name: "서비스운영팀",
+    team_name: '서비스운영팀',
     created_by: null,
-    created_at: "2026-07-01T09:00:00",
-    updated_at: "2026-08-16T19:00:00",
+    created_at: '2026-07-01T09:00:00',
+    updated_at: '2026-08-16T19:00:00',
   },
   {
     id: 2,
-    username: "boaz_president",
-    role: "SUPER",
-    name: "강민석 (대표)",
-    track: "ANALYSIS",
+    username: 'boaz_president',
+    role: 'SUPER',
+    name: '강민석 (대표)',
+    track: 'ANALYSIS',
     term: 27,
-    team_name: "대표진",
+    team_name: '대표진',
     created_by: 1,
-    created_at: "2026-07-05T14:30:00",
-    updated_at: "2026-07-05T14:30:00",
+    created_at: '2026-07-05T14:30:00',
+    updated_at: '2026-07-05T14:30:00',
   },
   {
     id: 3,
-    username: "boaz_next_president",
-    role: "SUPER",
-    name: "문혁준 (차기대표)",
-    track: "ENGINEERING",
+    username: 'boaz_next_president',
+    role: 'SUPER',
+    name: '문혁준 (차기대표)',
+    track: 'ENGINEERING',
     term: 28,
-    team_name: "차기대표진",
+    team_name: '차기대표진',
     created_by: 1,
-    created_at: "2026-07-06T10:00:00",
-    updated_at: "2026-07-06T10:00:00",
+    created_at: '2026-07-06T10:00:00',
+    updated_at: '2026-07-06T10:00:00',
   },
   {
     id: 4,
-    username: "boaz_ops_lead",
-    role: "TEAM",
-    name: "김대현 (팀장)",
-    track: "ENGINEERING",
+    username: 'boaz_ops_lead',
+    role: 'TEAM',
+    name: '김대현 (팀장)',
+    track: 'ENGINEERING',
     term: 28,
-    team_name: "운영지원팀",
+    team_name: '운영지원팀',
     created_by: 1,
-    created_at: "2026-07-10T11:20:00",
-    updated_at: "2026-07-20T16:00:00",
+    created_at: '2026-07-10T11:20:00',
+    updated_at: '2026-07-20T16:00:00',
   },
   {
     id: 5,
-    username: "boaz_service_dev",
-    role: "TEAM",
-    name: "이재현 (개발)",
-    track: "ENGINEERING",
+    username: 'boaz_service_dev',
+    role: 'TEAM',
+    name: '이재현 (개발)',
+    track: 'ENGINEERING',
     term: 28,
-    team_name: "서비스운영팀",
+    team_name: '서비스운영팀',
     created_by: 1,
-    created_at: "2026-07-12T15:40:00",
-    updated_at: "2026-08-10T18:10:00",
+    created_at: '2026-07-12T15:40:00',
+    updated_at: '2026-08-10T18:10:00',
   },
   {
     id: 6,
-    username: "boaz_viz_lead",
-    role: "TEAM",
-    name: "손채민 (팀장)",
-    track: "VISUALIZATION",
+    username: 'boaz_viz_lead',
+    role: 'TEAM',
+    name: '손채민 (팀장)',
+    track: 'VISUALIZATION',
     term: 28,
-    team_name: "기획팀",
+    team_name: '기획팀',
     created_by: 1,
-    created_at: "2026-07-15T09:10:00",
-    updated_at: "2026-07-15T09:10:00",
+    created_at: '2026-07-15T09:10:00',
+    updated_at: '2026-07-15T09:10:00',
   },
   {
     id: 7,
-    username: "boaz_design_lead",
-    role: "TEAM",
-    name: "신재원 (팀장)",
-    track: "VISUALIZATION",
+    username: 'boaz_design_lead',
+    role: 'TEAM',
+    name: '신재원 (팀장)',
+    track: 'VISUALIZATION',
     term: 28,
-    team_name: "디자인팀",
+    team_name: '디자인팀',
     created_by: 1,
-    created_at: "2026-07-18T13:00:00",
-    updated_at: "2026-07-18T13:00:00",
+    created_at: '2026-07-18T13:00:00',
+    updated_at: '2026-07-18T13:00:00',
   },
 ];
 
 const INITIAL_AUDIT_LOGS: SecurityAuditLog[] = [
   {
-    id: "l1",
-    timestamp: "2026-08-16 19:25:10",
-    actor: "남민서 (MASTER)",
-    target: "김대현 (boaz_ops_lead)",
-    actionType: "PERMISSION_GRANT",
-    description: "운영지원팀 출결 관리 및 HOST 계정 발급 권한 확인",
-    ipAddress: "121.134.82.11",
+    id: 'l1',
+    timestamp: '2026-08-16 19:25:10',
+    actor: '남민서 (MASTER)',
+    target: '김대현 (boaz_ops_lead)',
+    actionType: 'PERMISSION_GRANT',
+    description: '운영지원팀 출결 관리 및 HOST 계정 발급 권한 확인',
+    ipAddress: '121.134.82.11',
   },
   {
-    id: "l2",
-    timestamp: "2026-08-16 18:40:00",
-    actor: "남민서 (MASTER)",
-    target: "신재원 (boaz_design_lead)",
-    actionType: "PASSWORD_RESET",
-    description: "디자인팀장 계정 비밀번호 초기화 및 RefreshToken 무효화",
-    ipAddress: "121.134.82.11",
+    id: 'l2',
+    timestamp: '2026-08-16 18:40:00',
+    actor: '남민서 (MASTER)',
+    target: '신재원 (boaz_design_lead)',
+    actionType: 'PASSWORD_RESET',
+    description: '디자인팀장 계정 비밀번호 초기화 및 RefreshToken 무효화',
+    ipAddress: '121.134.82.11',
   },
   {
-    id: "l3",
-    timestamp: "2026-07-18 13:00:00",
-    actor: "남민서 (MASTER)",
-    target: "신재원 (boaz_design_lead)",
-    actionType: "ACCOUNT_CREATE",
-    description: "신규 운영진 계정 발급 (POST /api/v1/admin/accounts)",
-    ipAddress: "121.134.82.11",
+    id: 'l3',
+    timestamp: '2026-07-18 13:00:00',
+    actor: '남민서 (MASTER)',
+    target: '신재원 (boaz_design_lead)',
+    actionType: 'ACCOUNT_CREATE',
+    description: '신규 운영진 계정 발급 (POST /api/v1/admin/accounts)',
+    ipAddress: '121.134.82.11',
   },
   {
-    id: "l4",
-    timestamp: "2026-07-10 11:20:00",
-    actor: "남민서 (MASTER)",
-    target: "김대현 (boaz_ops_lead)",
-    actionType: "ACCOUNT_CREATE",
-    description: "운영지원팀장 계정 발급",
-    ipAddress: "121.134.82.11",
+    id: 'l4',
+    timestamp: '2026-07-10 11:20:00',
+    actor: '남민서 (MASTER)',
+    target: '김대현 (boaz_ops_lead)',
+    actionType: 'ACCOUNT_CREATE',
+    description: '운영지원팀장 계정 발급',
+    ipAddress: '121.134.82.11',
   },
 ];
 
 const PERMISSION_MATRIX = [
   {
-    name: "ACCOUNT_MANAGE",
-    desc: "운영진 계정 생성·삭제·권한 부여",
-    master: "허용",
-    super: "제한",
-    serviceTeam: "제한",
-    opsTeam: "제한",
-    otherTeam: "제한",
-    host: "제한",
+    name: 'ACCOUNT_MANAGE',
+    desc: '운영진 계정 생성·삭제·권한 부여',
+    master: '허용',
+    super: '제한',
+    serviceTeam: '제한',
+    opsTeam: '제한',
+    otherTeam: '제한',
+    host: '제한',
   },
   {
-    name: "CONTENT_MANAGE",
-    desc: "아카이빙·FAQ·후기·커리큘럼 CUD",
-    master: "허용",
-    super: "허용",
-    serviceTeam: "허용",
-    opsTeam: "제한",
-    otherTeam: "제한",
-    host: "제한",
+    name: 'CONTENT_MANAGE',
+    desc: '아카이빙·FAQ·후기·커리큘럼 CUD',
+    master: '허용',
+    super: '허용',
+    serviceTeam: '허용',
+    opsTeam: '제한',
+    otherTeam: '제한',
+    host: '제한',
   },
   {
-    name: "RECRUITMENT_MANAGE",
-    desc: "모집 공고·질문·지원서 CSV 추출",
-    master: "허용",
-    super: "허용",
-    serviceTeam: "허용",
-    opsTeam: "제한",
-    otherTeam: "제한",
-    host: "제한",
+    name: 'RECRUITMENT_MANAGE',
+    desc: '모집 공고·질문·지원서 CSV 추출',
+    master: '허용',
+    super: '허용',
+    serviceTeam: '허용',
+    opsTeam: '제한',
+    otherTeam: '제한',
+    host: '제한',
   },
   {
-    name: "ATTENDANCE_MANAGE",
-    desc: "활동·팀·명단·HOST 계정 발급",
-    master: "허용",
-    super: "허용",
-    serviceTeam: "제한",
-    opsTeam: "🌟 O (전담)",
-    otherTeam: "제한",
-    host: "제한",
+    name: 'ATTENDANCE_MANAGE',
+    desc: '활동·팀·명단·HOST 계정 발급',
+    master: '허용',
+    super: '허용',
+    serviceTeam: '제한',
+    opsTeam: '🌟 O (전담)',
+    otherTeam: '제한',
+    host: '제한',
   },
   {
-    name: "ATTENDANCE_APPROVE",
-    desc: "제출 후 출결 수동 수정·사유 인정",
-    master: "허용",
-    super: "허용",
-    serviceTeam: "제한",
-    opsTeam: "🌟 O (전담)",
-    otherTeam: "제한",
-    host: "제한",
+    name: 'ATTENDANCE_APPROVE',
+    desc: '제출 후 출결 수동 수정·사유 인정',
+    master: '허용',
+    super: '허용',
+    serviceTeam: '제한',
+    opsTeam: '🌟 O (전담)',
+    otherTeam: '제한',
+    host: '제한',
   },
   {
-    name: "SCORE_MANAGE",
-    desc: "활동 점수 수동 조정 및 점수 확정",
-    master: "허용",
-    super: "허용",
-    serviceTeam: "제한",
-    opsTeam: "🌟 O (전담)",
-    otherTeam: "제한",
-    host: "제한",
+    name: 'SCORE_MANAGE',
+    desc: '활동 점수 수동 조정 및 점수 확정',
+    master: '허용',
+    super: '허용',
+    serviceTeam: '제한',
+    opsTeam: '🌟 O (전담)',
+    otherTeam: '제한',
+    host: '제한',
   },
   {
-    name: "RULE_EDIT / ACTIVATE",
-    desc: "점수 규칙 DRAFT 작성 및 활성화",
-    master: "허용",
-    super: "대표진 전용",
-    serviceTeam: "제한",
-    opsTeam: "제한",
-    otherTeam: "제한",
-    host: "제한",
+    name: 'RULE_EDIT / ACTIVATE',
+    desc: '점수 규칙 DRAFT 작성 및 활성화',
+    master: '허용',
+    super: '대표진 전용',
+    serviceTeam: '제한',
+    opsTeam: '제한',
+    otherTeam: '제한',
+    host: '제한',
   },
   {
-    name: "EVALUATION",
-    desc: "서류 평가 (차기: 전 부문 / 일반: 본인 트랙)",
-    master: "본인",
-    super: "전 부문",
-    serviceTeam: "본인",
-    opsTeam: "본인",
-    otherTeam: "본인",
-    host: "제한",
+    name: 'EVALUATION',
+    desc: '서류 평가 (차기: 전 부문 / 일반: 본인 트랙)',
+    master: '본인',
+    super: '전 부문',
+    serviceTeam: '본인',
+    opsTeam: '본인',
+    otherTeam: '본인',
+    host: '제한',
   },
   {
-    name: "FINAL_DECISION",
-    desc: "최종 합불 판정 및 확정",
-    master: "허용",
-    super: "대표진 전용",
-    serviceTeam: "제한",
-    opsTeam: "제한",
-    otherTeam: "제한",
-    host: "제한",
+    name: 'FINAL_DECISION',
+    desc: '최종 합불 판정 및 확정',
+    master: '허용',
+    super: '대표진 전용',
+    serviceTeam: '제한',
+    opsTeam: '제한',
+    otherTeam: '제한',
+    host: '제한',
   },
 ];
 
 interface SystemAccountsPageProps {
-  initialSubTab?: "accounts" | "permissions" | "audit";
+  initialSubTab?: 'accounts' | 'permissions' | 'audit';
 }
 
-export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccountsPageProps) {
-  const [subTab, setSubTab] = useState<"accounts" | "permissions" | "audit">(initialSubTab);
+export function SystemAccountsPage({ initialSubTab = 'accounts' }: SystemAccountsPageProps) {
+  const [subTab, setSubTab] = useState<'accounts' | 'permissions' | 'audit'>(initialSubTab);
 
   useEffect(() => {
     setSubTab(initialSubTab);
@@ -303,32 +303,32 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
   // Current logged-in user selector (Default: 남민서 MASTER)
   const [currentLoggedInAdminId, setCurrentLoggedInAdminId] = useState<number>(1);
   const currentAdmin = accounts.find((a) => a.id === currentLoggedInAdminId) || accounts[0];
-  const isMaster = currentAdmin.role === "MASTER";
+  const isMaster = currentAdmin.role === 'MASTER';
 
   // Filter & Search (For MASTER view)
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"ALL" | AdminRole>("ALL");
-  const [teamFilter, setTeamFilter] = useState<"ALL" | AdminTeamName>("ALL");
-  const [trackFilter, setTrackFilter] = useState<"ALL" | AdminTrack>("ALL");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | AdminRole>('ALL');
+  const [teamFilter, setTeamFilter] = useState<'ALL' | AdminTeamName>('ALL');
+  const [trackFilter, setTrackFilter] = useState<'ALL' | AdminTrack>('ALL');
 
   // Create Modal State (POST /api/v1/admin/accounts) - MASTER 전용
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newUsername, setNewUsername] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newRole, setNewRole] = useState<AdminRole>("TEAM");
-  const [newName, setNewName] = useState("");
-  const [newTrack, setNewTrack] = useState<AdminTrack>("ANALYSIS");
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState<AdminRole>('TEAM');
+  const [newName, setNewName] = useState('');
+  const [newTrack, setNewTrack] = useState<AdminTrack>('ANALYSIS');
   const [newTerm, setNewTerm] = useState<number>(28);
-  const [newTeamName, setNewTeamName] = useState<AdminTeamName>("서비스운영팀");
+  const [newTeamName, setNewTeamName] = useState<AdminTeamName>('서비스운영팀');
   const [showPwText, setShowPwText] = useState(false);
 
   // Edit Modal State (PATCH /api/v1/admin/accounts/{id})
   const [editingAccount, setEditingAccount] = useState<AdminAccountDto | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editRole, setEditRole] = useState<AdminRole>("TEAM");
-  const [editTrack, setEditTrack] = useState<AdminTrack>("ANALYSIS");
+  const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState<AdminRole>('TEAM');
+  const [editTrack, setEditTrack] = useState<AdminTrack>('ANALYSIS');
   const [editTerm, setEditTerm] = useState<number>(28);
-  const [editTeamName, setEditTeamName] = useState<AdminTeamName>("서비스운영팀");
+  const [editTeamName, setEditTeamName] = useState<AdminTeamName>('서비스운영팀');
 
   // Password Modal (PATCH /api/v1/admin/accounts/{id}/password)
   const [pwTargetAccount, setPwTargetAccount] = useState<{
@@ -337,9 +337,9 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
     name: string;
     isSelf: boolean;
   } | null>(null);
-  const [currentPasswordInput, setCurrentPasswordInput] = useState("");
-  const [newPasswordInput, setNewPasswordInput] = useState("");
-  const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
 
   // Password Policy Regex: 8자 이상 + 영문 + 숫자 + 특수문자(!@#$%^&*)
   function validatePassword(pw: string): boolean {
@@ -348,7 +348,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
   }
 
   function generateRandomPassword() {
-    const gen = "Boaz!" + Math.floor(1000 + Math.random() * 9000);
+    const gen = 'Boaz!' + Math.floor(1000 + Math.random() * 9000);
     setNewPassword(gen);
     setNewPasswordInput(gen);
     setConfirmPasswordInput(gen);
@@ -358,13 +358,13 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
   const filteredAccounts = useMemo(() => {
     return accounts
       .filter((acc) => {
-        if (roleFilter !== "ALL" && acc.role !== roleFilter) {
+        if (roleFilter !== 'ALL' && acc.role !== roleFilter) {
           return false;
         }
-        if (teamFilter !== "ALL" && acc.team_name !== teamFilter) {
+        if (teamFilter !== 'ALL' && acc.team_name !== teamFilter) {
           return false;
         }
-        if (trackFilter !== "ALL" && acc.track !== trackFilter) {
+        if (trackFilter !== 'ALL' && acc.track !== trackFilter) {
           return false;
         }
         if (searchQuery.trim()) {
@@ -383,9 +383,9 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
   // Statistics
   const stats = useMemo(() => {
     const total = accounts.length;
-    const masterCount = accounts.filter((a) => a.role === "MASTER").length;
-    const superCount = accounts.filter((a) => a.role === "SUPER").length;
-    const teamCount = accounts.filter((a) => a.role === "TEAM").length;
+    const masterCount = accounts.filter((a) => a.role === 'MASTER').length;
+    const superCount = accounts.filter((a) => a.role === 'SUPER').length;
+    const teamCount = accounts.filter((a) => a.role === 'TEAM').length;
     return { total, masterCount, superCount, teamCount };
   }, [accounts]);
 
@@ -393,29 +393,29 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
   function handleCreateAccount(e: React.FormEvent) {
     e.preventDefault();
     if (!isMaster) {
-      alert("UNAUTHORIZED: 운영진 계정 생성은 MASTER(서비스운영팀장) 권한 전용입니다.");
+      alert('UNAUTHORIZED: 운영진 계정 생성은 MASTER(서비스운영팀장) 권한 전용입니다.');
       return;
     }
     if (!newUsername.trim()) {
-      alert("아이디(username)를 입력해 주세요.");
+      alert('아이디(username)를 입력해 주세요.');
       return;
     }
     if (accounts.some((a) => a.username === newUsername.trim())) {
-      alert("DUPLICATE_USERNAME: 이미 존재하는 관리자 아이디입니다.");
+      alert('DUPLICATE_USERNAME: 이미 존재하는 관리자 아이디입니다.');
       return;
     }
     if (!validatePassword(newPassword)) {
       alert(
-        "비밀번호 정책 위반: 8자 이상 + 영문, 숫자, 특수문자(!@#$%^&*)를 각 1개 이상 포함해야 합니다."
+        '비밀번호 정책 위반: 8자 이상 + 영문, 숫자, 특수문자(!@#$%^&*)를 각 1개 이상 포함해야 합니다.',
       );
       return;
     }
     if (!newName.trim()) {
-      alert("이름을 입력해 주세요.");
+      alert('이름을 입력해 주세요.');
       return;
     }
     if (newTerm < 0) {
-      alert("기수는 0 이상이어야 합니다.");
+      alert('기수는 0 이상이어야 합니다.');
       return;
     }
 
@@ -440,17 +440,17 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
         timestamp: new Date().toLocaleString(),
         actor: `${currentAdmin.name} (${currentAdmin.role})`,
         target: `${newAcc.name} (${newAcc.username})`,
-        actionType: "ACCOUNT_CREATE",
+        actionType: 'ACCOUNT_CREATE',
         description: `신규 운영진 계정 발급 (역할: ${newRole}, 부서: ${newTeamName})`,
-        ipAddress: "121.134.82.11",
+        ipAddress: '121.134.82.11',
       },
       ...prev,
     ]);
 
     setShowCreateModal(false);
-    setNewUsername("");
-    setNewPassword("");
-    setNewName("");
+    setNewUsername('');
+    setNewPassword('');
+    setNewName('');
     alert(`새 운영진 계정이 생성되었습니다.`);
   }
 
@@ -460,13 +460,13 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
       return;
     }
     if (!editName.trim()) {
-      alert("이름을 입력해 주세요.");
+      alert('이름을 입력해 주세요.');
       return;
     }
 
     // CANNOT_MODIFY_OWN_ROLE guard
     if (editingAccount.id === currentLoggedInAdminId && editRole !== editingAccount.role) {
-      alert("CANNOT_MODIFY_OWN_ROLE: 본인의 관리자 역할은 스스로 변경할 수 없습니다.");
+      alert('CANNOT_MODIFY_OWN_ROLE: 본인의 관리자 역할은 스스로 변경할 수 없습니다.');
       return;
     }
 
@@ -482,8 +482,8 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
               team_name: editTeamName,
               updated_at: new Date().toISOString().slice(0, 19),
             }
-          : a
-      )
+          : a,
+      ),
     );
 
     setAuditLogs((prev) => [
@@ -492,33 +492,33 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
         timestamp: new Date().toLocaleString(),
         actor: `${currentAdmin.name} (${currentAdmin.role})`,
         target: `${editingAccount.name} (${editingAccount.username})`,
-        actionType: "ROLE_CHANGE",
+        actionType: 'ROLE_CHANGE',
         description: `계정 정보 수정 (부서: ${editTeamName}, 역할: ${editRole})`,
-        ipAddress: "121.134.82.11",
+        ipAddress: '121.134.82.11',
       },
       ...prev,
     ]);
 
     setEditingAccount(null);
     alert(
-      `계정 정보가 성공적으로 수정되었습니다.\n[PATCH /api/v1/admin/accounts/${editingAccount.id}]`
+      `계정 정보가 성공적으로 수정되었습니다.\n[PATCH /api/v1/admin/accounts/${editingAccount.id}]`,
     );
   }
 
   // 9. 계정 삭제 (DELETE /api/v1/admin/accounts/{id}) - MASTER 전용
   function handleDeleteAccount(acc: AdminAccountDto) {
-    if (acc.role === "SUPER" && stats.superCount <= 1) {
-      alert("LAST_SUPER_ACCOUNT: 시스템의 마지막 남은 SUPER 관리자 계정은 삭제할 수 없습니다.");
+    if (acc.role === 'SUPER' && stats.superCount <= 1) {
+      alert('LAST_SUPER_ACCOUNT: 시스템의 마지막 남은 SUPER 관리자 계정은 삭제할 수 없습니다.');
       return;
     }
-    if (acc.role === "MASTER" && stats.masterCount <= 1) {
-      alert("시스템의 유일한 MASTER(서비스운영팀장) 계정은 삭제할 수 없습니다.");
+    if (acc.role === 'MASTER' && stats.masterCount <= 1) {
+      alert('시스템의 유일한 MASTER(서비스운영팀장) 계정은 삭제할 수 없습니다.');
       return;
     }
 
     if (
       confirm(
-        `정말 운영진 계정 '${acc.username} (${acc.name})'을(를) 삭제하시겠습니까?\n(DELETE /api/v1/admin/accounts/${acc.id})`
+        `정말 운영진 계정 '${acc.username} (${acc.name})'을(를) 삭제하시겠습니까?\n(DELETE /api/v1/admin/accounts/${acc.id})`,
       )
     ) {
       setAccounts((prev) => prev.filter((a) => a.id !== acc.id));
@@ -528,13 +528,13 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
           timestamp: new Date().toLocaleString(),
           actor: `${currentAdmin.name} (${currentAdmin.role})`,
           target: `${acc.name} (${acc.username})`,
-          actionType: "ACCOUNT_DELETE",
-          description: "운영진 계정 Soft Delete 및 RefreshToken 무효화",
-          ipAddress: "121.134.82.11",
+          actionType: 'ACCOUNT_DELETE',
+          description: '운영진 계정 Soft Delete 및 RefreshToken 무효화',
+          ipAddress: '121.134.82.11',
         },
         ...prev,
       ]);
-      alert("계정이 삭제되었습니다. (Soft Delete & RefreshToken 무효화 처리)");
+      alert('계정이 삭제되었습니다. (Soft Delete & RefreshToken 무효화 처리)');
     }
   }
 
@@ -544,17 +544,17 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
       return;
     }
     if (pwTargetAccount.isSelf && !currentPasswordInput) {
-      alert("본인 비밀번호 변경 시 현재 비밀번호(current_password)를 입력해야 합니다.");
+      alert('본인 비밀번호 변경 시 현재 비밀번호(current_password)를 입력해야 합니다.');
       return;
     }
     if (!validatePassword(newPasswordInput)) {
       alert(
-        "새 비밀번호 정책 위반: 8자 이상 + 영문, 숫자, 특수문자(!@#$%^&*)를 각 1개 이상 포함해야 합니다."
+        '새 비밀번호 정책 위반: 8자 이상 + 영문, 숫자, 특수문자(!@#$%^&*)를 각 1개 이상 포함해야 합니다.',
       );
       return;
     }
     if (newPasswordInput !== confirmPasswordInput) {
-      alert("새 비밀번호와 확인 입력이 일치하지 않습니다.");
+      alert('새 비밀번호와 확인 입력이 일치하지 않습니다.');
       return;
     }
 
@@ -564,17 +564,17 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
         timestamp: new Date().toLocaleString(),
         actor: `${currentAdmin.name} (${currentAdmin.role})`,
         target: `${pwTargetAccount.name} (${pwTargetAccount.username})`,
-        actionType: "PASSWORD_RESET",
+        actionType: 'PASSWORD_RESET',
         description: pwTargetAccount.isSelf
-          ? "본인 비밀번호 변경"
-          : "MASTER 권한으로 비밀번호 강제 초기화",
-        ipAddress: "121.134.82.11",
+          ? '본인 비밀번호 변경'
+          : 'MASTER 권한으로 비밀번호 강제 초기화',
+        ipAddress: '121.134.82.11',
       },
       ...prev,
     ]);
 
     alert(
-      `✅ [PATCH /api/v1/admin/accounts/${pwTargetAccount.id}/password]\n비밀번호가 성공적으로 변경되었습니다.\n해당 계정의 Refresh Token이 무효화되어 재로그인이 요구됩니다.`
+      `✅ [PATCH /api/v1/admin/accounts/${pwTargetAccount.id}/password]\n비밀번호가 성공적으로 변경되었습니다.\n해당 계정의 Refresh Token이 무효화되어 재로그인이 요구됩니다.`,
     );
     setPwTargetAccount(null);
   }
@@ -589,18 +589,18 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
         <div className="flex items-center gap-6">
           {[
             {
-              id: "accounts",
-              label: isMaster ? "운영진 계정 관리 (MASTER 전용)" : "내 계정 정보 및 보안",
+              id: 'accounts',
+              label: isMaster ? '운영진 계정 관리 (MASTER 전용)' : '내 계정 정보 및 보안',
               icon: UserCog,
               count: isMaster ? accounts.length : 1,
             },
             {
-              id: "permissions",
-              label: "권한 매트릭스 (10대 Permission)",
+              id: 'permissions',
+              label: '권한 매트릭스 (10대 Permission)',
               icon: ShieldCheck,
-              count: "Matrix",
+              count: 'Matrix',
             },
-            { id: "audit", label: "보안 감사 로그", icon: KeyRound, count: auditLogs.length },
+            { id: 'audit', label: '보안 감사 로그', icon: KeyRound, count: auditLogs.length },
           ].map((tab) => {
             const isActive = subTab === tab.id;
             const Icon = tab.icon;
@@ -609,9 +609,9 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                 key={tab.id}
                 onClick={() => setSubTab(tab.id as any)}
                 className="text-xs font-bold pb-1 relative transition-colors flex items-center gap-1.5 cursor-pointer"
-                style={{ color: isActive ? "#0f172a" : "#64748b" }}
+                style={{ color: isActive ? '#0f172a' : '#64748b' }}
               >
-                <Icon size={14} style={{ color: isActive ? "#c084fc" : "currentColor" }} />
+                <Icon size={14} style={{ color: isActive ? '#c084fc' : 'currentColor' }} />
                 <span>{tab.label}</span>
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-slate-100 text-muted-foreground">
                   {tab.count}
@@ -642,7 +642,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
       </div>
 
       {/* ─── TAB 1: 운영진 계정 관리 (MASTER vs 일반 운영진 뷰 분기) ─── */}
-      {subTab === "accounts" && (
+      {subTab === 'accounts' && (
         <div className="space-y-4">
           {/* 1. MASTER 권한인 경우: 전체 운영진 계정 관리 (CRUD + 타인 비번 강제 초기화) */}
           {isMaster ? (
@@ -823,22 +823,22 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                               <span
                                 className="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono"
                                 style={
-                                  acc.role === "MASTER"
+                                  acc.role === 'MASTER'
                                     ? {
-                                        background: "rgba(236,72,153,0.15)",
-                                        color: "#f472b6",
-                                        border: "1px solid rgba(236,72,153,0.3)",
+                                        background: 'rgba(236,72,153,0.15)',
+                                        color: '#f472b6',
+                                        border: '1px solid rgba(236,72,153,0.3)',
                                       }
-                                    : acc.role === "SUPER"
+                                    : acc.role === 'SUPER'
                                       ? {
-                                          background: "rgba(168,85,247,0.15)",
-                                          color: "#c084fc",
-                                          border: "1px solid rgba(168,85,247,0.3)",
+                                          background: 'rgba(168,85,247,0.15)',
+                                          color: '#c084fc',
+                                          border: '1px solid rgba(168,85,247,0.3)',
                                         }
                                       : {
-                                          background: "rgba(91,127,255,0.12)",
-                                          color: "#8ba5ff",
-                                          border: "1px solid rgba(91,127,255,0.3)",
+                                          background: 'rgba(91,127,255,0.12)',
+                                          color: '#8ba5ff',
+                                          border: '1px solid rgba(91,127,255,0.3)',
                                         }
                                 }
                               >
@@ -850,7 +850,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                             <td className="px-4 py-3.5 font-sans text-foreground">
                               <div className="flex items-center gap-1.5">
                                 <span>{acc.team_name}</span>
-                                {acc.team_name === "운영지원팀" && (
+                                {acc.team_name === '운영지원팀' && (
                                   <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/10 text-blue-400 font-mono">
                                     출결 전담
                                   </span>
@@ -872,7 +872,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
 
                             {/* created_at */}
                             <td className="px-4 py-3.5 text-muted-foreground text-[11px]">
-                              {acc.created_at.replace("T", " ")}
+                              {acc.created_at.replace('T', ' ')}
                             </td>
 
                             {/* Actions */}
@@ -886,19 +886,19 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                                       name: acc.name,
                                       isSelf,
                                     });
-                                    setCurrentPasswordInput("");
-                                    setNewPasswordInput("");
-                                    setConfirmPasswordInput("");
+                                    setCurrentPasswordInput('');
+                                    setNewPasswordInput('');
+                                    setConfirmPasswordInput('');
                                   }}
                                   className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-100 text-[#8ba5ff] border border-slate-200 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
                                   title={
                                     isSelf
-                                      ? "본인 비밀번호 변경 (현재 비번 필수)"
-                                      : "MASTER 권한으로 비밀번호 강제 초기화"
+                                      ? '본인 비밀번호 변경 (현재 비번 필수)'
+                                      : 'MASTER 권한으로 비밀번호 강제 초기화'
                                   }
                                 >
                                   <Key size={11} />
-                                  <span>{isSelf ? "비번 변경" : "비번 초기화"}</span>
+                                  <span>{isSelf ? '비번 변경' : '비번 초기화'}</span>
                                 </button>
 
                                 <button
@@ -946,7 +946,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                     운영진 본인 계정 정보 및 보안 관리 (GET /api/v1/admin/accounts/me)
                   </p>
                   <p className="text-muted-foreground">
-                    타 운영진의 전체 계정 생성·수정·삭제는 <strong>서비스운영팀장(MASTER)</strong>{" "}
+                    타 운영진의 전체 계정 생성·수정·삭제는 <strong>서비스운영팀장(MASTER)</strong>{' '}
                     전용 권한입니다. 현재 로그인된 본인의 프로필 확인 및 비밀번호 변경을 안전하게
                     수행할 수 있습니다.
                   </p>
@@ -982,9 +982,9 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                         name: currentAdmin.name,
                         isSelf: true,
                       });
-                      setCurrentPasswordInput("");
-                      setNewPasswordInput("");
-                      setConfirmPasswordInput("");
+                      setCurrentPasswordInput('');
+                      setNewPasswordInput('');
+                      setConfirmPasswordInput('');
                     }}
                     className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 flex items-center gap-1.5 cursor-pointer shadow-md"
                   >
@@ -1005,7 +1005,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
                     <span className="text-muted-foreground text-[11px]">계정 생성일시</span>
                     <p className="text-muted-foreground text-xs">
-                      {currentAdmin.created_at.replace("T", " ")}
+                      {currentAdmin.created_at.replace('T', ' ')}
                     </p>
                   </div>
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
@@ -1020,7 +1020,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
       )}
 
       {/* ─── TAB 2: 권한 매트릭스 (10대 Permission) ─── */}
-      {subTab === "permissions" && (
+      {subTab === 'permissions' && (
         <div className="space-y-4">
           <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-1">
             <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -1028,7 +1028,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
               <span>BOAZ 2개의 축(Role & TeamName) 기반 권한 매트릭스</span>
             </h2>
             <p className="text-xs text-muted-foreground">
-              서비스마다 role과 teamName을 직접 하드코딩하지 않고, 계정이 가진{" "}
+              서비스마다 role과 teamName을 직접 하드코딩하지 않고, 계정이 가진{' '}
               <code className="text-foreground font-mono">Permission</code> 열거형으로 접근을
               통제합니다.
             </p>
@@ -1080,7 +1080,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
       )}
 
       {/* ─── TAB 3: 보안 감사 로그 ─── */}
-      {subTab === "audit" && (
+      {subTab === 'audit' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1201,7 +1201,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                 </div>
                 <div className="relative">
                   <input
-                    type={showPwText ? "text" : "password"}
+                    type={showPwText ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="8자 이상 + 영문/숫자/특수문자(!@#$%^&*)"
@@ -1460,7 +1460,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                   <Key size={16} className="text-[#8ba5ff]" />
                   <span>
                     {pwTargetAccount.isSelf
-                      ? "내 비밀번호 변경"
+                      ? '내 비밀번호 변경'
                       : `비밀번호 강제 초기화 (${pwTargetAccount.name})`}
                   </span>
                 </h3>
@@ -1481,7 +1481,7 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
               {pwTargetAccount.isSelf && (
                 <div>
                   <label className="text-muted-foreground block mb-1 font-semibold">
-                    현재 비밀번호 (current_password){" "}
+                    현재 비밀번호 (current_password){' '}
                     <span className="text-red-400 font-bold">*</span>
                   </label>
                   <input
@@ -1533,8 +1533,8 @@ export function SystemAccountsPage({ initialSubTab = "accounts" }: SystemAccount
                 <p className="font-semibold text-foreground">• 보안 안내:</p>
                 <p>
                   {pwTargetAccount.isSelf
-                    ? "본인 비밀번호 변경 시 current_password 검증을 통과해야 하며, 변경 즉시 기존 토큰이 무효화됩니다."
-                    : "MASTER 권한으로 초기화 시 current_password 없이 즉시 재설정되며 해당 계정의 Refresh Token이 삭제됩니다."}
+                    ? '본인 비밀번호 변경 시 current_password 검증을 통과해야 하며, 변경 즉시 기존 토큰이 무효화됩니다.'
+                    : 'MASTER 권한으로 초기화 시 current_password 없이 즉시 재설정되며 해당 계정의 Refresh Token이 삭제됩니다.'}
                 </p>
               </div>
             </div>

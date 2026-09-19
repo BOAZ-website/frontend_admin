@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { ArrowDown, ArrowUp, Info, Plus, Save, Trash2 } from "lucide-react";
+import { useState } from 'react';
+import { ArrowDown, ArrowUp, Info, Plus, Save, Trash2 } from 'lucide-react';
 
-export type CurriculumTrack = "ANALYSIS" | "ENGINEERING" | "VISUALIZATION";
+export type CurriculumTrack = 'ANALYSIS' | 'ENGINEERING' | 'VISUALIZATION';
 
 export interface CurriculumStep {
   id: string;
@@ -16,103 +16,103 @@ export interface CurriculumStep {
 const INITIAL_CURRICULUM: CurriculumStep[] = [
   // Analysis
   {
-    id: "c_a1",
-    track: "ANALYSIS",
+    id: 'c_a1',
+    track: 'ANALYSIS',
     stepNum: 1,
-    duration: "1 ~ 3주차",
-    title: "데이터 핸들링 & 탐색적 데이터 분석 (EDA)",
+    duration: '1 ~ 3주차',
+    title: '데이터 핸들링 & 탐색적 데이터 분석 (EDA)',
     description:
-      "Pandas, NumPy를 활용한 대규모 정형 데이터 전처리 및 통계적 가설 검정과 데이터 분포 시각화 기초를 다룹니다.",
-    topics: ["Python", "Pandas", "EDA", "통계학", "가설검정"],
+      'Pandas, NumPy를 활용한 대규모 정형 데이터 전처리 및 통계적 가설 검정과 데이터 분포 시각화 기초를 다룹니다.',
+    topics: ['Python', 'Pandas', 'EDA', '통계학', '가설검정'],
   },
   {
-    id: "c_a2",
-    track: "ANALYSIS",
+    id: 'c_a2',
+    track: 'ANALYSIS',
     stepNum: 2,
-    duration: "4 ~ 7주차",
-    title: "머신러닝 알고리즘 & 성능 최적화",
+    duration: '4 ~ 7주차',
+    title: '머신러닝 알고리즘 & 성능 최적화',
     description:
-      "지도학습/비지도학습 핵심 모델(Scikit-learn, XGBoost, LightGBM) 학습 및 하이퍼파라미터 튜닝을 통한 모델 최적화 실습을 진행합니다.",
-    topics: ["Scikit-learn", "XGBoost", "LightGBM", "교차검증", "앙상블"],
+      '지도학습/비지도학습 핵심 모델(Scikit-learn, XGBoost, LightGBM) 학습 및 하이퍼파라미터 튜닝을 통한 모델 최적화 실습을 진행합니다.',
+    topics: ['Scikit-learn', 'XGBoost', 'LightGBM', '교차검증', '앙상블'],
   },
   {
-    id: "c_a3",
-    track: "ANALYSIS",
+    id: 'c_a3',
+    track: 'ANALYSIS',
     stepNum: 3,
-    duration: "8 ~ 12주차",
-    title: "딥러닝 & 도메인 프로젝트 (NLP / CV)",
+    duration: '8 ~ 12주차',
+    title: '딥러닝 & 도메인 프로젝트 (NLP / CV)',
     description:
-      "PyTorch 기반의 신경망 모델링, HuggingFace Transformers를 활용한 자연어 처리 및 컴퓨터 비전 실무 프로젝트를 완수합니다.",
-    topics: ["PyTorch", "HuggingFace", "LLM", "CNN/RNN", "프로젝트"],
+      'PyTorch 기반의 신경망 모델링, HuggingFace Transformers를 활용한 자연어 처리 및 컴퓨터 비전 실무 프로젝트를 완수합니다.',
+    topics: ['PyTorch', 'HuggingFace', 'LLM', 'CNN/RNN', '프로젝트'],
   },
 
   // Engineering
   {
-    id: "c_e1",
-    track: "ENGINEERING",
+    id: 'c_e1',
+    track: 'ENGINEERING',
     stepNum: 1,
-    duration: "1 ~ 3주차",
-    title: "데이터베이스 설계 & SQL 최적화",
+    duration: '1 ~ 3주차',
+    title: '데이터베이스 설계 & SQL 최적화',
     description:
-      "RDBMS(PostgreSQL)와 NoSQL(MongoDB) 모델링, 인덱스 설계 및 대용량 쿼리 튜닝 기법을 실습합니다.",
-    topics: ["PostgreSQL", "MongoDB", "SQL", "인덱싱", "DB설계"],
+      'RDBMS(PostgreSQL)와 NoSQL(MongoDB) 모델링, 인덱스 설계 및 대용량 쿼리 튜닝 기법을 실습합니다.',
+    topics: ['PostgreSQL', 'MongoDB', 'SQL', '인덱싱', 'DB설계'],
   },
   {
-    id: "c_e2",
-    track: "ENGINEERING",
+    id: 'c_e2',
+    track: 'ENGINEERING',
     stepNum: 2,
-    duration: "4 ~ 7주차",
-    title: "분산 처리 & ETL 파이프라인 구축",
+    duration: '4 ~ 7주차',
+    title: '분산 처리 & ETL 파이프라인 구축',
     description:
-      "Apache Spark와 Kafka를 이용한 실시간/배치 스트리밍 데이터 파이프라인 설계 및 Airflow 워크플로우 오케스트레이션을 다룹니다.",
-    topics: ["Apache Spark", "Kafka", "Airflow", "ETL", "스트리밍"],
+      'Apache Spark와 Kafka를 이용한 실시간/배치 스트리밍 데이터 파이프라인 설계 및 Airflow 워크플로우 오케스트레이션을 다룹니다.',
+    topics: ['Apache Spark', 'Kafka', 'Airflow', 'ETL', '스트리밍'],
   },
   {
-    id: "c_e3",
-    track: "ENGINEERING",
+    id: 'c_e3',
+    track: 'ENGINEERING',
     stepNum: 3,
-    duration: "8 ~ 12주차",
-    title: "클라우드 인프라 & MLOps 아키텍처",
+    duration: '8 ~ 12주차',
+    title: '클라우드 인프라 & MLOps 아키텍처',
     description:
-      "Docker, Kubernetes, AWS 기반의 확장성 높은 데이터 플랫폼 인프라 구축 및 ML 서빙 파이프라인을 완성합니다.",
-    topics: ["Kubernetes", "Docker", "AWS", "MLOps", "CI/CD"],
+      'Docker, Kubernetes, AWS 기반의 확장성 높은 데이터 플랫폼 인프라 구축 및 ML 서빙 파이프라인을 완성합니다.',
+    topics: ['Kubernetes', 'Docker', 'AWS', 'MLOps', 'CI/CD'],
   },
 
   // Visualization
   {
-    id: "c_v1",
-    track: "VISUALIZATION",
+    id: 'c_v1',
+    track: 'VISUALIZATION',
     stepNum: 1,
-    duration: "1 ~ 3주차",
-    title: "데이터 시각화 원리 & BI 대시보드",
+    duration: '1 ~ 3주차',
+    title: '데이터 시각화 원리 & BI 대시보드',
     description:
-      "정보 디자인 원칙과 인간 인지 과정을 고려한 차트 설계, Tableau와 PowerBI를 활용한 인터랙티브 대시보드 제작을 배웁니다.",
-    topics: ["Tableau", "PowerBI", "정보시각화", "UI/UX"],
+      '정보 디자인 원칙과 인간 인지 과정을 고려한 차트 설계, Tableau와 PowerBI를 활용한 인터랙티브 대시보드 제작을 배웁니다.',
+    topics: ['Tableau', 'PowerBI', '정보시각화', 'UI/UX'],
   },
   {
-    id: "c_v2",
-    track: "VISUALIZATION",
+    id: 'c_v2',
+    track: 'VISUALIZATION',
     stepNum: 2,
-    duration: "4 ~ 7주차",
-    title: "웹 기반 인터랙티브 시각화 (D3.js & React)",
+    duration: '4 ~ 7주차',
+    title: '웹 기반 인터랙티브 시각화 (D3.js & React)',
     description:
-      "D3.js, Chart.js, React 라이브러리를 결합하여 웹 브라우저 상에서 동적으로 반응하는 커스텀 시각화 컴포넌트를 구현합니다.",
-    topics: ["D3.js", "React", "SVG/Canvas", "애니메이션"],
+      'D3.js, Chart.js, React 라이브러리를 결합하여 웹 브라우저 상에서 동적으로 반응하는 커스텀 시각화 컴포넌트를 구현합니다.',
+    topics: ['D3.js', 'React', 'SVG/Canvas', '애니메이션'],
   },
   {
-    id: "c_v3",
-    track: "VISUALIZATION",
+    id: 'c_v3',
+    track: 'VISUALIZATION',
     stepNum: 3,
-    duration: "8 ~ 12주차",
-    title: "공간 데이터 시각화 & 최종 인터랙티브 쇼케이스",
+    duration: '8 ~ 12주차',
+    title: '공간 데이터 시각화 & 최종 인터랙티브 쇼케이스',
     description:
-      "GIS 공간 정보 시각화(Mapbox, Deck.gl) 및 대규모 사용자 인터랙션을 지원하는 최종 컨퍼런스 웹 시각화 결과물을 제작합니다.",
-    topics: ["Deck.gl", "Mapbox", "GIS", "데이터저널리즘", "웹쇼케이스"],
+      'GIS 공간 정보 시각화(Mapbox, Deck.gl) 및 대규모 사용자 인터랙션을 지원하는 최종 컨퍼런스 웹 시각화 결과물을 제작합니다.',
+    topics: ['Deck.gl', 'Mapbox', 'GIS', '데이터저널리즘', '웹쇼케이스'],
   },
 ];
 
 export function CurriculumSection() {
-  const [selectedTrack, setSelectedTrack] = useState<CurriculumTrack>("ANALYSIS");
+  const [selectedTrack, setSelectedTrack] = useState<CurriculumTrack>('ANALYSIS');
   const [curriculums, setCurriculums] = useState<CurriculumStep[]>(INITIAL_CURRICULUM);
   const [, setSavedNotice] = useState(false);
 
@@ -131,15 +131,15 @@ export function CurriculumSection() {
       track: selectedTrack,
       stepNum: newStepNum,
       duration: `${(newStepNum - 1) * 4 + 1} ~ ${newStepNum * 4}주차`,
-      title: "새 커리큘럼 단계",
-      description: "해당 단계에서 학습할 주요 내용과 목표를 입력하세요.",
-      topics: ["주제1", "주제2"],
+      title: '새 커리큘럼 단계',
+      description: '해당 단계에서 학습할 주요 내용과 목표를 입력하세요.',
+      topics: ['주제1', '주제2'],
     };
     setCurriculums((prev) => [...prev, newStep]);
   }
 
   function handleDeleteStep(id: string) {
-    if (confirm("이 커리큘럼 단계를 삭제하시겠습니까?")) {
+    if (confirm('이 커리큘럼 단계를 삭제하시겠습니까?')) {
       setCurriculums((prev) => {
         const filtered = prev.filter((c) => c.id !== id);
         // re-index stepNum for current track
@@ -154,19 +154,19 @@ export function CurriculumSection() {
     }
   }
 
-  function handleMoveStep(id: string, direction: "up" | "down") {
+  function handleMoveStep(id: string, direction: 'up' | 'down') {
     const idx = currentSteps.findIndex((c) => c.id === id);
     if (idx < 0) {
       return;
     }
-    if (direction === "up" && idx === 0) {
+    if (direction === 'up' && idx === 0) {
       return;
     }
-    if (direction === "down" && idx === currentSteps.length - 1) {
+    if (direction === 'down' && idx === currentSteps.length - 1) {
       return;
     }
 
-    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
     const currentStep = currentSteps[idx];
     const targetStep = currentSteps[targetIdx];
 
@@ -179,7 +179,7 @@ export function CurriculumSection() {
           return { ...c, stepNum: currentStep.stepNum };
         }
         return c;
-      })
+      }),
     );
   }
 
@@ -197,11 +197,11 @@ export function CurriculumSection() {
       {/* ─── Top Track Selector & Save Button ─── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-          {(["ANALYSIS", "ENGINEERING", "VISUALIZATION"] as CurriculumTrack[]).map((t) => {
+          {(['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'] as CurriculumTrack[]).map((t) => {
             const labels = {
-              ANALYSIS: "데이터 분석 (Analysis)",
-              ENGINEERING: "데이터 엔지니어링 (Engineering)",
-              VISUALIZATION: "데이터 시각화 (Visualization)",
+              ANALYSIS: '데이터 분석 (Analysis)',
+              ENGINEERING: '데이터 엔지니어링 (Engineering)',
+              VISUALIZATION: '데이터 시각화 (Visualization)',
             };
             return (
               <button
@@ -211,11 +211,11 @@ export function CurriculumSection() {
                 style={
                   selectedTrack === t
                     ? {
-                        background: "#ef4444",
-                        color: "#fff",
-                        boxShadow: "0 0 10px rgba(239,68,68,0.35)",
+                        background: '#ef4444',
+                        color: '#fff',
+                        boxShadow: '0 0 10px rgba(239,68,68,0.35)',
                       }
-                    : { color: "#64748b" }
+                    : { color: '#64748b' }
                 }
               >
                 {labels[t]}
@@ -234,7 +234,7 @@ export function CurriculumSection() {
           <button
             onClick={handleSaveAll}
             className="px-5 py-2 rounded-lg text-xs font-bold text-white transition-all hover:opacity-90 active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
-            style={{ background: "#ef4444" }}
+            style={{ background: '#ef4444' }}
           >
             <Save size={13} /> 트랙 커리큘럼 일괄 저장
           </button>
@@ -270,7 +270,7 @@ export function CurriculumSection() {
                 <span className="text-xs font-bold text-foreground">Step {step.stepNum} 단계</span>
                 <input
                   value={step.duration}
-                  onChange={(e) => handleUpdateStep(step.id, "duration", e.target.value)}
+                  onChange={(e) => handleUpdateStep(step.id, 'duration', e.target.value)}
                   placeholder="예: 1~3주차"
                   className="px-2 py-0.5 text-xs rounded bg-slate-100 border border-slate-200 text-muted-foreground font-mono outline-none w-28"
                 />
@@ -278,7 +278,7 @@ export function CurriculumSection() {
 
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => handleMoveStep(step.id, "up")}
+                  onClick={() => handleMoveStep(step.id, 'up')}
                   disabled={index === 0}
                   className="p-1.5 rounded hover:bg-slate-100 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   title="위로 이동"
@@ -286,7 +286,7 @@ export function CurriculumSection() {
                   <ArrowUp size={13} />
                 </button>
                 <button
-                  onClick={() => handleMoveStep(step.id, "down")}
+                  onClick={() => handleMoveStep(step.id, 'down')}
                   disabled={index === currentSteps.length - 1}
                   className="p-1.5 rounded hover:bg-slate-100 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   title="아래로 이동"
@@ -309,7 +309,7 @@ export function CurriculumSection() {
                 <label className="text-[11px] text-muted-foreground block mb-1">단계 제목</label>
                 <input
                   value={step.title}
-                  onChange={(e) => handleUpdateStep(step.id, "title", e.target.value)}
+                  onChange={(e) => handleUpdateStep(step.id, 'title', e.target.value)}
                   className="w-full px-3 py-2 rounded-md outline-none bg-slate-100 border border-slate-200 text-foreground font-semibold text-xs"
                 />
               </div>
@@ -320,7 +320,7 @@ export function CurriculumSection() {
                 </label>
                 <textarea
                   value={step.description}
-                  onChange={(e) => handleUpdateStep(step.id, "description", e.target.value)}
+                  onChange={(e) => handleUpdateStep(step.id, 'description', e.target.value)}
                   rows={2}
                   className="w-full px-3 py-2 rounded-md outline-none bg-slate-100 border border-slate-200 text-foreground resize-none leading-relaxed text-xs"
                 />
@@ -332,13 +332,13 @@ export function CurriculumSection() {
                   다루는 기술 스택 / 토픽 키워드 (쉼표로 구분)
                 </label>
                 <input
-                  value={step.topics.join(", ")}
+                  value={step.topics.join(', ')}
                   onChange={(e) => {
                     const parsed = e.target.value
-                      .split(",")
+                      .split(',')
                       .map((s) => s.trim())
                       .filter(Boolean);
-                    handleUpdateStep(step.id, "topics", parsed);
+                    handleUpdateStep(step.id, 'topics', parsed);
                   }}
                   placeholder="예: Python, Pandas, EDA"
                   className="w-full px-3 py-1.5 rounded-md outline-none bg-slate-100 border border-slate-200 text-foreground font-mono text-[11px]"
