@@ -192,4 +192,4 @@
 | "사이트에 노출" 토글의 반영 시점 | 저장 즉시 웹사이트에 반영된다. 별도 배포·승인 단계를 두지 않는다 | [`spec/07`](../spec/07-content.md) §3.2 |
 | 아카이빙 삭제 확인 절차 | 공용 확인 모달을 적용한다. 강화 수준은 `CNT-B-5`에서 정한다 | [`spec/00`](../spec/00-platform.md) `PLT-CONFIRM` |
 
-전역·도메인 교차 사항은 [`92-open-items.md`](92-open-items.md)를 본다.
+전역·도메인 교차 사항은 [`02-open-items.md`](../02-open-items.md)를 본다.

@@ -1,11 +1,11 @@
-# 확정이 필요한 사항
+# 확정이 필요한 사항 — 도메인 교차 결정 안건
 
-| 기준 커밋 | 최종 갱신 |
-| --- | --- |
-| `d0ab04b` | 2026-09-19 |
+| 기준 커밋 | 최종 갱신 | 결정 주체 | 표기 규칙 |
+| --- | --- | --- | --- |
+| `d0ab04b` | 2026-09-19 | 항목별로 다름 (각 절 참조) | [`screens/00-common.md`](screens/00-common.md) |
 
 > 이 문서는 결함 목록이 아니라, **의도된 IA와 현재 PoC 구현 사이의 차이 중 한 도메인 안에서 결정할 수 없는 것**을 모은 것이다.
-> 한 화면 안에서 끝나는 사항은 각 도메인 문서의 「확정이 필요한 사항」에 있다. 무엇이 어떻게 다른지는 [`91-ia-gap.md`](91-ia-gap.md)를 본다.
+> 한 화면 안에서 끝나는 사항은 [`screens/`](screens/00-common.md) 각 도메인 문서의 「확정이 필요한 사항」에 있다. 무엇이 어떻게 다른지는 [`screens/07-ia-gap.md`](screens/07-ia-gap.md)를 본다.
 >
 > 각 항목은 **현재 / 결정해야 할 것 / 결정되면 바뀌는 것** 3단으로 적는다. 마지막 칸이 핵심이다.
 
@@ -29,18 +29,18 @@
 
 | 안건 | 정본 |
 | --- | --- |
-| [§1.3](#13-출결-대시보드의-위치) 출결 대시보드·리더 화면 위치 | [`spec/05-attendance.md`](../spec/05-attendance.md) §2 |
-| [§2.1](#21-결과-처리-3단계) 결과 처리 3단계 배치·순서 강제 | [`spec/04-evaluation.md`](../spec/04-evaluation.md) §4.4 |
-| [§2.2](#22-사전-알림-명단의-기능-범위) 사전 알림 범위 | [`spec/03-recruiting.md`](../spec/03-recruiting.md) §4.5 |
-| [§2.3](#23-adv-입력-화면) ADV 입력 화면 분리 | [`spec/05-attendance.md`](../spec/05-attendance.md) §4.4 · §4.7 |
-| [§2.4](#24-host-계정-관리의-위치) HOST 계정 관리 위치 | [`spec/05-attendance.md`](../spec/05-attendance.md) §4.10 |
-| [§2.5](#25-활동주차팀-편성) 활동·주차·팀 편성 | [`spec/05-attendance.md`](../spec/05-attendance.md) §4.1 · §4.10 · §4.11 |
-| [§2.6](#26-인증-방식과-확인-절차) 인증 방식 (사진 확정) | [`spec/05-attendance.md`](../spec/05-attendance.md) §6.1 |
-| [§2.7](#27-점수-규칙과-점수-집계의-연결) 점수 규칙 연결 (방향만) | [`spec/05-attendance.md`](../spec/05-attendance.md) §4.11 |
-| [§3.1](#31-역할-기반-접근-제어) 역할 모델·접근 제어 | [`spec/06-system.md`](../spec/06-system.md) §3 |
-| [§3.2](#32-출결-상태-값-체계) 출결 상태 값 체계 | [`spec/05-attendance.md`](../spec/05-attendance.md) §3.2 |
-| [§3.3](#33-되돌릴-수-없는-작업의-확인-절차) 파괴적 작업 확인 절차 | [`spec/00-platform.md`](../spec/00-platform.md) PLT-CONFIRM |
-| [§3.4](#34-감사-로그의-기록-범위) 감사 로그 (구현 확정) | [`spec/06-system.md`](../spec/06-system.md) §4.3 |
+| [§1.3](#13-출결-대시보드의-위치) 출결 대시보드·리더 화면 위치 | [`spec/05-attendance.md`](spec/05-attendance.md) §2 |
+| [§2.1](#21-결과-처리-3단계) 결과 처리 3단계 배치·순서 강제 | [`spec/04-evaluation.md`](spec/04-evaluation.md) §4.4 |
+| [§2.2](#22-사전-알림-명단의-기능-범위) 사전 알림 범위 | [`spec/03-recruiting.md`](spec/03-recruiting.md) §4.5 |
+| [§2.3](#23-adv-입력-화면) ADV 입력 화면 분리 | [`spec/05-attendance.md`](spec/05-attendance.md) §4.4 · §4.7 |
+| [§2.4](#24-host-계정-관리의-위치) HOST 계정 관리 위치 | [`spec/05-attendance.md`](spec/05-attendance.md) §4.10 |
+| [§2.5](#25-활동주차팀-편성) 활동·주차·팀 편성 | [`spec/05-attendance.md`](spec/05-attendance.md) §4.1 · §4.10 · §4.11 |
+| [§2.6](#26-인증-방식과-확인-절차) 인증 방식 (사진 확정) | [`spec/05-attendance.md`](spec/05-attendance.md) §6.1 |
+| [§2.7](#27-점수-규칙과-점수-집계의-연결) 점수 규칙 연결 (방향만) | [`spec/05-attendance.md`](spec/05-attendance.md) §4.11 |
+| [§3.1](#31-역할-기반-접근-제어) 역할 모델·접근 제어 | [`spec/06-system.md`](spec/06-system.md) §3 |
+| [§3.2](#32-출결-상태-값-체계) 출결 상태 값 체계 | [`spec/05-attendance.md`](spec/05-attendance.md) §3.2 |
+| [§3.3](#33-되돌릴-수-없는-작업의-확인-절차) 파괴적 작업 확인 절차 | [`spec/00-platform.md`](spec/00-platform.md) PLT-CONFIRM |
+| [§3.4](#34-감사-로그의-기록-범위) 감사 로그 (구현 확정) | [`spec/06-system.md`](spec/06-system.md) §4.3 |
 
 ---
 
@@ -68,7 +68,7 @@
 
 ### 1.3 출결 대시보드의 위치
 
-> **결정 완료.** 정본은 [`spec/05-attendance.md`](../spec/05-attendance.md) §2.
+> **결정 완료.** 정본은 [`spec/05-attendance.md`](spec/05-attendance.md) §2.
 
 | | |
 | --- | --- |
@@ -85,7 +85,7 @@
 | | |
 | --- | --- |
 | **현재** | 설계는 `CSV 추출 → 합격자 승격 → 지원서 전체 삭제`를 **한 화면에 순서대로** 두어 실행 순서를 강제하도록 했고, 설계 원칙에 "순서가 어긋나면 복구 불가"로 명시되어 있다. 현재는 CSV 추출이 리크루팅 영역으로 분리됐고, 승격만 서류 평가에 남았으며, **지원서 전체 삭제는 구현되어 있지 않다.** |
-| **결정됨 — 배치** | **분리된 구조를 유지한다.** CSV 추출은 리크루팅에 `REC-CSV`로 남기고, 승격은 `EVL-PROM`, 지원서 전체 삭제는 `EVL-DEL` 신규 화면으로 둔다. 정본은 [`spec/04-evaluation.md`](../spec/04-evaluation.md) §4.4 |
+| **결정됨 — 배치** | **분리된 구조를 유지한다.** CSV 추출은 리크루팅에 `REC-CSV`로 남기고, 승격은 `EVL-PROM`, 지원서 전체 삭제는 `EVL-DEL` 신규 화면으로 둔다. 정본은 [`spec/04-evaluation.md`](spec/04-evaluation.md) §4.4 |
 | **결정됨 — 순서 강제** | 한 화면으로 묶는 대신 **조건 게이팅으로 대체한다.** `DEL-01`이 모집 비활성 · 승격 완료 두 조건과 CSV 추출 완료 여부를 표시하고, 미충족 시 실행 버튼을 비활성화하며 사유를 노출한다. 모집 진행 중이면 서버가 차단한다 |
 | **남은 결정** | 진입 자체를 막을지(승격 미완료 시 화면 진입 차단) 여부. `EVL-B-6`으로 이관되어 디자인 단계에서 정한다 |
 | **결정 주체** | 대표진 + 서비스운영팀 (배치·강제 방식 확정 완료) |
@@ -96,7 +96,7 @@
 
 ### 2.2 사전 알림 명단의 기능 범위
 
-> **결정 완료.** 정본은 [`spec/03-recruiting.md`](../spec/03-recruiting.md) §4.5다. 이 절은 다른 문서가 가리키는 링크를 살리기 위해 결론만 남긴다.
+> **결정 완료.** 정본은 [`spec/03-recruiting.md`](spec/03-recruiting.md) §4.5다. 이 절은 다른 문서가 가리키는 링크를 살리기 위해 결론만 남긴다.
 
 | | |
 | --- | --- |
@@ -104,11 +104,11 @@
 | **발송 방식** | 카카오/SMS 연동을 하지 않는다. 담당자가 문구를 복사해 외부 메신저로 직접 발송하며, 시스템은 발송 상태를 기록하지 않는다. 발송 이력이 필요하면 시스템 밖에서 관리한다 |
 | **개별 삭제** | 유지한다. `PRE_NOTIFICATION_DELETE`가 개별·전체 삭제를 모두 덮으며, 삭제는 PLT-CONFIRM 확인 모달을 거친다 |
 | **메시지 양식** | localStorage에서 **서버 저장으로 이전**한다 (`ALM-03`) |
-| **남은 작업** | [`01-wbs.md`](../01-wbs.md) `REC-ALM` 티켓. `REC-API-3`(발송 상태 갱신 경로)은 이 결정으로 해소됨 |
+| **남은 작업** | [`01-wbs.md`](01-wbs.md) `REC-ALM` 티켓. `REC-API-3`(발송 상태 갱신 경로)은 이 결정으로 해소됨 |
 
 ### 2.3 ADV 입력 화면
 
-> **결정 완료.** 정본은 [`spec/05-attendance.md`](../spec/05-attendance.md) §4.4 · §4.7.
+> **결정 완료.** 정본은 [`spec/05-attendance.md`](spec/05-attendance.md) §4.4 · §4.7.
 
 | | |
 | --- | --- |
@@ -118,7 +118,7 @@
 
 ### 2.4 HOST 계정 관리의 위치
 
-> **결정 완료.** 정본은 [`spec/05-attendance.md`](../spec/05-attendance.md) §4.10.
+> **결정 완료.** 정본은 [`spec/05-attendance.md`](spec/05-attendance.md) §4.10.
 
 | | |
 | --- | --- |
@@ -129,7 +129,7 @@
 
 ### 2.5 활동·주차·팀 편성
 
-> **결정 완료.** 정본은 [`spec/05-attendance.md`](../spec/05-attendance.md) §3.4 · §4.1 · §4.10 · §4.11.
+> **결정 완료.** 정본은 [`spec/05-attendance.md`](spec/05-attendance.md) §3.4 · §4.1 · §4.10 · §4.11.
 
 | | |
 | --- | --- |
@@ -140,7 +140,7 @@
 
 ### 2.6 인증 방식과 확인 절차
 
-> **결정 완료.** 정본은 [`spec/05-attendance.md`](../spec/05-attendance.md) §6.1 · §9 ATT-A-4.
+> **결정 완료.** 정본은 [`spec/05-attendance.md`](spec/05-attendance.md) §6.1 · §9 ATT-A-4.
 
 | | |
 | --- | --- |
@@ -149,11 +149,11 @@
 | **결정 — 반영 시점** | **컨펌 시점에 출결이 기록에 반영**된다. 제출만으로는 반영되지 않는다 |
 | **결정 — 통보** | 시스템 알림을 보내지 않는다. 화면 상태 표시(`LDR-04`)로만 알리고 통보는 운영지원팀이 직접 한다 |
 | **남은 것** | 사진 저장 위치·용량 제한은 `ATT-CORE` 스키마 작업에서 정한다 |
-| **함께 처리** | [`91-ia-gap.md`](91-ia-gap.md) §3 출결 인증 방식 행과 §4 #4를 사진 확정으로 갱신했다 |
+| **함께 처리** | [`screens/07-ia-gap.md`](screens/07-ia-gap.md) §3 출결 인증 방식 행과 §4 #4를 사진 확정으로 갱신했다 |
 
 ### 2.7 점수 규칙과 점수 집계의 연결
 
-> **방향 확정, 구현 범위는 백엔드 검토 중.** 정본은 [`spec/05-attendance.md`](../spec/05-attendance.md) §4.11.
+> **방향 확정, 구현 범위는 백엔드 검토 중.** 정본은 [`spec/05-attendance.md`](spec/05-attendance.md) §4.11.
 
 | | |
 | --- | --- |
@@ -178,7 +178,7 @@
 
 ### 3.1 역할 기반 접근 제어
 
-> **결정 완료.** 정본은 [`spec/06-system.md`](../spec/06-system.md) §3.
+> **결정 완료.** 정본은 [`spec/06-system.md`](spec/06-system.md) §3.
 
 | | |
 | --- | --- |
@@ -188,11 +188,11 @@
 | **결정 — 메뉴 처리** | **숨긴다.** 권한 없는 메뉴는 미노출이고, 경로 직접 진입은 가드 + 403 화면으로 막는다. 실제 차단은 백엔드 `@PreAuthorize` 2층이 한다 |
 | **결정 — 라우터** | 도입한다. 경로 가드가 성립해야 2중 구조가 완성된다 (`PLT-ROUTER`) |
 | **함께 처리 (유지)** | 최종 평가 버튼을 `FINAL_DECISION_WRITE` 보유자로 제한 · HOST의 관리자 API 경로 차단 · PoC용 역할 전환 장치 제거 |
-| **남은 것** | 구현은 [`spec/06-system.md`](../spec/06-system.md) §7의 권한 재설계 0~5단계. `spec/02-role-model.md` §3의 `UserRole`/`AdminRole` 타입 일원화는 프론트 작업으로 남는다 |
+| **남은 것** | 구현은 [`spec/06-system.md`](spec/06-system.md) §7의 권한 재설계 0~5단계. `spec/02-role-model.md` §3의 `UserRole`/`AdminRole` 타입 일원화는 프론트 작업으로 남는다 |
 
 ### 3.2 출결 상태 값 체계
 
-> **결정 완료.** 정본은 [`spec/05-attendance.md`](../spec/05-attendance.md) §3.2.
+> **결정 완료.** 정본은 [`spec/05-attendance.md`](spec/05-attendance.md) §3.2.
 
 | | |
 | --- | --- |
@@ -204,7 +204,7 @@
 
 ### 3.3 되돌릴 수 없는 작업의 확인 절차
 
-> **결정 완료.** 정본은 [`spec/00-platform.md`](../spec/00-platform.md) PLT-CONFIRM.
+> **결정 완료.** 정본은 [`spec/00-platform.md`](spec/00-platform.md) PLT-CONFIRM.
 
 | | |
 | --- | --- |
@@ -217,17 +217,17 @@
 
 | 작업 | 결과 |
 | --- | --- |
-| 최종 합불 확정 | 확정 시 `HOLD`·`PENDING` **0건 검증**을 거친다 → [`spec/04-evaluation.md`](../spec/04-evaluation.md) §4.1 |
-| 선택 인원 일괄 발송 완료 | **작업 자체가 사라진다.** 사전 알림에 발송 상태를 기록하지 않기로 해 토글과 컬럼이 제거된다 → [`spec/03-recruiting.md`](../spec/03-recruiting.md) §4.5 |
-| 부원 불러오기 | **작업 자체가 사라진다.** 행사 대상은 명단(SOT)의 참여 상태로 산정하므로 행사별 명단 업로드를 두지 않는다 → [`spec/05-attendance.md`](../spec/05-attendance.md) §4.5 |
+| 최종 합불 확정 | 확정 시 `HOLD`·`PENDING` **0건 검증**을 거친다 → [`spec/04-evaluation.md`](spec/04-evaluation.md) §4.1 |
+| 선택 인원 일괄 발송 완료 | **작업 자체가 사라진다.** 사전 알림에 발송 상태를 기록하지 않기로 해 토글과 컬럼이 제거된다 → [`spec/03-recruiting.md`](spec/03-recruiting.md) §4.5 |
+| 부원 불러오기 | **작업 자체가 사라진다.** 행사 대상은 명단(SOT)의 참여 상태로 산정하므로 행사별 명단 업로드를 두지 않는다 → [`spec/05-attendance.md`](spec/05-attendance.md) §4.5 |
 
-**취소 경로가 없는** 정회원 승격은 취소 기능을 두지 않고 확인 모달로 대체한다. 오승격이 실제로 발생하면 백엔드에서 직접 처리하며, 실행 기록은 감사 로그(§3.4) 대상이다 → [`spec/04-evaluation.md`](../spec/04-evaluation.md) §4.3
+**취소 경로가 없는** 정회원 승격은 취소 기능을 두지 않고 확인 모달로 대체한다. 오승격이 실제로 발생하면 백엔드에서 직접 처리하며, 실행 기록은 감사 로그(§3.4) 대상이다 → [`spec/04-evaluation.md`](spec/04-evaluation.md) §4.3
 
 **필터가 적용된 상태에서 전체 선택 시 화면에 보이지 않는 대상까지 선택되는** 문제는 사전 알림 `ALM-05`가 "필터 적용 시 전체 선택 범위는 필터 결과로 한정"으로 정리했다.
 
 ### 3.4 감사 로그의 기록 범위
 
-> **구현 확정, 세부 스펙은 착수 시 확정.** 정본은 [`spec/06-system.md`](../spec/06-system.md) §4.3.
+> **구현 확정, 세부 스펙은 착수 시 확정.** 정본은 [`spec/06-system.md`](spec/06-system.md) §4.3.
 
 | | |
 | --- | --- |
@@ -244,9 +244,9 @@
 
 | localStorage 키 | 결정 | 정본 |
 | --- | --- | --- |
-| `boaz_score_rules` 점수 규칙 | **서버 저장.** Term 단위로 보관해 지난 Term 집계를 보존한다 (`RULE-05`) | [`spec/05-attendance.md`](../spec/05-attendance.md) §4.11 |
-| `boaz_custom_notify_template` 사전 알림 문구 양식 | **서버 저장으로 이전** (`ALM-03`) | [`spec/03-recruiting.md`](../spec/03-recruiting.md) §4.5 |
-| `boaz_delivery_template` 스터디장 안내문 양식 | **미결** — 계정 발급 시 초기 비밀번호 전달 경로가 안내문 템플릿 방식인지가 먼저 정해져야 한다 (`SYS-B-3`) | [`spec/06-system.md`](../spec/06-system.md) §6 |
+| `boaz_score_rules` 점수 규칙 | **서버 저장.** Term 단위로 보관해 지난 Term 집계를 보존한다 (`RULE-05`) | [`spec/05-attendance.md`](spec/05-attendance.md) §4.11 |
+| `boaz_custom_notify_template` 사전 알림 문구 양식 | **서버 저장으로 이전** (`ALM-03`) | [`spec/03-recruiting.md`](spec/03-recruiting.md) §4.5 |
+| `boaz_delivery_template` 스터디장 안내문 양식 | **미결** — 계정 발급 시 초기 비밀번호 전달 경로가 안내문 템플릿 방식인지가 먼저 정해져야 한다 (`SYS-B-3`) | [`spec/06-system.md`](spec/06-system.md) §6 |
 
 | | |
 | --- | --- |

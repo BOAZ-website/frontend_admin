@@ -1,8 +1,8 @@
-# 화면 인벤토리
+# 화면 인벤토리 — 메뉴 ↔ 컴포넌트 대응표
 
-| 기준 커밋 | 최종 갱신 |
-| --- | --- |
-| `d0ab04b` | 2026-08-29 |
+| 기준 커밋 | 최종 갱신 | 운영 주체 | 표기 규칙 |
+| --- | --- | --- | --- |
+| `d0ab04b` | 2026-08-29 | 프론트 · QA | [`00-common.md`](00-common.md) |
 
 > 사이드바 5허브 / 11그룹 / 24개 메뉴 항목과 `ActivePage` 31개 키의 대응표다.
 > 개발·QA용 부록이며, 기능 설명은 각 도메인 문서를 본다. 표기 규칙은 [`00-common.md`](00-common.md).
@@ -56,7 +56,7 @@
 
 앞의 4개(`content`·`recruiting`·`evaluation`·`system`)는 허브 대표키로, 사이드바에서 허브를 누르면 즉시 첫 하위 메뉴로 치환되므로 의도된 동작이다.
 
-`att-dashboard`와 `att-input`은 IA상 진입 경로 확정이 필요하다. `att-internal`은 대응 컴포넌트(`attendance-internal-legacy/ui/InternalAttendanceManagePage.tsx`)가 어디에서도 참조되지 않는 잔여 코드다. 현재 BASE·ADV·스터디 화면은 이 레거시 컴포넌트가 아니라 `attendance-internal-category/ui/InternalCategoryAttendancePage.tsx`가 담당한다. → [`92-open-items.md`](92-open-items.md)
+`att-dashboard`와 `att-input`은 IA상 진입 경로 확정이 필요하다. `att-internal`은 대응 컴포넌트(`attendance-internal-legacy/ui/InternalAttendanceManagePage.tsx`)가 어디에서도 참조되지 않는 잔여 코드다. 현재 BASE·ADV·스터디 화면은 이 레거시 컴포넌트가 아니라 `attendance-internal-category/ui/InternalCategoryAttendancePage.tsx`가 담당한다. → [`02-open-items.md`](../02-open-items.md)
 
 ---
 
@@ -121,4 +121,4 @@
 | 행사 출결 화면 (`attendance-events`) | 출석 · 지각 · 조퇴 · 결석 · 인정결석 · 무단지각 · 무단결석 · 미체크 | 8 |
 | 점수 규칙 화면 | 지각 · 무단지각 3회 · 조퇴 · 사유결석 · 무단결석 (감점 체계) | 5 |
 
-점수 규칙은 감점 체계, 출결 입력·집계는 가점 체계라 두 체계가 서로 대응되지 않는다. → [`92-open-items.md`](92-open-items.md)
+점수 규칙은 감점 체계, 출결 입력·집계는 가점 체계라 두 체계가 서로 대응되지 않는다. → [`02-open-items.md`](../02-open-items.md)

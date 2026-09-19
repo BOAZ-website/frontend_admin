@@ -332,4 +332,4 @@
 | 출결 대시보드 메뉴 노출 | **대시보드를 두지 않는다.** 종합 조회는 `ATT-VIEW`, 집계는 `ATT-SUM`이 맡고 `ATT-LDR`은 정식 화면으로 올린다 | [`spec/05`](../spec/05-attendance.md) §2 |
 | BASE 병행 인원 자동 포함 기준 | **자동 포함.** 참여 상태 개념 없이 해당 부문 병행 지정자를 포함하고 감점은 동일하다 | [`spec/05`](../spec/05-attendance.md) §4.3 |
 
-전역·도메인 교차 사항은 [`92-open-items.md`](92-open-items.md)를 본다.
+전역·도메인 교차 사항은 [`02-open-items.md`](../02-open-items.md)를 본다.

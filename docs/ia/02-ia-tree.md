@@ -3,8 +3,8 @@
 > **문서 상태** · 2026-08-29
 > 이 문서는 **의도된 설계(당위)**이며 현재 구현과 다른 부분이 있다. 현황이 아니다.
 > **§2 권한 매트릭스는 [`spec/01-attendance-system.md`](../spec/01-attendance-system.md) §2로 대체되었다.** 그 문서가 스스로를 "권한 체계 (선행 개편)"이라 밝힌 더 최신 문서다. 역할 정본은 [`spec/02-role-model.md`](../spec/02-role-model.md)를 본다.
-> **§6의 미결 5항목 중 #3(출결 상태 enum)·#4(카페 링크 검증)는 이후 상황이 바뀌었다.** 갱신 내역은 [`screens/91-ia-gap.md`](../screens/91-ia-gap.md) §3을 본다.
-> 현재 화면 기준은 [`screens/`](../screens/00-common.md), 차이는 [`screens/91-ia-gap.md`](../screens/91-ia-gap.md).
+> **§6의 미결 5항목 중 #3(출결 상태 enum)·#4(카페 링크 검증)는 이후 상황이 바뀌었다.** 갱신 내역은 [`screens/07-ia-gap.md`](../screens/07-ia-gap.md) §3을 본다.
+> 현재 화면 기준은 [`screens/`](../screens/00-common.md), 차이는 [`screens/07-ia-gap.md`](../screens/07-ia-gap.md).
 > 원 파일명·위치: `src/imports/pasted_text/admin-ia.md`
 
 > 대상: `admin.bigdataboaz.com` (관리자 전용 React 앱)
