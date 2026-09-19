@@ -13,8 +13,8 @@
 | 왜 | [`ia/01-ia-strategy.md`](ia/01-ia-strategy.md) | 어떤 기준으로 판단했는가 | 규범 | IA 설계 |
 | 어디에 | [`ia/02-ia-tree.md`](ia/02-ia-tree.md) | 무엇이 어디에 있어야 하는가 | 당위 | IA 설계 |
 | 어떤 규칙으로 | [`spec/01-attendance-system.md`](spec/01-attendance-system.md)<br>[`spec/02-role-model.md`](spec/02-role-model.md) | 권한·출결 규칙은 무엇인가 (기준선) | 당위 | 백엔드 + 운영지원팀 |
-| **무엇을 만드나** | [`spec/00-platform.md`](spec/00-platform.md) · [`spec/03-recruiting.md`](spec/03-recruiting.md) ~ [`spec/07-content.md`](spec/07-content.md) | 공통 바닥과 도메인별 화면·기능이 무엇인가. 화면 ID·기능 ID의 출처 | **당위** | PM + 도메인 담당팀 |
-| **지금 무엇이 있나** | [`screens/00-common.md`](screens/00-common.md) 외 | 현재 화면에 무엇이 되는가 | **사실** | 프론트 |
+| **무엇을 만드나** | [`spec/00-platform.md`](spec/00-platform.md) · [`spec/03-recruiting.md`](spec/03-recruiting.md) ~ [`spec/07-content.md`](spec/07-content.md) | 화면이 **앞으로 어떻게 동작해야 하는가**. 화면 ID·기능 ID의 출처 | **당위** | PM + 도메인 담당팀 |
+| **지금 무엇이 있나** | [`screens/00-common.md`](screens/00-common.md) 외 | 같은 화면이 **지금 실제로 어떻게 동작하는가** | **사실** | 프론트 |
 | 무엇이 다른가 | [`screens/91-ia-gap.md`](screens/91-ia-gap.md) | 당위와 사실의 차이 | 사실 | 전원 |
 | 무엇을 정할까 | [`screens/92-open-items.md`](screens/92-open-items.md) | 결정해야 할 안건 | 미정 | 전원 |
 | **무엇을 언제 만들까** | [`01-wbs.md`](01-wbs.md) | 앞으로 무엇을 어떤 순서·우선순위로 만드는가. EPIC·화면 티켓·기능 ID·마일스톤 | **계획** | PM + 프론트 + 백엔드 |
@@ -26,7 +26,7 @@
 | 상황 | 읽을 문서 |
 | --- | --- |
 | 처음 합류했다 | [`screens/00-common.md`](screens/00-common.md) → 담당 도메인 문서 |
-| 화면을 디자인한다 | 담당 도메인 기능명세서 (`spec/03`~`07`) → 현재 구현은 `screens/01`~`05` |
+| 화면을 디자인한다 | 담당 도메인 기능명세서 (`spec/03`~`07`)로 **만들 것**을 보고, `screens/01`~`05`로 **지금 되는 것**을 본다 |
 | 화면 ID·기능 ID가 무엇인지 찾는다 | 담당 도메인 기능명세서 (`spec/03`~`07`) — `01-wbs.md`의 티켓 키와 1:1 대응 |
 | 공통 기반(라우터·인증·API·공용 컴포넌트)을 만든다 | [`spec/00-platform.md`](spec/00-platform.md) — 도메인 요구가 어느 `PLT-*` 티켓에 귀속되는지 §5 |
 | 기능명세서 표기 규칙을 확인한다 | [`spec/README.md`](spec/README.md) — 읽는 순서 · Epic↔티켓 키 대응 · Open Issue 접두사 · 미결 목록 위치 |
@@ -70,6 +70,23 @@ docs/
     ├── 92-open-items.md               결정 안건 (읽는 문서)
     └── images/                        화면 캡처
 ```
+
+---
+
+## `spec/`과 `screens/`는 같은 화면을 다룬다
+
+**두 문서의 기능 목록이 거의 같아 보이는 것은 중복이 아니라 설계다.** 시제가 다르다.
+
+| | [`spec/03-recruiting.md`](spec/03-recruiting.md) | [`screens/02-recruiting.md`](screens/02-recruiting.md) |
+| --- | --- | --- |
+| 답하는 것 | 앞으로 이렇게 만든다 | 지금 이렇게 동작한다 |
+| 같은 기능의 서술 | `POST-04` 공고 삭제 — 참조(지원서) 존재 시 차단, `PLT-CONFIRM` 확인 모달 | 모집 공고 삭제 — 확인 1회 후 바로 삭제된다 `안전장치 필요` |
+| 고유 항목 | 기능 ID(WBS 티켓 대응) · API 확인 · Open Issue · 잔여 작업 | 기준 커밋 · 상태 태그 · 화면 캡처 · 공통 전제 |
+| 고치는 때 | 만들 것을 다르게 **정했을 때** | 코드가 **바뀌었을 때** |
+
+**차이 자체가 산출물이다.** [`91-ia-gap.md`](screens/91-ia-gap.md)가 둘을 대조해 격차를 재고, 그 격차가 곧 만들 일의 목록이 된다. 한쪽으로 합치면 "무엇이 남았는가"를 셀 근거가 사라진다.
+
+**그래서 둘을 같이 고치지 않는다.** 결정이 나면 `spec/`만 고친다. `screens/`는 코드가 실제로 바뀐 뒤에 고치고, 그 시점에 상단 표의 기준 커밋을 갱신한다. 결정이 났지만 코드는 아직 그대로인 구간에서는 `screens/`의 상태 태그를 `결정됨`으로 바꾸고 정본 링크만 붙인다.
 
 ---
 
