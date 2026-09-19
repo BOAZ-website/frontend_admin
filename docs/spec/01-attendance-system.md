@@ -4,6 +4,7 @@
 > 이 문서는 **규범(당위)** 문서다. 권한 체계와 출결 시스템의 **정본 스펙**이며, §2 권한 체계는 스스로 "선행 개편"이라 밝히고 있어 [`ia/02-ia-tree.md`](../ia/02-ia-tree.md) §2의 권한 매트릭스를 **대체한다.**
 > 현재 화면에 무엇이 구현되어 있는지는 [`screens/`](../screens/00-common.md), 차이는 [`screens/91-ia-gap.md`](../screens/91-ia-gap.md)를 본다.
 > 역할 모델 정본은 [`spec/02-role-model.md`](02-role-model.md)에 정리했다.
+> **출결 설계(§3 이후)는 [`spec/05-attendance.md`](05-attendance.md) v2.0이 대체한다.** 운영지원팀 요구사항 기준으로 화면 구성·상태값·CSV 구조가 전면 개정됐고, 인증 방식도 카페 링크에서 인증 사진 제출로 확정됐다. §2 권한 체계는 그대로 유효하다. 이 문서는 기준선이므로 본문을 고치지 않는다.
 > 원 파일명·위치: `src/imports/pasted_text/recruitment-dashboard.md` (동일 중복본 `recruitment-dashboard-1.md`는 삭제)
 > 제목이 내용과 맞지 않아 개명했다. 원 제목은 "서류 평가 대시보드"였으나, 실질 내용은 권한 체계 개편과 출결 시스템 설계다.
 
