@@ -38,7 +38,9 @@
 
 ---
 
-## 2. Permission 10종 (정본)
+## 2. Permission 10종
+
+> **대체됨.** 이 절의 10종은 [`06-system.md`](06-system.md) §3.3의 **41개 카탈로그**로 대체됐다. `ACCOUNT_MANAGE` · `CONTENT_MANAGE` 같은 묶음 이름은 폐기되고 `<대상>_<동작>` 규칙의 세분화된 키를 직접 쓴다. 아래 표는 대응 관계를 추적하기 위한 기록으로 남긴다. 역할 4종 정의(§1)는 그대로 유효하다.
 
 [`01-attendance-system.md`](01-attendance-system.md) §2-3에 정의된 열거값이다.
 
