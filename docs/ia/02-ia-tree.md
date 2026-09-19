@@ -2,8 +2,20 @@
 
 > **문서 상태** · 2026-08-29
 > 이 문서는 **의도된 설계(당위)**이며 현재 구현과 다른 부분이 있다. 현황이 아니다.
-> **§2 권한 매트릭스는 [`spec/01-attendance-system.md`](../spec/01-attendance-system.md) §2로 대체되었다.** 그 문서가 스스로를 "권한 체계 (선행 개편)"이라 밝힌 더 최신 문서다. 역할 정본은 [`spec/02-role-model.md`](../spec/02-role-model.md)를 본다.
-> **§6의 미결 5항목 중 #3(출결 상태 enum)·#4(카페 링크 검증)는 이후 상황이 바뀌었다.** 갱신 내역은 [`screens/07-ia-gap.md`](../screens/07-ia-gap.md) §3을 본다.
+> **이 문서는 기준선이라 본문을 고치지 않는다.** 아래에 무엇이 대체됐는지만 적는다. 현재 만들 것의 정본은 [`spec/`](../spec/README.md)의 기능명세서 6종이다.
+>
+> | 이 문서 | 대체한 문서 | 무엇이 달라졌나 |
+> | --- | --- | --- |
+> | §1 ② 출석 관리 전체 (2.1~2.5) | [`spec/05-attendance.md`](../spec/05-attendance.md) v2.0 | 화면이 5개에서 **11개**로 재편됐다. 활동 구분이 `스터디/소모임/친해지기바라/기타`에서 `BASE 세션 · ADV 세션 · 행사 · 스터디`로, 인증이 **네이버카페 링크에서 인증 사진 제출**로 바뀌었다. `2.4 HOST 지정`은 `ATT-GROUP`에 흡수되고 `2.3` 안의 배점 규칙은 `SET-RULE`로 독립했다. 명단 관리(`ATT-ROSTER`, SOT) · 행사 출결(`ATT-EVT`) · 개인 타임라인(`ATT-TL`)은 이 트리에 없던 화면이다 |
+> | §1 ③ 3.3 결과 처리 | [`02-open-items.md`](../02-open-items.md) §2.1 | 세 단계를 한 화면에 묶는 대신 **분리 구조를 유지**하고, 순서 강제는 `DEL-01`의 선행 조건 검사로 대체한다 |
+> | §1 ③ 최종 평가 노출 조건 | [`spec/04-evaluation.md`](../spec/04-evaluation.md) §4.1 | `role=SUPER`가 아니라 **`FINAL_DECISION_WRITE` 보유자** 기준이다 |
+> | §1 ④ 4.3 사전 알림 | [`spec/03-recruiting.md`](../spec/03-recruiting.md) §4.5 | 개별 삭제를 **유지**한다(`PRE_NOTIFICATION_DELETE`). 직접 등록과 발송 상태 토글은 제거한다 |
+> | §1 ⑥ 6.1 평가자 계정 일괄 생성 | [`spec/06-system.md`](../spec/06-system.md) §4.4 | **폐기.** 외부 평가자를 쓰지 않으므로 운영진이 `(TEAM, *)` 폴백으로 본인 부문 평가 권한을 기본 보유한다 |
+> | §2 권한 매트릭스 | [`spec/06-system.md`](../spec/06-system.md) §3 | `Admin.Role` 2종이 **4종(`MASTER`·`SUPER`·`TEAM`·`HOST`)** 이 되고, `TeamName`에 `그룹리더`가 추가됐다. 판정 단위는 메뉴 단위 ○●◐가 아니라 **Permission 41개**다. 이 문서가 한때 대체를 넘긴 [`spec/01-attendance-system.md`](../spec/01-attendance-system.md) §2도 그 뒤 `spec/06`으로 다시 대체됐다 |
+> | §3 라우트 맵의 출결 경로 5개 | [`spec/05-attendance.md`](../spec/05-attendance.md) §2 | 화면 구성이 바뀌어 경로도 다시 짜야 한다 |
+> | §6 IA 확정 전 결정 5항목 | 각 기능명세서 | **5항목 전부 결정됐다.** #1 HOST 계정 모델은 `(HOST, 그룹리더)`로, #2 출석 단위는 개인 단위로, #3 상태 enum은 4종 제안이 아니라 **9종**으로, #4 카페 링크 검증은 **사진 인증 확정으로 논의 자체가 종결**, #5 대상자 특정은 명단 SOT로 풀렸다 |
+>
+> **여전히 유효한 것**: §0 설계 원칙 · §1의 ①④⑤⑦ 골격 · §4 공통 레이어 · §5 공식 웹사이트 대비. 당위와 사실의 차이는 [`screens/07-ia-gap.md`](../screens/07-ia-gap.md)가 잰다.
 > 현재 화면 기준은 [`screens/`](../screens/00-common.md), 차이는 [`screens/07-ia-gap.md`](../screens/07-ia-gap.md).
 > 원 파일명·위치: `src/imports/pasted_text/admin-ia.md`
 
