@@ -12,10 +12,12 @@
 | --- | --- | --- | --- | --- |
 | 왜 | [`ia/01-ia-strategy.md`](ia/01-ia-strategy.md) | 어떤 기준으로 판단했는가 | 규범 | IA 설계 |
 | 어디에 | [`ia/02-ia-tree.md`](ia/02-ia-tree.md) | 무엇이 어디에 있어야 하는가 | 당위 | IA 설계 |
-| 어떤 규칙으로 | [`spec/01-attendance-system.md`](spec/01-attendance-system.md)<br>[`spec/02-role-model.md`](spec/02-role-model.md) | 권한·출결 규칙은 무엇인가 | 당위 | 백엔드 + 운영지원팀 |
-| **지금 무엇이 있나** | [`screens/00-common.md`](screens/00-common.md) 외 | 현재 화면에 무엇이 되는가 | **사실** | 프론트 |
-| 무엇이 다른가 | [`screens/91-ia-gap.md`](screens/91-ia-gap.md) | 당위와 사실의 차이 | 사실 | 전원 |
-| 무엇을 정할까 | [`screens/92-open-items.md`](screens/92-open-items.md) | 결정해야 할 안건 | 미정 | 전원 |
+| 어떤 규칙으로 | [`spec/01-attendance-system.md`](spec/01-attendance-system.md)<br>[`spec/02-role-model.md`](spec/02-role-model.md) | 권한·출결 규칙은 무엇인가 (기준선) | 당위 | 백엔드 + 운영지원팀 |
+| **무엇을 만드나** | [`spec/00-platform.md`](spec/00-platform.md) · [`spec/03-recruiting.md`](spec/03-recruiting.md) ~ [`spec/07-content.md`](spec/07-content.md) | 화면이 **앞으로 어떻게 동작해야 하는가**. 화면 ID·기능 ID의 출처 | **당위** | PM + 도메인 담당팀 |
+| **지금 무엇이 있나** | [`screens/00-common.md`](screens/00-common.md) 외 | 같은 화면이 **지금 실제로 어떻게 동작하는가** | **사실** | 프론트 |
+| 무엇이 다른가 | [`screens/07-ia-gap.md`](screens/07-ia-gap.md) | 당위와 사실의 차이 | 사실 | 전원 |
+| 무엇을 정할까 | [`02-open-items.md`](02-open-items.md) | 결정해야 할 안건 | 미정 | 전원 |
+| **무엇을 언제 만들까** | [`01-wbs.md`](01-wbs.md) | 앞으로 무엇을 어떤 순서·우선순위로 만드는가. EPIC·화면 티켓·기능 ID·마일스톤 | **계획** | PM + 프론트 + 백엔드 |
 
 ---
 
@@ -24,12 +26,16 @@
 | 상황 | 읽을 문서 |
 | --- | --- |
 | 처음 합류했다 | [`screens/00-common.md`](screens/00-common.md) → 담당 도메인 문서 |
-| 화면을 디자인한다 | 담당 도메인 문서 (`screens/01`~`05`) |
+| 화면을 디자인한다 | 담당 도메인 기능명세서 (`spec/03`~`07`)로 **만들 것**을 보고, `screens/01`~`05`로 **지금 되는 것**을 본다 |
+| 화면 ID·기능 ID가 무엇인지 찾는다 | 담당 도메인 기능명세서 (`spec/03`~`07`) — `01-wbs.md`의 티켓 키와 1:1 대응 |
+| 공통 기반(라우터·인증·API·공용 컴포넌트)을 만든다 | [`spec/00-platform.md`](spec/00-platform.md) — 도메인 요구가 어느 `PLT-*` 티켓에 귀속되는지 §5 |
+| 기능명세서 표기 규칙을 확인한다 | [`spec/README.md`](spec/README.md) — 읽는 순서 · Epic↔티켓 키 대응 · Open Issue 접두사 · 미결 목록 위치 |
 | 메뉴 구조를 바꾸려 한다 | [`ia/01-ia-strategy.md`](ia/01-ia-strategy.md)를 **먼저** 읽는다. 판단 기준이 거기 있다 |
-| 권한을 구현한다 | [`spec/02-role-model.md`](spec/02-role-model.md) → [`spec/01-attendance-system.md`](spec/01-attendance-system.md) §2 |
-| 백엔드를 연동한다 | [`screens/91-ia-gap.md`](screens/91-ia-gap.md) §4 (API 근거 없는 기능) → 담당 도메인 문서 |
-| 회의에서 정할 것을 찾는다 | [`screens/92-open-items.md`](screens/92-open-items.md) |
-| 특정 화면의 코드 위치를 찾는다 | [`screens/90-screen-inventory.md`](screens/90-screen-inventory.md) |
+| 권한을 구현한다 | [`spec/06-system.md`](spec/06-system.md) §3 (정본, Permission 41개) → [`spec/02-role-model.md`](spec/02-role-model.md) §1 역할 4종 |
+| 백엔드를 연동한다 | [`screens/07-ia-gap.md`](screens/07-ia-gap.md) §4 (API 근거 없는 기능) → 담당 도메인 문서 |
+| 회의에서 정할 것을 찾는다 | [`02-open-items.md`](02-open-items.md) |
+| 특정 화면의 코드 위치를 찾는다 | [`screens/06-screen-inventory.md`](screens/06-screen-inventory.md) |
+| 일정·우선순위·담당 분야를 확인한다 | [`01-wbs.md`](01-wbs.md) — 화면 티켓은 EPIC 절, 결정 대기는 각 EPIC의 디자인 확정(`*-DSN`) 티켓과 API 확인 항목, 일정은 마일스톤 절 |
 
 ---
 
@@ -38,12 +44,21 @@
 ```
 docs/
 ├── README.md                          이 문서
+├── 01-wbs.md                          실행 계획 — EPIC·화면 티켓·기능 ID·마일스톤 (기능명세서 기준)
+├── 02-open-items.md                   도메인 교차 결정 안건 (미정)
 ├── ia/
 │   ├── 01-ia-strategy.md              IA를 어떤 기준으로 짰는가 (판단 근거)
 │   └── 02-ia-tree.md                  목표 IA 트리 · 권한 매트릭스 · 라우트 맵
 ├── spec/
-│   ├── 01-attendance-system.md        출결 시스템 · 권한 체계 설계 (정본 스펙)
-│   └── 02-role-model.md               역할·권한 정본
+│   ├── README.md                      기능명세서 세트 색인 — 읽는 순서 · 표기 규칙
+│   ├── 00-platform.md                 플랫폼 기반 기능명세서    — Epic 0 (공통 바닥)
+│   ├── 01-attendance-system.md        출결 시스템 · 권한 체계 설계 (기준선. 출결 설계는 05가 대체)
+│   ├── 02-role-model.md               역할 4종 정의 (Permission 10종은 06이 대체)
+│   ├── 03-recruiting.md               리크루팅 기능명세서       — Epic 1
+│   ├── 04-evaluation.md               서류 평가 기능명세서      — Epic 2
+│   ├── 05-attendance.md               출결 관리 기능명세서 v2.0 — Epic 3 (출결 정본)
+│   ├── 06-system.md                   시스템 계정 기능명세서    — Epic 4 (권한 정본)
+│   └── 07-content.md                  콘텐츠 관리 기능명세서    — Epic 5
 └── screens/
     ├── 00-common.md                   공통 전제 · 상태 태그 · 서술 원칙
     ├── 01-content.md                  콘텐츠 관리
@@ -51,11 +66,38 @@ docs/
     ├── 03-evaluation.md               서류 평가
     ├── 04-attendance.md               출결 & 점수 시스템
     ├── 05-system.md                   시스템·계정
-    ├── 90-screen-inventory.md         사이드바 24 ↔ ActivePage 31 ↔ 컴포넌트
-    ├── 91-ia-gap.md                   의도 IA ↔ 구현 대조표 (조회용)
-    ├── 92-open-items.md               결정 안건 (읽는 문서)
+    ├── 06-screen-inventory.md         사이드바 24 ↔ ActivePage 31 ↔ 컴포넌트
+    ├── 07-ia-gap.md                   의도 IA ↔ 구현 대조표 (조회용)
     └── images/                        화면 캡처
 ```
+
+**번호 규칙**
+
+| 위치 | 번호 | 뜻 |
+| --- | --- | --- |
+| `docs/` | `01`~ | 계획·안건 등 전 도메인을 관통하는 문서 |
+| `ia/` · `spec/` | `00`~ | `00`은 공통 바닥, 나머지는 도메인 단위 |
+| `screens/` | `00`~`05` | `00`은 공통 전제, `01`~`05`는 도메인별 화면 현황 |
+| `screens/` | `06`~ | 도메인에 속하지 않는 조회·대조용 부록 |
+
+**제목은 `<이름> — <성격>` 형식**으로 쓰고, 상단에 `기준 커밋 / 최종 갱신 / 운영 주체 / 표기 규칙` 4열 표를 둔다.
+
+---
+
+## `spec/`과 `screens/`는 같은 화면을 다룬다
+
+**두 문서의 기능 목록이 거의 같아 보이는 것은 중복이 아니라 설계다.** 시제가 다르다.
+
+| | [`spec/03-recruiting.md`](spec/03-recruiting.md) | [`screens/02-recruiting.md`](screens/02-recruiting.md) |
+| --- | --- | --- |
+| 답하는 것 | 앞으로 이렇게 만든다 | 지금 이렇게 동작한다 |
+| 같은 기능의 서술 | `POST-04` 공고 삭제 — 참조(지원서) 존재 시 차단, `PLT-CONFIRM` 확인 모달 | 모집 공고 삭제 — 확인 1회 후 바로 삭제된다 `안전장치 필요` |
+| 고유 항목 | 기능 ID(WBS 티켓 대응) · API 확인 · Open Issue · 잔여 작업 | 기준 커밋 · 상태 태그 · 화면 캡처 · 공통 전제 |
+| 고치는 때 | 만들 것을 다르게 **정했을 때** | 코드가 **바뀌었을 때** |
+
+**차이 자체가 산출물이다.** [`screens/07-ia-gap.md`](screens/07-ia-gap.md)가 둘을 대조해 격차를 재고, 그 격차가 곧 만들 일의 목록이 된다. 한쪽으로 합치면 "무엇이 남았는가"를 셀 근거가 사라진다.
+
+**그래서 둘을 같이 고치지 않는다.** 결정이 나면 `spec/`만 고친다. `screens/`는 코드가 실제로 바뀐 뒤에 고치고, 그 시점에 상단 표의 기준 커밋을 갱신한다. 결정이 났지만 코드는 아직 그대로인 구간에서는 `screens/`의 상태 태그를 `결정됨`으로 바꾸고 정본 링크만 붙인다.
 
 ---
 
@@ -63,7 +105,7 @@ docs/
 
 [`spec/01-attendance-system.md`](spec/01-attendance-system.md) §2는 스스로를 **"권한 체계 (선행 개편)"**이라 밝히며 [`ia/02-ia-tree.md`](ia/02-ia-tree.md) §2의 권한 매트릭스를 대체한다.
 
-따라서 **구현이 `ia/02-ia-tree.md`와 다르다고 해서 곧바로 위반이 아니다.** 더 최신 문서를 따랐거나, `ia/02-ia-tree.md`가 스스로 미확정으로 남긴 항목에 대한 결정일 수 있다. 원인 구분은 [`screens/91-ia-gap.md`](screens/91-ia-gap.md)가 `스펙 갱신` / `PoC 범위` / `미결정` 세 갈래로 한다.
+따라서 **구현이 `ia/02-ia-tree.md`와 다르다고 해서 곧바로 위반이 아니다.** 더 최신 문서를 따랐거나, `ia/02-ia-tree.md`가 스스로 미확정으로 남긴 항목에 대한 결정일 수 있다. 원인 구분은 [`screens/07-ia-gap.md`](screens/07-ia-gap.md)가 `스펙 갱신` / `PoC 범위` / `미결정` 세 갈래로 한다.
 
 ---
 
@@ -71,7 +113,11 @@ docs/
 
 - **현황이 바뀌면** `screens/01`~`05`를 고치고 상단 표의 기준 커밋을 갱신한다.
 - **공통 전제를 고치면** `00-common.md`의 원본을 고친 뒤 `grep -rn "SYNC:common-preconditions" screens/`로 5개 도메인 문서에 반영한다.
-- **의도가 바뀌면** `ia/` 또는 `spec/`을 고치고, 영향받는 행을 `91-ia-gap.md`에서 갱신한다.
-- **결정이 나면** `92-open-items.md`에서 해당 항목을 지우고, 결과를 해당 규범 문서에 반영한다.
+- **의도가 바뀌면** 해당 도메인의 기능명세서(`spec/03`~`07`)를 고치고, 영향받는 행을 `screens/07-ia-gap.md`에서 갱신한다.
+- **기능 ID를 추가·변경하면** `01-wbs.md`의 해당 티켓 하위 항목도 함께 고친다. 둘은 1:1로 대응한다.
+- **결정이 나면** `02-open-items.md`에서 해당 항목을 지우고, 결과를 해당 규범 문서에 반영한다. 결정된 항목은 `01-wbs.md`의 해당 `*-DSN` 티켓 행에도 확정 내용으로 옮긴다.
+- **계획이 바뀌면** `01-wbs.md`만 고친다. 규모를 바꾸면 마일스톤 절의 기준일과 어긋나지 않는지 함께 확인한다.
 
-원본 3개(`ia/01`, `ia/02`, `spec/01`)는 **기준선이므로 내용을 고치지 않는다.** 갱신이 필요하면 상단 상태 배너에 무엇이 대체되었는지 적고, 실제 판단은 `91-ia-gap.md` §3에 기록한다. 기준선을 고치면 격차를 측정할 근거가 사라진다.
+원본 3개(`ia/01`, `ia/02`, `spec/01`)는 **기준선이므로 내용을 고치지 않는다.** 갱신이 필요하면 상단 상태 배너에 무엇이 대체되었는지 적고, 실제 판단은 `screens/07-ia-gap.md` §3에 기록한다. 기준선을 고치면 격차를 측정할 근거가 사라진다.
+
+**규범 문서가 두 층이 됐다.** `spec/01`·`spec/02`는 기준선이고, 기능명세서(`spec/00`과 `spec/03`~`07`)가 그 위에 얹히는 현재 정본이다. 충돌하면 기능명세서를 따르고, 무엇이 대체됐는지는 기준선 문서의 상단 배너가 밝힌다.

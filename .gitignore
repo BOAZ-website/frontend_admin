@@ -28,6 +28,3 @@ yarn-error.log*
 .CLAUDE.md
 .omc/
 .serena/
-
-# local docs
-/docs
