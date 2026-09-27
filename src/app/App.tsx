@@ -4,6 +4,7 @@ import { ChevronRight, KeyRound, PanelLeft, ShieldCheck, User, X } from 'lucide-
 import { DashboardPage } from '@/pages/attendance-dashboard/ui/DashboardPage';
 import { EventAttendanceManagePage } from '@/pages/attendance-events/ui/EventAttendanceManagePage';
 import { HostsPage } from '@/pages/attendance-hosts/ui/HostsPage';
+import { replaceTeamLeader } from '@/pages/attendance-hosts/model/teamSelection';
 import { InputPage } from '@/pages/attendance-input/ui/InputPage';
 import { InternalCategoryAttendancePage } from '@/pages/attendance-internal-category/ui/InternalCategoryAttendancePage';
 import { RulesPage } from '@/pages/attendance-rules/ui/RulesPage';
@@ -16,18 +17,40 @@ import { EvaluationManagePage } from '@/pages/recruiting-evaluation/ui/Evaluatio
 import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentManagePage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
+import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
+
+import { useEventDb } from './model/useEventDb';
+import { useHostDb } from './model/useHostDb';
+import { useTeamDb } from './model/useTeamDb';
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
-import { WEEKS } from '@/entities/attendance/model/constants';
-import { buildInitialAttendance, sessionKey } from '@/entities/attendance/model/lib';
+import boazLogo from '@/shared/assets/boaz-logo.png';
+import { sessionKey } from '@/entities/attendance/model/lib';
+import {
+  cohortsOf,
+  currentCohortOf,
+  DEFAULT_CURRENT_COHORT,
+} from '@/entities/cohort/model/lib';
 import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
+import type { WeekInfo } from '@/entities/attendance/model/week';
 import { INITIAL_EXCEPTIONS } from '@/entities/exception-request/model/constants';
 import type { ExceptionRequest } from '@/entities/exception-request/model/types';
-import { INITIAL_HOSTS } from '@/entities/host-account/model/constants';
-import type { HostAccount } from '@/entities/host-account/model/types';
+import type { GroupType, HostAccount } from '@/entities/host-account/model/types';
 import { INITIAL_RULES } from '@/entities/score-rule/model/constants';
+import { getRuleForDate } from '@/entities/score-rule/model/lib';
 import type { ScoreRule } from '@/entities/score-rule/model/types';
-import { INITIAL_STUDY_TEAMS, MEMBERS } from '@/entities/study-team/model/constants';
-import type { Member, StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
+import {
+  applyAttendanceChange,
+  createAdvTeamRecords,
+  createBaseAttendanceRecords,
+  createStudyRecords,
+  describeStudyCreateError,
+  markWeekSubmitted,
+  type AttendanceChange,
+  type CreateAdvTeamInput,
+  type CreateBaseAttendanceInput,
+  type CreateStudyInput,
+} from '@/entities/study-team/model/db';
+import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
 import type { UserRole } from '@/entities/user/model/types';
 import type { ActivePage } from '@/shared/config/activePage';
 import { PAGE_LABELS } from '@/shared/config/pageLabels';
@@ -66,6 +89,13 @@ const VALID_ACTIVE_PAGES = new Set<string>([
   'system-audit',
 ]);
 
+const NO_TEAMS: StudyTeamInfo[] = [];
+const NO_HOSTS: HostAccount[] = [];
+const NO_MEMBERS: Record<string, Member[]> = {};
+const NO_ATTENDANCE: AttendanceState = {};
+const NO_WEEKS: WeekInfo[] = [];
+const NO_WEEK_DATES: Record<number, Record<number, string>> = {};
+
 function getInitialActivePage(): ActivePage {
   try {
     const hash = window.location.hash.replace(/^#/, '');
@@ -89,7 +119,30 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((r, idx) => {
+            const fallbackTerm = r.term ?? (27 - idx);
+            return {
+              ...r,
+              term: fallbackTerm,
+              name: r.name ?? `${fallbackTerm}기 점수 규칙`,
+              startDate:
+                r.startDate ??
+                (fallbackTerm === 27
+                  ? '2026-07-01'
+                  : fallbackTerm === 26
+                    ? '2026-01-01'
+                    : '2025-07-01'),
+              endDate:
+                r.endDate !== undefined
+                  ? r.endDate
+                  : fallbackTerm === 27
+                    ? '2026-12-31'
+                    : fallbackTerm === 26
+                      ? '2026-06-30'
+                      : '2025-12-31',
+              status: r.status ?? (idx === 0 ? 'ACTIVE' : 'INACTIVE'),
+            };
+          });
         }
       }
     } catch (e) {
@@ -164,10 +217,53 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-  const [studyTeams, setStudyTeams] = useState<StudyTeamInfo[]>(INITIAL_STUDY_TEAMS);
-  const [membersMap, setMembersMap] = useState<Record<string, Member[]>>(MEMBERS);
-  const [attendance, setAttendance] = useState<AttendanceState>(buildInitialAttendance);
-  const [hosts, setHosts] = useState<HostAccount[]>(INITIAL_HOSTS);
+  // 스터디·ADV 팀, 팀원, 출결은 임시 DB(db/*.sql)가 원본이다. 값을 바꾸면 DB에 바로 저장된다.
+  const {
+    state: teamDb,
+    error: teamDbError,
+    setStudyTeams,
+    setAdvTeams,
+    setBaseTeams,
+    setWeekDates,
+    setMembers: setMembersMap,
+    setAttendance,
+  } = useTeamDb();
+  const eventDb = useEventDb();
+  // DB에는 지난 기수의 팀도 남아 있다. 출결 입력·점수·대시보드 같은 "지금" 화면은 현재 기수의 팀만 쓰고,
+  // 스터디 출결 관리만 전체 팀을 받아 기수 드롭다운으로 지난 기수를 조회한다.
+  const allAdvTeams = teamDb?.advTeams ?? NO_TEAMS;
+  const allStudyTeams = teamDb?.studyTeams ?? NO_TEAMS;
+  const allBaseTeams = teamDb?.baseTeams ?? NO_TEAMS;
+  const cohorts = useMemo(
+    () =>
+      cohortsOf([
+        ...(teamDb?.cohorts ?? []),
+        ...[...allStudyTeams, ...allAdvTeams, ...allBaseTeams].map((team) => team.cohort),
+      ]),
+    [teamDb?.cohorts, allStudyTeams, allAdvTeams, allBaseTeams],
+  );
+  const currentCohort = currentCohortOf(cohorts);
+  // ADV 팀은 기수가 스터디·BASE보다 하나 늦다(만들어진 가장 큰 ADV 기수가 ADV의 현재 기수).
+  const advCohorts = useMemo(
+    () => cohortsOf(allAdvTeams.map((team) => team.cohort)),
+    [allAdvTeams],
+  );
+  const advCurrentCohort = currentCohortOf(advCohorts);
+  const advTeams = useMemo(
+    () =>
+      allAdvTeams.filter((team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === advCurrentCohort),
+    [allAdvTeams, advCurrentCohort],
+  );
+  const studyTeams = useMemo(
+    () => allStudyTeams.filter((team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === currentCohort),
+    [allStudyTeams, currentCohort],
+  );
+  const membersMap = teamDb?.members ?? NO_MEMBERS;
+  const attendance = teamDb?.attendance ?? NO_ATTENDANCE;
+  const weeks = teamDb?.weeks ?? NO_WEEKS;
+  // HOST 계정도 임시 DB가 원본이다. 발급·삭제하면 DB에 바로 저장된다.
+  const { hosts: hostRows, error: hostDbError, setHosts } = useHostDb();
+  const hosts = hostRows ?? NO_HOSTS;
   const [exceptions, setExceptions] = useState<ExceptionRequest[]>(INITIAL_EXCEPTIONS);
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     try {
@@ -184,7 +280,7 @@ export default function App() {
       const saved = localStorage.getItem('boaz_host_team');
       if (saved) return saved;
     } catch {}
-    return 'A팀';
+    return '';
   });
 
   const [loggedUsername, setLoggedUsername] = useState<string>(() => {
@@ -245,88 +341,103 @@ export default function App() {
   const [masterPassword, setMasterPassword] = useState('super1234');
   const [myPwError, setMyPwError] = useState('');
 
-  function handleRegisterStudyTeam(teamData: {
-    teamName: string;
-    studyName: string;
-    category: string;
-    leaderName: string;
-    schedule: string;
-    studyType?: StudyPeriodType;
-    description?: string;
-    customUsername: string;
-    customPassword?: string;
-    memberNames?: string[];
-  }): HostAccount {
-    const newStudy: StudyTeamInfo = {
-      id: 'st_' + Date.now(),
-      teamName: teamData.teamName,
-      studyName: teamData.studyName,
-      category: teamData.category,
-      leaderName: teamData.leaderName,
-      schedule: teamData.schedule,
-      studyType: teamData.studyType || '방학 스터디',
-      description: teamData.description || '',
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
+  /** 스터디 출결 관리에서 만든 스터디를 공용 스터디 저장소(팀·부원·출결)에 등록한다. */
+  /**
+   * 이름 중복 같은 입력 검증은 화면에서 하지 않고 저장소(DB)의 제약에 맡긴다.
+   * 저장에 실패하면 화면 상태는 바뀌지 않고, 실패 사유를 문자열로 돌려준다(성공이면 null).
+   */
+  function handleCreateStudyFromAttendance(input: CreateStudyInput): string | null {
+    try {
+      const { team, members, attendance: records } = createStudyRecords(input);
+      setStudyTeams((prev) => [...prev, team]);
+      setMembersMap((prev) => ({ ...prev, [team.id]: members }));
+      setAttendance((prev) => ({ ...prev, ...records }));
+      return null;
+    } catch (error) {
+      return describeStudyCreateError(error);
+    }
+  }
 
-    const newHost: HostAccount = {
-      id: 'h_' + Date.now(),
-      username: teamData.customUsername,
-      initialPassword: teamData.customPassword || 'boaz2026!a',
-      hostName: `${teamData.leaderName} (${teamData.teamName}장)`,
-      team: teamData.teamName,
-      createdAt: new Date().toISOString().slice(0, 10),
-      active: true,
-    };
-
-    const parsedNames =
-      teamData.memberNames && teamData.memberNames.length > 0 ? teamData.memberNames : [];
-    const newMemberList: Member[] = parsedNames.map((name, idx) => ({
-      id: `${teamData.teamName.toLowerCase().replace(/[^a-z0-9]/g, '')}_${idx + 1}`,
-      name,
-      year: `${22 + (idx % 3)}`,
-    }));
-
-    setStudyTeams((prev) => {
-      // replace if existing or append
-      const exists = prev.some((s) => s.teamName === teamData.teamName);
-      if (exists) {
-        return prev.map((s) => (s.teamName === teamData.teamName ? newStudy : s));
+  /**
+   * BASE 출결 생성: 그 기수·트랙 팀이 없으면 만들고, 고른 회원을 트랙원으로 넣어 1~8주차 미정 출결을 만든다.
+   * 만들 수 없으면 사유를, 만들었으면 null을 돌려준다.
+   */
+  function handleCreateBaseAttendance(input: CreateBaseAttendanceInput): string | null {
+    try {
+      const result = createBaseAttendanceRecords(input, allBaseTeams, membersMap, attendance);
+      if (result.addedMembers.length === 0) {
+        return '선택한 회원은 이미 모두 등록되어 있습니다.';
       }
-      return [...prev, newStudy];
-    });
+      if (result.isNewTeam) setBaseTeams((prev) => [...prev, result.team]);
+      setMembersMap((prev) => ({
+        ...prev,
+        [result.team.id]: [...(prev[result.team.id] ?? []), ...result.addedMembers],
+      }));
+      setAttendance((prev) => ({ ...prev, ...result.attendance }));
+      if (input.weekDates && Object.keys(input.weekDates).length > 0) {
+        handleSaveWeekDates(input.cohort, {
+          ...(teamDb?.weekDates[input.cohort] ?? {}),
+          ...input.weekDates,
+        });
+      }
+      return null;
+    } catch (error) {
+      return `출결을 만들지 못했습니다. (${error instanceof Error ? error.message : String(error)})`;
+    }
+  }
 
-    setHosts((prev) => [newHost, ...prev.filter((h) => h.team !== teamData.teamName)]);
+  /** 기수의 주차 날짜 매핑을 DB에 저장한다(그 기수의 이전 매핑을 통째로 바꾼다). */
+  function handleSaveWeekDates(cohort: number, dates: Record<number, string>) {
+    setWeekDates((prev) => ({ ...prev, [cohort]: dates }));
+  }
 
+  /**
+   * ADV 팀 개설: 그 기수·부문의 다음 번호 팀과 팀원, 주차별 미정 출결을 DB에 만든다.
+   * 만들 수 없으면 사유를, 만들었으면 null을 돌려준다.
+   */
+  function handleCreateAdvTeam(input: CreateAdvTeamInput): string | null {
+    try {
+      if (input.members.length === 0) return '팀원을 한 명 이상 선택해 주세요.';
+      const result = createAdvTeamRecords(input, allAdvTeams);
+      setAdvTeams((prev) => [...prev, result.team]);
+      setMembersMap((prev) => ({ ...prev, [result.team.id]: result.members }));
+      setAttendance((prev) => ({ ...prev, ...result.attendance }));
+      if (input.weekDates && Object.keys(input.weekDates).length > 0) {
+        handleSaveWeekDates(input.cohort, {
+          ...(teamDb?.weekDates[input.cohort] ?? {}),
+          ...input.weekDates,
+        });
+      }
+      return null;
+    } catch (error) {
+      return `ADV 팀을 개설하지 못했습니다. (${error instanceof Error ? error.message : String(error)})`;
+    }
+  }
+
+  function handleChangeTeamLeader(groupType: GroupType, teamId: string, leaderName: string) {
+    const setTeams = groupType === 'ADV' ? setAdvTeams : setStudyTeams;
+    const leaderId = teamDb?.users.find((user) => user.name === leaderName)?.id;
+    setTeams((prev) => replaceTeamLeader(prev, teamId, leaderName, leaderId));
+  }
+
+  /** BASE·ADV 주차 제출: 서버 제출이 성공한 팀·주차를 제출 완료로 표시해 DB에 저장한다. */
+  function handleSubmitWeek(teamId: string, weekNum: number, submittedAt: string) {
+    setAttendance((prev) => markWeekSubmitted(prev, teamId, weekNum, submittedAt));
+  }
+
+  /** 스터디 명단에서 팀원을 뺀다. 팀 소속과 그 팀원의 출결 기록은 DB에서 함께 지워진다. */
+  function handleRemoveStudyMember(teamId: string, memberId: string) {
+    const team = [...studyTeams, ...allAdvTeams, ...allBaseTeams].find((t) => t.id === teamId);
+    if (!team) return;
     setMembersMap((prev) => ({
       ...prev,
-      [teamData.teamName]: newMemberList,
+      [team.id]: (prev[team.id] ?? []).filter((m) => m.id !== memberId),
     }));
+  }
 
-    // initialize attendance keys for the new study team across all weeks
-    setAttendance((prev) => {
-      const updated = { ...prev };
-      WEEKS.forEach((w) => {
-        const k = sessionKey(w.id, 'study', teamData.teamName);
-        if (!updated[k]) {
-          const statuses: Record<string, AttendanceStatus> = {};
-          newMemberList.forEach((m) => {
-            statuses[m.id] = 'present';
-          });
-          updated[k] = {
-            statuses,
-            memos: {},
-            photo: null,
-            photoUrl: null,
-            submitted: false,
-            submittedAt: null,
-          };
-        }
-      });
-      return updated;
-    });
-
-    return newHost;
+  /** 스터디 출결 관리에서 바꾼 상태·비고를 공용 출결 저장소에 반영한다. */
+  function handleStudyAttendanceChange(change: AttendanceChange) {
+    setAttendance((prev) => applyAttendanceChange(prev, change));
   }
 
   function approveException(id: string) {
@@ -335,7 +446,7 @@ export default function App() {
       const weekNum = ex.week.replace(/[^0-9]/g, '');
       const wId = `w${weekNum}`;
       const actId = 'study';
-      const key = sessionKey(wId, actId, ex.team);
+      const key = sessionKey(wId, actId, ex.team); // ex.team은 팀 id
       const members = membersMap[ex.team] ?? [];
       const mem = members.find((m) => m.name === ex.memberName);
       if (mem && attendance[key]) {
@@ -419,6 +530,25 @@ export default function App() {
     });
   }
 
+  /** 팀 id 또는 팀 이름(호스트 계정에 적힌 값)으로 팀 id를 찾는다. 이름은 부문이 다르면 겹칠 수 있어 처음 일치하는 팀을 쓴다. */
+  function resolveTeamId(idOrName?: string): string {
+    if (!idOrName) return '';
+    const teams = [...studyTeams, ...advTeams];
+    return (teams.find((t) => t.id === idOrName) ?? teams.find((t) => t.teamName === idOrName))?.id ?? '';
+  }
+
+  /**
+   * 로그인한 HOST 계정이 맡은 팀(DB의 host_accounts·host_assigned_groups) 중 그 출결 입력 탭(ADV/스터디)의 팀을 고른다.
+   * ADV와 스터디를 함께 맡은 계정은 탭마다 자기 팀이 열리고, 못 찾으면 로그인 때 넘어온 팀으로 대신한다.
+   */
+  function resolveHostTeamFor(isAdvTab: boolean): string {
+    const tabTeams = isAdvTab ? advTeams : studyTeams;
+    const host = hosts.find((account) => account.username === loggedUsername);
+    const ownedIds = [host?.teamId, ...(host?.assignedGroups ?? []).map((group) => group.teamId)];
+    const mine = ownedIds.find((id) => id && tabTeams.some((team) => team.id === id));
+    return mine ?? resolveTeamId(loggedHostTeam);
+  }
+
   function handleToggleRole() {
     if (currentRole === 'SUPER') {
       setCurrentRole('TEAM');
@@ -426,7 +556,7 @@ export default function App() {
       setActivePage('att-dashboard');
     } else if (currentRole === 'TEAM') {
       setCurrentRole('HOST');
-      setLoggedHostTeam(studyTeams[0]?.teamName || 'A팀');
+      setLoggedHostTeam(studyTeams[0]?.id ?? '');
       setLoggedUsername('host_a');
       setActivePage('att-input');
     } else if (currentRole === 'HOST') {
@@ -447,13 +577,10 @@ export default function App() {
     } catch {}
     setCurrentRole(role);
     if (role === 'HOST') {
-      const chosenTeam = hostTeam || studyTeams[0]?.teamName || 'A팀';
-      setLoggedHostTeam(chosenTeam);
+      const chosenTeamId = resolveTeamId(hostTeam) || studyTeams[0]?.id || '';
+      setLoggedHostTeam(chosenTeamId);
       setLoggedUsername(username || 'host_a');
-      const isAdvTeam =
-        chosenTeam.startsWith('분석') ||
-        chosenTeam.startsWith('시각화') ||
-        chosenTeam.startsWith('엔지');
+      const isAdvTeam = advTeams.some((team) => team.id === chosenTeamId);
       setActivePage(isAdvTeam ? 'att-input-adv' : 'att-input-study');
     } else if (role === 'CONTENT_ADMIN') {
       setLoggedUsername('content');
@@ -495,6 +622,14 @@ export default function App() {
   const isContentPage = Boolean(activePage?.startsWith('content'));
   const isAttendancePage = Boolean(activePage?.startsWith('att-'));
 
+  if ((!teamDb && !teamDbError) || (!hostRows && !hostDbError)) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+        데이터를 불러오는 중...
+      </div>
+    );
+  }
+
   return (
     <div
       className="flex h-screen overflow-hidden bg-[#f8fafc]"
@@ -524,13 +659,29 @@ export default function App() {
         {/* Topbar */}
         <header className="h-14 shrink-0 flex items-center justify-between px-6 bg-white border-b border-slate-200/80 select-none z-10">
           <div className="flex items-center gap-2.5">
-            <button
-              onClick={toggleSidebar}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
-              title={sidebarOpen ? '사이드바 접기' : '사이드바 열기'}
-            >
-              <PanelLeft size={16} />
-            </button>
+            {!sidebarOpen ? (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-0.5 rounded-full hover:ring-2 hover:ring-slate-200 transition-all cursor-pointer select-none shrink-0"
+                title="사이드바 열기"
+              >
+                <img
+                  src={boazLogo}
+                  alt="bigdata BOAZ"
+                  className="w-7 h-7 rounded-full object-contain select-none border border-slate-100 shadow-2xs"
+                />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="사이드바 접기"
+              >
+                <PanelLeft size={16} />
+              </button>
+            )}
 
             {!sidebarOpen && (
               <>
@@ -608,6 +759,9 @@ export default function App() {
 
         {/* Content Main Body */}
         <main className="flex-1 overflow-y-auto px-8 py-7" style={{ scrollbarWidth: 'none' }}>
+          {(teamDbError || hostDbError) && isAttendancePage && (
+            <DataLoadFailedNotice onRetry={() => window.location.reload()} />
+          )}
           {/* 1. Recruiting Management */}
           {isRecruiting && (
             <RecruitmentManagePage
@@ -650,27 +804,73 @@ export default function App() {
           {activePage === 'att-session' && (
             <InternalCategoryAttendancePage
               category="SESSION"
-              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
+              activeScoreRule={getRuleForDate(scoreRules)}
               attendance={attendance}
+              studyTeams={allBaseTeams}
+              studyMembers={membersMap}
+              weeks={weeks}
+              cohorts={cohorts}
+              currentCohort={currentCohort}
+              onStudyAttendanceChange={handleStudyAttendanceChange}
+              weekDates={teamDb?.weekDates ?? NO_WEEK_DATES}
+              onCreateBaseAttendance={handleCreateBaseAttendance}
+              onSubmitWeek={handleSubmitWeek}
             />
           )}
           {activePage === 'att-adv' && (
             <InternalCategoryAttendancePage
               category="ADV"
-              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
+              activeScoreRule={getRuleForDate(scoreRules)}
               attendance={attendance}
+              studyTeams={allAdvTeams}
+              studyMembers={membersMap}
+              onStudyAttendanceChange={handleStudyAttendanceChange}
+              onCreateAdvTeam={handleCreateAdvTeam}
+              onSubmitWeek={handleSubmitWeek}
+              weekDates={teamDb?.weekDates ?? NO_WEEK_DATES}
+              weeks={weeks}
+              cohorts={cohorts.filter((cohort) => cohort <= advCurrentCohort)}
+              currentCohort={advCurrentCohort}
             />
           )}
           {activePage === 'att-study' && (
             <InternalCategoryAttendancePage
               category="STUDY"
-              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
+              activeScoreRule={getRuleForDate(scoreRules)}
               attendance={attendance}
+              studyTeams={allStudyTeams}
+              studyMembers={membersMap}
+              weeks={weeks}
+              cohorts={cohorts}
+              currentCohort={currentCohort}
+              onCreateStudy={handleCreateStudyFromAttendance}
+              onStudyAttendanceChange={handleStudyAttendanceChange}
+              onRemoveStudyMember={handleRemoveStudyMember}
             />
           )}
-          {activePage === 'att-events' && <EventAttendanceManagePage />}
+          {activePage === 'att-events' &&
+            (eventDb.error ? (
+              <DataLoadFailedNotice onRetry={() => window.location.reload()} />
+            ) : (
+              eventDb.state && (
+                <EventAttendanceManagePage
+                  events={eventDb.state.events}
+                  setEvents={eventDb.setEvents}
+                  attendees={eventDb.state.attendees}
+                  setAttendees={eventDb.setAttendees}
+                  templates={eventDb.state.templates}
+                  setTemplates={eventDb.setTemplates}
+                />
+              )
+            ))}
           {activePage === 'att-scores' && (
-            <ScoresPage attendance={attendance} studyTeams={studyTeams} membersMap={membersMap} />
+            <ScoresPage
+              attendance={attendance}
+              studyTeams={studyTeams}
+              advTeams={advTeams}
+              membersMap={membersMap}
+              scoreRules={scoreRules}
+            />
           )}
           {(activePage === 'att-input' ||
             activePage === 'att-input-adv' ||
@@ -682,21 +882,24 @@ export default function App() {
               attendance={attendance}
               setAttendance={setAttendance}
               onRequestException={handleRequestException}
-              currentHostTeam={loggedHostTeam}
+              currentHostTeam={resolveHostTeamFor(activePage !== 'att-input-study')}
+              advTeams={advTeams}
               studyTeams={studyTeams}
-              setStudyTeams={setStudyTeams}
               membersMap={membersMap}
               setMembersMap={setMembersMap}
               currentRole={currentRole}
-              onOpenAddStudy={() => setActivePage('att-hosts')}
+              weeks={weeks}
             />
           )}
           {activePage === 'att-hosts' && (
             <HostsPage
               hosts={hosts}
               setHosts={setHosts}
+              advTeams={advTeams}
               studyTeams={studyTeams}
-              onRegisterStudyTeam={handleRegisterStudyTeam}
+              membersMap={membersMap}
+              users={teamDb?.users ?? []}
+              onChangeTeamLeader={handleChangeTeamLeader}
             />
           )}
           {activePage === 'att-rules' && (
@@ -707,6 +910,7 @@ export default function App() {
               attendance={attendance}
               exceptions={exceptions}
               studyTeams={studyTeams}
+              advTeams={advTeams}
               membersMap={membersMap}
               onApprove={approveException}
               onReject={rejectException}
