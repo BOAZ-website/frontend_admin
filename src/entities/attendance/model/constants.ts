@@ -8,13 +8,6 @@ export const WEEKS = [
 ];
 
 // 샘플 인증 사진 이미지
-export const SAMPLE_PROOF_IMAGES = [
-  '/sample-study-photo.jpg?v=2',
-  '/sample-study-photo.jpg?v=2',
-  '/sample-study-photo.jpg?v=2',
-  '/sample-study-photo.jpg?v=2',
-];
-
 export const STATUS_CFG: Record<
   AttendanceStatus,
   { label: string; color: string; bg: string; border: string }
