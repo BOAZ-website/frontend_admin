@@ -29,6 +29,7 @@ export const PAGE_LABELS: Record<ActivePage, string> = {
   'att-dashboard': '출결 대시보드 & 인증 검토',
   'att-internal': '정규 출결 관리',
   system: '시스템·계정',
+  'system-members': '동아리원 관리',
   'system-accounts': '운영진 계정 관리 (CRUD)',
   'system-permissions': '권한 매트릭스 (10대 Permission)',
   'system-audit': '보안 감사 로그',

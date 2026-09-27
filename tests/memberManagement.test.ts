@@ -74,8 +74,14 @@ test('필터 결과는 원본을 바꾸지 않고 최신 기수와 이름순으�
     status: 'ALL',
   });
 
-  assert.deepEqual(result.map((member) => member.id), ['member-1', 'member-3', 'member-2']);
-  assert.deepEqual(MEMBERS.map((member) => member.id), originalIds);
+  assert.deepEqual(
+    result.map((member) => member.id),
+    ['member-1', 'member-3', 'member-2'],
+  );
+  assert.deepEqual(
+    MEMBERS.map((member) => member.id),
+    originalIds,
+  );
 });
 
 test('전체·활동·수료·운영진 인원을 요약한다', () => {

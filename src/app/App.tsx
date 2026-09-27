@@ -14,6 +14,7 @@ import { FaqSection } from '@/pages/content-faq/ui/FaqSection';
 import { ReviewsSection } from '@/pages/content-reviews/ui/ReviewsSection';
 import { EvaluationManagePage } from '@/pages/recruiting-evaluation/ui/EvaluationManagePage';
 import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentManagePage';
+import { MemberManagementPage } from '@/pages/member-management/ui/MemberManagementPage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
@@ -508,7 +509,11 @@ export default function App() {
           )}
 
           {/* 5. System Section */}
-          {(activePage.startsWith('system') || activePage === 'system') && (
+          {activePage === 'system-members' && <MemberManagementPage />}
+          {(activePage === 'system' ||
+            activePage === 'system-accounts' ||
+            activePage === 'system-permissions' ||
+            activePage === 'system-audit') && (
             <SystemAccountsPage
               initialSubTab={
                 activePage === 'system-permissions'

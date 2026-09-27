@@ -121,6 +121,7 @@ const SIDEBAR_NAV = [
       {
         title: '계정 및 권한',
         pages: [
+          { id: 'system-members', label: '동아리원 관리' },
           { id: 'system-accounts', label: '운영진 계정 관리 (CRUD)' },
           { id: 'system-permissions', label: '권한 매트릭스 (10대 Permission)' },
         ],
@@ -269,7 +270,7 @@ export function Sidebar({
                       onChange('content-archive');
                     }
                     if (section.id === 'system') {
-                      onChange('system-accounts');
+                      onChange('system-members');
                     }
                   }}
                   className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-left transition-all cursor-pointer group ${
