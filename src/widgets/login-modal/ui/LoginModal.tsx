@@ -20,7 +20,7 @@ export function LoginModal({
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [selectedQuickHostTeam, setSelectedQuickHostTeam] = useState(
-    studyTeams[0]?.teamName || 'A팀',
+    studyTeams[0]?.id ?? '',
   );
 
   function handleLogin(e: React.FormEvent) {
@@ -65,7 +65,7 @@ export function LoginModal({
         setErrorMsg('해당 HOST 계정은 현재 회수(잠금) 상태입니다. 운영지원팀에 문의하세요.');
         return;
       }
-      onLoginSuccess('HOST', foundHost.team, foundHost.username);
+      onLoginSuccess('HOST', foundHost.teamId ?? foundHost.team, foundHost.username);
       onClose();
       return;
     }
@@ -187,7 +187,7 @@ export function LoginModal({
                 >
                   <optgroup label="스터디 팀">
                     {studyTeams.map((t) => (
-                      <option key={t.teamName} value={t.teamName}>
+                      <option key={t.id} value={t.id}>
                         {t.teamName}
                       </option>
                     ))}
