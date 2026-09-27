@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
   Calendar,
@@ -869,12 +869,15 @@ export function InternalCategoryAttendancePage({
   const [events, setEvents] = useState<InternalEvent[]>(config.initialEvents);
   // 명단은 DB에서 기수별로 이미 걸러진 값을 그대로 쓴다.
   const attendees = studyView.attendees;
-  const availableTeams =
-    category === 'STUDY'
-      ? config.teams.filter((team) => team.termPeriod === termPeriod)
-      : category === 'ADV'
-        ? config.teams
-        : buildBaseTrackTeams(config.teams, viewCohort);
+  const availableTeams = useMemo(
+    () =>
+      category === 'STUDY'
+        ? config.teams.filter((team) => team.termPeriod === termPeriod)
+        : category === 'ADV'
+          ? config.teams
+          : buildBaseTrackTeams(config.teams, viewCohort),
+    [category, config.teams, termPeriod, viewCohort],
+  );
   const studyTeamGroups = [
     {
       label: '멘멘 스터디',
@@ -1173,7 +1176,7 @@ export function InternalCategoryAttendancePage({
       ...prev,
       status: category === 'SESSION' ? 360 : 110,
     }));
-  }, [category]);
+  }, [category, config.initialEvents, config.teams]);
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const resizingCol = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
@@ -1376,22 +1379,26 @@ export function InternalCategoryAttendancePage({
       createdAt: '2026-08-20',
     };
   const isAllSelected = selectedTeamId === 'ALL';
-  const selectedTeam: TeamMeta = isAllSelected
-    ? {
-        id: 'ALL',
-        name: '전체 통합 출결 현황',
-        leader: '',
-        description: '전체 트랙 및 소속 팀 통합 명단',
-        memberCount: attendees.filter((a) => a.eventId === (selectedEvent?.id || '')).length,
-      }
-    : availableTeams.find((t) => t.id === selectedTeamId) ||
-      availableTeams[0] || {
-        id: '',
-        name: '선택된 팀',
-        leader: '',
-        description: '',
-        memberCount: 0,
-      };
+  const selectedTeam: TeamMeta = useMemo(
+    () =>
+      isAllSelected
+        ? {
+            id: 'ALL',
+            name: '전체 통합 출결 현황',
+            leader: '',
+            description: '전체 트랙 및 소속 팀 통합 명단',
+            memberCount: attendees.filter((a) => a.eventId === (selectedEvent?.id || '')).length,
+          }
+        : availableTeams.find((t) => t.id === selectedTeamId) ||
+          availableTeams[0] || {
+            id: '',
+            name: '선택된 팀',
+            leader: '',
+            description: '',
+            memberCount: 0,
+          },
+    [attendees, availableTeams, isAllSelected, selectedEvent?.id, selectedTeamId],
+  );
   const isMentoringStudy =
     category === 'STUDY' &&
     termPeriod === 'VACATION' &&
@@ -1406,6 +1413,31 @@ export function InternalCategoryAttendancePage({
 
   // 주차별 상태·비고는 화면에서 만들지 않고 DB의 출결 기록(주차별 세션)에서 그대로 읽는다.
   // 그래서 ADV 출결 입력 탭이나 이 화면에서 바꾼 값이 그대로 보인다.
+  const resolveStudyCell = useCallback(
+    (
+      teamId: string,
+      weekNum: number,
+      memberId: string,
+      typeLabel?: '멘멘' | '친바',
+    ): { status: AttendStatus; memo?: string } | undefined => {
+      if (!isDbCategory || !attendance) return undefined;
+      const team = studyTeams?.find((candidate) => candidate.id === teamId);
+      if (!team) return undefined;
+      const cell = getStudyCell(
+        attendance,
+        team.id,
+        weekNum,
+        typeLabel ? `${memberId}:${typeLabel}` : memberId,
+      );
+      if (!cell || !typeLabel) return cell;
+      return {
+        status: cell.status,
+        memo: getStudyCell(attendance, team.id, weekNum, memberId)?.memo ?? cell.memo,
+      };
+    },
+    [attendance, isDbCategory, studyTeams],
+  );
+
   const toWeekAttendee = (
     attendee: InternalAttendee,
     weekNum: number,
@@ -1526,7 +1558,7 @@ export function InternalCategoryAttendancePage({
 
   // 진행된(종료·진행 중) 주차만 직접 출결 선택 가능.
   // BASE는 진행 중(OPEN)인 주차만 고를 수 있고, 지난(CLOSED) 주차는 선택된 상태값으로 확정돼 보이기만 한다.
-  const isWeekDirectEditable = (weekNum: number) => {
+  const isWeekDirectEditable = useCallback((weekNum: number) => {
     // ADV: 진행 중인 주차가 3주차까지일 때만 이 화면에서 직접 고른다. 지난 주차는 결과만 보이고,
     // 4주차부터는 ADV 출결 입력 탭에서 팀이 작성한 값이 그대로 보인다.
     if (category === 'ADV') {
@@ -1539,7 +1571,7 @@ export function InternalCategoryAttendancePage({
     // BASE: 지난 주차만 잠기고, 진행 중·아직 오지 않은 주차는 이 화면에서 버튼으로 입력한다.
     if (category === 'SESSION') return !isArchivedView && weekStatusOf(weeks, weekNum) !== 'CLOSED';
     return !isArchivedView && usesOneToEightWeeks && isHeldWeek(weeks, weekNum);
-  };
+  }, [category, isArchivedView, usesOneToEightWeeks, weeks]);
 
   /** 이 화면에서 제출·수정할 수 있는 주차인가: BASE는 진행 중인 주차, ADV는 진행 중이면서 3주차까지. */
   const isSubmittableWeek = (weekNum: number) => {
@@ -1630,6 +1662,7 @@ export function InternalCategoryAttendancePage({
     selectedTrackFilter,
     termPeriod,
     savedWeekDateMapping,
+    isWeekDirectEditable,
   ]);
 
   // 단일 팀 표 최소 너비 계산
@@ -1667,7 +1700,16 @@ export function InternalCategoryAttendancePage({
       sum += 40;
     }
     return Math.max(sum, 690);
-  }, [category, selectedWeek, isAllSelected, isTableEditMode, colWidths, termPeriod]);
+  }, [
+    category,
+    selectedWeek,
+    isAllSelected,
+    isTableEditMode,
+    colWidths,
+    termPeriod,
+    isWeekDirectEditable,
+    weeks,
+  ]);
 
   // 전체 스터디 표 최소 너비 계산 (각 컬럼이 정확히 합산되어 테이블 우측 여백이 남지 않도록)
   const studyAllTableMinWidth = useMemo(() => {
@@ -1805,6 +1847,7 @@ export function InternalCategoryAttendancePage({
     config.teams,
     attendance,
     studyTeams,
+    resolveStudyCell,
   ]);
 
   const filteredMatrixRows = useMemo(() => {
@@ -1954,23 +1997,8 @@ export function InternalCategoryAttendancePage({
     termPeriod,
     attendance,
     studyTeams,
+    resolveStudyCell,
   ]);
-
-  /** 공용 저장소(DB)의 출결 기록에서 스터디 셀 하나를 읽는다. 멘멘 스터디는 typeLabel(멘멘/친바)로 줄을 구분한다. */
-  function resolveStudyCell(
-    teamId: string,
-    weekNum: number,
-    memberId: string,
-    typeLabel?: '멘멘' | '친바',
-  ): { status: AttendStatus; memo?: string } | undefined {
-    if (!isDbCategory || !attendance) return undefined;
-    const team = studyTeams?.find((t) => t.id === teamId);
-    if (!team) return undefined;
-    const cell = getStudyCell(attendance, team.id, weekNum, typeLabel ? `${memberId}:${typeLabel}` : memberId);
-    if (!cell || !typeLabel) return cell;
-    // 비고는 멘멘/친바 두 줄이 팀원 한 명에 하나를 함께 쓴다(팀원 ID로 저장).
-    return { status: cell.status, memo: getStudyCell(attendance, team.id, weekNum, memberId)?.memo ?? cell.memo };
-  }
 
   /** 이 화면에서 바꾼 상태·비고를 공용 저장소(DB)에 저장한다. rawId는 멤버ID 또는 "멤버ID:멘멘"/"멤버ID:친바". */
   function reportStudyChange(rawId: string, weekNum: number, change: Partial<AttendanceChange>) {

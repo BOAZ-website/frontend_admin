@@ -16,7 +16,7 @@ export type AggregationTab = 'BASE_MID' | 'ADV_MID' | 'BASE_FINAL' | 'ADV_FINAL'
 export type ViewMode = 'status' | 'score';
 
 // 1~7주차 방학 세션 일정 정의 (사용자 엑셀 명세 준수)
-export const SESSION_WEEKS = [
+const SESSION_WEEKS = [
   { id: 'w1', weekNum: 1, label: '1주차', date: '2026-07-06' },
   { id: 'w2', weekNum: 2, label: '2주차', date: '2026-07-13' },
   { id: 'w3', weekNum: 3, label: '3주차', date: '2026-07-20' },
@@ -79,11 +79,10 @@ interface MemberFullRecord {
 }
 
 export function ScoresPage({
-  attendance: _attendance,
   studyTeams,
   advTeams,
   membersMap,
-  scoreRules: _scoreRules,
+  scoreRules,
 }: {
   attendance: AttendanceState;
   studyTeams: StudyTeamInfo[];
@@ -167,7 +166,7 @@ export function ScoresPage({
       });
 
       // 2) 출결 감점 계산 (해당 부원의 기수별 점수 규칙 적용)
-      const termRule = _scoreRules ? getRuleForTerm(_scoreRules, m.term) : undefined;
+      const termRule = scoreRules ? getRuleForTerm(scoreRules, m.term) : undefined;
       const latePenalty = termRule?.latePenalty ?? -1;
       const unexcusedLatePenalty = termRule?.unexcusedLatePenalty ?? -4;
       const earlyLeavePenalty = termRule?.earlyLeavePenalty ?? -1;
@@ -325,7 +324,7 @@ export function ScoresPage({
       ...m,
       isTop5: top5Ids.has(m.id),
     }));
-  }, [membersMap, leaderNames]);
+  }, [membersMap, leaderNames, scoreRules]);
 
   // 필터링 적용
   const filteredRecords = useMemo(() => {
@@ -363,7 +362,7 @@ export function ScoresPage({
   // CSV 추출
   const handleDownloadCsv = () => {
     let headers: string[] = [];
-    let rows: any[][] = [];
+    let rows: Array<Array<string | number | boolean>> = [];
 
     if (activeTab === 'BASE_MID') {
       headers = [

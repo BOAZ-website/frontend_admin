@@ -172,7 +172,10 @@ export function InputPage({
   const isAdv = pageTitle?.includes('ADV') ?? false;
   const isHost = currentRole === 'HOST';
 
-  const effectiveTeams = isAdv ? (propAdvTeams ?? []) : studyTeams;
+  const effectiveTeams = useMemo(
+    () => (isAdv ? (propAdvTeams ?? []) : studyTeams),
+    [isAdv, propAdvTeams, studyTeams],
+  );
 
   // 선택한 팀의 id
   const [selectedTeam, setSelectedTeam] = useState<string>(() => {
@@ -320,7 +323,7 @@ export function InputPage({
     if (!accessibleWeeks.some((w) => w.weekNum === weekNum)) {
       setWeekNum(defaultWeekNum(accessibleWeeks));
     }
-  }, [accessibleWeeks]);
+  }, [accessibleWeeks, weekNum]);
 
   // 미래 주차(진행 예정) 이동 전 확인 경고 팝업 상태 및 핸들러
   const [futureWeekWarning, setFutureWeekWarning] = useState<number | null>(null);
@@ -868,8 +871,9 @@ export function InputPage({
   function handleCancelEdit() {
     setPdfDraft(null);
     setExtStatuses((prev) => {
-      const { [draftKey]: _saved, ...rest } = prev;
-      return rest;
+      const next = { ...prev };
+      delete next[draftKey];
+      return next;
     });
     setMemos((prev) =>
       Object.fromEntries(Object.entries(prev).filter(([memoKey]) => !memoKey.startsWith(`${draftKey}-`))),
@@ -880,8 +884,9 @@ export function InputPage({
     }
     // 저장하지 않은 출결·비고 초안을 버리고 제출된 값으로 돌아간다.
     setExtStatuses((prev) => {
-      const { [draftKey]: _discarded, ...rest } = prev;
-      return rest;
+      const next = { ...prev };
+      delete next[draftKey];
+      return next;
     });
     setMemos((prev) =>
       Object.fromEntries(Object.entries(prev).filter(([memoKey]) => !memoKey.startsWith(`${draftKey}-`))),
@@ -995,7 +1000,7 @@ export function InputPage({
       total += colWidths.actions || 45;
     }
     return total;
-  }, [colWidths, canEdit, isAdv, isMentoringTeam]);
+  }, [colWidths, canEdit, isMentoringTeam]);
 
   return (
     <div
