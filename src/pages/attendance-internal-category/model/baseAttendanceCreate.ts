@@ -16,10 +16,7 @@ const BASE_TRACK_DESCRIPTIONS: Record<UserTrack, string> = {
  * BASE 트랙 목록. 분석·시각화·엔지니어링은 DB에 데이터가 없는 기수에서도 항상 보이도록,
  * 그 기수의 트랙 팀이 있으면 그 팀을, 없으면 빈 트랙(트랙원 0명)을 채워 넣는다.
  */
-export function buildBaseTrackTeams(
-  teams: readonly TeamMeta[],
-  cohort: number,
-): TeamMeta[] {
+export function buildBaseTrackTeams(teams: readonly TeamMeta[], cohort: number): TeamMeta[] {
   return BASE_CREATE_TRACKS.map(
     (track) =>
       teams.find((team) => team.track === track) ?? {

@@ -38,7 +38,10 @@ export function persistWeekDates(db: Database, prev: CohortWeekDates, next: Coho
         .map(Number)
         .filter((week) => !(week in after))
         .forEach((week) =>
-          execute(db, 'DELETE FROM cohort_week_dates WHERE cohort = ? AND week_num = ?', [cohort, week]),
+          execute(db, 'DELETE FROM cohort_week_dates WHERE cohort = ? AND week_num = ?', [
+            cohort,
+            week,
+          ]),
         );
       Object.entries(after)
         .filter(([week, date]) => before[Number(week)] !== date)

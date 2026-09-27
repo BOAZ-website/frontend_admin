@@ -37,7 +37,10 @@ test('제출 요청은 그 팀·주차 사람들의 상태값만 담는다', () 
   assert.equal(submission.teamId, 'base_analysis');
   assert.deepEqual(
     submission.records.map((record) => [record.memberId, record.status]),
-    [['a', 'present'], ['b', 'late']],
+    [
+      ['a', 'present'],
+      ['b', 'late'],
+    ],
   );
   assert.equal(submission.records[1].memo, '10분 지각');
   assert.equal('memo' in submission.records[0], false);
@@ -68,7 +71,13 @@ test('서버 주소가 없으면 임시 구현이 제출 시각을 돌려주고,
   assert.ok(!Number.isNaN(Date.parse(result.submittedAt)));
 
   await assert.rejects(
-    submitWeekAttendance({ group: 'BASE', cohort: 27, teamId: 'base_analysis', weekNum: 3, records: [] }),
+    submitWeekAttendance({
+      group: 'BASE',
+      cohort: 27,
+      teamId: 'base_analysis',
+      weekNum: 3,
+      records: [],
+    }),
     /제출할 출결 대상이 없습니다/,
   );
 });

@@ -20,17 +20,26 @@ const users: UserProfile[] = [
 
 test('필터가 모두 비어 있으면 전체를 기수·부문·이름 순으로 반환한다', () => {
   const result = filterUsers(users, { terms: [], tracks: [], keyword: '' });
-  assert.deepEqual(result.map((u) => u.id), ['1', '3', '2']);
+  assert.deepEqual(
+    result.map((u) => u.id),
+    ['1', '3', '2'],
+  );
 });
 
 test('기수와 부문을 함께 지정하면 교집합만 반환한다', () => {
   const result = filterUsers(users, { terms: [27], tracks: ['분석'], keyword: '' });
-  assert.deepEqual(result.map((u) => u.id), ['3']);
+  assert.deepEqual(
+    result.map((u) => u.id),
+    ['3'],
+  );
 });
 
 test('이름 키워드로 추가로 좁힌다', () => {
   const result = filterUsers(users, { terms: [], tracks: [], keyword: '문지' });
-  assert.deepEqual(result.map((u) => u.id), ['2']);
+  assert.deepEqual(
+    result.map((u) => u.id),
+    ['2'],
+  );
 });
 
 test('원본 배열을 변경하지 않는다', () => {
@@ -48,14 +57,20 @@ const empty: MemberSelection = { members: [], leaderId: null };
 
 test('스터디장으로 지정하면 스터디원에도 자동 포함된다', () => {
   const next = toggleLeader(empty, a);
-  assert.deepEqual(next.members.map((m) => m.id), ['1']);
+  assert.deepEqual(
+    next.members.map((m) => m.id),
+    ['1'],
+  );
   assert.equal(next.leaderId, '1');
 });
 
 test('스터디장은 1명만 지정된다', () => {
   const next = toggleLeader(toggleLeader(empty, a), b);
   assert.equal(next.leaderId, '2');
-  assert.deepEqual(next.members.map((m) => m.id), ['1', '2']);
+  assert.deepEqual(
+    next.members.map((m) => m.id),
+    ['1', '2'],
+  );
 });
 
 test('스터디장을 스터디원에서 빼면 스터디장 지정도 해제된다', () => {

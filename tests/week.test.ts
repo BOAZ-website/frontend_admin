@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { currentPeriodOf, defaultWeekNum, isHeldWeek, weekStatusOf, type WeekInfo } from '../src/entities/attendance/model/week';
+import {
+  currentPeriodOf,
+  defaultWeekNum,
+  isHeldWeek,
+  weekStatusOf,
+  type WeekInfo,
+} from '../src/entities/attendance/model/week';
 
 const week = (weekNum: number, status: WeekInfo['status']): WeekInfo => ({
   id: `w${weekNum}`,
@@ -11,7 +17,12 @@ const week = (weekNum: number, status: WeekInfo['status']): WeekInfo => ({
   status,
 });
 
-const weeks: WeekInfo[] = [week(1, 'CLOSED'), week(2, 'CLOSED'), week(3, 'OPEN'), week(4, 'UPCOMING')];
+const weeks: WeekInfo[] = [
+  week(1, 'CLOSED'),
+  week(2, 'CLOSED'),
+  week(3, 'OPEN'),
+  week(4, 'UPCOMING'),
+];
 
 test('주차 상태는 데이터에서 읽고, 목록에 없는 주차는 진행 예정으로 본다', () => {
   assert.equal(weekStatusOf(weeks, 3), 'OPEN');

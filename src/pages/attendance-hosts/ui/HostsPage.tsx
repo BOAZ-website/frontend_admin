@@ -29,9 +29,7 @@ import { MODAL_PRIMARY_BTN, MODAL_SURFACE } from '@/shared/ui/modalStyles';
 export type HostCategory = 'ADV' | 'STUDY' | string;
 
 type AccountLookupState =
-  | { status: 'idle' }
-  | { status: 'found'; account: HostAccount }
-  | { status: 'not-found' };
+  { status: 'idle' } | { status: 'found'; account: HostAccount } | { status: 'not-found' };
 
 // 겸직 감지 헬퍼 함수
 const detectConcurrentRoles = (
@@ -182,16 +180,13 @@ export function HostsPage({
           h.team === team.teamName ||
           h.assignedGroups?.some((g) => g.teamName === team.teamName);
         const hasLeader =
-          cleanLeader &&
-          h.hostName &&
-          h.hostName.replace(/\s*\(.*\)/, '').trim() === cleanLeader;
+          cleanLeader && h.hostName && h.hostName.replace(/\s*\(.*\)/, '').trim() === cleanLeader;
         return hasTeam || hasLeader;
       });
 
       const effectiveLeader = account?.hostName || leaderName;
       const concurrent =
-        account?.concurrentRoles ||
-        detectConcurrentRoles(effectiveLeader, team.teamName, hosts);
+        account?.concurrentRoles || detectConcurrentRoles(effectiveLeader, team.teamName, hosts);
 
       return {
         idx: idx + 1,
@@ -215,21 +210,24 @@ export function HostsPage({
             r.account?.id === h.id ||
             (h.teamId && r.team.id === h.teamId) ||
             (h.team && h.team !== '팀 개설 대기' && r.team.teamName === h.team) ||
-            r.account?.assignedGroups?.some((g) => g.teamName === r.team.teamName)
+            r.account?.assignedGroups?.some((g) => g.teamName === r.team.teamName),
         );
         return !alreadyInBase;
       })
       .map((h, i) => {
         const leaderName = h.hostName || '';
-        const concurrent =
-          h.concurrentRoles || detectConcurrentRoles(leaderName, h.team, hosts);
+        const concurrent = h.concurrentRoles || detectConcurrentRoles(leaderName, h.team, hosts);
         const isWaiting = !h.team || h.team === '팀 개설 대기';
         return {
           idx: baseRows.length + i + 1,
           team: {
             id: `extra_adv_${h.id}`,
             track: h.track || '분석',
-            teamName: isWaiting ? '팀 개설 대기' : (h.team.includes('겸직') ? h.team : `${h.team} (ADV 겸직)`),
+            teamName: isWaiting
+              ? '팀 개설 대기'
+              : h.team.includes('겸직')
+                ? h.team
+                : `${h.team} (ADV 겸직)`,
             topic: isWaiting ? '계정 발급 완료 (팀 미개설)' : 'ADV & 스터디 복수 권한 연동',
             defaultLeader: leaderName,
           },
@@ -259,19 +257,16 @@ export function HostsPage({
           h.team === team.teamName ||
           h.team.includes(team.teamName) ||
           h.assignedGroups?.some(
-            (g) => g.teamName === team.teamName || team.teamName.includes(g.teamName)
+            (g) => g.teamName === team.teamName || team.teamName.includes(g.teamName),
           );
         const hasLeader =
-          cleanLeader &&
-          h.hostName &&
-          h.hostName.replace(/\s*\(.*\)/, '').trim() === cleanLeader;
+          cleanLeader && h.hostName && h.hostName.replace(/\s*\(.*\)/, '').trim() === cleanLeader;
         return hasTeam || hasLeader;
       });
 
       const effectiveLeader = account?.hostName || leaderName;
       const concurrent =
-        account?.concurrentRoles ||
-        detectConcurrentRoles(effectiveLeader, team.teamName, hosts);
+        account?.concurrentRoles || detectConcurrentRoles(effectiveLeader, team.teamName, hosts);
 
       return {
         idx: idx + 1,
@@ -294,21 +289,26 @@ export function HostsPage({
           (r) =>
             r.account?.id === h.id ||
             (h.teamId && r.team.id === h.teamId) ||
-            (h.team && h.team !== '팀 개설 대기' && (r.team.teamName === h.team || h.team.includes(r.team.teamName))) ||
-            r.account?.assignedGroups?.some((g) => g.teamName === r.team.teamName)
+            (h.team &&
+              h.team !== '팀 개설 대기' &&
+              (r.team.teamName === h.team || h.team.includes(r.team.teamName))) ||
+            r.account?.assignedGroups?.some((g) => g.teamName === r.team.teamName),
         );
         return !alreadyInBase;
       })
       .map((h, i) => {
         const leaderName = h.hostName || '';
-        const concurrent =
-          h.concurrentRoles || detectConcurrentRoles(leaderName, h.team, hosts);
+        const concurrent = h.concurrentRoles || detectConcurrentRoles(leaderName, h.team, hosts);
         const isWaiting = !h.team || h.team === '팀 개설 대기';
         return {
           idx: baseRows.length + i + 1,
           team: {
             id: `extra_study_${h.id}`,
-            teamName: isWaiting ? '팀 개설 대기' : (h.team.includes('겸직') ? h.team : `${h.team} (스터디 겸직)`),
+            teamName: isWaiting
+              ? '팀 개설 대기'
+              : h.team.includes('겸직')
+                ? h.team
+                : `${h.team} (스터디 겸직)`,
             studyName: isWaiting ? '계정 발급 완료 (팀 미개설)' : 'ADV & 스터디 복수 권한 연동',
             defaultLeader: leaderName,
             studyType: '방학 스터디' as StudyPeriodType,
@@ -330,7 +330,8 @@ export function HostsPage({
       if (!row.account) return false;
 
       const effectiveTrack = row.account.track || row.team.track;
-      if (trackFilter !== 'ALL' && effectiveTrack !== trackFilter && row.team.track !== '겸직 연동') return false;
+      if (trackFilter !== 'ALL' && effectiveTrack !== trackFilter && row.team.track !== '겸직 연동')
+        return false;
       return true;
     });
   }, [advTeamRows, trackFilter]);
@@ -461,9 +462,7 @@ export function HostsPage({
     });
 
     setAccountLookup(
-      matchedAccount
-        ? { status: 'found', account: matchedAccount }
-        : { status: 'not-found' },
+      matchedAccount ? { status: 'found', account: matchedAccount } : { status: 'not-found' },
     );
     setFormUsername('');
     setFormPassword('');
@@ -477,7 +476,7 @@ export function HostsPage({
     generation: string,
     track: string,
     username: string,
-    pw: string
+    pw: string,
   ) => {
     return `[BOAZ 그룹리더 HOST 전용 계정 안내]
 
@@ -508,16 +507,10 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
       finalTeam === '팀 개설 대기'
         ? undefined
         : { type: formGroupType, teamName: finalTeam, teamId: finalTeamId };
-    const updatedAccount = addPermissionToHost(
-      existingAccount,
-      targetPermission,
-      assignedGroup,
-    );
+    const updatedAccount = addPermissionToHost(existingAccount, targetPermission, assignedGroup);
 
     setHosts((previous) =>
-      previous.map((account) =>
-        account.id === existingAccount.id ? updatedAccount : account,
-      ),
+      previous.map((account) => (account.id === existingAccount.id ? updatedAccount : account)),
     );
 
     setDeliveryModal({
@@ -625,7 +618,6 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
     setShowIssueCard(false);
   };
 
-
   // 클립보드 복사 함수
   const copyToClipboard = async (text: string) => {
     try {
@@ -724,7 +716,9 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
               <div>
                 <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <span>
-                    {activeCategory === 'ADV' ? 'ADV 그룹리더 계정 현황' : '스터디 그룹리더 계정 현황'}
+                    {activeCategory === 'ADV'
+                      ? 'ADV 그룹리더 계정 현황'
+                      : '스터디 그룹리더 계정 현황'}
                   </span>
                 </h2>
               </div>
@@ -778,270 +772,282 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
             {/* =========================================================
           계정 발급 모달 창 (HOST 계정 부여 - 그룹리더)
          ========================================================= */}
-      {showIssueCard && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
-          onClick={() => setShowIssueCard(false)}
-        >
-          <div
-            className={`w-full max-w-lg max-h-[92vh] flex flex-col rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* 모달 헤더 */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-              <h3 className="text-base font-bold text-slate-900">
-                HOST 계정 생성·권한 추가
-              </h3>
-              <button
-                type="button"
+            {showIssueCard && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
                 onClick={() => setShowIssueCard(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* 발급 폼 */}
-            <form noValidate onSubmit={handleSaveAccount} className="flex min-h-0 flex-1 flex-col">
-              <div className="space-y-3.5 p-6 overflow-y-auto flex-1 min-h-0">
-                {/* 1. 현재 구성된 팀 */}
-                <div>
-                  <label
-                    htmlFor="host-account-team"
-                    className="block text-xs font-semibold text-slate-700 mb-1.5"
-                  >
-                    팀 이름
-                  </label>
-                  <select
-                    id="host-account-team"
-                    required
-                    value={formTeamId}
-                    disabled={configuredTeams.length === 0}
-                    onChange={(e) => handleSelectTeam(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 outline-none focus:border-slate-800 transition-colors disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                  >
-                    <option value="">
-                      {configuredTeams.length === 0
-                        ? `출결 관리에서 개설된 ${targetPermissionLabel} 팀이 없습니다`
-                        : '팀을 선택해 주세요'}
-                    </option>
-                    {configuredTeams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.teamName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 2. 현재 팀장: 한 번 클릭하면 팀원 목록이 열린다 */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    현재 팀장
-                  </label>
-                  <div className="relative">
-                    <select
-                      aria-label="팀장 변경"
-                      value={formLeaderName}
-                      disabled={!formTeamId || selectedTeamMembers.length === 0}
-                      onChange={(e) => {
-                        const selectedLeader = selectedTeamMembers.find(
-                          (member) => member.name === e.target.value,
-                        );
-                        if (!selectedLeader) return;
-                        resetAccountLookup();
-                        setFormLeaderName(selectedLeader.name);
-                        setFormGeneration(generationLabel(selectedLeader.year));
-                        setFormTrack(selectedLeader.track || '부문 미정');
-                      }}
-                      className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-9 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-400 hover:bg-white focus:border-slate-800 disabled:cursor-not-allowed disabled:text-slate-400"
-                    >
-                      {!selectedTeamMembers.some((member) => member.name === formLeaderName) && (
-                        <option value={formLeaderName}>{formLeaderName || '팀장 미정'}</option>
-                      )}
-                      {selectedTeamMembers.map((member) => (
-                        <option key={member.id} value={member.name}>
-                          {member.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={14}
-                      aria-hidden="true"
-                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-                  </div>
-                  {formTeamId && selectedTeamMembers.length === 0 && (
-                    <p className="mt-1 text-[10px] text-slate-400">등록된 팀원이 없습니다.</p>
-                  )}
-                </div>
-
-                {/* 3. 선택된 팀원의 기수와 부문 */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <span className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      기수
-                    </span>
-                    <p className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800">
-                      {formGeneration}
-                    </p>
-                  </div>
-
-                  <div>
-                    <span className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      부문
-                    </span>
-                    <p className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800">
-                      {formTrack}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex justify-center pt-3">
-                  <button
-                    type="button"
-                    onClick={handleLookupAccount}
-                    disabled={
-                      !formTeamId ||
-                      !formLeaderName.trim() ||
-                      !formGeneration.trim() ||
-                      !formTrack.trim()
-                    }
-                    className={`text-xs font-semibold underline-offset-4 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline cursor-pointer ${
-                      accountLookup.status === 'not-found'
-                        ? 'text-red-600 hover:text-red-700 hover:underline'
-                        : 'text-slate-600 hover:text-slate-950 hover:underline'
-                    }`}
-                  >
-                    {accountLookup.status === 'not-found'
-                      ? '계정이 존재하지 않습니다. 새 계정을 생성해 주세요.'
-                      : '계정 존재 여부 확인'}
-                  </button>
-                </div>
-
-                {accountLookup.status === 'found' && (
-                  <div className="space-y-3 rounded-2xl border border-slate-300 bg-slate-50 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-900">
-                        <UserCheck size={15} className="text-slate-600" />
-                        기존 계정이 있습니다
-                      </div>
-                      <code className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700">
-                        {accountLookup.account.username}
-                      </code>
-                    </div>
-                    <div>
-                      <p className="mb-2 text-[11px] font-semibold text-slate-500">현재 보유 권한</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {lookupPermissions.map((permission) => (
-                          <span
-                            key={permission}
-                            className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700"
-                          >
-                            {permission === 'ADV' ? 'ADV' : '스터디'}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-[11px] leading-5 text-slate-500">
-                      {hasTargetPermission
-                        ? `${targetPermissionLabel} 권한이 이미 등록되어 있습니다. 전달문을 바로 확인할 수 있습니다.`
-                        : `현재 보고 있는 ${targetPermissionLabel} 탭의 권한을 이 계정에 추가할 수 있습니다.`}
-                    </p>
-                  </div>
-                )}
-
-                {accountLookup.status === 'not-found' && (
-                  <div className="space-y-4 pt-2">
-                    <div className="border-b border-slate-200">
-                      <span className="inline-block border-b-2 border-slate-900 px-1 pb-2 text-xs font-bold text-slate-900">
-                        계정 생성
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      {/* 로그인 아이디 */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                          로그인 아이디 (ID)
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="아이디 직접 입력"
-                          value={formUsername}
-                          onChange={(e) => setFormUsername(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-mono text-slate-800 outline-none focus:border-slate-800 transition-colors"
-                        />
-                        {showRequiredErrors && !formUsername.trim() && (
-                          <p className="mt-1 text-[10px] text-rose-600">이 입력란을 작성하세요.</p>
-                        )}
-                      </div>
-
-                      {/* 초기 비밀번호 */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                          비밀번호 (PW)
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="비밀번호 직접 입력"
-                          value={formPassword}
-                          onChange={(e) => setFormPassword(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-mono text-slate-800 outline-none focus:border-slate-800 transition-colors"
-                        />
-                        {showRequiredErrors && !formPassword.trim() && (
-                          <p className="mt-1 text-[10px] text-rose-600">이 입력란을 작성하세요.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 모달 하단 버튼 */}
-              <div className="flex items-center justify-end gap-2 px-6 py-3.5 bg-slate-50/80 border-t border-slate-100 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowIssueCard(false)}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                <div
+                  className={`w-full max-w-lg max-h-[92vh] flex flex-col rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  취소
-                </button>
-                {accountLookup.status === 'found' && (
-                  <>
+                  {/* 모달 헤더 */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+                    <h3 className="text-base font-bold text-slate-900">HOST 계정 생성·권한 추가</h3>
                     <button
                       type="button"
-                      onClick={handleAddPermission}
-                      disabled={hasTargetPermission}
-                      className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer inline-flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 ${MODAL_PRIMARY_BTN}`}
+                      onClick={() => setShowIssueCard(false)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
-                      <Check size={14} />
-                      <span>{targetPermissionLabel} 권한 추가</span>
+                      <X size={18} />
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleShowPermissionDelivery}
-                      disabled={!hasTargetPermission}
-                      className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:border-slate-500 hover:bg-slate-100 shadow-xs cursor-pointer inline-flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-300"
-                    >
-                      <MessageSquare size={14} />
-                      <span>전달문 보기</span>
-                    </button>
-                  </>
-                )}
-                {accountLookup.status === 'not-found' && (
-                  <button
-                    type="submit"
-                    className="px-3 py-1.5 rounded-lg bg-[#e9eef4] text-[11px] text-slate-800 font-bold border border-slate-300 shadow-2xs hover:bg-slate-200 cursor-pointer inline-flex items-center transition-all active:scale-[0.98]"
+                  </div>
+
+                  {/* 발급 폼 */}
+                  <form
+                    noValidate
+                    onSubmit={handleSaveAccount}
+                    className="flex min-h-0 flex-1 flex-col"
                   >
-                    <span>계정 및 전달문 생성</span>
-                  </button>
-                )}
+                    <div className="space-y-3.5 p-6 overflow-y-auto flex-1 min-h-0">
+                      {/* 1. 현재 구성된 팀 */}
+                      <div>
+                        <label
+                          htmlFor="host-account-team"
+                          className="block text-xs font-semibold text-slate-700 mb-1.5"
+                        >
+                          팀 이름
+                        </label>
+                        <select
+                          id="host-account-team"
+                          required
+                          value={formTeamId}
+                          disabled={configuredTeams.length === 0}
+                          onChange={(e) => handleSelectTeam(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 outline-none focus:border-slate-800 transition-colors disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          <option value="">
+                            {configuredTeams.length === 0
+                              ? `출결 관리에서 개설된 ${targetPermissionLabel} 팀이 없습니다`
+                              : '팀을 선택해 주세요'}
+                          </option>
+                          {configuredTeams.map((team) => (
+                            <option key={team.id} value={team.id}>
+                              {team.teamName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* 2. 현재 팀장: 한 번 클릭하면 팀원 목록이 열린다 */}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                          현재 팀장
+                        </label>
+                        <div className="relative">
+                          <select
+                            aria-label="팀장 변경"
+                            value={formLeaderName}
+                            disabled={!formTeamId || selectedTeamMembers.length === 0}
+                            onChange={(e) => {
+                              const selectedLeader = selectedTeamMembers.find(
+                                (member) => member.name === e.target.value,
+                              );
+                              if (!selectedLeader) return;
+                              resetAccountLookup();
+                              setFormLeaderName(selectedLeader.name);
+                              setFormGeneration(generationLabel(selectedLeader.year));
+                              setFormTrack(selectedLeader.track || '부문 미정');
+                            }}
+                            className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-9 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-400 hover:bg-white focus:border-slate-800 disabled:cursor-not-allowed disabled:text-slate-400"
+                          >
+                            {!selectedTeamMembers.some(
+                              (member) => member.name === formLeaderName,
+                            ) && (
+                              <option value={formLeaderName}>
+                                {formLeaderName || '팀장 미정'}
+                              </option>
+                            )}
+                            {selectedTeamMembers.map((member) => (
+                              <option key={member.id} value={member.name}>
+                                {member.name}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown
+                            size={14}
+                            aria-hidden="true"
+                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                          />
+                        </div>
+                        {formTeamId && selectedTeamMembers.length === 0 && (
+                          <p className="mt-1 text-[10px] text-slate-400">등록된 팀원이 없습니다.</p>
+                        )}
+                      </div>
+
+                      {/* 3. 선택된 팀원의 기수와 부문 */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <span className="block text-xs font-semibold text-slate-700 mb-1.5">
+                            기수
+                          </span>
+                          <p className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800">
+                            {formGeneration}
+                          </p>
+                        </div>
+
+                        <div>
+                          <span className="block text-xs font-semibold text-slate-700 mb-1.5">
+                            부문
+                          </span>
+                          <p className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800">
+                            {formTrack}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center pt-3">
+                        <button
+                          type="button"
+                          onClick={handleLookupAccount}
+                          disabled={
+                            !formTeamId ||
+                            !formLeaderName.trim() ||
+                            !formGeneration.trim() ||
+                            !formTrack.trim()
+                          }
+                          className={`text-xs font-semibold underline-offset-4 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline cursor-pointer ${
+                            accountLookup.status === 'not-found'
+                              ? 'text-red-600 hover:text-red-700 hover:underline'
+                              : 'text-slate-600 hover:text-slate-950 hover:underline'
+                          }`}
+                        >
+                          {accountLookup.status === 'not-found'
+                            ? '계정이 존재하지 않습니다. 새 계정을 생성해 주세요.'
+                            : '계정 존재 여부 확인'}
+                        </button>
+                      </div>
+
+                      {accountLookup.status === 'found' && (
+                        <div className="space-y-3 rounded-2xl border border-slate-300 bg-slate-50 p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-slate-900">
+                              <UserCheck size={15} className="text-slate-600" />
+                              기존 계정이 있습니다
+                            </div>
+                            <code className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700">
+                              {accountLookup.account.username}
+                            </code>
+                          </div>
+                          <div>
+                            <p className="mb-2 text-[11px] font-semibold text-slate-500">
+                              현재 보유 권한
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {lookupPermissions.map((permission) => (
+                                <span
+                                  key={permission}
+                                  className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700"
+                                >
+                                  {permission === 'ADV' ? 'ADV' : '스터디'}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-[11px] leading-5 text-slate-500">
+                            {hasTargetPermission
+                              ? `${targetPermissionLabel} 권한이 이미 등록되어 있습니다. 전달문을 바로 확인할 수 있습니다.`
+                              : `현재 보고 있는 ${targetPermissionLabel} 탭의 권한을 이 계정에 추가할 수 있습니다.`}
+                          </p>
+                        </div>
+                      )}
+
+                      {accountLookup.status === 'not-found' && (
+                        <div className="space-y-4 pt-2">
+                          <div className="border-b border-slate-200">
+                            <span className="inline-block border-b-2 border-slate-900 px-1 pb-2 text-xs font-bold text-slate-900">
+                              계정 생성
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            {/* 로그인 아이디 */}
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                                로그인 아이디 (ID)
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="아이디 직접 입력"
+                                value={formUsername}
+                                onChange={(e) => setFormUsername(e.target.value)}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-mono text-slate-800 outline-none focus:border-slate-800 transition-colors"
+                              />
+                              {showRequiredErrors && !formUsername.trim() && (
+                                <p className="mt-1 text-[10px] text-rose-600">
+                                  이 입력란을 작성하세요.
+                                </p>
+                              )}
+                            </div>
+
+                            {/* 초기 비밀번호 */}
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                                비밀번호 (PW)
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="비밀번호 직접 입력"
+                                value={formPassword}
+                                onChange={(e) => setFormPassword(e.target.value)}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-mono text-slate-800 outline-none focus:border-slate-800 transition-colors"
+                              />
+                              {showRequiredErrors && !formPassword.trim() && (
+                                <p className="mt-1 text-[10px] text-rose-600">
+                                  이 입력란을 작성하세요.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 모달 하단 버튼 */}
+                    <div className="flex items-center justify-end gap-2 px-6 py-3.5 bg-slate-50/80 border-t border-slate-100 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowIssueCard(false)}
+                        className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        취소
+                      </button>
+                      {accountLookup.status === 'found' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handleAddPermission}
+                            disabled={hasTargetPermission}
+                            className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer inline-flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 ${MODAL_PRIMARY_BTN}`}
+                          >
+                            <Check size={14} />
+                            <span>{targetPermissionLabel} 권한 추가</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleShowPermissionDelivery}
+                            disabled={!hasTargetPermission}
+                            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:border-slate-500 hover:bg-slate-100 shadow-xs cursor-pointer inline-flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-300"
+                          >
+                            <MessageSquare size={14} />
+                            <span>전달문 보기</span>
+                          </button>
+                        </>
+                      )}
+                      {accountLookup.status === 'not-found' && (
+                        <button
+                          type="submit"
+                          className="px-3 py-1.5 rounded-lg bg-[#e9eef4] text-[11px] text-slate-800 font-bold border border-slate-300 shadow-2xs hover:bg-slate-200 cursor-pointer inline-flex items-center transition-all active:scale-[0.98]"
+                        >
+                          <span>계정 및 전달문 생성</span>
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            )}
 
             {/* =========================================================
                 테이블: 이름, 기수, 부문, 아이디, 비밀번호 (출결 입력 페이지 스타일 일치)
@@ -1139,7 +1145,9 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
 
                               {/* 이름 */}
                               <td className="px-4 py-2 text-center whitespace-nowrap">
-                                <span className="font-bold text-slate-900 text-xs">{effectiveLeader}</span>
+                                <span className="font-bold text-slate-900 text-xs">
+                                  {effectiveLeader}
+                                </span>
                               </td>
 
                               {/* 기수 */}
@@ -1236,7 +1244,9 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
 
                             {/* 이름 */}
                             <td className="px-4 py-2 text-center whitespace-nowrap">
-                              <span className="font-bold text-slate-900 text-xs">{effectiveLeader}</span>
+                              <span className="font-bold text-slate-900 text-xs">
+                                {effectiveLeader}
+                              </span>
                             </td>
 
                             {/* 기수 */}
@@ -1309,13 +1319,13 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
         </main>
       </div>
 
-
-
       {/* 삭제 모드: 하단 플로팅 액션 필 (선택 개수 + 삭제 + 취소) */}
       {isDeleteMode && (
         <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 flex items-center gap-1 rounded-full bg-slate-900 py-1.5 pl-4 pr-1.5 text-white shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150">
           <span className="pr-2 text-xs font-semibold tabular-nums">
-            {selectedAccounts.length > 0 ? `${selectedAccounts.length}개 선택됨` : '계정을 선택해 주세요'}
+            {selectedAccounts.length > 0
+              ? `${selectedAccounts.length}개 선택됨`
+              : '계정을 선택해 주세요'}
           </span>
           <button
             type="button"

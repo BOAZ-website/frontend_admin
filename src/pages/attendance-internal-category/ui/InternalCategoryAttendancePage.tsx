@@ -609,7 +609,9 @@ export function InternalCategoryAttendancePage({
   const [isSubmittingWeek, setIsSubmittingWeek] = useState(false);
   // 제출한 주차를 다시 고칠 때 켜지는 수정 모드(비고 옆 수정 아이콘). 수정 완료 시 다시 제출한다.
   const [editingWeekKey, setEditingWeekKey] = useState<string | null>(null);
-  const [submitToast, setSubmitToast] = useState<{ message: string; isError: boolean } | null>(null);
+  const [submitToast, setSubmitToast] = useState<{ message: string; isError: boolean } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!submitToast) return;
@@ -631,9 +633,7 @@ export function InternalCategoryAttendancePage({
   const studyView = useMemo(
     () =>
       buildStudyView(
-        (studyTeams ?? []).filter(
-          (team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === viewCohort,
-        ),
+        (studyTeams ?? []).filter((team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === viewCohort),
         studyMembers ?? {},
         CATEGORY_CONFIG.STUDY.initialEvents[0]?.id ?? '',
       ),
@@ -642,7 +642,11 @@ export function InternalCategoryAttendancePage({
   const config = useMemo(
     () =>
       isDbCategory
-        ? { ...CATEGORY_CONFIG[category], teams: studyView.teams, initialAttendees: studyView.attendees }
+        ? {
+            ...CATEGORY_CONFIG[category],
+            teams: studyView.teams,
+            initialAttendees: studyView.attendees,
+          }
         : CATEGORY_CONFIG[category],
     [category, isDbCategory, studyView],
   );
@@ -909,8 +913,7 @@ export function InternalCategoryAttendancePage({
       label: '엔지',
       teams: availableTeams.filter(
         (team) =>
-          team.studyKind === 'MENTORING' &&
-          (team.track === '엔지니어링' || team.track === '엔지'),
+          team.studyKind === 'MENTORING' && (team.track === '엔지니어링' || team.track === '엔지'),
       ),
     },
   ];
@@ -964,7 +967,10 @@ export function InternalCategoryAttendancePage({
         isError: false,
       });
     } catch {
-      setSubmitToast({ message: '출결을 제출하지 못했습니다. 잠시 후 다시 시도해 주세요.', isError: true });
+      setSubmitToast({
+        message: '출결을 제출하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+        isError: true,
+      });
     } finally {
       setIsSubmittingWeek(false);
     }
@@ -1400,9 +1406,7 @@ export function InternalCategoryAttendancePage({
     [attendees, availableTeams, isAllSelected, selectedEvent?.id, selectedTeamId],
   );
   const isMentoringStudy =
-    category === 'STUDY' &&
-    termPeriod === 'VACATION' &&
-    selectedTeam.studyKind === 'MENTORING';
+    category === 'STUDY' && termPeriod === 'VACATION' && selectedTeam.studyKind === 'MENTORING';
 
   // 선택한 팀·주차의 출결 명단
   const baseAttendees = isAllSelected
@@ -1558,20 +1562,24 @@ export function InternalCategoryAttendancePage({
 
   // 진행된(종료·진행 중) 주차만 직접 출결 선택 가능.
   // BASE는 진행 중(OPEN)인 주차만 고를 수 있고, 지난(CLOSED) 주차는 선택된 상태값으로 확정돼 보이기만 한다.
-  const isWeekDirectEditable = useCallback((weekNum: number) => {
-    // ADV: 진행 중인 주차가 3주차까지일 때만 이 화면에서 직접 고른다. 지난 주차는 결과만 보이고,
-    // 4주차부터는 ADV 출결 입력 탭에서 팀이 작성한 값이 그대로 보인다.
-    if (category === 'ADV') {
-      return (
-        !isArchivedView &&
-        weekNum <= ADV_DIRECT_SELECT_LAST_WEEK &&
-        weekStatusOf(weeks, weekNum) === 'OPEN'
-      );
-    }
-    // BASE: 지난 주차만 잠기고, 진행 중·아직 오지 않은 주차는 이 화면에서 버튼으로 입력한다.
-    if (category === 'SESSION') return !isArchivedView && weekStatusOf(weeks, weekNum) !== 'CLOSED';
-    return !isArchivedView && usesOneToEightWeeks && isHeldWeek(weeks, weekNum);
-  }, [category, isArchivedView, usesOneToEightWeeks, weeks]);
+  const isWeekDirectEditable = useCallback(
+    (weekNum: number) => {
+      // ADV: 진행 중인 주차가 3주차까지일 때만 이 화면에서 직접 고른다. 지난 주차는 결과만 보이고,
+      // 4주차부터는 ADV 출결 입력 탭에서 팀이 작성한 값이 그대로 보인다.
+      if (category === 'ADV') {
+        return (
+          !isArchivedView &&
+          weekNum <= ADV_DIRECT_SELECT_LAST_WEEK &&
+          weekStatusOf(weeks, weekNum) === 'OPEN'
+        );
+      }
+      // BASE: 지난 주차만 잠기고, 진행 중·아직 오지 않은 주차는 이 화면에서 버튼으로 입력한다.
+      if (category === 'SESSION')
+        return !isArchivedView && weekStatusOf(weeks, weekNum) !== 'CLOSED';
+      return !isArchivedView && usesOneToEightWeeks && isHeldWeek(weeks, weekNum);
+    },
+    [category, isArchivedView, usesOneToEightWeeks, weeks],
+  );
 
   /** 이 화면에서 제출·수정할 수 있는 주차인가: BASE는 진행 중인 주차, ADV는 진행 중이면서 3주차까지. */
   const isSubmittableWeek = (weekNum: number) => {
@@ -2020,14 +2028,12 @@ export function InternalCategoryAttendancePage({
   function handleStatusChange(attendeeId: string, newStatus: AttendStatus, targetWeekNum?: number) {
     if (isArchivedView) return;
     const rawId = attendeeId.includes('_w') ? attendeeId.split('_w')[0] : attendeeId;
-    const targetWeek =
-      targetWeekNum || (selectedWeek === 0 ? latestWeekNum : selectedWeek);
+    const targetWeek = targetWeekNum || (selectedWeek === 0 ? latestWeekNum : selectedWeek);
     reportStudyChange(rawId, targetWeek, { status: newStatus });
   }
 
   function handleMemoChange(attendeeId: string, memo: string, targetWeekNum?: number) {
-    const targetWeek =
-      targetWeekNum || (selectedWeek === 0 ? latestWeekNum : selectedWeek);
+    const targetWeek = targetWeekNum || (selectedWeek === 0 ? latestWeekNum : selectedWeek);
     reportStudyChange(attendeeId, targetWeek, { memo });
   }
 
@@ -2095,10 +2101,7 @@ export function InternalCategoryAttendancePage({
             exportValue: (row) => row?.name ?? '',
           },
           ...displayedMatrixWeeks.map((w) => {
-            const rawDate = (
-              savedWeekDateMapping[w.weekNum] ||
-              ''
-            )?.trim();
+            const rawDate = (savedWeekDateMapping[w.weekNum] || '')?.trim();
             const hasDate = Boolean(rawDate && rawDate !== '-');
             return {
               id: `w_${w.weekNum}`,
@@ -2299,10 +2302,7 @@ export function InternalCategoryAttendancePage({
           exportValue: (row) => row?.track ?? '',
         },
         ...displayedMatrixWeeks.map((w) => {
-          const rawDate = (
-            savedWeekDateMapping[w.weekNum] ||
-            ''
-          )?.trim();
+          const rawDate = (savedWeekDateMapping[w.weekNum] || '')?.trim();
           const hasDate = Boolean(rawDate && rawDate !== '-');
           return {
             id: `w_${w.weekNum}`,
@@ -2433,10 +2433,7 @@ export function InternalCategoryAttendancePage({
           exportValue: (row) => row?.name ?? '',
         },
         ...displayedMatrixWeeks.map((w) => {
-          const rawDate = (
-            savedWeekDateMapping[w.weekNum] ||
-            ''
-          )?.trim();
+          const rawDate = (savedWeekDateMapping[w.weekNum] || '')?.trim();
           const hasDate = Boolean(rawDate && rawDate !== '-');
           return {
             id: `w_${w.weekNum}`,
@@ -2685,11 +2682,7 @@ export function InternalCategoryAttendancePage({
         </div>
 
         {/* 활동 기수 (맨 오른쪽): 기수를 고르면 그 기수의 출결만 보인다 */}
-        <CohortSelect
-          value={viewCohort}
-          cohorts={cohortOptions}
-          onChange={handleChangeCohort}
-        />
+        <CohortSelect value={viewCohort} cohorts={cohortOptions} onChange={handleChangeCohort} />
       </div>
 
       {/* ─── 2. 주차 선택 토글 바 (수평 스크롤 & 위치 완전 고정) ─── */}
@@ -2930,71 +2923,71 @@ export function InternalCategoryAttendancePage({
                 {studyTeamGroups
                   .filter((group) => group.label !== '멘멘 스터디' || termPeriod === 'VACATION')
                   .map((group) => (
-                  <section key={group.label} className="space-y-2.5">
-                    <h3 className="px-1 text-[11px] font-bold text-slate-400 select-none">
-                      {group.label}
-                    </h3>
-                    {group.label === '일반 스터디' && (
-                      <div
-                        onClick={() => {
-                          setSelectedTeamId('ALL');
-                          setIsPeekOpen(true);
-                        }}
-                        className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
-                          isAllSelected && isPeekOpen
-                            ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
-                            : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <h4
-                            className={`min-w-0 flex-1 truncate text-sm font-bold ${
-                              isAllSelected && isPeekOpen
-                                ? 'text-slate-950'
-                                : 'text-slate-900 group-hover:text-slate-800'
-                            }`}
-                          >
-                            전체 스터디
-                          </h4>
-                          <ChevronRight
-                            size={16}
-                            className={`shrink-0 transition-transform ${
-                              isAllSelected && isPeekOpen
-                                ? 'text-slate-500 translate-x-0.5'
-                                : 'text-slate-300 group-hover:text-slate-500'
-                            }`}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {group.label === '멘멘 스터디' ? (
-                      <div className="space-y-4 pl-2">
-                        {mentoringStudyTrackGroups.map((trackGroup) => (
-                          <div key={trackGroup.label} className="space-y-2">
-                            <h4 className="px-1 text-[11px] font-bold text-slate-500 select-none">
-                              {trackGroup.label}
+                    <section key={group.label} className="space-y-2.5">
+                      <h3 className="px-1 text-[11px] font-bold text-slate-400 select-none">
+                        {group.label}
+                      </h3>
+                      {group.label === '일반 스터디' && (
+                        <div
+                          onClick={() => {
+                            setSelectedTeamId('ALL');
+                            setIsPeekOpen(true);
+                          }}
+                          className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
+                            isAllSelected && isPeekOpen
+                              ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+                              : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <h4
+                              className={`min-w-0 flex-1 truncate text-sm font-bold ${
+                                isAllSelected && isPeekOpen
+                                  ? 'text-slate-950'
+                                  : 'text-slate-900 group-hover:text-slate-800'
+                              }`}
+                            >
+                              전체 스터디
                             </h4>
-                            {trackGroup.teams.length === 0 ? (
-                              <p className="px-1 py-1 text-[11px] text-slate-400">
-                                등록된 스터디가 없습니다.
-                              </p>
-                            ) : (
-                              <div className="space-y-2.5">
-                                {trackGroup.teams.map(renderStudyTeamCard)}
-                              </div>
-                            )}
+                            <ChevronRight
+                              size={16}
+                              className={`shrink-0 transition-transform ${
+                                isAllSelected && isPeekOpen
+                                  ? 'text-slate-500 translate-x-0.5'
+                                  : 'text-slate-300 group-hover:text-slate-500'
+                              }`}
+                            />
                           </div>
-                        ))}
-                      </div>
-                    ) : group.teams.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
-                        등록된 {group.label}가 없습니다.
-                      </div>
-                    ) : (
-                      <div className="space-y-2.5">{group.teams.map(renderStudyTeamCard)}</div>
-                    )}
-                  </section>
-                ))}
+                        </div>
+                      )}
+                      {group.label === '멘멘 스터디' ? (
+                        <div className="space-y-4 pl-2">
+                          {mentoringStudyTrackGroups.map((trackGroup) => (
+                            <div key={trackGroup.label} className="space-y-2">
+                              <h4 className="px-1 text-[11px] font-bold text-slate-500 select-none">
+                                {trackGroup.label}
+                              </h4>
+                              {trackGroup.teams.length === 0 ? (
+                                <p className="px-1 py-1 text-[11px] text-slate-400">
+                                  등록된 스터디가 없습니다.
+                                </p>
+                              ) : (
+                                <div className="space-y-2.5">
+                                  {trackGroup.teams.map(renderStudyTeamCard)}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : group.teams.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
+                          등록된 {group.label}가 없습니다.
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">{group.teams.map(renderStudyTeamCard)}</div>
+                      )}
+                    </section>
+                  ))}
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -3125,8 +3118,7 @@ export function InternalCategoryAttendancePage({
               const currentWeekKey = selectedWeek === 0 ? latestWeekNum : selectedWeek;
               const teamUploadedPhoto =
                 category === 'STUDY'
-                  ? attendance?.[sessionKey(`w${currentWeekKey}`, 'study', studyTeamId)]
-                      ?.photoUrl
+                  ? attendance?.[sessionKey(`w${currentWeekKey}`, 'study', studyTeamId)]?.photoUrl
                   : undefined;
               const currentDisplayPhoto =
                 teamUploadedPhoto ||
@@ -3175,7 +3167,12 @@ export function InternalCategoryAttendancePage({
                 <div className="flex w-full justify-center py-1">
                   {record?.pdfUrl ? (
                     <div className="flex h-14 w-full max-w-[540px] items-center gap-3 rounded-sm border border-slate-200 bg-white px-4 shadow-2xs">
-                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
+                      <Folder
+                        size={20}
+                        strokeWidth={1.3}
+                        className="shrink-0 text-slate-400"
+                        aria-hidden="true"
+                      />
                       <button
                         type="button"
                         onClick={() =>
@@ -3189,11 +3186,21 @@ export function InternalCategoryAttendancePage({
                       >
                         {record.pdfName ?? 'PDF 자료'}
                       </button>
-                      <Check size={20} strokeWidth={2.4} className="shrink-0 text-emerald-500" aria-label="업로드 완료" />
+                      <Check
+                        size={20}
+                        strokeWidth={2.4}
+                        className="shrink-0 text-emerald-500"
+                        aria-label="업로드 완료"
+                      />
                     </div>
                   ) : (
                     <div className="flex h-14 w-full max-w-[540px] items-center gap-3 rounded-sm border border-dashed border-slate-300 bg-white px-4">
-                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
+                      <Folder
+                        size={20}
+                        strokeWidth={1.3}
+                        className="shrink-0 text-slate-400"
+                        aria-hidden="true"
+                      />
                       <span className="min-w-0 flex-1 truncate text-sm text-slate-500">
                         등록된 파일이 없습니다
                       </span>
@@ -3206,155 +3213,156 @@ export function InternalCategoryAttendancePage({
             {/* 출결 기록이 없으면 제목·필터·CSV 버튼도 함께 숨긴다 */}
             {!isTableEmpty && (
               <>
-            {/* Table Header Summary: 자연스러운 여백 및 트랙 필터 / 기수 필터 / 정렬 / CSV 추출 버튼 */}
-            <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1.5 pb-1 px-0.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="text-xs font-bold text-slate-900 tracking-tight whitespace-nowrap">
-                  {category === 'STUDY'
-                    ? isAllSelected
-                      ? termPeriod === 'VACATION'
-                        ? selectedWeek === 0
-                          ? '방학 전체 스터디 명단'
-                          : `방학 ${selectedWeek}주차 스터디 명단`
-                        : selectedWeek === 0
-                          ? '학기 전체 스터디 명단'
-                          : `학기 ${selectedWeek}주차 스터디 명단`
-                      : `${selectedTeam?.name || '스터디'} (${
-                          termPeriod === 'VACATION'
+                {/* Table Header Summary: 자연스러운 여백 및 트랙 필터 / 기수 필터 / 정렬 / CSV 추출 버튼 */}
+                <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1.5 pb-1 px-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-xs font-bold text-slate-900 tracking-tight whitespace-nowrap">
+                      {category === 'STUDY'
+                        ? isAllSelected
+                          ? termPeriod === 'VACATION'
                             ? selectedWeek === 0
-                              ? '방학 전체'
-                              : `방학 ${selectedWeek}주차`
+                              ? '방학 전체 스터디 명단'
+                              : `방학 ${selectedWeek}주차 스터디 명단`
                             : selectedWeek === 0
-                              ? '학기 전체'
-                              : `학기 ${selectedWeek}주차`
-                        }) 출결 명단`
-                    : termPeriod === 'VACATION'
-                      ? selectedWeek === 0
-                        ? '방학 전체 (1~8주차)'
-                        : `방학 ${selectedWeek}주차`
-                      : selectedWeek === 0
-                        ? '학기 전체 (9~16주차)'
-                        : `학기 ${selectedWeek}주차`}{' '}
-                  {category !== 'STUDY' && '출결 명단'}
-                </h4>
+                              ? '학기 전체 스터디 명단'
+                              : `학기 ${selectedWeek}주차 스터디 명단`
+                          : `${selectedTeam?.name || '스터디'} (${
+                              termPeriod === 'VACATION'
+                                ? selectedWeek === 0
+                                  ? '방학 전체'
+                                  : `방학 ${selectedWeek}주차`
+                                : selectedWeek === 0
+                                  ? '학기 전체'
+                                  : `학기 ${selectedWeek}주차`
+                            }) 출결 명단`
+                        : termPeriod === 'VACATION'
+                          ? selectedWeek === 0
+                            ? '방학 전체 (1~8주차)'
+                            : `방학 ${selectedWeek}주차`
+                          : selectedWeek === 0
+                            ? '학기 전체 (9~16주차)'
+                            : `학기 ${selectedWeek}주차`}{' '}
+                      {category !== 'STUDY' && '출결 명단'}
+                    </h4>
 
-                {/* Track Filter Pill Buttons (스터디 및 BASE 출결에서는 숨김) */}
-                {category !== 'STUDY' && category !== 'SESSION' && (
-                  <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
-                    {TRACK_FILTER_OPTIONS.map((tf) => {
-                      const isSelected = selectedTrackFilter === tf.id;
-                      return (
+                    {/* Track Filter Pill Buttons (스터디 및 BASE 출결에서는 숨김) */}
+                    {category !== 'STUDY' && category !== 'SESSION' && (
+                      <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
+                        {TRACK_FILTER_OPTIONS.map((tf) => {
+                          const isSelected = selectedTrackFilter === tf.id;
+                          return (
+                            <button
+                              key={tf.id}
+                              type="button"
+                              onClick={() => setSelectedTrackFilter(tf.id)}
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
+                                  : 'text-slate-500 hover:text-slate-800'
+                              }`}
+                            >
+                              {tf.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* 전체 스터디 정렬 기준 토글: 기수별(기본) vs 팀별 */}
+                    {category === 'STUDY' && isAllSelected && (
+                      <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
                         <button
-                          key={tf.id}
                           type="button"
-                          onClick={() => setSelectedTrackFilter(tf.id)}
+                          onClick={() => setStudySortMode('TERM')}
                           className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                            isSelected
+                            studySortMode === 'TERM'
                               ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
                               : 'text-slate-500 hover:text-slate-800'
                           }`}
                         >
-                          {tf.label}
+                          기수별
                         </button>
-                      );
-                    })}
+                        <button
+                          type="button"
+                          onClick={() => setStudySortMode('TEAM')}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                            studySortMode === 'TEAM'
+                              ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          팀별
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
 
-                {/* 전체 스터디 정렬 기준 토글: 기수별(기본) vs 팀별 */}
-                {category === 'STUDY' && isAllSelected && (
-                  <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
-                    <button
-                      type="button"
-                      onClick={() => setStudySortMode('TERM')}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                        studySortMode === 'TERM'
-                          ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      기수별
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStudySortMode('TEAM')}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                        studySortMode === 'TEAM'
-                          ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      팀별
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* 수정 버튼: ADV 팀별 탭 & 스터디 개별 탭에서 전체 주차일 때 표시 */}
-                {!isAllSelected &&
-                  !isArchivedView &&
-                  selectedWeek === 0 &&
-                  (category === 'ADV' || category === 'STUDY') && (
-                    <button
-                      type="button"
-                      onClick={() => setIsTableEditMode((prev) => !prev)}
-                      className={`px-2.5 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
-                        isTableEditMode
-                          ? `${BRAND_SELECTED} hover:bg-slate-800`
-                          : 'text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300'
-                      }`}
-                      title={isTableEditMode ? '출결 수정 완료' : '출결 수정 모드 활성화'}
-                    >
-                      {isTableEditMode ? (
-                        <>
-                          <Check size={12} className="text-white" />
-                          <span>수정 완료</span>
-                        </>
-                      ) : (
-                        <>
-                          <Edit3 size={12} className="text-slate-500" />
-                          <span>수정</span>
-                        </>
+                  <div className="flex items-center gap-2">
+                    {/* 수정 버튼: ADV 팀별 탭 & 스터디 개별 탭에서 전체 주차일 때 표시 */}
+                    {!isAllSelected &&
+                      !isArchivedView &&
+                      selectedWeek === 0 &&
+                      (category === 'ADV' || category === 'STUDY') && (
+                        <button
+                          type="button"
+                          onClick={() => setIsTableEditMode((prev) => !prev)}
+                          className={`px-2.5 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                            isTableEditMode
+                              ? `${BRAND_SELECTED} hover:bg-slate-800`
+                              : 'text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300'
+                          }`}
+                          title={isTableEditMode ? '출결 수정 완료' : '출결 수정 모드 활성화'}
+                        >
+                          {isTableEditMode ? (
+                            <>
+                              <Check size={12} className="text-white" />
+                              <span>수정 완료</span>
+                            </>
+                          ) : (
+                            <>
+                              <Edit3 size={12} className="text-slate-500" />
+                              <span>수정</span>
+                            </>
+                          )}
+                        </button>
                       )}
-                    </button>
-                  )}
 
-                {/* CSV 추출 버튼: 전체 주차일 때 표시 (단, ADV 팀별 탭은 제외) */}
-                {selectedWeek === 0 && !(category === 'ADV' && !isAllSelected) && (
-                  <button
-                    type="button"
-                    onClick={handleOpenSettingsModal}
-                    className="px-2.5 py-1 rounded-sm text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
-                    title="출결 CSV 날짜 매핑 및 추출 설정"
-                  >
-                    <Settings size={12} className="text-slate-500" />
-                    <span>CSV 추출</span>
-                  </button>
-                )}
+                    {/* CSV 추출 버튼: 전체 주차일 때 표시 (단, ADV 팀별 탭은 제외) */}
+                    {selectedWeek === 0 && !(category === 'ADV' && !isAllSelected) && (
+                      <button
+                        type="button"
+                        onClick={handleOpenSettingsModal}
+                        className="px-2.5 py-1 rounded-sm text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
+                        title="출결 CSV 날짜 매핑 및 추출 설정"
+                      >
+                        <Settings size={12} className="text-slate-500" />
+                        <span>CSV 추출</span>
+                      </button>
+                    )}
 
-                {/* 주차 제출 버튼: BASE는 진행 중인 주차, ADV는 3주차까지(지난 주차는 제출 완료 표시)의 팀별 화면 */}
-                {!isAllSelected &&
-                  showsSubmitControl(selectedWeek) &&
-                  (isWeekSubmittedInDb(selectedTeam.id, selectedWeek) ? (
-                    <span className="text-xs font-medium text-slate-500 select-none">
-                      {editingWeekKey === submissionKey(viewCohort, selectedTeam.id, selectedWeek)
-                        ? '수정 중'
-                        : '제출 완료'}
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={isSubmittingWeek}
-                      onClick={handleSubmitWeek}
-                      className={`px-3.5 py-1 rounded-sm text-xs transition-colors hover:bg-[#dde5ee] active:bg-[#d1dae5] cursor-pointer disabled:cursor-wait disabled:opacity-60 ${ATTEND_STATUS_STYLES.unmarked.active}`}
-                      title="이 주차 출결 상태를 서버에 제출합니다"
-                    >
-                      {isSubmittingWeek ? '제출 중...' : '제출'}
-                    </button>
-                  ))}
-              </div>
-            </div>
+                    {/* 주차 제출 버튼: BASE는 진행 중인 주차, ADV는 3주차까지(지난 주차는 제출 완료 표시)의 팀별 화면 */}
+                    {!isAllSelected &&
+                      showsSubmitControl(selectedWeek) &&
+                      (isWeekSubmittedInDb(selectedTeam.id, selectedWeek) ? (
+                        <span className="text-xs font-medium text-slate-500 select-none">
+                          {editingWeekKey ===
+                          submissionKey(viewCohort, selectedTeam.id, selectedWeek)
+                            ? '수정 중'
+                            : '제출 완료'}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isSubmittingWeek}
+                          onClick={handleSubmitWeek}
+                          className={`px-3.5 py-1 rounded-sm text-xs transition-colors hover:bg-[#dde5ee] active:bg-[#d1dae5] cursor-pointer disabled:cursor-wait disabled:opacity-60 ${ATTEND_STATUS_STYLES.unmarked.active}`}
+                          title="이 주차 출결 상태를 서버에 제출합니다"
+                        >
+                          {isSubmittingWeek ? '제출 중...' : '제출'}
+                        </button>
+                      ))}
+                  </div>
+                </div>
               </>
             )}
 
@@ -3366,182 +3374,182 @@ export function InternalCategoryAttendancePage({
                 </p>
               </div>
             ) : (
-            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
-              <div ref={tableContainerRef} className="overflow-x-auto select-none relative">
-                {category === 'STUDY' ? (
-                  isAllSelected ? (
-                    /* ─── 전체 스터디 테이블 ─── */
-                    /* 컬럼: 기수, 부문, 이름, 각 스터디명 컬럼들 (누적 점수 표시), 총점 */
-                    <table
-                      className="w-full text-xs table-fixed border-collapse"
-                      style={{ minWidth: `${studyAllTableMinWidth}px` }}
-                    >
-                      <thead className="bg-slate-50/80 select-none">
-                        <tr className="border-b border-slate-200 divide-x divide-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
-                          <th
-                            style={{ width: `${colWidths.study_all_index || 42}px` }}
-                            className="relative text-center px-1 py-1 text-slate-500 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">#</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_all_index', 35)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_all_index');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                          <th
-                            style={{ width: `${colWidths.study_all_term || 55}px` }}
-                            className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">기수</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_all_term', 45)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_all_term');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                          <th
-                            style={{ width: `${colWidths.study_all_track || 65}px` }}
-                            className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">부문</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_all_track', 55)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_all_track');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                          <th
-                            style={{ width: `${colWidths.study_all_name || 80}px` }}
-                            className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">이름</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_all_name', 60)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_all_name');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                          {config.teams.map((team) => {
-                            const colKey = `study_all_col_${team.id}`;
-                            const defaultWidth = 160;
-                            const minWidth = 100;
-                            const effectiveWidth = Math.max(
-                              colWidths[colKey] || defaultWidth,
-                              minWidth,
-                            );
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                <div ref={tableContainerRef} className="overflow-x-auto select-none relative">
+                  {category === 'STUDY' ? (
+                    isAllSelected ? (
+                      /* ─── 전체 스터디 테이블 ─── */
+                      /* 컬럼: 기수, 부문, 이름, 각 스터디명 컬럼들 (누적 점수 표시), 총점 */
+                      <table
+                        className="w-full text-xs table-fixed border-collapse"
+                        style={{ minWidth: `${studyAllTableMinWidth}px` }}
+                      >
+                        <thead className="bg-slate-50/80 select-none">
+                          <tr className="border-b border-slate-200 divide-x divide-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
+                            <th
+                              style={{ width: `${colWidths.study_all_index || 42}px` }}
+                              className="relative text-center px-1 py-1 text-slate-500 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">#</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_all_index', 35)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_all_index');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                            <th
+                              style={{ width: `${colWidths.study_all_term || 55}px` }}
+                              className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">기수</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_all_term', 45)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_all_term');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                            <th
+                              style={{ width: `${colWidths.study_all_track || 65}px` }}
+                              className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">부문</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_all_track', 55)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_all_track');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                            <th
+                              style={{ width: `${colWidths.study_all_name || 80}px` }}
+                              className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">이름</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_all_name', 60)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_all_name');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                            {config.teams.map((team) => {
+                              const colKey = `study_all_col_${team.id}`;
+                              const defaultWidth = 160;
+                              const minWidth = 100;
+                              const effectiveWidth = Math.max(
+                                colWidths[colKey] || defaultWidth,
+                                minWidth,
+                              );
 
-                            return (
-                              <th
-                                key={team.id}
-                                style={{ width: `${effectiveWidth}px` }}
-                                className="relative text-center px-2 py-1 text-slate-800 font-bold bg-slate-50/80"
-                              >
-                                <div className="h-9 flex flex-col items-center justify-center px-1">
-                                  <span
-                                    className="font-bold text-xs truncate max-w-full"
-                                    title={team.name}
-                                  >
-                                    {team.name}
-                                  </span>
-                                </div>
-                                <div
-                                  onMouseDown={(e) => handleResizeStart(e, colKey, minWidth)}
-                                  onMouseEnter={(e) => {
-                                    if (!resizingColKey) {
-                                      setActiveHoverCol(colKey);
-                                      updateGuidelinePos(e.currentTarget);
-                                    }
-                                  }}
-                                  onMouseLeave={() => {
-                                    if (!resizingColKey) {
-                                      setActiveHoverCol(null);
-                                      setGuidelineX(null);
-                                    }
-                                  }}
-                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                                  title="열 너비 조절"
-                                />
-                              </th>
-                            );
-                          })}
-                          <th
-                            style={{ width: `${colWidths.study_all_score || 70}px` }}
-                            className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center font-bold text-xs">
-                              총점
-                            </div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_all_score', 55)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_all_score');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-mono">
-                        {filteredMatrixRows.map((row, idx) => (
+                              return (
+                                <th
+                                  key={team.id}
+                                  style={{ width: `${effectiveWidth}px` }}
+                                  className="relative text-center px-2 py-1 text-slate-800 font-bold bg-slate-50/80"
+                                >
+                                  <div className="h-9 flex flex-col items-center justify-center px-1">
+                                    <span
+                                      className="font-bold text-xs truncate max-w-full"
+                                      title={team.name}
+                                    >
+                                      {team.name}
+                                    </span>
+                                  </div>
+                                  <div
+                                    onMouseDown={(e) => handleResizeStart(e, colKey, minWidth)}
+                                    onMouseEnter={(e) => {
+                                      if (!resizingColKey) {
+                                        setActiveHoverCol(colKey);
+                                        updateGuidelinePos(e.currentTarget);
+                                      }
+                                    }}
+                                    onMouseLeave={() => {
+                                      if (!resizingColKey) {
+                                        setActiveHoverCol(null);
+                                        setGuidelineX(null);
+                                      }
+                                    }}
+                                    className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                    title="열 너비 조절"
+                                  />
+                                </th>
+                              );
+                            })}
+                            <th
+                              style={{ width: `${colWidths.study_all_score || 70}px` }}
+                              className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center font-bold text-xs">
+                                총점
+                              </div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_all_score', 55)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_all_score');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-mono">
+                          {filteredMatrixRows.map((row, idx) => (
                             <tr
                               key={row.id}
                               className="hover:bg-slate-50/70 transition-colors divide-x divide-slate-200 h-[46px]"
@@ -3615,226 +3623,224 @@ export function InternalCategoryAttendancePage({
                               </td>
                             </tr>
                           ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    /* ─── 각 스터디별 테이블 ─── */
-                    /* 컬럼: 기수, 이름, 1주차~8주차, 참여 횟수, 스터디장, 점수 */
-                    <table
-                      className="w-full text-xs table-fixed border-collapse"
-                      style={{ minWidth: `${studyTeamTableMinWidth}px` }}
-                    >
-                      <thead className="bg-slate-50/80 select-none">
-                        <tr className="border-b border-slate-200 divide-x divide-slate-50 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
-                          <th
-                            style={{ width: `${colWidths.study_team_index || 42}px` }}
-                            className="relative text-center px-1 py-1 text-slate-500 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">#</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_team_index', 35)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_team_index');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                          <th
-                            style={{ width: `${colWidths.study_team_term || 55}px` }}
-                            className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">기수</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_team_term', 45)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_team_term');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                          <th
-                            style={{ width: `${colWidths.study_team_name || 80}px` }}
-                            className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">이름</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_team_name', 60)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_team_name');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                          {isMentoringStudy && (
+                        </tbody>
+                      </table>
+                    ) : (
+                      /* ─── 각 스터디별 테이블 ─── */
+                      /* 컬럼: 기수, 이름, 1주차~8주차, 참여 횟수, 스터디장, 점수 */
+                      <table
+                        className="w-full text-xs table-fixed border-collapse"
+                        style={{ minWidth: `${studyTeamTableMinWidth}px` }}
+                      >
+                        <thead className="bg-slate-50/80 select-none">
+                          <tr className="border-b border-slate-200 divide-x divide-slate-50 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
                             <th
-                              style={{ width: `${colWidths.study_team_type || 72}px` }}
-                              className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                              style={{ width: `${colWidths.study_team_index || 42}px` }}
+                              className="relative text-center px-1 py-1 text-slate-500 font-bold bg-slate-100/90"
                             >
-                              <div className="h-9 flex items-center justify-center">유형</div>
+                              <div className="h-9 flex items-center justify-center">#</div>
                               <div
-                                onMouseDown={(e) =>
-                                  handleResizeStart(e, 'study_team_type', 60)
-                                }
+                                onMouseDown={(e) => handleResizeStart(e, 'study_team_index', 35)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_team_index');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
                                 className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
                                 title="열 너비 조절"
                               />
                             </th>
-                          )}
-                          {displayedMatrixWeeks.map((w) => {
-                            const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
-                            const hasDate = Boolean(rawDate && rawDate !== '-');
-                            const colKey = `study_w_${w.weekNum}`;
-                            const minColWidth = hasDate ? 92 : 55;
-                            const defaultColWidth = hasDate ? 92 : 72;
-                            const effectiveColWidth = Math.max(
-                              colWidths[colKey] || defaultColWidth,
-                              minColWidth,
-                            );
-                            return (
+                            <th
+                              style={{ width: `${colWidths.study_team_term || 55}px` }}
+                              className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">기수</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_team_term', 45)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_team_term');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                            <th
+                              style={{ width: `${colWidths.study_team_name || 80}px` }}
+                              className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">이름</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_team_name', 60)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_team_name');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                            {isMentoringStudy && (
                               <th
-                                key={w.id}
-                                style={{ width: `${effectiveColWidth}px` }}
-                                className="relative text-center px-1.5 py-1 text-slate-900 font-bold bg-slate-50/80"
+                                style={{ width: `${colWidths.study_team_type || 72}px` }}
+                                className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                               >
-                                <div className="h-9 flex flex-col items-center justify-center">
-                                  {hasDate ? (
-                                    <>
-                                      <div className="font-mono font-bold text-slate-900 text-xs leading-none">
-                                        {rawDate}
-                                      </div>
-                                      <div className="text-[10px] text-slate-400 font-normal leading-tight mt-0.5">
-                                        {w.label}
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <div className="font-bold text-slate-900 text-xs leading-none">
-                                      {w.label}
-                                    </div>
-                                  )}
-                                </div>
+                                <div className="h-9 flex items-center justify-center">유형</div>
                                 <div
-                                  onMouseDown={(e) => handleResizeStart(e, colKey, minColWidth)}
-                                  onMouseEnter={(e) => {
-                                    if (!resizingColKey) {
-                                      setActiveHoverCol(colKey);
-                                      updateGuidelinePos(e.currentTarget);
-                                    }
-                                  }}
-                                  onMouseLeave={() => {
-                                    if (!resizingColKey) {
-                                      setActiveHoverCol(null);
-                                      setGuidelineX(null);
-                                    }
-                                  }}
+                                  onMouseDown={(e) => handleResizeStart(e, 'study_team_type', 60)}
                                   className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
                                   title="열 너비 조절"
                                 />
                               </th>
-                            );
-                          })}
-                          <th
-                            style={{ width: `${colWidths.study_team_attended || 85}px` }}
-                            className="relative text-center px-2 py-1 text-slate-700 font-semibold bg-slate-50/80"
-                          >
-                            <div className="h-9 flex items-center justify-center">참여 횟수</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_team_attended', 60)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_team_attended');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                          <th
-                            style={{ width: `${colWidths.study_team_leader || 85}px` }}
-                            className="relative text-center px-2 py-1 text-slate-700 font-semibold bg-slate-50/80"
-                          >
-                            <div className="h-9 flex items-center justify-center">스터디장</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_team_leader', 60)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_team_leader');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                          <th
-                            style={{ width: `${colWidths.study_team_score || 80}px` }}
-                            className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">점수</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'study_team_score', 60)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('study_team_score');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-mono">
-                        {displayedStudyTeamRows.map((row, idx) => {
+                            )}
+                            {displayedMatrixWeeks.map((w) => {
+                              const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
+                              const hasDate = Boolean(rawDate && rawDate !== '-');
+                              const colKey = `study_w_${w.weekNum}`;
+                              const minColWidth = hasDate ? 92 : 55;
+                              const defaultColWidth = hasDate ? 92 : 72;
+                              const effectiveColWidth = Math.max(
+                                colWidths[colKey] || defaultColWidth,
+                                minColWidth,
+                              );
+                              return (
+                                <th
+                                  key={w.id}
+                                  style={{ width: `${effectiveColWidth}px` }}
+                                  className="relative text-center px-1.5 py-1 text-slate-900 font-bold bg-slate-50/80"
+                                >
+                                  <div className="h-9 flex flex-col items-center justify-center">
+                                    {hasDate ? (
+                                      <>
+                                        <div className="font-mono font-bold text-slate-900 text-xs leading-none">
+                                          {rawDate}
+                                        </div>
+                                        <div className="text-[10px] text-slate-400 font-normal leading-tight mt-0.5">
+                                          {w.label}
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="font-bold text-slate-900 text-xs leading-none">
+                                        {w.label}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div
+                                    onMouseDown={(e) => handleResizeStart(e, colKey, minColWidth)}
+                                    onMouseEnter={(e) => {
+                                      if (!resizingColKey) {
+                                        setActiveHoverCol(colKey);
+                                        updateGuidelinePos(e.currentTarget);
+                                      }
+                                    }}
+                                    onMouseLeave={() => {
+                                      if (!resizingColKey) {
+                                        setActiveHoverCol(null);
+                                        setGuidelineX(null);
+                                      }
+                                    }}
+                                    className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                    title="열 너비 조절"
+                                  />
+                                </th>
+                              );
+                            })}
+                            <th
+                              style={{ width: `${colWidths.study_team_attended || 85}px` }}
+                              className="relative text-center px-2 py-1 text-slate-700 font-semibold bg-slate-50/80"
+                            >
+                              <div className="h-9 flex items-center justify-center">참여 횟수</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_team_attended', 60)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_team_attended');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                            <th
+                              style={{ width: `${colWidths.study_team_leader || 85}px` }}
+                              className="relative text-center px-2 py-1 text-slate-700 font-semibold bg-slate-50/80"
+                            >
+                              <div className="h-9 flex items-center justify-center">스터디장</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_team_leader', 60)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_team_leader');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                            <th
+                              style={{ width: `${colWidths.study_team_score || 80}px` }}
+                              className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">점수</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'study_team_score', 60)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('study_team_score');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-mono">
+                          {displayedStudyTeamRows.map((row, idx) => {
                             const isLeader =
                               row.name === selectedTeam?.leader &&
                               (!isMentoringStudy || row.studyTypeIndex === 0);
@@ -3869,9 +3875,7 @@ export function InternalCategoryAttendancePage({
                               <tr
                                 key={row.id}
                                 className={`hover:bg-slate-50/70 transition-colors divide-x divide-slate-50 h-[46px] ${
-                                  isLastTypeRow
-                                    ? '[&>td]:border-b [&>td]:border-b-slate-300'
-                                    : ''
+                                  isLastTypeRow ? '[&>td]:border-b [&>td]:border-b-slate-300' : ''
                                 }`}
                               >
                                 {isFirstTypeRow && (
@@ -3932,7 +3936,8 @@ export function InternalCategoryAttendancePage({
                                               activeStudyEditCell?.rowId === row.id &&
                                               activeStudyEditCell?.weekNum === w.weekNum;
                                             const isRightEdge = w.weekNum >= 7;
-                                            const isLastRow = idx >= displayedStudyTeamRows.length - 1;
+                                            const isLastRow =
+                                              idx >= displayedStudyTeamRows.length - 1;
                                             const isFirstRow = idx === 0;
                                             const vAlignClass = isLastRow
                                               ? 'bottom-0'
@@ -4085,7 +4090,9 @@ export function InternalCategoryAttendancePage({
                                     >
                                       <div className="h-8 flex items-center justify-center font-mono">
                                         {isLeader ? (
-                                          <span className="text-xs font-bold text-slate-900">O</span>
+                                          <span className="text-xs font-bold text-slate-900">
+                                            O
+                                          </span>
                                         ) : (
                                           <span className="text-slate-200">-</span>
                                         )}
@@ -4118,73 +4125,26 @@ export function InternalCategoryAttendancePage({
                               </tr>
                             );
                           })}
-                      </tbody>
-                    </table>
-                  )
-                ) : isMatrixMode ? (
-                  <table
-                    className="w-full text-xs table-fixed border-collapse"
-                    style={{ minWidth: `${matrixTableMinWidth}px` }}
-                  >
-                    <thead className="bg-slate-50/80 select-none">
-                      <tr className="border-b border-slate-200 divide-x divide-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
-                        <th
-                          style={{ width: `${colWidths.matrix_index || 42}px` }}
-                          className="relative text-center px-1 py-1 text-slate-500 font-bold bg-slate-100/90"
-                        >
-                          <div className="h-9 flex items-center justify-center">#</div>
-                          <div
-                            onMouseDown={(e) => handleResizeStart(e, 'matrix_index', 35)}
-                            onMouseEnter={(e) => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol('matrix_index');
-                                updateGuidelinePos(e.currentTarget);
-                              }
-                            }}
-                            onMouseLeave={() => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol(null);
-                                setGuidelineX(null);
-                              }
-                            }}
-                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                            title="열 너비 조절"
-                          />
-                        </th>
-                        <th
-                          style={{ width: `${colWidths.matrix_term || 52}px` }}
-                          className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
-                        >
-                          <div className="h-9 flex items-center justify-center">기수</div>
-                          <div
-                            onMouseDown={(e) => handleResizeStart(e, 'matrix_term', 45)}
-                            onMouseEnter={(e) => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol('matrix_term');
-                                updateGuidelinePos(e.currentTarget);
-                              }
-                            }}
-                            onMouseLeave={() => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol(null);
-                                setGuidelineX(null);
-                              }
-                            }}
-                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                            title="열 너비 조절"
-                          />
-                        </th>
-                        {shouldShowConcurrentColumn(category) && (
+                        </tbody>
+                      </table>
+                    )
+                  ) : isMatrixMode ? (
+                    <table
+                      className="w-full text-xs table-fixed border-collapse"
+                      style={{ minWidth: `${matrixTableMinWidth}px` }}
+                    >
+                      <thead className="bg-slate-50/80 select-none">
+                        <tr className="border-b border-slate-200 divide-x divide-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
                           <th
-                            style={{ width: `${colWidths.matrix_track || 72}px` }}
-                            className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                            style={{ width: `${colWidths.matrix_index || 42}px` }}
+                            className="relative text-center px-1 py-1 text-slate-500 font-bold bg-slate-100/90"
                           >
-                            <div className="h-9 flex items-center justify-center">부문</div>
+                            <div className="h-9 flex items-center justify-center">#</div>
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, 'matrix_track', 72)}
+                              onMouseDown={(e) => handleResizeStart(e, 'matrix_index', 35)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol('matrix_track');
+                                  setActiveHoverCol('matrix_index');
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -4198,32 +4158,30 @@ export function InternalCategoryAttendancePage({
                               title="열 너비 조절"
                             />
                           </th>
-                        )}
-                        <th
-                          style={{ width: `${colWidths.matrix_name || 80}px` }}
-                          className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
-                        >
-                          <div className="h-9 flex items-center justify-center">이름</div>
-                          <div
-                            onMouseDown={(e) => handleResizeStart(e, 'matrix_name', 60)}
-                            onMouseEnter={(e) => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol('matrix_name');
-                                updateGuidelinePos(e.currentTarget);
-                              }
-                            }}
-                            onMouseLeave={() => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol(null);
-                                setGuidelineX(null);
-                              }
-                            }}
-                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                            title="열 너비 조절"
-                          />
-                        </th>
-                        {category !== 'SESSION' &&
-                          shouldShowMatrixTrack(category, selectedTrackFilter) && (
+                          <th
+                            style={{ width: `${colWidths.matrix_term || 52}px` }}
+                            className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                          >
+                            <div className="h-9 flex items-center justify-center">기수</div>
+                            <div
+                              onMouseDown={(e) => handleResizeStart(e, 'matrix_term', 45)}
+                              onMouseEnter={(e) => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol('matrix_term');
+                                  updateGuidelinePos(e.currentTarget);
+                                }
+                              }}
+                              onMouseLeave={() => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol(null);
+                                  setGuidelineX(null);
+                                }
+                              }}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
+                          </th>
+                          {shouldShowConcurrentColumn(category) && (
                             <th
                               style={{ width: `${colWidths.matrix_track || 72}px` }}
                               className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
@@ -4248,145 +4206,41 @@ export function InternalCategoryAttendancePage({
                               />
                             </th>
                           )}
-                        {displayedMatrixWeeks.map((w) => {
-                          const isEditable = isWeekDirectEditable(w.weekNum) && selectedWeek !== 0;
-                          const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
-                          const hasDate = Boolean(rawDate && rawDate !== '-');
-                          const colKey = `matrix_w_${w.weekNum}`;
-                          const minColWidth = isEditable ? 435 : hasDate ? 92 : 55;
-                          const defaultColWidth = isEditable ? 445 : hasDate ? 92 : 72;
-                          const effectiveColWidth = Math.max(
-                            colWidths[colKey] || defaultColWidth,
-                            minColWidth,
-                          );
-                          return (
-                            <th
-                              key={w.id}
-                              style={{ width: `${effectiveColWidth}px` }}
-                              className="relative text-center px-1.5 py-1 text-slate-900 font-bold"
-                            >
-                              <div className="h-9 flex flex-col items-center justify-center">
-                                {hasDate ? (
-                                  <>
-                                    <div className="font-mono font-bold text-slate-900 text-xs leading-none">
-                                      {rawDate}
-                                    </div>
-                                    <div className="text-[10px] text-slate-400 font-normal leading-tight mt-0.5">
-                                      {w.label}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="font-bold text-slate-900 text-xs leading-none">
-                                    {w.label}
-                                  </div>
-                                )}
-                              </div>
-                              <div
-                                onMouseDown={(e) => handleResizeStart(e, colKey, minColWidth)}
-                                onMouseEnter={(e) => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol(colKey);
-                                    updateGuidelinePos(e.currentTarget);
-                                  }
-                                }}
-                                onMouseLeave={() => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol(null);
-                                    setGuidelineX(null);
-                                  }
-                                }}
-                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                                title="열 너비 조절"
-                              />
-                            </th>
-                          );
-                        })}
-                        {selectedWeek === 0 && (
-                          <>
-                            <th
-                              style={{ width: `${colWidths.matrix_absence || 60}px` }}
-                              className="relative text-center px-2 py-1 text-slate-800 font-bold bg-pink-100/90"
-                            >
-                              <div className="h-9 flex items-center justify-center">결석</div>
-                              <div
-                                onMouseDown={(e) => handleResizeStart(e, 'matrix_absence', 48)}
-                                onMouseEnter={(e) => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol('matrix_absence');
-                                    updateGuidelinePos(e.currentTarget);
-                                  }
-                                }}
-                                onMouseLeave={() => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol(null);
-                                    setGuidelineX(null);
-                                  }
-                                }}
-                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                                title="열 너비 조절"
-                              />
-                            </th>
-                            <th
-                              style={{ width: `${colWidths.matrix_unexcusedAbsence || 68}px` }}
-                              className="relative text-center px-2 py-1 text-slate-900 font-bold bg-red-200/90"
-                            >
-                              <div className="h-9 flex items-center justify-center">무단결석</div>
-                              <div
-                                onMouseDown={(e) =>
-                                  handleResizeStart(e, 'matrix_unexcusedAbsence', 68)
+                          <th
+                            style={{ width: `${colWidths.matrix_name || 80}px` }}
+                            className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
+                          >
+                            <div className="h-9 flex items-center justify-center">이름</div>
+                            <div
+                              onMouseDown={(e) => handleResizeStart(e, 'matrix_name', 60)}
+                              onMouseEnter={(e) => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol('matrix_name');
+                                  updateGuidelinePos(e.currentTarget);
                                 }
-                                onMouseEnter={(e) => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol('matrix_unexcusedAbsence');
-                                    updateGuidelinePos(e.currentTarget);
-                                  }
-                                }}
-                                onMouseLeave={() => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol(null);
-                                    setGuidelineX(null);
-                                  }
-                                }}
-                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                                title="열 너비 조절"
-                              />
-                            </th>
-                            <th
-                              style={{ width: `${colWidths.matrix_late || 68}px` }}
-                              className="relative text-center px-2 py-1 text-slate-800 font-bold bg-amber-100"
-                            >
-                              <div className="h-9 flex items-center justify-center">지각조퇴</div>
-                              <div
-                                onMouseDown={(e) => handleResizeStart(e, 'matrix_late', 68)}
-                                onMouseEnter={(e) => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol('matrix_late');
-                                    updateGuidelinePos(e.currentTarget);
-                                  }
-                                }}
-                                onMouseLeave={() => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol(null);
-                                    setGuidelineX(null);
-                                  }
-                                }}
-                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                                title="열 너비 조절"
-                              />
-                            </th>
-                            {category === 'ADV' && (
+                              }}
+                              onMouseLeave={() => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol(null);
+                                  setGuidelineX(null);
+                                }
+                              }}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
+                          </th>
+                          {category !== 'SESSION' &&
+                            shouldShowMatrixTrack(category, selectedTrackFilter) && (
                               <th
-                                style={{ width: `${colWidths.matrix_remote || 80}px` }}
-                                className="relative text-center px-2 py-1 text-slate-800 font-bold bg-indigo-100"
+                                style={{ width: `${colWidths.matrix_track || 72}px` }}
+                                className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                               >
-                                <div className="h-9 flex items-center justify-center">
-                                  비대면 횟수
-                                </div>
+                                <div className="h-9 flex items-center justify-center">부문</div>
                                 <div
-                                  onMouseDown={(e) => handleResizeStart(e, 'matrix_remote', 80)}
+                                  onMouseDown={(e) => handleResizeStart(e, 'matrix_track', 72)}
                                   onMouseEnter={(e) => {
                                     if (!resizingColKey) {
-                                      setActiveHoverCol('matrix_remote');
+                                      setActiveHoverCol('matrix_track');
                                       updateGuidelinePos(e.currentTarget);
                                     }
                                   }}
@@ -4401,45 +4255,199 @@ export function InternalCategoryAttendancePage({
                                 />
                               </th>
                             )}
-                          </>
-                        )}
-                        <th
-                          style={{ width: `${colWidths.matrix_total || 75}px` }}
-                          className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
-                        >
-                          <div className="h-9 flex items-center justify-center">
-                            {selectedWeek === 0 ? '총점' : '점수'}
-                          </div>
-                          <div
-                            onMouseDown={(e) => handleResizeStart(e, 'matrix_total', 55)}
-                            onMouseEnter={(e) => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol('matrix_total');
-                                updateGuidelinePos(e.currentTarget);
-                              }
-                            }}
-                            onMouseLeave={() => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol(null);
-                                setGuidelineX(null);
-                              }
-                            }}
-                            className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize select-none touch-none z-20"
-                            title="열 너비 조절"
-                          />
-                        </th>
-                        {shouldShowConcurrentColumn(category) && (
+                          {displayedMatrixWeeks.map((w) => {
+                            const isEditable =
+                              isWeekDirectEditable(w.weekNum) && selectedWeek !== 0;
+                            const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
+                            const hasDate = Boolean(rawDate && rawDate !== '-');
+                            const colKey = `matrix_w_${w.weekNum}`;
+                            const minColWidth = isEditable ? 435 : hasDate ? 92 : 55;
+                            const defaultColWidth = isEditable ? 445 : hasDate ? 92 : 72;
+                            const effectiveColWidth = Math.max(
+                              colWidths[colKey] || defaultColWidth,
+                              minColWidth,
+                            );
+                            return (
+                              <th
+                                key={w.id}
+                                style={{ width: `${effectiveColWidth}px` }}
+                                className="relative text-center px-1.5 py-1 text-slate-900 font-bold"
+                              >
+                                <div className="h-9 flex flex-col items-center justify-center">
+                                  {hasDate ? (
+                                    <>
+                                      <div className="font-mono font-bold text-slate-900 text-xs leading-none">
+                                        {rawDate}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 font-normal leading-tight mt-0.5">
+                                        {w.label}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="font-bold text-slate-900 text-xs leading-none">
+                                      {w.label}
+                                    </div>
+                                  )}
+                                </div>
+                                <div
+                                  onMouseDown={(e) => handleResizeStart(e, colKey, minColWidth)}
+                                  onMouseEnter={(e) => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol(colKey);
+                                      updateGuidelinePos(e.currentTarget);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol(null);
+                                      setGuidelineX(null);
+                                    }
+                                  }}
+                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                  title="열 너비 조절"
+                                />
+                              </th>
+                            );
+                          })}
+                          {selectedWeek === 0 && (
+                            <>
+                              <th
+                                style={{ width: `${colWidths.matrix_absence || 60}px` }}
+                                className="relative text-center px-2 py-1 text-slate-800 font-bold bg-pink-100/90"
+                              >
+                                <div className="h-9 flex items-center justify-center">결석</div>
+                                <div
+                                  onMouseDown={(e) => handleResizeStart(e, 'matrix_absence', 48)}
+                                  onMouseEnter={(e) => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol('matrix_absence');
+                                      updateGuidelinePos(e.currentTarget);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol(null);
+                                      setGuidelineX(null);
+                                    }
+                                  }}
+                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                  title="열 너비 조절"
+                                />
+                              </th>
+                              <th
+                                style={{ width: `${colWidths.matrix_unexcusedAbsence || 68}px` }}
+                                className="relative text-center px-2 py-1 text-slate-900 font-bold bg-red-200/90"
+                              >
+                                <div className="h-9 flex items-center justify-center">무단결석</div>
+                                <div
+                                  onMouseDown={(e) =>
+                                    handleResizeStart(e, 'matrix_unexcusedAbsence', 68)
+                                  }
+                                  onMouseEnter={(e) => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol('matrix_unexcusedAbsence');
+                                      updateGuidelinePos(e.currentTarget);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol(null);
+                                      setGuidelineX(null);
+                                    }
+                                  }}
+                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                  title="열 너비 조절"
+                                />
+                              </th>
+                              <th
+                                style={{ width: `${colWidths.matrix_late || 68}px` }}
+                                className="relative text-center px-2 py-1 text-slate-800 font-bold bg-amber-100"
+                              >
+                                <div className="h-9 flex items-center justify-center">지각조퇴</div>
+                                <div
+                                  onMouseDown={(e) => handleResizeStart(e, 'matrix_late', 68)}
+                                  onMouseEnter={(e) => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol('matrix_late');
+                                      updateGuidelinePos(e.currentTarget);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol(null);
+                                      setGuidelineX(null);
+                                    }
+                                  }}
+                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                  title="열 너비 조절"
+                                />
+                              </th>
+                              {category === 'ADV' && (
+                                <th
+                                  style={{ width: `${colWidths.matrix_remote || 80}px` }}
+                                  className="relative text-center px-2 py-1 text-slate-800 font-bold bg-indigo-100"
+                                >
+                                  <div className="h-9 flex items-center justify-center">
+                                    비대면 횟수
+                                  </div>
+                                  <div
+                                    onMouseDown={(e) => handleResizeStart(e, 'matrix_remote', 80)}
+                                    onMouseEnter={(e) => {
+                                      if (!resizingColKey) {
+                                        setActiveHoverCol('matrix_remote');
+                                        updateGuidelinePos(e.currentTarget);
+                                      }
+                                    }}
+                                    onMouseLeave={() => {
+                                      if (!resizingColKey) {
+                                        setActiveHoverCol(null);
+                                        setGuidelineX(null);
+                                      }
+                                    }}
+                                    className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                    title="열 너비 조절"
+                                  />
+                                </th>
+                              )}
+                            </>
+                          )}
                           <th
-                            style={{ width: `${colWidths.matrix_concurrent || 82}px` }}
-                            className="relative bg-indigo-50 px-2 py-1 text-center font-bold text-slate-900"
+                            style={{ width: `${colWidths.matrix_total || 75}px` }}
+                            className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
                           >
-                            <div className="flex h-9 items-center justify-center">병행 여부</div>
+                            <div className="h-9 flex items-center justify-center">
+                              {selectedWeek === 0 ? '총점' : '점수'}
+                            </div>
+                            <div
+                              onMouseDown={(e) => handleResizeStart(e, 'matrix_total', 55)}
+                              onMouseEnter={(e) => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol('matrix_total');
+                                  updateGuidelinePos(e.currentTarget);
+                                }
+                              }}
+                              onMouseLeave={() => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol(null);
+                                  setGuidelineX(null);
+                                }
+                              }}
+                              className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
                           </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono">
-                      {filteredMatrixRows.map((row, idx) => {
+                          {shouldShowConcurrentColumn(category) && (
+                            <th
+                              style={{ width: `${colWidths.matrix_concurrent || 82}px` }}
+                              className="relative bg-indigo-50 px-2 py-1 text-center font-bold text-slate-900"
+                            >
+                              <div className="flex h-9 items-center justify-center">병행 여부</div>
+                            </th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-mono">
+                        {filteredMatrixRows.map((row, idx) => {
                           const availableStatuses: AttendStatus[] = [
                             'present',
                             'late',
@@ -4710,53 +4718,26 @@ export function InternalCategoryAttendancePage({
                             </tr>
                           );
                         })}
-                    </tbody>
-                  </table>
-                ) : (
-                  <table
-                    className="w-full text-xs table-fixed border-collapse"
-                    style={{ minWidth: `${singleTeamTableMinWidth}px` }}
-                  >
-                    <thead className="bg-slate-50/80 select-none">
-                      <tr className="border-b border-slate-200 divide-x divide-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
-                        {selectedWeek === 0 && (
-                          <th
-                            style={{ width: `${colWidths.week}px` }}
-                            className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">주차</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'week', 60)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('week');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                        )}
-                        {category !== 'SESSION' &&
-                          isAllSelected &&
-                          selectedTrackFilter === 'ALL' && (
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table
+                      className="w-full text-xs table-fixed border-collapse"
+                      style={{ minWidth: `${singleTeamTableMinWidth}px` }}
+                    >
+                      <thead className="bg-slate-50/80 select-none">
+                        <tr className="border-b border-slate-200 divide-x divide-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
+                          {selectedWeek === 0 && (
                             <th
-                              style={{ width: `${colWidths.track}px` }}
+                              style={{ width: `${colWidths.week}px` }}
                               className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                             >
-                              <div className="h-9 flex items-center justify-center">부문</div>
+                              <div className="h-9 flex items-center justify-center">주차</div>
                               <div
-                                onMouseDown={(e) => handleResizeStart(e, 'track', 72)}
+                                onMouseDown={(e) => handleResizeStart(e, 'week', 60)}
                                 onMouseEnter={(e) => {
                                   if (!resizingColKey) {
-                                    setActiveHoverCol('track');
+                                    setActiveHoverCol('week');
                                     updateGuidelinePos(e.currentTarget);
                                   }
                                 }}
@@ -4771,90 +4752,44 @@ export function InternalCategoryAttendancePage({
                               />
                             </th>
                           )}
-                        {isAllSelected && category !== 'SESSION' && (
-                          <th
-                            style={{ width: `${colWidths.teamName}px` }}
-                            className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
-                          >
-                            <div className="h-9 flex items-center justify-center">소속 팀</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'teamName', 90)}
-                              onMouseEnter={(e) => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol('teamName');
-                                  updateGuidelinePos(e.currentTarget);
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                if (!resizingColKey) {
-                                  setActiveHoverCol(null);
-                                  setGuidelineX(null);
-                                }
-                              }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                              title="열 너비 조절"
-                            />
-                          </th>
-                        )}
-                        <th
-                          style={{ width: `${colWidths.name}px` }}
-                          className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
-                        >
-                          <div className="h-9 flex items-center justify-center">이름</div>
-                          <div
-                            onMouseDown={(e) => handleResizeStart(e, 'name', 70)}
-                            onMouseEnter={(e) => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol('name');
-                                updateGuidelinePos(e.currentTarget);
-                              }
-                            }}
-                            onMouseLeave={() => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol(null);
-                                setGuidelineX(null);
-                              }
-                            }}
-                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                            title="열 너비 조절"
-                          />
-                        </th>
-                        <th
-                          style={{ width: `${colWidths.term}px` }}
-                          className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
-                        >
-                          <div className="h-9 flex items-center justify-center">기수</div>
-                          <div
-                            onMouseDown={(e) => handleResizeStart(e, 'term', 50)}
-                            onMouseEnter={(e) => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol('term');
-                                updateGuidelinePos(e.currentTarget);
-                              }
-                            }}
-                            onMouseLeave={() => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol(null);
-                                setGuidelineX(null);
-                              }
-                            }}
-                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                            title="열 너비 조절"
-                          />
-                        </th>
-                        {category !== 'SESSION' &&
-                          !isAllSelected &&
-                          selectedTrackFilter === 'ALL' && (
+                          {category !== 'SESSION' &&
+                            isAllSelected &&
+                            selectedTrackFilter === 'ALL' && (
+                              <th
+                                style={{ width: `${colWidths.track}px` }}
+                                className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                              >
+                                <div className="h-9 flex items-center justify-center">부문</div>
+                                <div
+                                  onMouseDown={(e) => handleResizeStart(e, 'track', 72)}
+                                  onMouseEnter={(e) => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol('track');
+                                      updateGuidelinePos(e.currentTarget);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol(null);
+                                      setGuidelineX(null);
+                                    }
+                                  }}
+                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                  title="열 너비 조절"
+                                />
+                              </th>
+                            )}
+                          {isAllSelected && category !== 'SESSION' && (
                             <th
-                              style={{ width: `${colWidths.track}px` }}
+                              style={{ width: `${colWidths.teamName}px` }}
                               className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                             >
-                              <div className="h-9 flex items-center justify-center">부문</div>
+                              <div className="h-9 flex items-center justify-center">소속 팀</div>
                               <div
-                                onMouseDown={(e) => handleResizeStart(e, 'track', 72)}
+                                onMouseDown={(e) => handleResizeStart(e, 'teamName', 90)}
                                 onMouseEnter={(e) => {
                                   if (!resizingColKey) {
-                                    setActiveHoverCol('track');
+                                    setActiveHoverCol('teamName');
                                     updateGuidelinePos(e.currentTarget);
                                   }
                                 }}
@@ -4869,92 +4804,174 @@ export function InternalCategoryAttendancePage({
                               />
                             </th>
                           )}
-                        {(() => {
-                          const isSingleTeamEditable = isBaseStatusColumnWide;
-                          const statusMinWidth = isSingleTeamEditable ? 435 : 70;
-                          const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
-                          const effectiveStatusWidth = isSingleTeamEditable
-                            ? Math.max(colWidths.status || statusDefaultWidth, statusMinWidth)
-                            : colWidths.status && colWidths.status < 200
-                              ? colWidths.status
-                              : statusDefaultWidth;
+                          <th
+                            style={{ width: `${colWidths.name}px` }}
+                            className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
+                          >
+                            <div className="h-9 flex items-center justify-center">이름</div>
+                            <div
+                              onMouseDown={(e) => handleResizeStart(e, 'name', 70)}
+                              onMouseEnter={(e) => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol('name');
+                                  updateGuidelinePos(e.currentTarget);
+                                }
+                              }}
+                              onMouseLeave={() => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol(null);
+                                  setGuidelineX(null);
+                                }
+                              }}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
+                          </th>
+                          <th
+                            style={{ width: `${colWidths.term}px` }}
+                            className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                          >
+                            <div className="h-9 flex items-center justify-center">기수</div>
+                            <div
+                              onMouseDown={(e) => handleResizeStart(e, 'term', 50)}
+                              onMouseEnter={(e) => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol('term');
+                                  updateGuidelinePos(e.currentTarget);
+                                }
+                              }}
+                              onMouseLeave={() => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol(null);
+                                  setGuidelineX(null);
+                                }
+                              }}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
+                          </th>
+                          {category !== 'SESSION' &&
+                            !isAllSelected &&
+                            selectedTrackFilter === 'ALL' && (
+                              <th
+                                style={{ width: `${colWidths.track}px` }}
+                                className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                              >
+                                <div className="h-9 flex items-center justify-center">부문</div>
+                                <div
+                                  onMouseDown={(e) => handleResizeStart(e, 'track', 72)}
+                                  onMouseEnter={(e) => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol('track');
+                                      updateGuidelinePos(e.currentTarget);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol(null);
+                                      setGuidelineX(null);
+                                    }
+                                  }}
+                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                  title="열 너비 조절"
+                                />
+                              </th>
+                            )}
+                          {(() => {
+                            const isSingleTeamEditable = isBaseStatusColumnWide;
+                            const statusMinWidth = isSingleTeamEditable ? 435 : 70;
+                            const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
+                            const effectiveStatusWidth = isSingleTeamEditable
+                              ? Math.max(colWidths.status || statusDefaultWidth, statusMinWidth)
+                              : colWidths.status && colWidths.status < 200
+                                ? colWidths.status
+                                : statusDefaultWidth;
 
-                          return (
-                            <th
-                              style={{
-                                width: `${effectiveStatusWidth}px`,
-                                minWidth: `${statusMinWidth}px`,
-                              }}
-                              className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-50/80"
-                            >
-                              <div className="h-9 flex items-center justify-center">출결</div>
-                              <div
-                                onMouseDown={(e) => handleResizeStart(e, 'status', statusMinWidth)}
-                                onMouseEnter={(e) => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol('status');
-                                    updateGuidelinePos(e.currentTarget);
-                                  }
+                            return (
+                              <th
+                                style={{
+                                  width: `${effectiveStatusWidth}px`,
+                                  minWidth: `${statusMinWidth}px`,
                                 }}
-                                onMouseLeave={() => {
-                                  if (!resizingColKey) {
-                                    setActiveHoverCol(null);
-                                    setGuidelineX(null);
+                                className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-50/80"
+                              >
+                                <div className="h-9 flex items-center justify-center">출결</div>
+                                <div
+                                  onMouseDown={(e) =>
+                                    handleResizeStart(e, 'status', statusMinWidth)
                                   }
-                                }}
-                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                                title="열 너비 조절"
-                              />
-                            </th>
-                          );
-                        })()}
-                        <th
-                          style={{ width: `${colWidths.memo || 240}px`, minWidth: '220px' }}
-                          className="relative text-center px-3 py-1 text-slate-700 font-semibold"
-                        >
-                          <div className="h-9 flex items-center justify-center">비고</div>
-                          {!isAllSelected &&
-                            isSubmittableWeek(selectedWeek) &&
-                            (() => {
-                              const key = submissionKey(viewCohort, selectedTeam.id, selectedWeek);
-                              if (!isWeekSubmittedInDb(selectedTeam.id, selectedWeek)) return null;
-                              const isEditingThisWeek = editingWeekKey === key;
-                              return (
-                                <button
-                                  type="button"
-                                  disabled={isSubmittingWeek}
-                                  onClick={() =>
-                                    isEditingThisWeek ? handleSubmitWeek() : setEditingWeekKey(key)
-                                  }
-                                  className="absolute right-2 top-1/2 z-10 inline-flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 transition-[background-color,color,transform] duration-150 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 disabled:cursor-wait disabled:opacity-60"
-                                  title={
-                                    isEditingThisWeek
-                                      ? '수정 완료 (변경 내용을 다시 제출)'
-                                      : '이 주차 출결 전체 수정'
-                                  }
-                                  aria-label={isEditingThisWeek ? '수정 완료' : '출결 전체 수정'}
-                                >
-                                  {isEditingThisWeek ? (
-                                    <Check size={15} strokeWidth={2} aria-hidden="true" />
-                                  ) : (
-                                    <Edit3 size={14} aria-hidden="true" />
-                                  )}
-                                </button>
-                              );
-                            })()}
-                        </th>
-                        {isTableEditMode && (
+                                  onMouseEnter={(e) => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol('status');
+                                      updateGuidelinePos(e.currentTarget);
+                                    }
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (!resizingColKey) {
+                                      setActiveHoverCol(null);
+                                      setGuidelineX(null);
+                                    }
+                                  }}
+                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                  title="열 너비 조절"
+                                />
+                              </th>
+                            );
+                          })()}
                           <th
-                            style={{ width: '40px' }}
-                            className="text-center px-1 py-1 text-slate-400 font-semibold w-10"
+                            style={{ width: `${colWidths.memo || 240}px`, minWidth: '220px' }}
+                            className="relative text-center px-3 py-1 text-slate-700 font-semibold"
                           >
-                            <div className="h-9 flex items-center justify-center">관리</div>
+                            <div className="h-9 flex items-center justify-center">비고</div>
+                            {!isAllSelected &&
+                              isSubmittableWeek(selectedWeek) &&
+                              (() => {
+                                const key = submissionKey(
+                                  viewCohort,
+                                  selectedTeam.id,
+                                  selectedWeek,
+                                );
+                                if (!isWeekSubmittedInDb(selectedTeam.id, selectedWeek))
+                                  return null;
+                                const isEditingThisWeek = editingWeekKey === key;
+                                return (
+                                  <button
+                                    type="button"
+                                    disabled={isSubmittingWeek}
+                                    onClick={() =>
+                                      isEditingThisWeek
+                                        ? handleSubmitWeek()
+                                        : setEditingWeekKey(key)
+                                    }
+                                    className="absolute right-2 top-1/2 z-10 inline-flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 transition-[background-color,color,transform] duration-150 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+                                    title={
+                                      isEditingThisWeek
+                                        ? '수정 완료 (변경 내용을 다시 제출)'
+                                        : '이 주차 출결 전체 수정'
+                                    }
+                                    aria-label={isEditingThisWeek ? '수정 완료' : '출결 전체 수정'}
+                                  >
+                                    {isEditingThisWeek ? (
+                                      <Check size={15} strokeWidth={2} aria-hidden="true" />
+                                    ) : (
+                                      <Edit3 size={14} aria-hidden="true" />
+                                    )}
+                                  </button>
+                                );
+                              })()}
                           </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono">
-                      {filteredAttendees.map((att) => {
+                          {isTableEditMode && (
+                            <th
+                              style={{ width: '40px' }}
+                              className="text-center px-1 py-1 text-slate-400 font-semibold w-10"
+                            >
+                              <div className="h-9 flex items-center justify-center">관리</div>
+                            </th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-mono">
+                        {filteredAttendees.map((att) => {
                           const availableStatuses: AttendStatus[] = [
                             'present',
                             'late',
@@ -4990,8 +5007,7 @@ export function InternalCategoryAttendancePage({
                                   'unmarked',
                                 ];
 
-                          const isDirectEditable =
-                            isBaseWeekSelectable(att.weekNum, att.teamId);
+                          const isDirectEditable = isBaseWeekSelectable(att.weekNum, att.teamId);
 
                           return (
                             <tr
@@ -5169,19 +5185,19 @@ export function InternalCategoryAttendancePage({
                             </tr>
                           );
                         })}
-                    </tbody>
-                  </table>
-                )}
+                      </tbody>
+                    </table>
+                  )}
 
-                {/* Seamless Full-Height Guideline Overlay */}
-                {(resizingColKey || activeHoverCol) && guidelineX !== null && (
-                  <div
-                    className="absolute top-0 bottom-0 w-[2px] bg-slate-400 pointer-events-none z-30 -translate-x-1/2"
-                    style={{ left: `${guidelineX}px` }}
-                  />
-                )}
+                  {/* Seamless Full-Height Guideline Overlay */}
+                  {(resizingColKey || activeHoverCol) && guidelineX !== null && (
+                    <div
+                      className="absolute top-0 bottom-0 w-[2px] bg-slate-400 pointer-events-none z-30 -translate-x-1/2"
+                      style={{ left: `${guidelineX}px` }}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
             )}
           </div>
         )}
@@ -5195,7 +5211,12 @@ export function InternalCategoryAttendancePage({
           }`}
         >
           {!submitToast.isError && (
-            <Check size={15} strokeWidth={2.5} className="shrink-0 text-emerald-300" aria-hidden="true" />
+            <Check
+              size={15}
+              strokeWidth={2.5}
+              className="shrink-0 text-emerald-300"
+              aria-hidden="true"
+            />
           )}
           <span>{submitToast.message}</span>
         </div>
@@ -5260,9 +5281,7 @@ export function InternalCategoryAttendancePage({
                       role="checkbox"
                       aria-checked={newStudyKind === 'MENTORING'}
                       onClick={() =>
-                        setNewStudyKind((kind) =>
-                          kind === 'MENTORING' ? 'GENERAL' : 'MENTORING',
-                        )
+                        setNewStudyKind((kind) => (kind === 'MENTORING' ? 'GENERAL' : 'MENTORING'))
                       }
                       className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-[11px] font-semibold text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
                     >
@@ -5316,7 +5335,6 @@ export function InternalCategoryAttendancePage({
               </div>
 
               <StudyMemberPicker value={newStudySelection} onChange={setNewStudySelection} />
-
             </div>
 
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
@@ -5342,7 +5360,9 @@ export function InternalCategoryAttendancePage({
       {/* ─── Modal: 새 회차 생성 ─── */}
       {showNewEventModal && (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className={`w-full max-w-lg rounded-2xl overflow-hidden p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}>
+          <div
+            className={`w-full max-w-lg rounded-2xl overflow-hidden p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Plus size={16} className="text-slate-800" />
@@ -5476,7 +5496,9 @@ export function InternalCategoryAttendancePage({
       {/* ─── Modal: 주차 매핑 및 CSV 열 순서 드래그 설정 (Settings Modal) ─── */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className={`w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}>
+          <div
+            className={`w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <div>

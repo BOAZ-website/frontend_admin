@@ -160,17 +160,18 @@ export function loadEventState(db: Database): EventDbState {
     },
   );
 
-  const templates = queryAll<TemplateRow>(db, 'SELECT * FROM event_templates ORDER BY created_at, id').map(
-    (row): FormTemplate => ({
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      allowExternal: row.allow_external === 1,
-      defaultCheckinMethod: row.default_checkin_method,
-      customFields: templateFields.get(row.id) ?? [],
-      createdAt: row.created_at,
-    }),
-  );
+  const templates = queryAll<TemplateRow>(
+    db,
+    'SELECT * FROM event_templates ORDER BY created_at, id',
+  ).map((row): FormTemplate => ({
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    allowExternal: row.allow_external === 1,
+    defaultCheckinMethod: row.default_checkin_method,
+    customFields: templateFields.get(row.id) ?? [],
+    createdAt: row.created_at,
+  }));
 
   const attendees = queryAll<AttendeeRow>(
     db,
@@ -307,7 +308,9 @@ export function persistTemplates(
   inTransaction(db, () => {
     prev
       .filter((template) => !nextIds.has(template.id))
-      .forEach((template) => execute(db, 'DELETE FROM event_templates WHERE id = ?', [template.id]));
+      .forEach((template) =>
+        execute(db, 'DELETE FROM event_templates WHERE id = ?', [template.id]),
+      );
 
     next
       .filter((template) => prevById.get(template.id) !== template)
@@ -381,7 +384,9 @@ export function persistAttendees(
   inTransaction(db, () => {
     prev
       .filter((attendee) => !nextIds.has(attendee.id))
-      .forEach((attendee) => execute(db, 'DELETE FROM event_attendees WHERE id = ?', [attendee.id]));
+      .forEach((attendee) =>
+        execute(db, 'DELETE FROM event_attendees WHERE id = ?', [attendee.id]),
+      );
 
     next.forEach((attendee, position) => {
       const unchanged =

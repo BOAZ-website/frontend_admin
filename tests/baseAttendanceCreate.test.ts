@@ -215,10 +215,11 @@ test('ADV 팀 개설: 그 기수·부문의 다음 번호 팀이 팀원·미정 
   assert.equal(first.team.id, 'adv_27_analysis_1');
   assert.equal(first.team.teamName, '분석 1팀');
   assert.equal(first.team.cohort, 27);
-  assert.deepEqual(
-    Object.keys(first.attendance).sort(),
-    ['w1|study|adv_27_analysis_1', 'w2|study|adv_27_analysis_1', 'w3|study|adv_27_analysis_1'],
-  );
+  assert.deepEqual(Object.keys(first.attendance).sort(), [
+    'w1|study|adv_27_analysis_1',
+    'w2|study|adv_27_analysis_1',
+    'w3|study|adv_27_analysis_1',
+  ]);
 
   persistTeams(db, before.advTeams, [...before.advTeams, first.team], 'ADV');
   persistMembers(db, before.members, { ...before.members, [first.team.id]: first.members });

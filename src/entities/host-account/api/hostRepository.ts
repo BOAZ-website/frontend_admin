@@ -74,13 +74,11 @@ export function loadHosts(db: Database): HostAccount[] {
       ORDER BY h.created_at, h.id`,
   ).map((row) => {
     const hostPermissions = permissions.get(row.id)?.map((item) => item.permission);
-    const assignedGroups = groups.get(row.id)?.map(
-      (item): AssignedGroup => ({
-        type: item.group_type === 'ADV' ? 'ADV' : '스터디',
-        teamName: item.team_name,
-        teamId: item.team_id,
-      }),
-    );
+    const assignedGroups = groups.get(row.id)?.map((item): AssignedGroup => ({
+      type: item.group_type === 'ADV' ? 'ADV' : '스터디',
+      teamName: item.team_name,
+      teamId: item.team_id,
+    }));
     const concurrentRoles = roles.get(row.id)?.map((item) => item.role);
 
     // 값이 없는 항목은 키 자체를 두지 않는다(화면이 "없음"과 "빈 목록"을 다르게 다룬다).
@@ -98,7 +96,10 @@ export function loadHosts(db: Database): HostAccount[] {
         : { hostName: row.user_name ?? row.host_name ?? undefined }),
       ...(row.user_term === null && row.generation === null
         ? {}
-        : { generation: row.user_term === null ? row.generation ?? undefined : `${row.user_term}기` }),
+        : {
+            generation:
+              row.user_term === null ? (row.generation ?? undefined) : `${row.user_term}기`,
+          }),
       ...(row.user_track === null && row.track === null
         ? {}
         : { track: row.user_track ?? row.track ?? undefined }),
@@ -145,7 +146,9 @@ const toTeamGroup = (type: string | undefined): TeamGroup | undefined =>
 
 function resolveOrCreateUserId(db: Database, host: HostAccount): string | null {
   if (host.userId) {
-    const existing = queryAll<{ id: string }>(db, 'SELECT id FROM users WHERE id = ?', [host.userId]);
+    const existing = queryAll<{ id: string }>(db, 'SELECT id FROM users WHERE id = ?', [
+      host.userId,
+    ]);
     if (existing.length > 0) return host.userId;
   }
   const name = host.hostName?.trim();
@@ -174,11 +177,11 @@ function resolveOrCreateUserId(db: Database, host: HostAccount): string | null {
 function writeChildren(db: Database, host: HostAccount): void {
   execute(db, 'DELETE FROM host_permissions WHERE host_id = ?', [host.id]);
   (host.permissions ?? []).forEach((permission, position) =>
-    execute(
-      db,
-      'INSERT INTO host_permissions (host_id, position, permission) VALUES (?, ?, ?)',
-      [host.id, position, permission],
-    ),
+    execute(db, 'INSERT INTO host_permissions (host_id, position, permission) VALUES (?, ?, ?)', [
+      host.id,
+      position,
+      permission,
+    ]),
   );
 
   // 담당 그룹은 실제로 있는 팀만 저장한다(팀이 아직 없는 그룹은 건너뛴다).
@@ -196,11 +199,11 @@ function writeChildren(db: Database, host: HostAccount): void {
 
   execute(db, 'DELETE FROM host_concurrent_roles WHERE host_id = ?', [host.id]);
   (host.concurrentRoles ?? []).forEach((role, position) =>
-    execute(
-      db,
-      'INSERT INTO host_concurrent_roles (host_id, position, role) VALUES (?, ?, ?)',
-      [host.id, position, role],
-    ),
+    execute(db, 'INSERT INTO host_concurrent_roles (host_id, position, role) VALUES (?, ?, ?)', [
+      host.id,
+      position,
+      role,
+    ]),
   );
 }
 
@@ -242,7 +245,12 @@ export function persistHosts(
             userId ? null : (host.generation ?? null),
             userId ? null : (host.track ?? null),
             host.role ?? null,
-            resolveTeamId(db, host.teamId, host.team, toTeamGroup(host.groupType ?? host.accountType)),
+            resolveTeamId(
+              db,
+              host.teamId,
+              host.team,
+              toTeamGroup(host.groupType ?? host.accountType),
+            ),
             host.groupType ?? null,
             host.accountType ?? null,
             host.createdAt,

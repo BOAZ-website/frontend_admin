@@ -286,7 +286,8 @@ export function createAdvTeamRecords(
   today: string = new Date().toISOString().slice(0, 10),
 ): CreateAdvTeamResult {
   const sameTrack = advTeams.filter(
-    (team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === input.cohort && team.track === input.track,
+    (team) =>
+      (team.cohort ?? DEFAULT_CURRENT_COHORT) === input.cohort && team.track === input.track,
   );
   const number = sameTrack.length + 1;
   const trackKey = BASE_TRACK_KEYS[input.track] ?? input.track;

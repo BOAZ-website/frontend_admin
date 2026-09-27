@@ -4,10 +4,7 @@ import test from 'node:test';
 
 import initSqlJs from 'sql.js';
 
-import {
-  loadWeekDates,
-  persistWeekDates,
-} from '../src/entities/cohort/api/cohortRepository';
+import { loadWeekDates, persistWeekDates } from '../src/entities/cohort/api/cohortRepository';
 import { createDatabase } from '../src/shared/db/createDatabase';
 import { formatDateInput, isValidIsoDate } from '../src/shared/lib/date';
 

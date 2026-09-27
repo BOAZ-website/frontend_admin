@@ -19,9 +19,7 @@ export function LoginModal({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [selectedQuickHostTeam, setSelectedQuickHostTeam] = useState(
-    studyTeams[0]?.id ?? '',
-  );
+  const [selectedQuickHostTeam, setSelectedQuickHostTeam] = useState(studyTeams[0]?.id ?? '');
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();

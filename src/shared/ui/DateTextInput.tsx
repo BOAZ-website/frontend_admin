@@ -22,7 +22,9 @@ export function DateTextInput({ value, onChange, ariaLabel }: DateTextInputProps
 
   // 달력에서 고르거나 부모가 값을 바꾸면 입력창 글자도 맞춘다(입력 중인 미완성 글자는 지우지 않는다).
   useEffect(() => {
-    setText((current) => (current === value || (!value && !isValidIsoDate(current)) ? current : value));
+    setText((current) =>
+      current === value || (!value && !isValidIsoDate(current)) ? current : value,
+    );
   }, [value]);
 
   const isInvalid = text.length === ISO_DATE_LENGTH && !isValidIsoDate(text);

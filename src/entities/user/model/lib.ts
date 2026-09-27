@@ -15,7 +15,9 @@ export function filterUsers(users: readonly UserProfile[], filter: UserFilter): 
     .filter((user) => keyword === '' || user.name.includes(keyword))
     .sort(
       (a, b) =>
-        a.term - b.term || a.track.localeCompare(b.track, 'ko') || a.name.localeCompare(b.name, 'ko'),
+        a.term - b.term ||
+        a.track.localeCompare(b.track, 'ko') ||
+        a.name.localeCompare(b.name, 'ko'),
     );
 }
 

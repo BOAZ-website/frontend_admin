@@ -52,7 +52,11 @@ export function PdfPreviewModal({ url, name, onClose }: PdfPreviewModalProps) {
             <X size={18} />
           </button>
         </div>
-        <iframe src={url} title={`${name} 미리보기`} className="min-h-0 w-full flex-1 bg-slate-100" />
+        <iframe
+          src={url}
+          title={`${name} 미리보기`}
+          className="min-h-0 w-full flex-1 bg-slate-100"
+        />
       </div>
     </div>
   );

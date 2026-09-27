@@ -25,11 +25,7 @@ import { useTeamDb } from './model/useTeamDb';
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
 import boazLogo from '@/shared/assets/boaz-logo.png';
 import { sessionKey } from '@/entities/attendance/model/lib';
-import {
-  cohortsOf,
-  currentCohortOf,
-  DEFAULT_CURRENT_COHORT,
-} from '@/entities/cohort/model/lib';
+import { cohortsOf, currentCohortOf, DEFAULT_CURRENT_COHORT } from '@/entities/cohort/model/lib';
 import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
 import type { WeekInfo } from '@/entities/attendance/model/week';
 import { INITIAL_EXCEPTIONS } from '@/entities/exception-request/model/constants';
@@ -120,7 +116,7 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.map((r, idx) => {
-            const fallbackTerm = r.term ?? (27 - idx);
+            const fallbackTerm = r.term ?? 27 - idx;
             return {
               ...r,
               term: fallbackTerm,
@@ -534,7 +530,9 @@ export default function App() {
   function resolveTeamId(idOrName?: string): string {
     if (!idOrName) return '';
     const teams = [...studyTeams, ...advTeams];
-    return (teams.find((t) => t.id === idOrName) ?? teams.find((t) => t.teamName === idOrName))?.id ?? '';
+    return (
+      (teams.find((t) => t.id === idOrName) ?? teams.find((t) => t.teamName === idOrName))?.id ?? ''
+    );
   }
 
   /**

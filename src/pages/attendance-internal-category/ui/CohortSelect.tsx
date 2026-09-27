@@ -62,8 +62,7 @@ export function CohortSelect({ value, cohorts, onChange }: CohortSelectProps) {
                     isSelected ? 'bg-[#1E6F94] text-white' : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  {cohort}기
-                  {isSelected && <Check size={12} />}
+                  {cohort}기{isSelected && <Check size={12} />}
                 </button>
               </li>
             );

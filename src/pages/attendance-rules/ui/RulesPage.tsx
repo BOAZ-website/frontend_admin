@@ -1,17 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ChevronRight,
-  Pencil,
-  Plus,
-  Save,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { ChevronRight, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 
-import {
-  formatDateRange,
-  getTodayString,
-} from '@/entities/score-rule/model/lib';
+import { formatDateRange, getTodayString } from '@/entities/score-rule/model/lib';
 import type { ScoreRule } from '@/entities/score-rule/model/types';
 import { MODAL_PRIMARY_BTN, MODAL_SURFACE } from '@/shared/ui/modalStyles';
 
@@ -26,8 +16,8 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
   // 규칙 목록 정규화 (기수 및 기간 누락 방지)
   const safeRules = useMemo(() => {
     return (rules || []).map((r, idx) => {
-      const fallbackTerm = r.term ?? (27 - idx);
-      const fallbackVersion = r.version ?? ((rules?.length || 3) - idx);
+      const fallbackTerm = r.term ?? 27 - idx;
+      const fallbackVersion = r.version ?? (rules?.length || 3) - idx;
       return {
         ...r,
         term: fallbackTerm,
@@ -35,11 +25,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
         name: r.name ?? `Version ${fallbackVersion} 점수 규칙`,
         startDate:
           r.startDate ??
-          (fallbackTerm === 27
-            ? '2026-07-01'
-            : fallbackTerm === 26
-              ? '2026-01-01'
-              : '2025-07-01'),
+          (fallbackTerm === 27 ? '2026-07-01' : fallbackTerm === 26 ? '2026-01-01' : '2025-07-01'),
         endDate:
           r.endDate !== undefined
             ? r.endDate
@@ -330,9 +316,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                     </div>
                     <ChevronRight
                       size={15}
-                      className={`shrink-0 ${
-                        isSelected ? 'text-slate-700' : 'text-slate-400'
-                      }`}
+                      className={`shrink-0 ${isSelected ? 'text-slate-700' : 'text-slate-400'}`}
                     />
                   </div>
                 </div>
@@ -442,8 +426,13 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                 <tbody className="divide-y divide-slate-100">
                   {/* 1. 정규 활동 세션 항목 */}
                   <tr className="hover:bg-slate-50/40">
-                    <td rowSpan={6} className="px-4 py-3 text-center font-bold text-slate-800 bg-slate-50/30 border-r border-slate-100 align-middle">
-                      정규 활동<br />(세션 / ADV)
+                    <td
+                      rowSpan={6}
+                      className="px-4 py-3 text-center font-bold text-slate-800 bg-slate-50/30 border-r border-slate-100 align-middle"
+                    >
+                      정규 활동
+                      <br />
+                      (세션 / ADV)
                     </td>
                     <td className="px-4 py-2.5 font-semibold text-slate-800">지각</td>
                     <td className="px-4 py-2.5 text-slate-600">세션 시작 후 ~ 15분까지</td>
@@ -543,7 +532,8 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                   <tr className="hover:bg-slate-50/40">
                     <td className="px-4 py-2.5 font-semibold text-slate-800">무단결석</td>
                     <td className="px-4 py-2.5 text-slate-600">
-                      사전 통보 없는 결석 <span className="text-slate-400">(3회 시 동아리 제명)</span>
+                      사전 통보 없는 결석{' '}
+                      <span className="text-slate-400">(3회 시 동아리 제명)</span>
                     </td>
                     <td className="px-4 py-2 text-right">
                       {isEditMode ? (
@@ -568,19 +558,24 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
 
                   <tr className="hover:bg-slate-50/40">
                     <td className="px-4 py-2.5 font-semibold text-slate-800">인정 사유결석</td>
-                    <td className="px-4 py-2.5 text-slate-600">운영진 승인 불가피 사유결석 (증빙 제출)</td>
-                    <td className="px-4 py-2 text-right font-mono font-bold text-slate-500">
-                      0점
+                    <td className="px-4 py-2.5 text-slate-600">
+                      운영진 승인 불가피 사유결석 (증빙 제출)
                     </td>
+                    <td className="px-4 py-2 text-right font-mono font-bold text-slate-500">0점</td>
                   </tr>
 
                   {/* 2. 스터디 항목 */}
                   <tr className="hover:bg-slate-50/40">
-                    <td rowSpan={4} className="px-4 py-3 text-center font-bold text-slate-800 bg-slate-50/30 border-r border-slate-100 align-middle">
+                    <td
+                      rowSpan={4}
+                      className="px-4 py-3 text-center font-bold text-slate-800 bg-slate-50/30 border-r border-slate-100 align-middle"
+                    >
                       스터디
                     </td>
                     <td className="px-4 py-2.5 font-semibold text-slate-800">미이수 / 저조</td>
-                    <td className="px-4 py-2.5 text-slate-600">각 Term 방학 기간 출석률 70% 미만 (4회 이하)</td>
+                    <td className="px-4 py-2.5 text-slate-600">
+                      각 Term 방학 기간 출석률 70% 미만 (4회 이하)
+                    </td>
                     <td className="px-4 py-2 text-right">
                       {isEditMode ? (
                         <input
@@ -604,7 +599,9 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
 
                   <tr className="hover:bg-slate-50/40">
                     <td className="px-4 py-2.5 font-semibold text-slate-800">정규 수료</td>
-                    <td className="px-4 py-2.5 text-slate-600">출석률 70% 이상 100% 미만 (5~6회 출석)</td>
+                    <td className="px-4 py-2.5 text-slate-600">
+                      출석률 70% 이상 100% 미만 (5~6회 출석)
+                    </td>
                     <td className="px-4 py-2 text-right">
                       {isEditMode ? (
                         <input
@@ -628,7 +625,9 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
 
                   <tr className="hover:bg-slate-50/40">
                     <td className="px-4 py-2.5 font-semibold text-slate-800">100% 개근</td>
-                    <td className="px-4 py-2.5 text-slate-600">성실 출석률 100% (7~8회 성실 출석)</td>
+                    <td className="px-4 py-2.5 text-slate-600">
+                      성실 출석률 100% (7~8회 성실 출석)
+                    </td>
                     <td className="px-4 py-2 text-right">
                       {isEditMode ? (
                         <input
@@ -683,7 +682,9 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
       {/* ─── 4. 새 기수 점수 규칙 등록 모달 ─── */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className={`rounded-2xl max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}>
+          <div
+            className={`rounded-2xl max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base font-bold text-slate-900">새 기수 점수 규칙 등록</h3>
               <button
@@ -758,9 +759,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                   type="date"
                   disabled={newRuleForm.noEndDate}
                   value={newRuleForm.endDate}
-                  onChange={(e) =>
-                    setNewRuleForm((prev) => ({ ...prev, endDate: e.target.value }))
-                  }
+                  onChange={(e) => setNewRuleForm((prev) => ({ ...prev, endDate: e.target.value }))}
                   className="w-full text-xs border border-slate-300 rounded-lg px-2.5 py-2 text-slate-900 font-mono disabled:bg-slate-100 disabled:text-slate-400"
                 />
               </div>

@@ -23,7 +23,8 @@ const TAG_BASE =
   'cursor-pointer rounded-sm border px-2 py-1 text-[11px] font-semibold transition-colors';
 const TAG_ON = 'border-[#1E6F94] bg-[#1E6F94] text-white';
 const TAG_OFF = 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50';
-const ROW_GRID = 'grid grid-cols-[0.875rem_minmax(0,1fr)_2.75rem_5rem_3.5rem] items-center gap-x-3 px-3';
+const ROW_GRID =
+  'grid grid-cols-[0.875rem_minmax(0,1fr)_2.75rem_5rem_3.5rem] items-center gap-x-3 px-3';
 
 function toggle<T>(list: readonly T[], item: T): T[] {
   return list.includes(item) ? list.filter((v) => v !== item) : [...list, item];

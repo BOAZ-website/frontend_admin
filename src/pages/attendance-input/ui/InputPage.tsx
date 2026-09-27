@@ -607,7 +607,9 @@ export function InputPage({
           <div className="space-y-1 min-w-0 flex-1">
             <h4
               className={`text-sm font-bold truncate ${
-                isSelected ? 'text-slate-950 font-bold' : 'text-slate-900 group-hover:text-slate-950'
+                isSelected
+                  ? 'text-slate-950 font-bold'
+                  : 'text-slate-900 group-hover:text-slate-950'
               }`}
             >
               {studyDisplayName(team)}
@@ -811,7 +813,6 @@ export function InputPage({
     }
   }
 
-
   function handleRemovePhoto() {
     if (!canEditPhoto) {
       return;
@@ -876,7 +877,9 @@ export function InputPage({
       return next;
     });
     setMemos((prev) =>
-      Object.fromEntries(Object.entries(prev).filter(([memoKey]) => !memoKey.startsWith(`${draftKey}-`))),
+      Object.fromEntries(
+        Object.entries(prev).filter(([memoKey]) => !memoKey.startsWith(`${draftKey}-`)),
+      ),
     );
     setUploadedImage({ file: null, url: null, name: null, size: null });
     if (fileInputRef.current) {
@@ -889,7 +892,9 @@ export function InputPage({
       return next;
     });
     setMemos((prev) =>
-      Object.fromEntries(Object.entries(prev).filter(([memoKey]) => !memoKey.startsWith(`${draftKey}-`))),
+      Object.fromEntries(
+        Object.entries(prev).filter(([memoKey]) => !memoKey.startsWith(`${draftKey}-`)),
+      ),
     );
     setIsEditing(false);
   }
@@ -1043,7 +1048,6 @@ export function InputPage({
             </button>
           </div>
         </div>
-
       </div>
 
       {/* ─── 주차 선택 토글 바 (수평 스크롤 & 위치 완전 고정) ─── */}
@@ -1091,10 +1095,10 @@ export function InputPage({
                   isBlocked
                     ? 'cursor-not-allowed border border-slate-200/60 bg-slate-100/60 text-slate-300'
                     : isActive
-                    ? BRAND_SELECTED + ' cursor-pointer'
-                    : isWeekFuture
-                      ? 'text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70 cursor-pointer'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs cursor-pointer'
+                      ? BRAND_SELECTED + ' cursor-pointer'
+                      : isWeekFuture
+                        ? 'text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70 cursor-pointer'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs cursor-pointer'
                 }`}
               >
                 <span>{w.label}</span>
@@ -1145,7 +1149,6 @@ export function InputPage({
                   </span>
                 )}
               </div>
-
             </div>
 
             {/* 등록된 팀이 없을 때 (Empty State) */}
@@ -1234,38 +1237,38 @@ export function InputPage({
                 {studyTeamGroups
                   .filter((group) => group.label !== '멘멘 스터디' || termPeriod === '방학')
                   .map((group) => (
-                  <section key={group.label} className="space-y-2.5">
-                    <h3 className="px-1 text-[11px] font-bold text-slate-400 select-none">
-                      {group.label}
-                    </h3>
-                    {group.label === '멘멘 스터디' ? (
-                      <div className="space-y-4 pl-2">
-                        {mentoringTrackGroups.map((trackGroup) => (
-                          <div key={trackGroup.label} className="space-y-2">
-                            <h4 className="px-1 text-[11px] font-bold text-slate-500 select-none">
-                              {trackGroup.label}
-                            </h4>
-                            {trackGroup.teams.length === 0 ? (
-                              <p className="px-1 py-1 text-[11px] text-slate-400">
-                                등록된 스터디가 없습니다.
-                              </p>
-                            ) : (
-                              <div className="space-y-2.5">
-                                {trackGroup.teams.map(renderStudyTeamCard)}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : group.teams.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
-                        등록된 {group.label}가 없습니다.
-                      </div>
-                    ) : (
-                      <div className="space-y-2.5">{group.teams.map(renderStudyTeamCard)}</div>
-                    )}
-                  </section>
-                ))}
+                    <section key={group.label} className="space-y-2.5">
+                      <h3 className="px-1 text-[11px] font-bold text-slate-400 select-none">
+                        {group.label}
+                      </h3>
+                      {group.label === '멘멘 스터디' ? (
+                        <div className="space-y-4 pl-2">
+                          {mentoringTrackGroups.map((trackGroup) => (
+                            <div key={trackGroup.label} className="space-y-2">
+                              <h4 className="px-1 text-[11px] font-bold text-slate-500 select-none">
+                                {trackGroup.label}
+                              </h4>
+                              {trackGroup.teams.length === 0 ? (
+                                <p className="px-1 py-1 text-[11px] text-slate-400">
+                                  등록된 스터디가 없습니다.
+                                </p>
+                              ) : (
+                                <div className="space-y-2.5">
+                                  {trackGroup.teams.map(renderStudyTeamCard)}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : group.teams.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
+                          등록된 {group.label}가 없습니다.
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">{group.teams.map(renderStudyTeamCard)}</div>
+                      )}
+                    </section>
+                  ))}
               </div>
             )}
           </div>
@@ -1393,7 +1396,11 @@ export function InputPage({
                       <div className="flex items-center">
                         <div className="inline-flex h-8 items-center gap-2 text-xs text-slate-700 select-none">
                           <span className="inline-flex items-center gap-1.5 font-semibold">
-                            <Check size={13} className="text-slate-500 stroke-2" aria-hidden="true" />
+                            <Check
+                              size={13}
+                              className="text-slate-500 stroke-2"
+                              aria-hidden="true"
+                            />
                             제출 완료
                           </span>
                           {rec?.submittedAt && (
@@ -1526,75 +1533,93 @@ export function InputPage({
                           {isFutureWeek
                             ? '세션 오픈 후 사진을 등록할 수 있습니다'
                             : isPastWeek
-                            ? '등록된 사진이 없습니다 (마감)'
-                            : isSubmitted && !isEditing
-                              ? '등록된 사진이 없습니다'
-                              : '사진을 등록해 주세요'}
+                              ? '등록된 사진이 없습니다 (마감)'
+                              : isSubmitted && !isEditing
+                                ? '등록된 사진이 없습니다'
+                                : '사진을 등록해 주세요'}
                         </p>
                       </div>
                     </div>
                   )}
                 </div>
-              {/* 멘멘 스터디 파일(PDF) 업로드 줄: 폴더 아이콘 · 파일명 · 초록 체크 */}
-              {isMentoringTeam && (
-                <div className="w-full max-w-[360px]">
-                  <input
-                    ref={pdfInputRef}
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    onChange={handlePdfChange}
-                    disabled={!canEditPdf}
-                    className="hidden"
-                  />
-                  {currentPdfUrl ? (
-                    <div className="flex h-14 items-center gap-3 rounded-sm border border-slate-200 bg-white px-4 shadow-2xs">
-                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPdfPreview({ url: currentPdfUrl, name: currentPdfName ?? 'PDF 자료' })
-                        }
-                        className="min-w-0 flex-1 cursor-pointer truncate text-left text-sm text-slate-800 hover:underline"
-                        title={`${currentPdfName ?? 'PDF 자료'}${currentPdfSize ? ` (${currentPdfSize})` : ''} 미리보기`}
-                      >
-                        {currentPdfName ?? 'PDF 자료'}
-                      </button>
-                      <Check size={20} strokeWidth={2.4} className="shrink-0 text-emerald-500" aria-label="업로드 완료" />
-                      {canEditPdf && (
+                {/* 멘멘 스터디 파일(PDF) 업로드 줄: 폴더 아이콘 · 파일명 · 초록 체크 */}
+                {isMentoringTeam && (
+                  <div className="w-full max-w-[360px]">
+                    <input
+                      ref={pdfInputRef}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      onChange={handlePdfChange}
+                      disabled={!canEditPdf}
+                      className="hidden"
+                    />
+                    {currentPdfUrl ? (
+                      <div className="flex h-14 items-center gap-3 rounded-sm border border-slate-200 bg-white px-4 shadow-2xs">
+                        <Folder
+                          size={20}
+                          strokeWidth={1.3}
+                          className="shrink-0 text-slate-400"
+                          aria-hidden="true"
+                        />
                         <button
                           type="button"
-                          onClick={handleRemovePdf}
-                          className="shrink-0 cursor-pointer rounded p-0.5 text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700"
-                          title="파일 삭제"
-                          aria-label="파일 삭제"
+                          onClick={() =>
+                            setPdfPreview({
+                              url: currentPdfUrl,
+                              name: currentPdfName ?? 'PDF 자료',
+                            })
+                          }
+                          className="min-w-0 flex-1 cursor-pointer truncate text-left text-sm text-slate-800 hover:underline"
+                          title={`${currentPdfName ?? 'PDF 자료'}${currentPdfSize ? ` (${currentPdfSize})` : ''} 미리보기`}
                         >
-                          <Trash2 size={14} aria-hidden="true" />
+                          {currentPdfName ?? 'PDF 자료'}
                         </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => canEditPdf && pdfInputRef.current?.click()}
-                      className={`group flex h-14 select-none items-center gap-3 rounded-sm border border-dashed border-slate-300 bg-white px-4 transition-colors hover:border-slate-400 hover:bg-slate-50/60 ${
-                        canEditPdf ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
-                      }`}
-                    >
-                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
-                      <span
-                        className={`min-w-0 flex-1 truncate text-sm text-slate-500 transition-colors ${
-                          canEditPdf ? 'group-hover:text-slate-900 group-hover:underline' : ''
+                        <Check
+                          size={20}
+                          strokeWidth={2.4}
+                          className="shrink-0 text-emerald-500"
+                          aria-label="업로드 완료"
+                        />
+                        {canEditPdf && (
+                          <button
+                            type="button"
+                            onClick={handleRemovePdf}
+                            className="shrink-0 cursor-pointer rounded p-0.5 text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700"
+                            title="파일 삭제"
+                            aria-label="파일 삭제"
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => canEditPdf && pdfInputRef.current?.click()}
+                        className={`group flex h-14 select-none items-center gap-3 rounded-sm border border-dashed border-slate-300 bg-white px-4 transition-colors hover:border-slate-400 hover:bg-slate-50/60 ${
+                          canEditPdf ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
                         }`}
                       >
-                        {isFutureWeek
-                          ? '세션 오픈 후 파일을 등록할 수 있습니다'
-                          : canEditPdf
-                            ? '파일을 업로드해 주세요'
-                            : '등록된 파일이 없습니다'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
+                        <Folder
+                          size={20}
+                          strokeWidth={1.3}
+                          className="shrink-0 text-slate-400"
+                          aria-hidden="true"
+                        />
+                        <span
+                          className={`min-w-0 flex-1 truncate text-sm text-slate-500 transition-colors ${
+                            canEditPdf ? 'group-hover:text-slate-900 group-hover:underline' : ''
+                          }`}
+                        >
+                          {isFutureWeek
+                            ? '세션 오픈 후 파일을 등록할 수 있습니다'
+                            : canEditPdf
+                              ? '파일을 업로드해 주세요'
+                              : '등록된 파일이 없습니다'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {members.length === 0 ? (
@@ -1612,9 +1637,7 @@ export function InputPage({
                   <div className="overflow-x-auto select-none relative">
                     <table
                       className="w-full text-xs table-fixed border-collapse"
-                      style={
-                        tableMinWidth > 0 ? { minWidth: `${tableMinWidth}px` } : undefined
-                      }
+                      style={tableMinWidth > 0 ? { minWidth: `${tableMinWidth}px` } : undefined}
                     >
                       <thead className="bg-slate-50/80 select-none">
                         <tr className="border-b border-slate-200 divide-x divide-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
@@ -1626,7 +1649,9 @@ export function InputPage({
                             <div className="h-9 flex items-center justify-center">이름</div>
                             {canEdit && (
                               <div
-                                onMouseDown={(e) => handleResizeStart(e, 'name', MIN_COL_WIDTHS.name)}
+                                onMouseDown={(e) =>
+                                  handleResizeStart(e, 'name', MIN_COL_WIDTHS.name)
+                                }
                                 className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
                                 title="열 너비 조절"
                               >
@@ -1649,7 +1674,9 @@ export function InputPage({
                             <div className="h-9 flex items-center justify-center">기수</div>
                             {canEdit && (
                               <div
-                                onMouseDown={(e) => handleResizeStart(e, 'year', MIN_COL_WIDTHS.year)}
+                                onMouseDown={(e) =>
+                                  handleResizeStart(e, 'year', MIN_COL_WIDTHS.year)
+                                }
                                 className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
                                 title="열 너비 조절"
                               >
@@ -1698,7 +1725,9 @@ export function InputPage({
                               <div className="h-9 flex items-center justify-center">유형</div>
                               {canEdit && (
                                 <div
-                                  onMouseDown={(e) => handleResizeStart(e, 'type', MIN_COL_WIDTHS.type)}
+                                  onMouseDown={(e) =>
+                                    handleResizeStart(e, 'type', MIN_COL_WIDTHS.type)
+                                  }
                                   className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
                                   title="열 너비 조절"
                                 >
@@ -1775,7 +1804,9 @@ export function InputPage({
                             )}
                             {canEdit && (
                               <div
-                                onMouseDown={(e) => handleResizeStart(e, 'memo', MIN_COL_WIDTHS.memo)}
+                                onMouseDown={(e) =>
+                                  handleResizeStart(e, 'memo', MIN_COL_WIDTHS.memo)
+                                }
                                 className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
                                 title="열 너비 조절"
                               >
@@ -1816,127 +1847,135 @@ export function InputPage({
                         </tr>
                       </thead>
                       {members.map((m) => {
-                          // 멘멘 스터디는 유형(멘멘/친바)마다 출결 한 줄, 그 외에는 한 줄.
-                          const types = isMentoringTeam ? MENTORING_TYPE_LABELS : [null];
-                          const rowSpan = types.length;
-                          const currentMemo = getMemo(m.id); // 비고는 팀원 한 명에 하나
+                        // 멘멘 스터디는 유형(멘멘/친바)마다 출결 한 줄, 그 외에는 한 줄.
+                        const types = isMentoringTeam ? MENTORING_TYPE_LABELS : [null];
+                        const rowSpan = types.length;
+                        const currentMemo = getMemo(m.id); // 비고는 팀원 한 명에 하나
 
-                          const memberRowsJsx = types.map((typeLabel, typeIndex) => {
-                            const rowKey = typeLabel ? `${m.id}:${typeLabel}` : m.id;
-                            const s = getStatus(rowKey);
-                            const isFirstRow = typeIndex === 0;
+                        const memberRowsJsx = types.map((typeLabel, typeIndex) => {
+                          const rowKey = typeLabel ? `${m.id}:${typeLabel}` : m.id;
+                          const s = getStatus(rowKey);
+                          const isFirstRow = typeIndex === 0;
 
-                            return (
-                              <tr
-                                key={rowKey}
-                                className="hover:bg-slate-50/70 transition-colors divide-x divide-slate-200 h-[42px]"
-                              >
-                                {isFirstRow && (
-                                  <>
-                                    <td
-                                      rowSpan={rowSpan}
-                                      className="relative px-2 py-1.5 text-center font-bold text-slate-900 text-xs font-sans whitespace-nowrap"
-                                    >
-                                      {m.name}
-                                    </td>
-                                    <td
-                                      rowSpan={rowSpan}
-                                      className="relative px-2 py-1.5 text-center text-slate-600 text-xs whitespace-nowrap"
-                                    >
-                                      {m.year ? `${m.year}기` : '—'}
-                                    </td>
-                                    <td
-                                      rowSpan={rowSpan}
-                                      className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans whitespace-nowrap"
-                                    >
-                                      {m.track || '분석'}
-                                    </td>
-                                  </>
-                                )}
-                                {isMentoringTeam && (
-                                  <td className="relative px-2 py-1.5 text-center text-slate-700 text-xs font-sans font-semibold whitespace-nowrap">
-                                    {typeLabel}
+                          return (
+                            <tr
+                              key={rowKey}
+                              className="hover:bg-slate-50/70 transition-colors divide-x divide-slate-200 h-[42px]"
+                            >
+                              {isFirstRow && (
+                                <>
+                                  <td
+                                    rowSpan={rowSpan}
+                                    className="relative px-2 py-1.5 text-center font-bold text-slate-900 text-xs font-sans whitespace-nowrap"
+                                  >
+                                    {m.name}
                                   </td>
+                                  <td
+                                    rowSpan={rowSpan}
+                                    className="relative px-2 py-1.5 text-center text-slate-600 text-xs whitespace-nowrap"
+                                  >
+                                    {m.year ? `${m.year}기` : '—'}
+                                  </td>
+                                  <td
+                                    rowSpan={rowSpan}
+                                    className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans whitespace-nowrap"
+                                  >
+                                    {m.track || '분석'}
+                                  </td>
+                                </>
+                              )}
+                              {isMentoringTeam && (
+                                <td className="relative px-2 py-1.5 text-center text-slate-700 text-xs font-sans font-semibold whitespace-nowrap">
+                                  {typeLabel}
+                                </td>
+                              )}
+                              <td className="relative px-2 py-1.5 text-center">
+                                {canEdit ? (
+                                  <div className="flex items-center justify-center w-full px-1">
+                                    <div className="grid w-full p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs grid-cols-2 max-w-[140px] min-w-[130px]">
+                                      {STATUS_BTNS.map((btn) => {
+                                        const active = s === btn.id;
+                                        const styleCfg =
+                                          ATTEND_STATUS_STYLES[btn.id] ||
+                                          ATTEND_STATUS_STYLES.unmarked;
+                                        return (
+                                          <button
+                                            key={btn.id}
+                                            type="button"
+                                            onClick={() => setStatus(rowKey, btn.id)}
+                                            disabled={isFutureWeek}
+                                            className={`py-1 text-[10.5px] font-semibold rounded transition-all text-center whitespace-nowrap px-0.5 ${
+                                              isFutureWeek
+                                                ? 'cursor-not-allowed opacity-50 ' +
+                                                  styleCfg.inactive
+                                                : 'cursor-pointer ' +
+                                                  (active ? styleCfg.active : styleCfg.inactive)
+                                            }`}
+                                          >
+                                            {btn.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-center h-8 font-sans text-xs">
+                                    {renderStatusText(s)}
+                                  </div>
                                 )}
-                                <td className="relative px-2 py-1.5 text-center">
+                              </td>
+                              {isFirstRow && (
+                                <td
+                                  rowSpan={rowSpan}
+                                  className="relative border-l border-slate-200 px-3 py-2 text-center"
+                                >
                                   {canEdit ? (
-                                    <div className="flex items-center justify-center w-full px-1">
-                                      <div
-                                        className="grid w-full p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs grid-cols-2 max-w-[140px] min-w-[130px]"
-                                      >
-                                        {STATUS_BTNS.map((btn) => {
-                                          const active = s === btn.id;
-                                          const styleCfg =
-                                            ATTEND_STATUS_STYLES[btn.id] ||
-                                            ATTEND_STATUS_STYLES.unmarked;
-                                          return (
-                                            <button
-                                              key={btn.id}
-                                              type="button"
-                                              onClick={() => setStatus(rowKey, btn.id)}
-                                              disabled={isFutureWeek}
-                                              className={`py-1 text-[10.5px] font-semibold rounded transition-all text-center whitespace-nowrap px-0.5 ${
-                                                isFutureWeek
-                                                  ? 'cursor-not-allowed opacity-50 ' + styleCfg.inactive
-                                                  : 'cursor-pointer ' + (active ? styleCfg.active : styleCfg.inactive)
-                                              }`}
-                                            >
-                                              {btn.label}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
+                                    <div className="h-8 flex items-center justify-center">
+                                      <input
+                                        type="text"
+                                        value={currentMemo}
+                                        onChange={(e) => setMemo(m.id, e.target.value)}
+                                        placeholder="—"
+                                        className="w-full h-8 text-center px-3 text-xs font-sans text-slate-700 placeholder:text-slate-300 placeholder:font-mono rounded-lg bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-800 focus:ring-2 focus:ring-slate-100 outline-none transition-all shadow-2xs"
+                                      />
                                     </div>
                                   ) : (
-                                    <div className="flex items-center justify-center h-8 font-sans text-xs">
-                                      {renderStatusText(s)}
+                                    <div className="h-8 flex items-center justify-center font-sans text-xs text-slate-600 truncate px-2">
+                                      {currentMemo || (
+                                        <span className="text-slate-300 font-mono">—</span>
+                                      )}
                                     </div>
                                   )}
                                 </td>
-                                {isFirstRow && (
-                                  <td rowSpan={rowSpan} className="relative border-l border-slate-200 px-3 py-2 text-center">
-                                    {canEdit ? (
-                                      <div className="h-8 flex items-center justify-center">
-                                        <input
-                                          type="text"
-                                          value={currentMemo}
-                                          onChange={(e) => setMemo(m.id, e.target.value)}
-                                          placeholder="—"
-                                          className="w-full h-8 text-center px-3 text-xs font-sans text-slate-700 placeholder:text-slate-300 placeholder:font-mono rounded-lg bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-800 focus:ring-2 focus:ring-slate-100 outline-none transition-all shadow-2xs"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <div className="h-8 flex items-center justify-center font-sans text-xs text-slate-600 truncate px-2">
-                                        {currentMemo || <span className="text-slate-300 font-mono">—</span>}
-                                      </div>
-                                    )}
-                                  </td>
-                                )}
-                                {isFirstRow && canEdit && (
-                                  <td rowSpan={rowSpan} className="border-l border-slate-200 px-2 py-1.5 text-center w-10">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteMember(m.id)}
-                                      className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
-                                      title="명단에서 삭제"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </td>
-                                )}
-                              </tr>
-                            );
-                          });
-
-                          return (
-                            <tbody
-                              key={m.id}
-                              className="border-b border-slate-300 last:border-b-0 font-mono [&>tr+tr]:border-t [&>tr+tr]:border-slate-100"
-                            >
-                              {memberRowsJsx}
-                            </tbody>
+                              )}
+                              {isFirstRow && canEdit && (
+                                <td
+                                  rowSpan={rowSpan}
+                                  className="border-l border-slate-200 px-2 py-1.5 text-center w-10"
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteMember(m.id)}
+                                    className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                                    title="명단에서 삭제"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
                           );
-                        })}
+                        });
+
+                        return (
+                          <tbody
+                            key={m.id}
+                            className="border-b border-slate-300 last:border-b-0 font-mono [&>tr+tr]:border-t [&>tr+tr]:border-slate-100"
+                          >
+                            {memberRowsJsx}
+                          </tbody>
+                        );
+                      })}
                     </table>
                   </div>
                 </div>
@@ -1991,7 +2030,9 @@ export function InputPage({
       {/* Exception Request Modal */}
       {showRequestModal && (
         <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className={`w-full max-w-md rounded-2xl overflow-hidden p-5 space-y-4 ${MODAL_SURFACE}`}>
+          <div
+            className={`w-full max-w-md rounded-2xl overflow-hidden p-5 space-y-4 ${MODAL_SURFACE}`}
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-foreground">운영지원팀에 출결 수정 요청</h3>
               <button
@@ -2066,7 +2107,12 @@ export function InputPage({
           role="status"
           className="fixed right-6 top-20 z-70 flex max-w-sm items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-medium text-white shadow-xl"
         >
-          <Check size={15} strokeWidth={2.5} className="shrink-0 text-emerald-300" aria-hidden="true" />
+          <Check
+            size={15}
+            strokeWidth={2.5}
+            className="shrink-0 text-emerald-300"
+            aria-hidden="true"
+          />
           <span>PDF 첨부가 완료되었습니다.</span>
         </div>
       )}

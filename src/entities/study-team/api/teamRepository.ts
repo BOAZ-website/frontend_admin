@@ -5,7 +5,11 @@
 import type { Database } from 'sql.js';
 
 import { sessionKey } from '@/entities/attendance/model/lib';
-import { loadCohorts, loadWeekDates, type CohortWeekDates } from '@/entities/cohort/api/cohortRepository';
+import {
+  loadCohorts,
+  loadWeekDates,
+  type CohortWeekDates,
+} from '@/entities/cohort/api/cohortRepository';
 import { DEFAULT_CURRENT_COHORT } from '@/entities/cohort/model/lib';
 import type { AttendanceState, SessionRecord } from '@/entities/attendance/model/types';
 import { loadWeeks } from '@/entities/attendance/api/weekRepository';
@@ -80,7 +84,13 @@ export function loadTeamState(db: Database): TeamDbState {
     cohort: row.cohort,
   });
 
-  const memberRows = queryAll<{ id: string; team_id: string; name: string; term: number; track: string }>(
+  const memberRows = queryAll<{
+    id: string;
+    team_id: string;
+    name: string;
+    term: number;
+    track: string;
+  }>(
     db,
     `SELECT m.id, m.team_id, u.name, u.term, u.track
        FROM team_members m
@@ -260,7 +270,9 @@ export function persistAttendance(
   prev: AttendanceState,
   next: AttendanceState,
 ): void {
-  const teamIds = new Set(queryAll<{ id: string }>(db, 'SELECT id FROM teams').map((row) => row.id));
+  const teamIds = new Set(
+    queryAll<{ id: string }>(db, 'SELECT id FROM teams').map((row) => row.id),
+  );
 
   inTransaction(db, () => {
     new Set([...Object.keys(prev), ...Object.keys(next)]).forEach((key) => {
@@ -271,7 +283,10 @@ export function persistAttendance(
 
       const record = next[key];
       if (!record) {
-        execute(db, 'DELETE FROM attendance_sessions WHERE team_id = ? AND week_id = ?', [teamId, weekId]);
+        execute(db, 'DELETE FROM attendance_sessions WHERE team_id = ? AND week_id = ?', [
+          teamId,
+          weekId,
+        ]);
         return;
       }
       writeSession(db, teamId, weekId, prev[key], record);
@@ -361,22 +376,29 @@ function teamExists(db: Database, teamId: string): boolean {
 function findUserId(db: Database, name: string): string | null {
   if (!name) return null;
   return (
-    queryAll<{ id: string }>(db, 'SELECT id FROM users WHERE name = ? ORDER BY term DESC LIMIT 1', [name])[0]
-      ?.id ?? null
+    queryAll<{ id: string }>(db, 'SELECT id FROM users WHERE name = ? ORDER BY term DESC LIMIT 1', [
+      name,
+    ])[0]?.id ?? null
   );
 }
 
 /** 팀원은 항상 users의 사람을 가리킨다. 이름·기수가 같은 사용자가 없으면 새로 만든다. */
 function ensureUser(db: Database, member: Member): string {
   const term = Number(member.year) || 0;
-  const existing = queryAll<{ id: string }>(db, 'SELECT id FROM users WHERE name = ? AND term = ?', [
-    member.name,
-    term,
-  ])[0];
+  const existing = queryAll<{ id: string }>(
+    db,
+    'SELECT id FROM users WHERE name = ? AND term = ?',
+    [member.name, term],
+  )[0];
   if (existing) return existing.id;
 
   const id = `u_${term}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const track = VALID_TRACKS.includes(member.track ?? '') ? (member.track as string) : '분석';
-  execute(db, 'INSERT INTO users (id, name, term, track) VALUES (?, ?, ?, ?)', [id, member.name, term, track]);
+  execute(db, 'INSERT INTO users (id, name, term, track) VALUES (?, ?, ?, ?)', [
+    id,
+    member.name,
+    term,
+    track,
+  ]);
   return id;
 }

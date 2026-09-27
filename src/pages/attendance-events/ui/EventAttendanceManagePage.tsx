@@ -651,10 +651,7 @@ export function EventAttendanceManagePage({
   // 출석 표의 추가 컬럼과, 출결 컬럼이 놓일 자리(CSV로 만든 행사는 CSV의 출결 열 자리)
   const eventExtraCols = (selectedEvent.customFields || []).filter(
     (f) =>
-      f.label !== '이름' &&
-      f.label !== '비고' &&
-      f.label !== '출석 상태' &&
-      f.label !== '출석상태',
+      f.label !== '이름' && f.label !== '비고' && f.label !== '출석 상태' && f.label !== '출석상태',
   );
   const statusColumnAt = Math.min(
     Math.max(selectedEvent.statusColumnIndex ?? eventExtraCols.length, 0),
@@ -1802,29 +1799,29 @@ export function EventAttendanceManagePage({
                         );
                       };
                       const statusTh = (
-                    <th
-                      style={{ width: `${colWidths.status || 450}px`, minWidth: '450px' }}
-                      className="relative text-center px-2 py-2.5 text-slate-900 font-bold"
-                    >
-                      출결
-                      <div
-                        onMouseDown={(e) => handleResizeStart(e, 'status', 450)}
-                        onMouseEnter={(e) => {
-                          if (!resizingColKey) {
-                            setActiveHoverCol('status');
-                            updateGuidelinePos(e.currentTarget);
-                          }
-                        }}
-                        onMouseLeave={() => {
-                          if (!resizingColKey) {
-                            setActiveHoverCol(null);
-                            setGuidelineX(null);
-                          }
-                        }}
-                        className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                        title="열 너비 조절"
-                      />
-                    </th>
+                        <th
+                          style={{ width: `${colWidths.status || 450}px`, minWidth: '450px' }}
+                          className="relative text-center px-2 py-2.5 text-slate-900 font-bold"
+                        >
+                          출결
+                          <div
+                            onMouseDown={(e) => handleResizeStart(e, 'status', 450)}
+                            onMouseEnter={(e) => {
+                              if (!resizingColKey) {
+                                setActiveHoverCol('status');
+                                updateGuidelinePos(e.currentTarget);
+                              }
+                            }}
+                            onMouseLeave={() => {
+                              if (!resizingColKey) {
+                                setActiveHoverCol(null);
+                                setGuidelineX(null);
+                              }
+                            }}
+                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                            title="열 너비 조절"
+                          />
+                        </th>
                       );
                       return (
                         <>
@@ -1880,120 +1877,60 @@ export function EventAttendanceManagePage({
                       const isRowEditing = isTableEditMode || editingRowId === att.id;
 
                       const renderExtraCell = (cf: CustomFormField) => {
-                            const val = getAttendeeFieldValue(att, cf.label, cf.id);
-                            const colKey = `custom_${cf.id}`;
+                        const val = getAttendeeFieldValue(att, cf.label, cf.id);
+                        const colKey = `custom_${cf.id}`;
 
-                            return (
-                              <td
-                                key={cf.id}
-                                className="relative text-center px-2 py-1.5 h-[50px] text-slate-700 font-sans"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {isRowEditing ? (
-                                  <input
-                                    value={val}
-                                    onChange={(e) => {
-                                      const newVal = e.target.value;
-                                      setAttendees((prev) =>
-                                        prev.map((a) =>
-                                          a.id === att.id
-                                            ? {
-                                                ...a,
-                                                affiliation: cf.label.includes('소속')
-                                                  ? newVal
-                                                  : a.affiliation,
-                                                phone:
-                                                  cf.label.includes('전화') ||
-                                                  cf.label.includes('연락처')
-                                                    ? newVal
-                                                    : a.phone,
-                                                email: cf.label.includes('메일') ? newVal : a.email,
-                                                isExternal: cf.label.includes('구분')
-                                                  ? newVal.includes('외')
-                                                  : a.isExternal,
-                                                customAnswers: {
-                                                  ...(a.customAnswers || {}),
-                                                  [cf.id]: newVal,
-                                                  [cf.label]: newVal,
-                                                },
-                                              }
-                                            : a,
-                                        ),
-                                      );
-                                    }}
-                                    placeholder={`${cf.label}`}
-                                    className="w-full text-center h-8 px-2.5 text-xs rounded-lg outline-none bg-white border border-slate-300 focus:border-slate-900 text-slate-800 font-sans placeholder:text-slate-400 shadow-2xs font-medium"
-                                  />
-                                ) : (
-                                  <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs text-slate-700 font-medium truncate font-sans">
-                                    {val || <span className="text-slate-300">-</span>}
-                                  </div>
-                                )}
-                                <div
-                                  onMouseDown={(e) => handleResizeStart(e, colKey, 70)}
-                                  onMouseEnter={(e) => {
-                                    if (!resizingColKey) {
-                                      setActiveHoverCol(colKey);
-                                      updateGuidelinePos(e.currentTarget);
-                                    }
-                                  }}
-                                  onMouseLeave={() => {
-                                    if (!resizingColKey) {
-                                      setActiveHoverCol(null);
-                                      setGuidelineX(null);
-                                    }
-                                  }}
-                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                                  title="열 너비 조절"
-                                />
-                              </td>
-                            );
-                      };
-                      const statusCell = (
-                          <td className="relative text-center px-2 py-1.5 h-[50px]">
-                            <div className="h-8 flex items-center justify-center font-sans">
-                              <div className="grid grid-cols-8 w-[445px] shrink-0 p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
-                                {(
-                                  [
-                                    'present',
-                                    'late',
-                                    'earlyLeave',
-                                    'absent',
-                                    'excusedAbsent',
-                                    'unexcusedLate',
-                                    'unexcusedAbsent',
-                                    'unmarked',
-                                  ] as AttendStatus[]
-                                ).map((st) => {
-                                  const isCurrent = att.status === st;
-                                  const label = ATTEND_STATUS_CFG[st]?.label || '';
-                                  const styleCfg = ATTEND_STATUS_STYLES[st];
-
-                                  return (
-                                    <button
-                                      key={st}
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        changeStatusAndMoveNext(att.id, st);
-                                      }}
-                                      className={`py-1 text-[10px] rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
-                                        isCurrent
-                                          ? styleCfg?.active || ''
-                                          : styleCfg?.inactive || ''
-                                      }`}
-                                    >
-                                      {label}
-                                    </button>
+                        return (
+                          <td
+                            key={cf.id}
+                            className="relative text-center px-2 py-1.5 h-[50px] text-slate-700 font-sans"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {isRowEditing ? (
+                              <input
+                                value={val}
+                                onChange={(e) => {
+                                  const newVal = e.target.value;
+                                  setAttendees((prev) =>
+                                    prev.map((a) =>
+                                      a.id === att.id
+                                        ? {
+                                            ...a,
+                                            affiliation: cf.label.includes('소속')
+                                              ? newVal
+                                              : a.affiliation,
+                                            phone:
+                                              cf.label.includes('전화') ||
+                                              cf.label.includes('연락처')
+                                                ? newVal
+                                                : a.phone,
+                                            email: cf.label.includes('메일') ? newVal : a.email,
+                                            isExternal: cf.label.includes('구분')
+                                              ? newVal.includes('외')
+                                              : a.isExternal,
+                                            customAnswers: {
+                                              ...(a.customAnswers || {}),
+                                              [cf.id]: newVal,
+                                              [cf.label]: newVal,
+                                            },
+                                          }
+                                        : a,
+                                    ),
                                   );
-                                })}
+                                }}
+                                placeholder={`${cf.label}`}
+                                className="w-full text-center h-8 px-2.5 text-xs rounded-lg outline-none bg-white border border-slate-300 focus:border-slate-900 text-slate-800 font-sans placeholder:text-slate-400 shadow-2xs font-medium"
+                              />
+                            ) : (
+                              <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs text-slate-700 font-medium truncate font-sans">
+                                {val || <span className="text-slate-300">-</span>}
                               </div>
-                            </div>
+                            )}
                             <div
-                              onMouseDown={(e) => handleResizeStart(e, 'status', 450)}
+                              onMouseDown={(e) => handleResizeStart(e, colKey, 70)}
                               onMouseEnter={(e) => {
                                 if (!resizingColKey) {
-                                  setActiveHoverCol('status');
+                                  setActiveHoverCol(colKey);
                                   updateGuidelinePos(e.currentTarget);
                                 }
                               }}
@@ -2007,6 +1944,64 @@ export function EventAttendanceManagePage({
                               title="열 너비 조절"
                             />
                           </td>
+                        );
+                      };
+                      const statusCell = (
+                        <td className="relative text-center px-2 py-1.5 h-[50px]">
+                          <div className="h-8 flex items-center justify-center font-sans">
+                            <div className="grid grid-cols-8 w-[445px] shrink-0 p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
+                              {(
+                                [
+                                  'present',
+                                  'late',
+                                  'earlyLeave',
+                                  'absent',
+                                  'excusedAbsent',
+                                  'unexcusedLate',
+                                  'unexcusedAbsent',
+                                  'unmarked',
+                                ] as AttendStatus[]
+                              ).map((st) => {
+                                const isCurrent = att.status === st;
+                                const label = ATTEND_STATUS_CFG[st]?.label || '';
+                                const styleCfg = ATTEND_STATUS_STYLES[st];
+
+                                return (
+                                  <button
+                                    key={st}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      changeStatusAndMoveNext(att.id, st);
+                                    }}
+                                    className={`py-1 text-[10px] rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
+                                      isCurrent ? styleCfg?.active || '' : styleCfg?.inactive || ''
+                                    }`}
+                                  >
+                                    {label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div
+                            onMouseDown={(e) => handleResizeStart(e, 'status', 450)}
+                            onMouseEnter={(e) => {
+                              if (!resizingColKey) {
+                                setActiveHoverCol('status');
+                                updateGuidelinePos(e.currentTarget);
+                              }
+                            }}
+                            onMouseLeave={() => {
+                              if (!resizingColKey) {
+                                setActiveHoverCol(null);
+                                setGuidelineX(null);
+                              }
+                            }}
+                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                            title="열 너비 조절"
+                          />
+                        </td>
                       );
 
                       return (
@@ -2569,7 +2564,9 @@ export function EventAttendanceManagePage({
       {/* ─── Modal: 새 행사 / 출석 양식 등록 & 수정 (표 형식 / 컬럼 지정 포함) ─── */}
       {editingEvent && (
         <div className="fixed inset-0 bg-slate-900/40 z-60 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className={`w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl p-6 space-y-4 overflow-hidden ${MODAL_SURFACE}`}>
+          <div
+            className={`w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl p-6 space-y-4 overflow-hidden ${MODAL_SURFACE}`}
+          >
             <div className="flex items-start justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
@@ -2666,14 +2663,24 @@ export function EventAttendanceManagePage({
                   />
                   {newEventCsvName ? (
                     <div className="flex h-14 w-full max-w-[360px] items-center gap-3 rounded-sm border border-slate-200 bg-white px-4 shadow-2xs">
-                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
+                      <Folder
+                        size={20}
+                        strokeWidth={1.3}
+                        className="shrink-0 text-slate-400"
+                        aria-hidden="true"
+                      />
                       <span
                         className="min-w-0 flex-1 truncate text-left text-sm text-slate-800"
                         title={`${newEventCsvName} (${newEventRoster.length}명)`}
                       >
                         {newEventCsvName} · {newEventRoster.length}명
                       </span>
-                      <Check size={20} strokeWidth={2.4} className="shrink-0 text-emerald-500" aria-label="업로드 완료" />
+                      <Check
+                        size={20}
+                        strokeWidth={2.4}
+                        className="shrink-0 text-emerald-500"
+                        aria-label="업로드 완료"
+                      />
                       <button
                         type="button"
                         onClick={clearNewEventCsv}
@@ -2689,7 +2696,12 @@ export function EventAttendanceManagePage({
                       onClick={() => newEventCsvInputRef.current?.click()}
                       className="group flex h-14 w-full max-w-[360px] cursor-pointer select-none items-center gap-3 rounded-sm border border-dashed border-slate-300 bg-white px-4 transition-colors hover:border-slate-400 hover:bg-slate-50/60"
                     >
-                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
+                      <Folder
+                        size={20}
+                        strokeWidth={1.3}
+                        className="shrink-0 text-slate-400"
+                        aria-hidden="true"
+                      />
                       <span className="min-w-0 flex-1 truncate text-sm text-slate-500 transition-colors group-hover:text-slate-900 group-hover:underline">
                         파일을 업로드해 주세요
                       </span>
@@ -2909,7 +2921,9 @@ export function EventAttendanceManagePage({
       {/* ─── Modal: 양식 템플릿 생성 / 수정 ─── */}
       {editingTemplate && (
         <div className="fixed inset-0 bg-slate-900/40 z-60 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className={`w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 space-y-4 ${MODAL_SURFACE}`}>
+          <div
+            className={`w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 space-y-4 ${MODAL_SURFACE}`}
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">
@@ -2942,7 +2956,6 @@ export function EventAttendanceManagePage({
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold"
                   />
                 </div>
-
               </div>
 
               <div>

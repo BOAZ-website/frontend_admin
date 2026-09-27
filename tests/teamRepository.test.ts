@@ -46,7 +46,9 @@ test('시드가 스키마의 제약(외래키·CHECK)을 모두 통과해 로드
 test('부문(분석·시각화·엔지니어링)은 tracks 테이블의 ENUM 값만 쓸 수 있다', async () => {
   const db = await freshDb();
   assert.deepEqual(
-    queryAll<{ name: string }>(db, 'SELECT name FROM tracks ORDER BY sort_order').map((r) => r.name),
+    queryAll<{ name: string }>(db, 'SELECT name FROM tracks ORDER BY sort_order').map(
+      (r) => r.name,
+    ),
     ['분석', '시각화', '엔지니어링'],
   );
   assert.throws(() => db.run("UPDATE teams SET track = '기획' WHERE id = 'study_a'"));
@@ -100,7 +102,10 @@ test('스터디를 만들면 팀·팀원·전 주차 출결이 DB에 저장되�
   const after = loadTeamState(db);
   assert.equal(after.studyTeams.length, 10);
   assert.equal(after.members[team.id].length, 2);
-  assert.equal(after.attendance[`w8|study|${team.id}`].statuses[`${members[0].id}:멘멘`], 'unmarked');
+  assert.equal(
+    after.attendance[`w8|study|${team.id}`].statuses[`${members[0].id}:멘멘`],
+    'unmarked',
+  );
   assert.equal(after.attendance[`w9|study|${team.id}`], undefined);
 });
 
@@ -116,7 +121,10 @@ test('부문이 다르면 같은 이름의 스터디를 만들 수 있고, 두 �
     leaderName: null,
     members: users.slice(0, 2),
   });
-  assert.equal(loadTeamState(db).studyTeams.filter((t) => t.teamName === '테라폼 스터디').length, 2);
+  assert.equal(
+    loadTeamState(db).studyTeams.filter((t) => t.teamName === '테라폼 스터디').length,
+    2,
+  );
 
   // 같은 이름의 두 팀 중 분석 쪽에만 출결을 입력한다.
   const state = loadTeamState(db);
@@ -235,9 +243,17 @@ test('사진을 바꾸면 images에 새 경로가 쌓이고 팀을 지우면 하
       photoSize: '1 MB',
     },
   });
-  assert.equal(loadTeamState(db).attendance['w4|study|study_a'].photoUrl, 'blob:http://localhost/abc');
+  assert.equal(
+    loadTeamState(db).attendance['w4|study|study_a'].photoUrl,
+    'blob:http://localhost/abc',
+  );
 
-  persistTeams(db, before.studyTeams, before.studyTeams.filter((t) => t.id !== 'study_a'), 'STUDY');
+  persistTeams(
+    db,
+    before.studyTeams,
+    before.studyTeams.filter((t) => t.id !== 'study_a'),
+    'STUDY',
+  );
   const rest = loadTeamState(db);
   assert.equal(rest.studyTeams.length, 8);
   assert.equal('w1|study|study_a' in rest.attendance, false);
@@ -260,7 +276,12 @@ test('멘멘 스터디와 일반 스터디는 뷰로 따로 조회된다', async
   ]);
   assert.deepEqual(
     general.map((r) => r.team_name).sort(),
-    ['LLM Agent & RAG 스터디', '쿠버네티스 스터디', '태블로 & D3.js 스터디', '테라폼 스터디'].sort(),
+    [
+      'LLM Agent & RAG 스터디',
+      '쿠버네티스 스터디',
+      '태블로 & D3.js 스터디',
+      '테라폼 스터디',
+    ].sort(),
   );
 });
 
@@ -320,7 +341,9 @@ test('DB 제약: 주차 상태는 정해진 값만, 출결 세션은 존재하�
   const db = await freshDb();
   assert.throws(() => db.run("UPDATE weeks SET status = 'ACTIVE' WHERE id = 'w1'"));
   assert.throws(() =>
-    db.run("INSERT INTO attendance_sessions (team_id, week_id, submitted) VALUES ('study_a', 'w99', 0)"),
+    db.run(
+      "INSERT INTO attendance_sessions (team_id, week_id, submitted) VALUES ('study_a', 'w99', 0)",
+    ),
   );
 });
 
@@ -344,7 +367,10 @@ test('멘멘 스터디의 PDF 첨부가 저장되고 다시 읽히며, 지우면
   assert.equal(saved.pdfName, '3주차_논문리뷰.pdf');
   assert.equal(saved.pdfSize, '1.2 MB');
 
-  const removed = { ...withPdf, [key]: { ...withPdf[key], pdfUrl: null, pdfName: null, pdfSize: null } };
+  const removed = {
+    ...withPdf,
+    [key]: { ...withPdf[key], pdfUrl: null, pdfName: null, pdfSize: null },
+  };
   persistAttendance(db, withPdf, removed);
   const cleared = loadTeamState(db).attendance[key];
   assert.equal(cleared.pdfUrl, null);
@@ -355,7 +381,12 @@ test('시드의 멘멘 스터디 1·2주차에는 샘플 PDF가 붙어 있고, 3
   const db = await freshDb();
   const { attendance } = loadTeamState(db);
 
-  for (const key of ['w1|study|study_a', 'w2|study|study_a', 'w1|study|study_m2', 'w2|study|study_m2']) {
+  for (const key of [
+    'w1|study|study_a',
+    'w2|study|study_a',
+    'w1|study|study_m2',
+    'w2|study|study_m2',
+  ]) {
     assert.ok(attendance[key].pdfUrl?.endsWith(SAMPLE_MENTORING_PDF_PATH), key);
     assert.equal(attendance[key].pdfName, '6주차_엔지_멘멘_B조.pdf');
   }
@@ -394,7 +425,10 @@ test('이름 중복 제한은 기수 안에서만 적용된다(다른 기수의 
   const db = await freshDb();
   const before = loadTeamState(db);
   // 26기에는 분석 'A조'가 이미 있고, 27기에도 분석 'A조'가 있다 → 시드가 통과했다는 것이 곧 증거다.
-  assert.equal(before.studyTeams.filter((t) => t.teamName === 'A조' && t.track === '분석').length, 2);
+  assert.equal(
+    before.studyTeams.filter((t) => t.teamName === 'A조' && t.track === '분석').length,
+    2,
+  );
 
   const sameCohort = createStudyRecords({
     id: 'study_dup27',

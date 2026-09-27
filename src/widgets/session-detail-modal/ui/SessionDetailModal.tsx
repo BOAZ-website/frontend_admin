@@ -85,7 +85,9 @@ export function SessionDetailModal({
 
   return (
     <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-      <div className={`w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden flex flex-col ${MODAL_SURFACE}`}>
+      <div
+        className={`w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden flex flex-col ${MODAL_SURFACE}`}
+      >
         {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4"
@@ -404,7 +406,8 @@ export function SessionDetailModal({
             />
             <div className="mt-3 flex items-center justify-between w-full text-xs text-slate-700">
               <span>
-                {teamName} · {weekObj?.label} 출석 인증 원본 사진 ({record.photoName ?? record.photo})
+                {teamName} · {weekObj?.label} 출석 인증 원본 사진 (
+                {record.photoName ?? record.photo})
               </span>
               <button
                 onClick={() => setLightboxOpen(false)}

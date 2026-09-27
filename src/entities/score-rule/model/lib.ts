@@ -15,13 +15,10 @@ export function getTodayString(): string {
  * 기수(Term)에 해당하는 점수 규칙을 조회합니다.
  * 집계 화면(ScoresPage) 등에서 과거/특정 기수의 배점 기준을 조회할 때 사용됩니다.
  */
-export function getRuleForTerm(
-  rules: ScoreRule[],
-  term: number | string
-): ScoreRule | undefined {
+export function getRuleForTerm(rules: ScoreRule[], term: number | string): ScoreRule | undefined {
   const termNum = typeof term === 'string' ? parseInt(term.replace(/[^0-9]/g, ''), 10) : term;
   if (isNaN(termNum)) return undefined;
-  
+
   // 1. 해당 기수의 ACTIVE 규칙 우선
   const activeRule = rules.find((r) => r.term === termNum && r.status === 'ACTIVE');
   if (activeRule) return activeRule;
@@ -36,10 +33,7 @@ export function getRuleForTerm(
  * 특정 일자(기본값: 오늘)가 적용 기간(startDate ~ endDate)에 포함되는 유효 점수 규칙을 조회합니다.
  * 실시간 출결 입력 및 현재 시점 조회 시 사용됩니다.
  */
-export function getRuleForDate(
-  rules: ScoreRule[],
-  dateStr: string = getTodayString()
-): ScoreRule {
+export function getRuleForDate(rules: ScoreRule[], dateStr: string = getTodayString()): ScoreRule {
   // 1. 날짜 범위(startDate <= dateStr <= endDate)에 일치하는 활성 규칙 탐색
   const matchedRule = rules.find((r) => {
     if (r.status === 'DRAFT') return false;
@@ -63,7 +57,7 @@ export function getRuleForDate(
  */
 export function getRuleEffectiveStatus(
   rule: ScoreRule,
-  todayStr: string = getTodayString()
+  todayStr: string = getTodayString(),
 ): {
   status: ScoreRuleStatus;
   label: string;

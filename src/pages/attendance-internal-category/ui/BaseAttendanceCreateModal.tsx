@@ -137,7 +137,9 @@ export function BaseAttendanceCreateModal({
   function toggleAllVisible() {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      visibleUsers.forEach((user) => (allVisibleSelected ? next.delete(user.id) : next.add(user.id)));
+      visibleUsers.forEach((user) =>
+        allVisibleSelected ? next.delete(user.id) : next.add(user.id),
+      );
       return next;
     });
   }
@@ -191,7 +193,9 @@ export function BaseAttendanceCreateModal({
                     aria-checked={track === name}
                     onClick={() => setTrack(name)}
                     className={`cursor-pointer px-2 py-2.5 text-xs font-semibold transition-colors ${
-                      track === name ? 'bg-[#1E6F94] text-white' : 'text-slate-700 hover:bg-slate-200'
+                      track === name
+                        ? 'bg-[#1E6F94] text-white'
+                        : 'text-slate-700 hover:bg-slate-200'
                     }`}
                   >
                     {name}
@@ -258,7 +262,9 @@ export function BaseAttendanceCreateModal({
                   </div>
 
                   {status === 'loading' && (
-                    <p className="px-3 py-3 text-center text-slate-400">회원 목록을 불러오는 중...</p>
+                    <p className="px-3 py-3 text-center text-slate-400">
+                      회원 목록을 불러오는 중...
+                    </p>
                   )}
                   {status === 'error' && (
                     <p className="px-3 py-3 text-center text-slate-500">
@@ -266,7 +272,9 @@ export function BaseAttendanceCreateModal({
                     </p>
                   )}
                   {status === 'ready' && visibleUsers.length === 0 && (
-                    <p className="px-3 py-3 text-center text-slate-400">조건에 맞는 회원이 없습니다.</p>
+                    <p className="px-3 py-3 text-center text-slate-400">
+                      조건에 맞는 회원이 없습니다.
+                    </p>
                   )}
                   {visibleUsers.map((user) => {
                     const isSelected = selectedIds.has(user.id);
@@ -319,22 +327,22 @@ export function BaseAttendanceCreateModal({
                 <div className="flex h-[3.25rem] flex-wrap content-start gap-1.5 overflow-y-auto">
                   {selectedUsers.length > 0 && (
                     <>
-                    {selectedUsers.map((user) => (
-                      <span
-                        key={user.id}
-                        className="inline-flex items-center gap-1 rounded-sm border border-slate-300 bg-white py-0.5 pl-2 pr-1 text-[11px] font-semibold text-slate-700"
-                      >
-                        {user.name}
-                        <button
-                          type="button"
-                          onClick={() => toggleUser(user.id)}
-                          className="cursor-pointer rounded-sm p-0.5 opacity-70 hover:opacity-100"
-                          aria-label={`${user.name} 제외`}
+                      {selectedUsers.map((user) => (
+                        <span
+                          key={user.id}
+                          className="inline-flex items-center gap-1 rounded-sm border border-slate-300 bg-white py-0.5 pl-2 pr-1 text-[11px] font-semibold text-slate-700"
                         >
-                          <X size={11} />
-                        </button>
-                      </span>
-                    ))}
+                          {user.name}
+                          <button
+                            type="button"
+                            onClick={() => toggleUser(user.id)}
+                            className="cursor-pointer rounded-sm p-0.5 opacity-70 hover:opacity-100"
+                            aria-label={`${user.name} 제외`}
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
                     </>
                   )}
                 </div>

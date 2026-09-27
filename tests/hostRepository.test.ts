@@ -107,7 +107,10 @@ test('계정을 고치면 자식 정보가 다시 쓰이고, 삭제하면 함께
     changed,
     changed.filter((host) => host.id !== 'h_adv1'),
   );
-  assert.equal(loadHosts(db).some((host) => host.id === 'h_adv1'), false);
+  assert.equal(
+    loadHosts(db).some((host) => host.id === 'h_adv1'),
+    false,
+  );
   assert.equal(
     queryAll(db, 'SELECT 1 FROM host_permissions WHERE host_id = ?', ['h_adv1']).length,
     0,
@@ -130,8 +133,20 @@ test('팀 id 없이 이름만 있어도 teams에서 같은 이름의 팀을 찾�
 
   persistHosts(db, before, [
     ...before,
-    newHost({ id: 'h_byname', username: 'host_byname', teamId: undefined, team: '시각화 2팀', assignedGroups: [] }),
-    newHost({ id: 'h_none', username: 'host_none', teamId: undefined, team: '없는 팀', assignedGroups: [] }),
+    newHost({
+      id: 'h_byname',
+      username: 'host_byname',
+      teamId: undefined,
+      team: '시각화 2팀',
+      assignedGroups: [],
+    }),
+    newHost({
+      id: 'h_none',
+      username: 'host_none',
+      teamId: undefined,
+      team: '없는 팀',
+      assignedGroups: [],
+    }),
   ]);
   const hosts = loadHosts(db);
 

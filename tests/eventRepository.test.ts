@@ -152,8 +152,14 @@ test('행사를 지우면 그 행사의 참가자와 추가 컬럼도 함께 지
   );
 
   const after = loadEventState(db);
-  assert.equal(after.events.some((event) => event.id === 'evt_conf_28'), false);
-  assert.equal(after.attendees.some((attendee) => attendee.eventId === 'evt_conf_28'), false);
+  assert.equal(
+    after.events.some((event) => event.id === 'evt_conf_28'),
+    false,
+  );
+  assert.equal(
+    after.attendees.some((attendee) => attendee.eventId === 'evt_conf_28'),
+    false,
+  );
   assert.equal(
     queryAll(db, 'SELECT 1 FROM event_attendees WHERE event_id = ?', ['evt_conf_28']).length,
     0,

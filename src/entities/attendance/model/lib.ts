@@ -1,4 +1,3 @@
-
 import type { AttendanceStatus } from './types';
 
 export function sessionKey(w: string, a: string, t: string) {
