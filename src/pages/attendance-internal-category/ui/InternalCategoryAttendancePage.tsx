@@ -9,6 +9,7 @@ import {
   ChevronsRight,
   Download,
   Edit3,
+  Folder,
   GripVertical,
   Maximize2,
   Minimize2,
@@ -17,15 +18,58 @@ import {
   RotateCcw,
   Settings,
   Trash2,
-  Upload,
-  UserCheck,
-  Users,
   X,
 } from 'lucide-react';
 
 import { sessionKey } from '@/entities/attendance/model/lib';
 import type { AttendanceState } from '@/entities/attendance/model/types';
+import {
+  ADV_DIRECT_SELECT_LAST_WEEK,
+  currentPeriodOf,
+  defaultWeekNum,
+  isHeldWeek,
+  weekStatusOf,
+  type WeekInfo,
+} from '@/entities/attendance/model/week';
+import {
+  getStudyCell,
+  type AttendanceChange,
+  type CreateAdvTeamInput,
+  type CreateBaseAttendanceInput,
+  type CreateStudyInput,
+} from '@/entities/study-team/model/db';
+import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
+import { SAMPLE_STUDY_PHOTO_PATH, resolveImageUrl } from '@/shared/lib/imagePath';
 import type { ScoreRule } from '@/entities/score-rule/model/types';
+
+import {
+  isConcurrentBaseMember,
+  shouldShowConcurrentColumn,
+  shouldShowMatrixTrack,
+  sortConcurrentMembersLast,
+} from '../model/baseAttendanceConcurrent';
+import { buildWeekSubmission, countUnmarked, submissionKey } from '../model/weekSubmission';
+import { BRAND_SELECTED, MODAL_PRIMARY_BTN, MODAL_SURFACE } from '@/shared/ui/modalStyles';
+import { PdfPreviewModal } from '@/shared/ui/PdfPreviewModal';
+import {
+  EMPTY_MEMBER_SELECTION,
+  findLeader,
+  type MemberSelection,
+} from '@/entities/user/model/lib';
+import type { UserProfile, UserTrack } from '@/entities/user/model/types';
+import { submitWeekAttendance } from '@/entities/attendance/api/submitWeekApi';
+import { baseTeamId } from '@/entities/study-team/model/db';
+import {
+  cohortsOf,
+  currentCohortOf,
+  DEFAULT_CURRENT_COHORT,
+  isPastCohort,
+} from '@/entities/cohort/model/lib';
+import { buildStudyView } from '../model/studyView';
+import { buildBaseTrackTeams } from '../model/baseAttendanceCreate';
+import { BaseAttendanceCreateModal } from './BaseAttendanceCreateModal';
+import { CohortSelect } from './CohortSelect';
+import { StudyMemberPicker } from './StudyMemberPicker';
 
 export type InternalCategory = 'SESSION' | 'STUDY' | 'ADV';
 export type EventStatus = 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED';
@@ -48,6 +92,11 @@ export interface TeamMeta {
   description: string;
   memberCount: number;
   track?: '분석' | '시각화' | '엔지니어링' | string;
+  studyKind?: 'MENTORING' | 'GENERAL';
+  leaderLabel?: string;
+  termPeriod?: 'VACATION' | 'SEMESTER';
+  /** 활동 기수. 없으면 기본(현재) 기수의 목 데이터로 본다. */
+  cohort?: number;
 }
 
 export interface InternalEvent {
@@ -81,7 +130,15 @@ export interface InternalAttendee {
   memo?: string;
   weekNum?: number;
   weekLabel?: string;
+  /** 활동 기수. 없으면 기본(현재) 기수의 목 데이터로 본다. */
+  cohort?: number;
 }
+
+const NO_WEEKS: readonly WeekInfo[] = [];
+const SUBMIT_TOAST_DURATION_MS = 3000;
+const NO_WEEK_DATES: Readonly<Record<number, string>> = {};
+
+const SAMPLE_STUDY_PHOTO_URL = resolveImageUrl({ path: SAMPLE_STUDY_PHOTO_PATH });
 
 const CATEGORY_CONFIG: Record<
   InternalCategory,
@@ -106,29 +163,8 @@ const CATEGORY_CONFIG: Record<
     badgeBg: '#f8fafc',
     badgeBorder: '#e2e8f0',
     teamLabel: '트랙',
-    teams: [
-      {
-        id: 'base_analysis',
-        name: '분석',
-        leader: '김서하',
-        description: '데이터 분석 & 머신러닝',
-        memberCount: 6,
-      },
-      {
-        id: 'base_vis',
-        name: '시각화',
-        leader: '최민혁',
-        description: '데이터 시각화 & 대시보드',
-        memberCount: 5,
-      },
-      {
-        id: 'base_eng',
-        name: '엔지니어링',
-        leader: '강태양',
-        description: '데이터 엔지니어링 & MLOps',
-        memberCount: 5,
-      },
-    ],
+    // 트랙과 트랙원·출결은 DB(teams/team_members/attendance_*)에서 온다.
+    teams: [],
     initialEvents: [
       {
         id: 'evt_sess_03',
@@ -173,227 +209,18 @@ const CATEGORY_CONFIG: Record<
         createdAt: '2026-08-01',
       },
     ],
-    initialAttendees: [
-      {
-        id: 'att_s_1',
-        eventId: 'evt_sess_03',
-        teamId: 'base_analysis',
-        teamName: '분석',
-        name: '김서하',
-        term: 28,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '13:50',
-      },
-      {
-        id: 'att_s_2',
-        eventId: 'evt_sess_03',
-        teamId: 'base_analysis',
-        teamName: '분석',
-        name: '정채원',
-        term: 28,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '13:54',
-      },
-      {
-        id: 'att_s_3',
-        eventId: 'evt_sess_03',
-        teamId: 'base_analysis',
-        teamName: '분석',
-        name: '박지훈',
-        term: 28,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '13:58',
-      },
-      {
-        id: 'att_s_4',
-        eventId: 'evt_sess_03',
-        teamId: 'base_analysis',
-        teamName: '분석',
-        name: '이민준',
-        term: 28,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '13:48',
-      },
-      {
-        id: 'att_s_5',
-        eventId: 'evt_sess_03',
-        teamId: 'base_analysis',
-        teamName: '분석',
-        name: '고준서',
-        term: 27,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '13:52',
-      },
-      {
-        id: 'att_s_6',
-        eventId: 'evt_sess_03',
-        teamId: 'base_analysis',
-        teamName: '분석',
-        name: '오승현',
-        term: 28,
-        track: '분석',
-        status: 'absent',
-        checkedInAt: '-',
-        memo: '사전 공결 신청 승인',
-      },
-
-      {
-        id: 'att_s_7',
-        eventId: 'evt_sess_03',
-        teamId: 'base_vis',
-        teamName: '시각화',
-        name: '최민혁',
-        term: 28,
-        track: '시각화',
-        status: 'present',
-        checkedInAt: '13:47',
-      },
-      {
-        id: 'att_s_8',
-        eventId: 'evt_sess_03',
-        teamId: 'base_vis',
-        teamName: '시각화',
-        name: '한예린',
-        term: 28,
-        track: '시각화',
-        status: 'present',
-        checkedInAt: '13:51',
-      },
-      {
-        id: 'att_s_9',
-        eventId: 'evt_sess_03',
-        teamId: 'base_vis',
-        teamName: '시각화',
-        name: '윤재혁',
-        term: 28,
-        track: '시각화',
-        status: 'present',
-        checkedInAt: '13:53',
-      },
-      {
-        id: 'att_s_10',
-        eventId: 'evt_sess_03',
-        teamId: 'base_vis',
-        teamName: '시각화',
-        name: '문지훈',
-        term: 27,
-        track: '시각화',
-        status: 'present',
-        checkedInAt: '13:56',
-      },
-      {
-        id: 'att_s_11',
-        eventId: 'evt_sess_03',
-        teamId: 'base_vis',
-        teamName: '시각화',
-        name: '장나연',
-        term: 28,
-        track: '시각화',
-        status: 'late',
-        checkedInAt: '14:10',
-        memo: '10분 지각',
-      },
-
-      {
-        id: 'att_s_12',
-        eventId: 'evt_sess_03',
-        teamId: 'base_eng',
-        teamName: '엔지니어링',
-        name: '강태양',
-        term: 28,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '13:42',
-      },
-      {
-        id: 'att_s_13',
-        eventId: 'evt_sess_03',
-        teamId: 'base_eng',
-        teamName: '엔지니어링',
-        name: '이도현',
-        term: 28,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '13:45',
-      },
-      {
-        id: 'att_s_14',
-        eventId: 'evt_sess_03',
-        teamId: 'base_eng',
-        teamName: '엔지니어링',
-        name: '임수진',
-        term: 28,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '13:56',
-      },
-      {
-        id: 'att_s_15',
-        eventId: 'evt_sess_03',
-        teamId: 'base_eng',
-        teamName: '엔지니어링',
-        name: '백민혁',
-        term: 28,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '13:59',
-      },
-      {
-        id: 'att_s_16',
-        eventId: 'evt_sess_03',
-        teamId: 'base_eng',
-        teamName: '엔지니어링',
-        name: '남소희',
-        term: 27,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '13:40',
-      },
-    ],
+    initialAttendees: [],
   },
   STUDY: {
     title: '스터디 출결 관리',
-    subTitle: 'A~D팀 정규/방학 스터디별 주차별 출석 및 인증 내역을 관리합니다.',
+    subTitle: '멘멘 스터디와 일반 스터디의 주차별 출석 및 인증 내역을 관리합니다.',
     icon: BookOpen,
     themeColor: '#0f172a',
     badgeBg: '#f8fafc',
     badgeBorder: '#e2e8f0',
     teamLabel: '스터디 팀',
-    teams: [
-      {
-        id: 'study_a',
-        name: 'A팀 (머신러닝 & 딥러닝 실전)',
-        leader: '이민준',
-        description: '논문 리뷰 및 캐글 경진대회 베이스라인 구축',
-        memberCount: 4,
-      },
-      {
-        id: 'study_b',
-        name: 'B팀 (대용량 분산 데이터 파이프라인)',
-        leader: '강태양',
-        description: 'Kafka & Spark 기반 실시간 ETL 파이프라인',
-        memberCount: 4,
-      },
-      {
-        id: 'study_c',
-        name: 'C팀 (Tableau & D3.js 대시보드)',
-        leader: '문지훈',
-        description: '인터랙티브 웹 데이터 시각화 & 대시보드',
-        memberCount: 4,
-      },
-      {
-        id: 'study_d',
-        name: 'D팀 (LLM Agent & RAG 시스템)',
-        leader: '고준서',
-        description: 'LangChain & LlamaIndex 기반 프로덕션 RAG',
-        memberCount: 4,
-      },
-    ],
+    // 스터디 팀·명단은 임시 DB(db/seed.sql)에서 내려받은 값으로 채운다.
+    teams: [],
     initialEvents: [
       {
         id: 'evt_std_03',
@@ -407,7 +234,7 @@ const CATEGORY_CONFIG: Record<
         description: '각 스터디 팀별 3주차 발표 및 실습 결과 공유',
         checkinMethod: 'CODE',
         checkinCode: '3319',
-        imageUrl: '/sample-study-photo.jpg?v=2',
+        imageUrl: SAMPLE_STUDY_PHOTO_URL,
         createdAt: '2026-08-18',
       },
       {
@@ -453,189 +280,7 @@ const CATEGORY_CONFIG: Record<
         createdAt: '2026-08-19',
       },
     ],
-    initialAttendees: [
-      {
-        id: 'att_st_a1',
-        eventId: 'evt_std_03',
-        teamId: 'study_a',
-        teamName: 'A팀 (머신러닝 & 딥러닝 실전)',
-        name: '이민준',
-        term: 28,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '18:50',
-      },
-      {
-        id: 'att_st_a2',
-        eventId: 'evt_std_03',
-        teamId: 'study_a',
-        teamName: 'A팀 (머신러닝 & 딥러닝 실전)',
-        name: '김서하',
-        term: 28,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '18:55',
-      },
-      {
-        id: 'att_st_a3',
-        eventId: 'evt_std_03',
-        teamId: 'study_a',
-        teamName: 'A팀 (머신러닝 & 딥러닝 실전)',
-        name: '정채원',
-        term: 28,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '18:58',
-      },
-      {
-        id: 'att_st_a4',
-        eventId: 'evt_std_03',
-        teamId: 'study_a',
-        teamName: 'A팀 (머신러닝 & 딥러닝 실전)',
-        name: '오승현',
-        term: 28,
-        track: '분석',
-        status: 'absent',
-        checkedInAt: '-',
-        memo: '개인 일정 불참',
-      },
-
-      {
-        id: 'att_st_b1',
-        eventId: 'evt_std_03',
-        teamId: 'study_b',
-        teamName: 'B팀 (대용량 분산 데이터 파이프라인)',
-        name: '강태양',
-        term: 28,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '18:45',
-      },
-      {
-        id: 'att_st_b2',
-        eventId: 'evt_std_03',
-        teamId: 'study_b',
-        teamName: 'B팀 (대용량 분산 데이터 파이프라인)',
-        name: '이도현',
-        term: 28,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '18:48',
-      },
-      {
-        id: 'att_st_b3',
-        eventId: 'evt_std_03',
-        teamId: 'study_b',
-        teamName: 'B팀 (대용량 분산 데이터 파이프라인)',
-        name: '임수진',
-        term: 28,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '18:52',
-      },
-      {
-        id: 'att_st_b4',
-        eventId: 'evt_std_03',
-        teamId: 'study_b',
-        teamName: 'B팀 (대용량 분산 데이터 파이프라인)',
-        name: '백민혁',
-        term: 28,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '18:59',
-      },
-
-      {
-        id: 'att_st_c1',
-        eventId: 'evt_std_03',
-        teamId: 'study_c',
-        teamName: 'C팀 (Tableau & D3.js 대시보드)',
-        name: '문지훈',
-        term: 27,
-        track: '시각화',
-        status: 'present',
-        checkedInAt: '18:50',
-      },
-      {
-        id: 'att_st_c2',
-        eventId: 'evt_std_03',
-        teamId: 'study_c',
-        teamName: 'C팀 (Tableau & D3.js 대시보드)',
-        name: '최민혁',
-        term: 28,
-        track: '시각화',
-        status: 'present',
-        checkedInAt: '18:53',
-      },
-      {
-        id: 'att_st_c3',
-        eventId: 'evt_std_03',
-        teamId: 'study_c',
-        teamName: 'C팀 (Tableau & D3.js 대시보드)',
-        name: '한예린',
-        term: 28,
-        track: '시각화',
-        status: 'present',
-        checkedInAt: '18:56',
-      },
-      {
-        id: 'att_st_c4',
-        eventId: 'evt_std_03',
-        teamId: 'study_c',
-        teamName: 'C팀 (Tableau & D3.js 대시보드)',
-        name: '윤재혁',
-        term: 28,
-        track: '시각화',
-        status: 'absent',
-        checkedInAt: '-',
-        memo: '교통 지연 결석',
-      },
-
-      {
-        id: 'att_st_d1',
-        eventId: 'evt_std_03',
-        teamId: 'study_d',
-        teamName: 'D팀 (LLM Agent & RAG 시스템)',
-        name: '고준서',
-        term: 27,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '18:40',
-      },
-      {
-        id: 'att_st_d2',
-        eventId: 'evt_std_03',
-        teamId: 'study_d',
-        teamName: 'D팀 (LLM Agent & RAG 시스템)',
-        name: '남소희',
-        term: 27,
-        track: '엔지니어링',
-        status: 'present',
-        checkedInAt: '18:46',
-      },
-      {
-        id: 'att_st_d3',
-        eventId: 'evt_std_03',
-        teamId: 'study_d',
-        teamName: 'D팀 (LLM Agent & RAG 시스템)',
-        name: '박지훈',
-        term: 28,
-        track: '분석',
-        status: 'present',
-        checkedInAt: '18:51',
-      },
-      {
-        id: 'att_st_d4',
-        eventId: 'evt_std_03',
-        teamId: 'study_d',
-        teamName: 'D팀 (LLM Agent & RAG 시스템)',
-        name: '장나연',
-        term: 28,
-        track: '시각화',
-        status: 'present',
-        checkedInAt: '18:54',
-      },
-    ],
+    initialAttendees: [],
   },
   ADV: {
     title: 'ADV Term 출결 관리',
@@ -645,82 +290,8 @@ const CATEGORY_CONFIG: Record<
     badgeBg: '#f8fafc',
     badgeBorder: '#e2e8f0',
     teamLabel: '프로젝트 팀',
-    teams: [
-      {
-        id: 'adv_t1',
-        track: '분석',
-        name: '1팀 (LLM Agentic 워크플로우)',
-        leader: '고준서',
-        description: 'LangGraph 기반 다중 에이전트 협업 시스템 구축',
-        memberCount: 4,
-      },
-      {
-        id: 'adv_t2',
-        track: '분석',
-        name: '2팀 (시계열 예측 솔루션)',
-        leader: '김서하',
-        description: '금융 및 이상탐지 시계열 파운데이션 모델링',
-        memberCount: 4,
-      },
-      {
-        id: 'adv_t3',
-        track: '분석',
-        name: '3팀 (금융 FDS 이상거래 탐지 AI)',
-        leader: '박성준',
-        description: '그래프 신경망 기반 금융 사기 및 이상 거래 실시간 탐지',
-        memberCount: 4,
-      },
-
-      {
-        id: 'adv_t4',
-        track: '시각화',
-        name: '1팀 (인터랙티브 웹 시각화 대시보드)',
-        leader: '최민혁',
-        description: 'Next.js & D3.js 기반 엔터프라이즈 데이터 시각화',
-        memberCount: 4,
-      },
-      {
-        id: 'adv_t5',
-        track: '시각화',
-        name: '2팀 (지리공간 맵핑 & 인포그래픽)',
-        leader: '문지훈',
-        description: 'Mapbox & Deck.gl 기반 공간 데이터 시각화',
-        memberCount: 4,
-      },
-      {
-        id: 'adv_t6',
-        track: '시각화',
-        name: '3팀 (3D 바이오 메디컬 시각화)',
-        leader: '한예린',
-        description: 'Three.js 기반 인체 장기 3D 렌더링 및 헬스케어 차트',
-        memberCount: 4,
-      },
-
-      {
-        id: 'adv_t7',
-        track: '엔지니어링',
-        name: '1팀 (실시간 분산 스트리밍 추천)',
-        leader: '강태양',
-        description: 'Kafka & Redis 기반 초개인화 실시간 추천 엔진',
-        memberCount: 4,
-      },
-      {
-        id: 'adv_t8',
-        track: '엔지니어링',
-        name: '2팀 (멀티모달 헬스케어 AI 솔루션)',
-        leader: '이도현',
-        description: '의료 영상 및 EMR 텍스트 통합 분석 솔루션',
-        memberCount: 4,
-      },
-      {
-        id: 'adv_t9',
-        track: '엔지니어링',
-        name: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
-        leader: '백민혁',
-        description: 'vLLM 및 Ray 기반 고성능 분산 서빙 인프라 구축',
-        memberCount: 4,
-      },
-    ],
+    // 팀·팀원·출결은 DB(teams/team_members/attendance_*)에서 온다.
+    teams: [],
     initialEvents: [
       {
         id: 'evt_adv_03',
@@ -734,7 +305,7 @@ const CATEGORY_CONFIG: Record<
         description: '프로젝트 중간 아키텍처 다이어그램 발표 및 현직 멘토 피드백',
         checkinMethod: 'QR_CODE',
         checkinCode: '8220',
-        imageUrl: '/sample-study-photo.jpg?v=2',
+        imageUrl: SAMPLE_STUDY_PHOTO_URL,
         createdAt: '2026-08-15',
       },
       {
@@ -780,415 +351,7 @@ const CATEGORY_CONFIG: Record<
         createdAt: '2026-08-18',
       },
     ],
-    initialAttendees: [
-      {
-        id: 'att_adv_1_1',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t1',
-        teamName: '1팀 (LLM Agentic 워크플로우)',
-        name: '고준서',
-        term: 27,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_1_2',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t1',
-        teamName: '1팀 (LLM Agentic 워크플로우)',
-        name: '김서하',
-        term: 28,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_1_3',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t1',
-        teamName: '1팀 (LLM Agentic 워크플로우)',
-        name: '이민준',
-        term: 28,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_1_4',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t1',
-        teamName: '1팀 (LLM Agentic 워크플로우)',
-        name: '정채원',
-        term: 28,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-
-      {
-        id: 'att_adv_2_1',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t2',
-        teamName: '2팀 (시계열 예측 솔루션)',
-        name: '박지훈',
-        term: 28,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_2_2',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t2',
-        teamName: '2팀 (시계열 예측 솔루션)',
-        name: '오승현',
-        term: 28,
-        track: '분석',
-        status: 'absent',
-        checkedInAt: '-',
-        memo: '사전 공결 승인',
-      },
-      {
-        id: 'att_adv_2_3',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t2',
-        teamName: '2팀 (시계열 예측 솔루션)',
-        name: '도현진',
-        term: 27,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_2_4',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t2',
-        teamName: '2팀 (시계열 예측 솔루션)',
-        name: '마지원',
-        term: 28,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-
-      {
-        id: 'att_adv_3_1',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t3',
-        teamName: '3팀 (금융 FDS 이상거래 탐지 AI)',
-        name: '박성준',
-        term: 27,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_3_2',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t3',
-        teamName: '3팀 (금융 FDS 이상거래 탐지 AI)',
-        name: '신유진',
-        term: 28,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_3_3',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t3',
-        teamName: '3팀 (금융 FDS 이상거래 탐지 AI)',
-        name: '안서연',
-        term: 28,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_3_4',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t3',
-        teamName: '3팀 (금융 FDS 이상거래 탐지 AI)',
-        name: '조민규',
-        term: 28,
-        track: '분석',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-
-      {
-        id: 'att_adv_4_1',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t4',
-        teamName: '1팀 (인터랙티브 웹 시각화 대시보드)',
-        name: '최민혁',
-        term: 28,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_4_2',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t4',
-        teamName: '1팀 (인터랙티브 웹 시각화 대시보드)',
-        name: '한예린',
-        term: 28,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_4_3',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t4',
-        teamName: '1팀 (인터랙티브 웹 시각화 대시보드)',
-        name: '문지훈',
-        term: 27,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_4_4',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t4',
-        teamName: '1팀 (인터랙티브 웹 시각화 대시보드)',
-        name: '장나연',
-        term: 28,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-
-      {
-        id: 'att_adv_5_1',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t5',
-        teamName: '2팀 (지리공간 맵핑 & 인포그래픽)',
-        name: '윤재혁',
-        term: 28,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_5_2',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t5',
-        teamName: '2팀 (지리공간 맵핑 & 인포그래픽)',
-        name: '송하늘',
-        term: 27,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_5_3',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t5',
-        teamName: '2팀 (지리공간 맵핑 & 인포그래픽)',
-        name: '노유진',
-        term: 27,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_5_4',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t5',
-        teamName: '2팀 (지리공간 맵핑 & 인포그래픽)',
-        name: '원승민',
-        term: 28,
-        track: '시각화',
-        status: 'absent',
-        checkedInAt: '-',
-        memo: '개인 사정 결석',
-      },
-
-      {
-        id: 'att_adv_6_1',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t6',
-        teamName: '3팀 (3D 바이오 메디컬 시각화)',
-        name: '배준호',
-        term: 28,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_6_2',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t6',
-        teamName: '3팀 (3D 바이오 메디컬 시각화)',
-        name: '권나현',
-        term: 28,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_6_3',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t6',
-        teamName: '3팀 (3D 바이오 메디컬 시각화)',
-        name: '서진우',
-        term: 27,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_6_4',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t6',
-        teamName: '3팀 (3D 바이오 메디컬 시각화)',
-        name: '하예원',
-        term: 28,
-        track: '시각화',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-
-      {
-        id: 'att_adv_7_1',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t7',
-        teamName: '1팀 (실시간 분산 스트리밍 추천)',
-        name: '강태양',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_7_2',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t7',
-        teamName: '1팀 (실시간 분산 스트리밍 추천)',
-        name: '이도현',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_7_3',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t7',
-        teamName: '1팀 (실시간 분산 스트리밍 추천)',
-        name: '임수진',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_7_4',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t7',
-        teamName: '1팀 (실시간 분산 스트리밍 추천)',
-        name: '남소희',
-        term: 27,
-        track: '엔지니어링',
-        status: 'absent',
-        checkedInAt: '-',
-        memo: '개인 일정 결석',
-      },
-
-      {
-        id: 'att_adv_8_1',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t8',
-        teamName: '2팀 (멀티모달 헬스케어 AI 솔루션)',
-        name: '박성훈',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_8_2',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t8',
-        teamName: '2팀 (멀티모달 헬스케어 AI 솔루션)',
-        name: '백민혁',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_8_3',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t8',
-        teamName: '2팀 (멀티모달 헬스케어 AI 솔루션)',
-        name: '류현우',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_8_4',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t8',
-        teamName: '2팀 (멀티모달 헬스케어 AI 솔루션)',
-        name: '조영준',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-
-      {
-        id: 'att_adv_9_1',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t9',
-        teamName: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
-        name: '황지수',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_9_2',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t9',
-        teamName: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
-        name: '김동현',
-        term: 27,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_9_3',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t9',
-        teamName: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
-        name: '문가영',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-      {
-        id: 'att_adv_9_4',
-        eventId: 'evt_adv_03',
-        teamId: 'adv_t9',
-        teamName: '3팀 (엔터프라이즈 RAG MLOps 파이프라인)',
-        name: '유재성',
-        term: 28,
-        track: '엔지니어링',
-        status: 'unmarked',
-        checkedInAt: '-',
-      },
-    ],
+    initialAttendees: [],
   },
 };
 
@@ -1355,45 +518,134 @@ const DEFAULT_WEEK_DATE_MAPPING: Record<number, string> = {
   16: '2026-10-26',
 };
 
-const VACATION_WEEKS_8 = Array.from({ length: 8 }, (_, i) => ({
-  id: `w${i + 1}`,
-  weekNum: i + 1,
-  label: `${i + 1}주차`,
-}));
-
-const SEMESTER_WEEKS_8 = Array.from({ length: 8 }, (_, i) => ({
-  id: `w${i + 9}`,
-  weekNum: i + 9,
-  label: `${i + 9}주차`,
-}));
-
 const WEEK_SAMPLE_PHOTOS: Record<number, string> = {
-  1: '/sample-study-photo.jpg?v=2',
-  2: '/sample-study-photo.jpg?v=2',
-  3: '/sample-study-photo.jpg?v=2',
-  4: '/sample-study-photo.jpg?v=2',
-  5: '/sample-study-photo.jpg?v=2',
-  6: '/sample-study-photo.jpg?v=2',
-  7: '/sample-study-photo.jpg?v=2',
-  8: '/sample-study-photo.jpg?v=2',
-  9: '/sample-study-photo.jpg?v=2',
-  10: '/sample-study-photo.jpg?v=2',
-  11: '/sample-study-photo.jpg?v=2',
-  12: '/sample-study-photo.jpg?v=2',
+  1: SAMPLE_STUDY_PHOTO_URL,
+  2: SAMPLE_STUDY_PHOTO_URL,
+  3: SAMPLE_STUDY_PHOTO_URL,
+  4: SAMPLE_STUDY_PHOTO_URL,
+  5: SAMPLE_STUDY_PHOTO_URL,
+  6: SAMPLE_STUDY_PHOTO_URL,
+  7: SAMPLE_STUDY_PHOTO_URL,
+  8: SAMPLE_STUDY_PHOTO_URL,
+  9: SAMPLE_STUDY_PHOTO_URL,
+  10: SAMPLE_STUDY_PHOTO_URL,
+  11: SAMPLE_STUDY_PHOTO_URL,
+  12: SAMPLE_STUDY_PHOTO_URL,
 };
 
 export interface InternalCategoryAttendancePageProps {
   category: InternalCategory;
   activeScoreRule?: ScoreRule;
   attendance?: AttendanceState;
+  /** 공용 저장소(DB)의 팀·팀원(스터디 화면은 스터디 팀, BASE 화면은 BASE 트랙). 이 화면은 이 값에서 파생해 조회한다. */
+  studyTeams?: readonly StudyTeamInfo[];
+  studyMembers?: Readonly<Record<string, readonly Member[]>>;
+  /** 주차와 활성 상태(DB의 weeks). 진행 예정 주차는 미정으로 보이고, 종료·진행 중 주차만 기록을 보여준다. */
+  weeks?: readonly WeekInfo[];
+  /** DB에 있는 활동 기수들과 그중 현재 기수. 가장 큰 기수가 현재이고, 더 작은 기수는 지난 기수로 조회만 할 수 있다. */
+  cohorts?: readonly number[];
+  currentCohort?: number;
+  /** 만들 수 없으면 사용자에게 보여줄 사유를, 만들었으면 null을 돌려준다. */
+  onCreateStudy?: (input: CreateStudyInput) => string | null;
+  onStudyAttendanceChange?: (change: AttendanceChange) => void;
+  /** 기수별 주차 날짜 매핑(DB). 출결 생성 창에서 정한 날짜를 BASE 표 머리와 CSV가 읽어서 쓴다. */
+  weekDates?: Readonly<Record<number, Readonly<Record<number, string>>>>;
+  /** ADV 팀 개설: 그 기수·부문의 다음 번호 팀과 팀원, 주차별 미정 출결을 DB에 만든다. 만들 수 없으면 사유를, 만들었으면 null을 돌려준다. */
+  onCreateAdvTeam?: (input: CreateAdvTeamInput) => string | null;
+  /** BASE 출결 생성: 그 기수·트랙 팀과 트랙원, 1~8주차 미정 출결을 DB에 만든다. 만들 수 없으면 사유를, 만들었으면 null을 돌려준다. */
+  onCreateBaseAttendance?: (input: CreateBaseAttendanceInput) => string | null;
+  /** BASE·ADV 주차 제출이 서버에서 성공하면 그 팀·주차를 DB에 제출 완료로 저장한다. */
+  onSubmitWeek?: (teamId: string, weekNum: number, submittedAt: string) => void;
+  /** 스터디 명단에서 팀원을 빼면 DB의 팀 소속과 그 팀원의 출결 기록도 함께 지운다. */
+  onRemoveStudyMember?: (teamId: string, memberId: string) => void;
 }
 
 export function InternalCategoryAttendancePage({
   category,
   activeScoreRule,
   attendance,
+  studyTeams,
+  studyMembers,
+  weeks: weeksProp = NO_WEEKS,
+  cohorts,
+  currentCohort: currentCohortProp,
+  onCreateStudy,
+  onStudyAttendanceChange,
+  onRemoveStudyMember,
+  weekDates: weekDatesProp,
+  onCreateAdvTeam,
+  onCreateBaseAttendance,
+  onSubmitWeek,
 }: InternalCategoryAttendancePageProps) {
-  const config = CATEGORY_CONFIG[category];
+  // 활동 기수: 가장 큰 기수가 현재이고 더 작은 기수는 지난 기수(아카이브)다.
+  // BASE에서 다음 기수의 출결을 만들면(DB에 그 기수 팀이 생기면) 그 기수가 가장 커져서 이전 기수는 자동으로 지난 기수가 된다.
+  const currentCohort = currentCohortProp ?? currentCohortOf(cohorts ?? []);
+  const cohortOptions = useMemo(
+    () => cohortsOf([...(cohorts ?? []), currentCohort]),
+    [cohorts, currentCohort],
+  );
+  // 고른 기수는 다른 화면 상태처럼 기억해 두되, 목록에 없는 기수면 현재 기수로 돌아간다.
+  const [chosenCohort, setChosenCohort] = useState<number | null>(() => {
+    try {
+      const saved = Number(localStorage.getItem(`boaz_${category}_cohort`));
+      return Number.isInteger(saved) && saved > 0 ? saved : null;
+    } catch {
+      return null;
+    }
+  });
+  const viewCohort =
+    chosenCohort !== null && cohortOptions.includes(chosenCohort) ? chosenCohort : currentCohort;
+
+  // 직접 고른 기수만 저장한다(고르지 않았으면 항상 현재 기수를 따라간다).
+  useEffect(() => {
+    try {
+      if (chosenCohort === null) localStorage.removeItem(`boaz_${category}_cohort`);
+      else localStorage.setItem(`boaz_${category}_cohort`, String(chosenCohort));
+    } catch {}
+  }, [category, chosenCohort]);
+  const isArchivedView = isPastCohort(viewCohort, currentCohort);
+
+  // BASE 주차 출결 제출: 제출 여부는 DB의 출결 세션(submitted)에 저장되고, 제출한 주차는 수정 모드가 아니면 고를 수 없다.
+  const [isSubmittingWeek, setIsSubmittingWeek] = useState(false);
+  // 제출한 주차를 다시 고칠 때 켜지는 수정 모드(비고 옆 수정 아이콘). 수정 완료 시 다시 제출한다.
+  const [editingWeekKey, setEditingWeekKey] = useState<string | null>(null);
+  const [submitToast, setSubmitToast] = useState<{ message: string; isError: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!submitToast) return;
+    const timer = window.setTimeout(() => setSubmitToast(null), SUBMIT_TOAST_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [submitToast]);
+
+  // 지난 기수는 모든 주차가 끝난 상태로 보여 주고 수정할 수 없다.
+  const weeks = useMemo<readonly WeekInfo[]>(
+    () =>
+      isArchivedView
+        ? weeksProp.map((week) => ({ ...week, status: 'CLOSED' as const }))
+        : weeksProp,
+    [weeksProp, isArchivedView],
+  );
+
+  // 스터디·BASE·ADV는 화면 안 목 데이터가 아니라 DB(공용 저장소)에서 팀·명단·출결을 읽고 쓴다.
+  const isDbCategory = category === 'STUDY' || category === 'SESSION' || category === 'ADV';
+  const studyView = useMemo(
+    () =>
+      buildStudyView(
+        (studyTeams ?? []).filter(
+          (team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === viewCohort,
+        ),
+        studyMembers ?? {},
+        CATEGORY_CONFIG.STUDY.initialEvents[0]?.id ?? '',
+      ),
+    [studyTeams, studyMembers, viewCohort],
+  );
+  const config = useMemo(
+    () =>
+      isDbCategory
+        ? { ...CATEGORY_CONFIG[category], teams: studyView.teams, initialAttendees: studyView.attendees }
+        : CATEGORY_CONFIG[category],
+    [category, isDbCategory, studyView],
+  );
 
   const [syncedScoreRule, setSyncedScoreRule] = useState<ScoreRule | undefined>(activeScoreRule);
 
@@ -1455,7 +707,7 @@ export function InternalCategoryAttendancePage({
       };
     })();
 
-  // Selected Team & Event & Week & Term Period (방학: 1~8주차 / 학기: 9~16주차)
+  // 스터디는 방학/학기 모두 1~8주차, 그 외 카테고리는 학기에 9~16주차를 사용
   const [termPeriod, setTermPeriod] = useState<'VACATION' | 'SEMESTER'>(() => {
     try {
       const saved = localStorage.getItem(`boaz_${category}_term_period`);
@@ -1463,7 +715,12 @@ export function InternalCategoryAttendancePage({
     } catch {}
     return 'VACATION';
   });
-  const weekList = termPeriod === 'VACATION' ? VACATION_WEEKS_8 : SEMESTER_WEEKS_8;
+  const usesOneToEightWeeks = category === 'STUDY' || termPeriod === 'VACATION';
+  const vacationWeeks = useMemo(() => weeks.filter((w) => w.weekNum <= 8), [weeks]);
+  const semesterWeeks = useMemo(() => weeks.filter((w) => w.weekNum > 8), [weeks]);
+  const weekList = usesOneToEightWeeks ? vacationWeeks : semesterWeeks;
+  /** 처음·기본으로 다루는 주차: 진행 중인 주차(없으면 마지막 종료 주차) */
+  const latestWeekNum = defaultWeekNum(weekList);
   const [selectedTeamId, setSelectedTeamId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem(`boaz_${category}_selected_team`);
@@ -1488,6 +745,11 @@ export function InternalCategoryAttendancePage({
     } catch {}
     return 0;
   });
+  useEffect(() => {
+    if (category === 'STUDY' && selectedWeekSemester > 8) {
+      setSelectedWeekSemester(0);
+    }
+  }, [category, selectedWeekSemester]);
   const selectedWeek = termPeriod === 'VACATION' ? selectedWeekVacation : selectedWeekSemester;
   const setSelectedWeek = (week: number) => {
     if (week !== 0) {
@@ -1500,12 +762,31 @@ export function InternalCategoryAttendancePage({
     }
   };
 
+  // 지금이 방학인데 학기 탭으로 넘어가면 한 번 확인받는다(학기 주차는 아직 시작 전).
+  const [isSemesterWarningOpen, setIsSemesterWarningOpen] = useState(false);
+
+  const moveToSemester = () => {
+    setTermPeriod('SEMESTER');
+    setSelectedWeekSemester(0);
+    setIsSemesterWarningOpen(false);
+  };
+
+  const handleSelectSemesterTab = () => {
+    if (termPeriod === 'SEMESTER') return;
+    // 스터디는 학기에도 1~8주차를 쓰므로 학기 시작 전 경고 대상이 아니다.
+    if (category !== 'STUDY' && currentPeriodOf(weeks) === '방학') {
+      setIsSemesterWarningOpen(true);
+      return;
+    }
+    moveToSemester();
+  };
+
   // 미래 주차(진행 예정) 이동 전 확인 경고 팝업 상태 및 핸들러
   const [futureWeekWarning, setFutureWeekWarning] = useState<number | null>(null);
 
   const isFutureWeekNum = (wNum: number) => {
     if (wNum === 0) return false;
-    return termPeriod === 'VACATION' ? wNum > 3 : wNum > 11;
+    return weekStatusOf(weeks, wNum) === 'UPCOMING';
   };
 
   const handleSelectWeek = (targetWeek: number) => {
@@ -1586,7 +867,50 @@ export function InternalCategoryAttendancePage({
 
   // Events and Attendees
   const [events, setEvents] = useState<InternalEvent[]>(config.initialEvents);
-  const [attendees, setAttendees] = useState<InternalAttendee[]>(config.initialAttendees);
+  // 명단은 DB에서 기수별로 이미 걸러진 값을 그대로 쓴다.
+  const attendees = studyView.attendees;
+  const availableTeams =
+    category === 'STUDY'
+      ? config.teams.filter((team) => team.termPeriod === termPeriod)
+      : category === 'ADV'
+        ? config.teams
+        : buildBaseTrackTeams(config.teams, viewCohort);
+  const studyTeamGroups = [
+    {
+      label: '멘멘 스터디',
+      teams: availableTeams.filter(
+        (team) => termPeriod === 'VACATION' && team.studyKind === 'MENTORING',
+      ),
+    },
+    {
+      label: '일반 스터디',
+      teams: availableTeams.filter(
+        (team) => termPeriod === 'SEMESTER' || team.studyKind !== 'MENTORING',
+      ),
+    },
+  ];
+  const mentoringStudyTrackGroups = [
+    {
+      label: '분석',
+      teams: availableTeams.filter(
+        (team) => team.studyKind === 'MENTORING' && team.track === '분석',
+      ),
+    },
+    {
+      label: '시각화',
+      teams: availableTeams.filter(
+        (team) => team.studyKind === 'MENTORING' && team.track === '시각화',
+      ),
+    },
+    {
+      label: '엔지',
+      teams: availableTeams.filter(
+        (team) =>
+          team.studyKind === 'MENTORING' &&
+          (team.track === '엔지니어링' || team.track === '엔지'),
+      ),
+    },
+  ];
 
   // Controls in Peek
   const [attendeeSearch] = useState('');
@@ -1597,15 +921,151 @@ export function InternalCategoryAttendancePage({
     weekNum: number;
   } | null>(null);
 
-  // User interactive status & memo overrides keyed by: `${category}_${termPeriod}_${selectedWeek}_${attendeeId}`
-  const [attendanceOverrides, setAttendanceOverrides] = useState<
-    Record<string, { status: AttendStatus; memo?: string; checkedInAt?: string }>
-  >({});
-
   // Modals
   const [showNewEventModal, setShowNewEventModal] = useState(false);
   const [showImageZoom, setShowImageZoom] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showCreateStudyModal, setShowCreateStudyModal] = useState(false);
+  const [showCreateAttendanceModal, setShowCreateAttendanceModal] = useState(false);
+  const [showCreateAdvModal, setShowCreateAdvModal] = useState(false);
+
+  // 현재(진행 중) 주차 제출: 그 팀·주차의 상태값을 서버로 보내고, 성공하면 제출 완료로 바꾼다.
+  const handleSubmitWeek = async () => {
+    if (isSubmittingWeek || !showsSubmitControl(selectedWeek) || isAllSelected) return;
+    const submission = buildWeekSubmission(
+      category === 'ADV' ? 'ADV' : 'BASE',
+      viewCohort,
+      selectedWeek,
+      selectedTeam.id,
+      currentTeamAttendees,
+    );
+    const unmarked = countUnmarked(submission);
+    if (
+      unmarked > 0 &&
+      !window.confirm(`출결이 미정인 인원이 ${unmarked}명 있습니다.\n그대로 제출하시겠습니까?`)
+    ) {
+      return;
+    }
+    const key = submissionKey(viewCohort, selectedTeam.id, selectedWeek);
+    const wasEditing = editingWeekKey === key;
+    setIsSubmittingWeek(true);
+    try {
+      const result = await submitWeekAttendance(submission);
+      onSubmitWeek?.(selectedTeam.id, selectedWeek, result.submittedAt);
+      setEditingWeekKey(null);
+      setSubmitToast({
+        message: wasEditing
+          ? `${selectedWeek}주차 수정 내용이 제출되었습니다.`
+          : `${selectedWeek}주차 출결이 제출되었습니다.`,
+        isError: false,
+      });
+    } catch {
+      setSubmitToast({ message: '출결을 제출하지 못했습니다. 잠시 후 다시 시도해 주세요.', isError: true });
+    } finally {
+      setIsSubmittingWeek(false);
+    }
+  };
+
+  // ADV 팀 개설: 다음 기수(예: 26기까지 있으면 27기)의 팀을 DB에 만든다.
+  const handleCreateAdvTeam = (
+    cohort: number,
+    track: UserTrack,
+    picked: UserProfile[],
+    dates: Record<number, string>,
+  ) => {
+    const failure = onCreateAdvTeam?.({
+      cohort,
+      track,
+      members: picked,
+      weekDates: dates,
+      weekNums: weekList.map((week) => week.weekNum),
+    });
+    if (failure) {
+      alert(failure);
+      return;
+    }
+    setChosenCohort(cohort);
+    setSelectedTeamId('ALL');
+    setIsPeekOpen(true);
+    setShowCreateAdvModal(false);
+  };
+
+  // 기수를 바꾸면 그 기수의 출결 화면으로 이동한다(선택 팀은 초기화).
+  const handleChangeCohort = (next: number) => {
+    setEditingWeekKey(null);
+    setChosenCohort(next);
+    // BASE는 트랙 팀이 기수마다 따로 있어서, 비워 두면 그 기수의 첫 트랙이 자동으로 선택된다.
+    setSelectedTeamId(category === 'ADV' || category === 'STUDY' ? 'ALL' : '');
+    setIsPeekOpen(false);
+  };
+
+  const handleCreateBaseAttendance = (
+    cohort: number,
+    track: UserTrack,
+    picked: UserProfile[],
+    dates: Record<number, string>,
+  ) => {
+    const failure = onCreateBaseAttendance?.({
+      cohort,
+      track,
+      members: picked,
+      weekDates: dates,
+      weekNums: weekList.map((week) => week.weekNum),
+    });
+    if (failure) {
+      alert(failure);
+      return;
+    }
+    // 다음 기수로 만들면 그 기수가 가장 커져서 이전 기수는 자동으로 지난 기수가 된다.
+    setChosenCohort(cohort);
+    setSelectedTeamId(baseTeamId(cohort, track));
+    setIsPeekOpen(true);
+    setShowCreateAttendanceModal(false);
+  };
+  const [newStudyName, setNewStudyName] = useState('');
+  const [newStudySelection, setNewStudySelection] =
+    useState<MemberSelection>(EMPTY_MEMBER_SELECTION);
+  const [newStudyKind, setNewStudyKind] = useState<'MENTORING' | 'GENERAL'>('GENERAL');
+  const [newStudyTrack, setNewStudyTrack] = useState<'분석' | '시각화' | '엔지니어링'>('분석');
+
+  const openCreateStudyModal = () => {
+    setNewStudyName('');
+    setNewStudySelection(EMPTY_MEMBER_SELECTION);
+    setNewStudyKind('GENERAL');
+    setNewStudyTrack('분석');
+    setShowCreateStudyModal(true);
+  };
+
+  const handleCreateStudy = () => {
+    const name = newStudyName.trim();
+    if (!name) {
+      alert('스터디명을 입력해 주세요.');
+      return;
+    }
+
+    const leader = findLeader(newStudySelection);
+    const id = `study_${Date.now()}`;
+    const isVacation = termPeriod === 'VACATION';
+
+    const failure = onCreateStudy?.({
+      id,
+      name,
+      studyKind: isVacation ? newStudyKind : 'GENERAL',
+      track: newStudyTrack,
+      isVacation,
+      cohort: currentCohort,
+      leaderName: leader?.name ?? null,
+      members: newStudySelection.members,
+    });
+    if (failure) {
+      alert(failure);
+      return;
+    }
+    setSelectedTeamId(id);
+    setIsPeekOpen(true);
+    setShowCreateStudyModal(false);
+  };
 
   // Track Filter State
   const TRACK_FILTER_OPTIONS = [
@@ -1626,13 +1086,20 @@ export function InternalCategoryAttendancePage({
     useState<ExportColumnConfig[]>(DEFAULT_EXPORT_COLUMNS);
   const [savedCustomColOrder, setSavedCustomColOrder] = useState<string[] | null>(null);
 
-  const [weekDateMapping, setWeekDateMapping] =
-    useState<Record<number, string>>(DEFAULT_WEEK_DATE_MAPPING);
   const [exportColumns, setExportColumns] = useState<ExportColumnConfig[]>(DEFAULT_EXPORT_COLUMNS);
   const [customColOrder, setCustomColOrder] = useState<string[] | null>(null);
 
+  // BASE·ADV는 주차 날짜가 DB의 기수별 매핑이다. 기수를 바꾸거나 DB 값이 바뀌면 화면 매핑도 그 값으로 맞춘다.
+  const dbWeekDates =
+    category === 'SESSION' || category === 'ADV'
+      ? (weekDatesProp?.[viewCohort] ?? NO_WEEK_DATES)
+      : null;
+  useEffect(() => {
+    if (!dbWeekDates) return;
+    setSavedWeekDateMapping({ ...dbWeekDates });
+  }, [dbWeekDates]);
+
   const handleOpenSettingsModal = () => {
-    setWeekDateMapping({ ...savedWeekDateMapping });
     setExportColumns(savedExportColumns.map((c) => ({ ...c })));
     setCustomColOrder(savedCustomColOrder ? [...savedCustomColOrder] : null);
     setDraggedColIdx(null);
@@ -1641,7 +1108,6 @@ export function InternalCategoryAttendancePage({
   };
 
   const handleCloseOrCancelSettings = () => {
-    setWeekDateMapping({ ...savedWeekDateMapping });
     setExportColumns(savedExportColumns.map((c) => ({ ...c })));
     setCustomColOrder(savedCustomColOrder ? [...savedCustomColOrder] : null);
     setDraggedColIdx(null);
@@ -1652,7 +1118,6 @@ export function InternalCategoryAttendancePage({
   const [isSavedFeedback, setIsSavedFeedback] = useState(false);
 
   const handleSaveSettings = () => {
-    setSavedWeekDateMapping({ ...weekDateMapping });
     setSavedExportColumns(exportColumns.map((c) => ({ ...c })));
     setSavedCustomColOrder(customColOrder ? [...customColOrder] : null);
     setIsSavedFeedback(true);
@@ -1660,7 +1125,6 @@ export function InternalCategoryAttendancePage({
   };
 
   const handleSaveAndExportCsv = () => {
-    setSavedWeekDateMapping({ ...weekDateMapping });
     setSavedExportColumns(exportColumns.map((c) => ({ ...c })));
     setSavedCustomColOrder(customColOrder ? [...customColOrder] : null);
     handleExportCsv();
@@ -1843,7 +1307,6 @@ export function InternalCategoryAttendancePage({
   // Keep state synced when switching category prop
   useEffect(() => {
     setEvents(config.initialEvents);
-    setAttendees(config.initialAttendees);
     setSelectedTeamId(
       category === 'ADV' || category === 'STUDY' ? 'ALL' : config.teams[0]?.id || '',
     );
@@ -1921,210 +1384,55 @@ export function InternalCategoryAttendancePage({
         description: '전체 트랙 및 소속 팀 통합 명단',
         memberCount: attendees.filter((a) => a.eventId === (selectedEvent?.id || '')).length,
       }
-    : config.teams.find((t) => t.id === selectedTeamId) ||
-      config.teams[0] || {
+    : availableTeams.find((t) => t.id === selectedTeamId) ||
+      availableTeams[0] || {
         id: '',
         name: '선택된 팀',
         leader: '',
         description: '',
         memberCount: 0,
       };
+  const isMentoringStudy =
+    category === 'STUDY' &&
+    termPeriod === 'VACATION' &&
+    selectedTeam.studyKind === 'MENTORING';
 
-  // Current Attendees for Live View (filter by Event & selected Team & selectedWeek & termPeriod)
-  const isWeekSubmitted =
-    selectedWeek === 0 ||
-    (termPeriod === 'VACATION' ? selectedWeek <= 3 : selectedWeek >= 9 && selectedWeek <= 11);
-
+  // 선택한 팀·주차의 출결 명단
   const baseAttendees = isAllSelected
     ? attendees
     : attendees.filter((a) => a.teamId === (selectedTeam?.id || ''));
 
-  const activeSubmittedWeeks =
-    termPeriod === 'VACATION'
-      ? VACATION_WEEKS_8.filter((w) => w.weekNum <= 3)
-      : SEMESTER_WEEKS_8.filter((w) => w.weekNum <= 11);
+  const activeSubmittedWeeks = weekList.filter((w) => isHeldWeek(weeks, w.weekNum));
 
-  const currentTeamAttendees: InternalAttendee[] =
+  // 주차별 상태·비고는 화면에서 만들지 않고 DB의 출결 기록(주차별 세션)에서 그대로 읽는다.
+  // 그래서 ADV 출결 입력 탭이나 이 화면에서 바꾼 값이 그대로 보인다.
+  const toWeekAttendee = (
+    attendee: InternalAttendee,
+    weekNum: number,
+    weekLabel: string,
+    idWithWeek: boolean,
+  ): InternalAttendee => {
+    const cell = resolveStudyCell(attendee.teamId, weekNum, attendee.id);
+    return {
+      ...attendee,
+      id: idWithWeek ? `${attendee.id}_w${weekNum}` : attendee.id,
+      originalId: attendee.id,
+      weekNum,
+      weekLabel,
+      status: (cell?.status ?? 'unmarked') as AttendStatus,
+      checkedInAt: '-',
+      memo: cell?.memo,
+    };
+  };
+
+  const derivedTeamAttendees: InternalAttendee[] =
     selectedWeek === 0
       ? activeSubmittedWeeks.flatMap((w) =>
-          baseAttendees.map((a) => {
-            const currentWeekNum = w.weekNum;
-            const overrideKey = `${category}_${termPeriod}_${currentWeekNum}_${a.id}`;
-            const override = attendanceOverrides[overrideKey];
-            if (override && override.status) {
-              return {
-                ...a,
-                id: `${a.id}_w${currentWeekNum}`,
-                originalId: a.id,
-                weekNum: currentWeekNum,
-                weekLabel: w.label,
-                status: override.status,
-                checkedInAt:
-                  override.checkedInAt ||
-                  (override.status === 'present' || override.status === 'late' ? '14:00' : '-'),
-                memo: override.memo !== undefined ? override.memo : a.memo,
-              };
-            }
-
-            if (termPeriod === 'VACATION') {
-              const isAbsentThisWeek =
-                (a.name === '오승현' &&
-                  (currentWeekNum === 2 || currentWeekNum === 3 || currentWeekNum === 7)) ||
-                (a.name === '원승민' && (currentWeekNum === 3 || currentWeekNum === 5)) ||
-                (a.name === '남소희' && (currentWeekNum === 3 || currentWeekNum === 6));
-
-              const isLateThisWeek =
-                category === 'SESSION' &&
-                ((a.name === '장나연' && currentWeekNum === 3) ||
-                  (a.name === '문지훈' && currentWeekNum === 2));
-
-              const status: AttendStatus = isLateThisWeek
-                ? 'late'
-                : isAbsentThisWeek
-                  ? 'absent'
-                  : 'unmarked';
-
-              return {
-                ...a,
-                id: `${a.id}_w${currentWeekNum}`,
-                originalId: a.id,
-                weekNum: currentWeekNum,
-                weekLabel: w.label,
-                status,
-                checkedInAt: status === 'late' ? '14:15' : '-',
-                memo: isAbsentThisWeek
-                  ? '방학 개인 사정 (사전 공결 신청 승인)'
-                  : status === 'late'
-                    ? '15분 지각'
-                    : a.memo || '',
-              };
-            } else {
-              const isAbsentThisWeek =
-                (a.name === '장나연' && (currentWeekNum === 11 || currentWeekNum === 15)) ||
-                (a.name === '박성준' && currentWeekNum === 10) ||
-                (a.name === '이도현' && currentWeekNum === 11);
-
-              const isLateThisWeek =
-                (a.name === '김서하' && currentWeekNum === 11) ||
-                (a.name === '한예린' && currentWeekNum === 10) ||
-                (a.name === '고준서' && currentWeekNum === 12);
-
-              const status: AttendStatus = isLateThisWeek
-                ? 'late'
-                : isAbsentThisWeek
-                  ? 'absent'
-                  : 'unmarked';
-
-              return {
-                ...a,
-                id: `${a.id}_w${currentWeekNum}`,
-                originalId: a.id,
-                weekNum: currentWeekNum,
-                weekLabel: w.label,
-                status,
-                checkedInAt: status === 'late' ? '14:15' : '-',
-                memo: isAbsentThisWeek
-                  ? '학기 과제/시험 일정 결석'
-                  : status === 'late'
-                    ? '수업 종료 후 15분 지각'
-                    : a.memo || '',
-              };
-            }
-          }),
+          baseAttendees.map((a) => toWeekAttendee(a, w.weekNum, w.label, true)),
         )
-      : baseAttendees.map((a) => {
-          const overrideKey = `${category}_${termPeriod}_${selectedWeek}_${a.id}`;
-          const override = attendanceOverrides[overrideKey];
-          if (override && override.status) {
-            return {
-              ...a,
-              originalId: a.id,
-              weekNum: selectedWeek,
-              weekLabel: `${selectedWeek}주차`,
-              status: override.status,
-              checkedInAt:
-                override.checkedInAt ||
-                (override.status === 'present' || override.status === 'late' ? '14:00' : '-'),
-              memo: override.memo !== undefined ? override.memo : a.memo,
-            };
-          }
+      : baseAttendees.map((a) => toWeekAttendee(a, selectedWeek, `${selectedWeek}주차`, false));
 
-          // If week is not yet submitted by team leader
-          if (!isWeekSubmitted && category !== 'SESSION') {
-            return {
-              ...a,
-              originalId: a.id,
-              weekNum: selectedWeek,
-              weekLabel: `${selectedWeek}주차`,
-              status: 'unmarked' as AttendStatus,
-              checkedInAt: '-',
-              memo: undefined,
-            };
-          }
-
-          if (termPeriod === 'VACATION') {
-            const isAbsentThisWeek =
-              (a.name === '오승현' &&
-                (selectedWeek === 2 || selectedWeek === 3 || selectedWeek === 7)) ||
-              (a.name === '원승민' && (selectedWeek === 3 || selectedWeek === 5)) ||
-              (a.name === '남소희' && (selectedWeek === 3 || selectedWeek === 6));
-
-            const isLateThisWeek =
-              category === 'SESSION' &&
-              ((a.name === '장나연' && selectedWeek === 3) ||
-                (a.name === '문지훈' && selectedWeek === 2));
-
-            const status: AttendStatus = isLateThisWeek
-              ? 'late'
-              : isAbsentThisWeek
-                ? 'absent'
-                : 'unmarked';
-
-            return {
-              ...a,
-              originalId: a.id,
-              weekNum: selectedWeek,
-              weekLabel: `${selectedWeek}주차`,
-              status,
-              checkedInAt: status === 'late' ? '14:15' : '-',
-              memo: isAbsentThisWeek
-                ? '방학 개인 사정 (사전 공결 신청 승인)'
-                : status === 'late'
-                  ? '15분 지각'
-                  : a.memo || '',
-            };
-          } else {
-            const isAbsentThisWeek =
-              (a.name === '장나연' && (selectedWeek === 11 || selectedWeek === 15)) ||
-              (a.name === '박성준' && selectedWeek === 10) ||
-              (a.name === '이도현' && selectedWeek === 11);
-
-            const isLateThisWeek =
-              (a.name === '김서하' && selectedWeek === 11) ||
-              (a.name === '한예린' && selectedWeek === 10) ||
-              (a.name === '고준서' && selectedWeek === 12);
-
-            const status: AttendStatus = isLateThisWeek
-              ? 'late'
-              : isAbsentThisWeek
-                ? 'absent'
-                : 'unmarked';
-
-            return {
-              ...a,
-              originalId: a.id,
-              weekNum: selectedWeek,
-              weekLabel: `${selectedWeek}주차`,
-              status,
-              checkedInAt: status === 'late' ? '14:15' : '-',
-              memo: isAbsentThisWeek
-                ? '학기 과제/시험 일정 결석'
-                : status === 'late'
-                  ? '수업 종료 후 15분 지각'
-                  : a.memo || '',
-            };
-          }
-        });
+  const currentTeamAttendees: InternalAttendee[] = derivedTeamAttendees;
 
   const filteredAttendees = useMemo(() => {
     let list = currentTeamAttendees.filter((a) => {
@@ -2184,7 +1492,8 @@ export function InternalCategoryAttendancePage({
 
   // ADV Overall Matrix Rows calculation & BASE Term (전체 주차) Matrix calculation
   const isMatrixMode =
-    (category === 'ADV' && isAllSelected) || (category === 'SESSION' && selectedWeek === 0);
+    (category === 'ADV' && (isAllSelected || selectedWeek === 0)) ||
+    (category === 'SESSION' && selectedWeek === 0);
 
   const distinctMembers = useMemo(() => {
     const map = new Map<string, InternalAttendee>();
@@ -2198,7 +1507,14 @@ export function InternalCategoryAttendancePage({
     return Array.from(map.values());
   }, [baseAttendees]);
 
-  const currentTermWeeks = termPeriod === 'VACATION' ? VACATION_WEEKS_8 : SEMESTER_WEEKS_8;
+  const memberSampleIndexById = useMemo(() => {
+    const sortedMembers = [...distinctMembers].sort(
+      (a, b) => a.term - b.term || a.name.localeCompare(b.name, 'ko'),
+    );
+    return new Map(sortedMembers.map((member, index) => [member.id, index]));
+  }, [distinctMembers]);
+
+  const currentTermWeeks = weekList;
 
   // 주차 선택 시 매트릭스 표에서 해당 주차 컬럼만 필터링 (0주차는 전체 8주차 표시)
   const displayedMatrixWeeks = useMemo(() => {
@@ -2208,10 +1524,64 @@ export function InternalCategoryAttendancePage({
     return currentTermWeeks.filter((w) => w.weekNum === selectedWeek);
   }, [currentTermWeeks, selectedWeek]);
 
-  // 1~3주차(방학)만 직접 출결 선택 가능 (9주차 이상은 4주차 등과 동일하게 일반 상태 표시)
+  // 진행된(종료·진행 중) 주차만 직접 출결 선택 가능.
+  // BASE는 진행 중(OPEN)인 주차만 고를 수 있고, 지난(CLOSED) 주차는 선택된 상태값으로 확정돼 보이기만 한다.
   const isWeekDirectEditable = (weekNum: number) => {
-    return termPeriod === 'VACATION' && weekNum >= 1 && weekNum <= 3;
+    // ADV: 진행 중인 주차가 3주차까지일 때만 이 화면에서 직접 고른다. 지난 주차는 결과만 보이고,
+    // 4주차부터는 ADV 출결 입력 탭에서 팀이 작성한 값이 그대로 보인다.
+    if (category === 'ADV') {
+      return (
+        !isArchivedView &&
+        weekNum <= ADV_DIRECT_SELECT_LAST_WEEK &&
+        weekStatusOf(weeks, weekNum) === 'OPEN'
+      );
+    }
+    // BASE: 지난 주차만 잠기고, 진행 중·아직 오지 않은 주차는 이 화면에서 버튼으로 입력한다.
+    if (category === 'SESSION') return !isArchivedView && weekStatusOf(weeks, weekNum) !== 'CLOSED';
+    return !isArchivedView && usesOneToEightWeeks && isHeldWeek(weeks, weekNum);
   };
+
+  /** 이 화면에서 제출·수정할 수 있는 주차인가: BASE는 진행 중인 주차, ADV는 진행 중이면서 3주차까지. */
+  const isSubmittableWeek = (weekNum: number) => {
+    if (isArchivedView || weekNum === 0 || weekStatusOf(weeks, weekNum) !== 'OPEN') return false;
+    if (category === 'SESSION') return true;
+    return category === 'ADV' && weekNum <= ADV_DIRECT_SELECT_LAST_WEEK;
+  };
+
+  /**
+   * 제출 버튼(제출했으면 "제출 완료")이 보이는 주차: BASE는 진행 중인 주차, ADV는 3주차까지 모든 주차.
+   * ADV의 지난 주차는 입력은 잠겨 있고 제출 여부만 보인다.
+   */
+  const showsSubmitControl = (weekNum: number) => {
+    if (isArchivedView || weekNum === 0) return false;
+    if (category === 'ADV') return weekNum <= ADV_DIRECT_SELECT_LAST_WEEK;
+    return isSubmittableWeek(weekNum);
+  };
+
+  /** DB의 출결 세션에서 그 팀·주차의 제출 여부를 읽는다. */
+  const isWeekSubmittedInDb = (teamId: string, weekNum: number) =>
+    Boolean(attendance?.[sessionKey(`w${weekNum}`, 'study', teamId)]?.submitted);
+
+  // BASE 단일 팀 표: 지난(CLOSED) 주차가 아니면(진행 중·아직 오지 않은 주차 모두) 이 탭에서 버튼으로 상태·비고를 입력한다.
+  // 지난 주차는 선택된 값이 확정돼 보이기만 한다.
+  // weekNum이 없으면 지금 선택한 주차를 본다.
+  // ADV: 3주차까지 진행 중인 주차만 이 탭에서 입력하고, 제출하면 수정 모드가 아닌 동안 잠긴다.
+  const isBaseWeekSelectable = (weekNum?: number, teamId?: string) => {
+    if (category !== 'SESSION' && category !== 'ADV') return false;
+    // ADV 전체 주차 화면은 주차별 행이 섞여 있어(직접 입력 주차 행만 버튼이 나오는 어색함) 보기 전용이다. 주차를 골라 입력한다.
+    if (category === 'ADV' && selectedWeek === 0) return false;
+    const week = weekNum ?? selectedWeek;
+    if (category === 'ADV' ? !isWeekDirectEditable(week) : weekStatusOf(weeks, week) === 'CLOSED') {
+      return false;
+    }
+    const id = teamId ?? selectedTeam.id;
+    return !isWeekSubmittedInDb(id, week) || editingWeekKey === submissionKey(viewCohort, id, week);
+  };
+  // 전체 주차 화면은 주차별 행이 섞여 있어 열 너비는 선택 가능한 폭으로 유지한다.
+  const isBaseStatusColumnWide =
+    category === 'SESSION'
+      ? selectedWeek === 0 || isBaseWeekSelectable()
+      : category === 'ADV' && !isAllSelected && selectedWeek !== 0 && isBaseWeekSelectable();
 
   // 매트릭스 표 최소 너비 계산 (각 컬럼이 찌그러지지 않도록 합산)
   const matrixTableMinWidth = useMemo(() => {
@@ -2219,8 +1589,9 @@ export function InternalCategoryAttendancePage({
       (colWidths.matrix_index || 42) +
       (colWidths.matrix_term || 52) +
       (colWidths.matrix_name || 80) +
-      (category !== 'SESSION' && selectedTrackFilter === 'ALL' ? colWidths.matrix_track || 72 : 0) +
-      (colWidths.matrix_total || 75);
+      (shouldShowMatrixTrack(category, selectedTrackFilter) ? colWidths.matrix_track || 72 : 0) +
+      (colWidths.matrix_total || 75) +
+      (shouldShowConcurrentColumn(category) ? colWidths.matrix_concurrent || 82 : 0);
 
     if (selectedWeek === 0) {
       sum +=
@@ -2264,7 +1635,8 @@ export function InternalCategoryAttendancePage({
   // 단일 팀 표 최소 너비 계산
   const singleTeamTableMinWidth = useMemo(() => {
     const isSingleTeamEditable =
-      category === 'SESSION' ||
+      (category === 'SESSION' &&
+        (selectedWeek === 0 || weekStatusOf(weeks, selectedWeek) !== 'CLOSED')) ||
       (category === 'ADV' && isWeekDirectEditable(selectedWeek) && selectedWeek !== 0);
     const statusMinWidth = isSingleTeamEditable ? 435 : 70;
     const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
@@ -2322,6 +1694,7 @@ export function InternalCategoryAttendancePage({
       (colWidths.study_team_index || 42) +
       (colWidths.study_team_term || 55) +
       (colWidths.study_team_name || 80) +
+      (isMentoringStudy ? colWidths.study_team_type || 72 : 0) +
       (colWidths.study_team_attended || 85) +
       (colWidths.study_team_leader || 85) +
       (colWidths.study_team_score || 80);
@@ -2336,7 +1709,7 @@ export function InternalCategoryAttendancePage({
     });
 
     return Math.max(sum, 720);
-  }, [colWidths, displayedMatrixWeeks, savedWeekDateMapping]);
+  }, [colWidths, displayedMatrixWeeks, savedWeekDateMapping, isMentoringStudy]);
 
   const matrixRows = useMemo(() => {
     return distinctMembers.map((member) => {
@@ -2351,92 +1724,10 @@ export function InternalCategoryAttendancePage({
 
       currentTermWeeks.forEach((w) => {
         const currentWeekNum = w.weekNum;
-        const overrideKey = `${category}_${termPeriod}_${currentWeekNum}_${member.id}`;
-        const override = attendanceOverrides[overrideKey];
-
-        let status: AttendStatus = 'unmarked';
-        let memo: string | undefined = member.memo;
-        let checkedInAt: string | undefined = '-';
-
-        if (override && override.status) {
-          status = override.status;
-          memo = override.memo;
-          checkedInAt = override.checkedInAt;
-        } else {
-          if (termPeriod === 'VACATION') {
-            if (currentWeekNum > 3 && category !== 'SESSION') {
-              status = 'unmarked';
-              checkedInAt = '-';
-              memo = undefined;
-            } else {
-              const isAbsentThisWeek =
-                (member.name === '오승현' &&
-                  (currentWeekNum === 2 || currentWeekNum === 3 || currentWeekNum === 7)) ||
-                (member.name === '원승민' && (currentWeekNum === 3 || currentWeekNum === 5)) ||
-                (member.name === '남소희' && (currentWeekNum === 3 || currentWeekNum === 6));
-              const isLateThisWeek =
-                category === 'SESSION' &&
-                ((member.name === '장나연' && currentWeekNum === 3) ||
-                  (member.name === '문지훈' && currentWeekNum === 2));
-              const isRemoteThisWeek =
-                (member.name === '안서연' && currentWeekNum === 2) ||
-                (member.name === '조민규' && (currentWeekNum === 1 || currentWeekNum === 3)) ||
-                (member.name === '도현진' && currentWeekNum === 2);
-
-              if (isAbsentThisWeek) {
-                status = 'absent';
-                memo = '방학 개인 사정 (사전 공결 신청 승인)';
-                checkedInAt = '-';
-              } else if (isLateThisWeek) {
-                status = 'late';
-                memo = '15분 지각';
-                checkedInAt = '14:15';
-              } else if (isRemoteThisWeek) {
-                status = 'remote';
-                memo = '비대면 참여 승인';
-                checkedInAt = '14:00 (온라인)';
-              } else {
-                status = 'unmarked';
-                checkedInAt = '-';
-              }
-            }
-          } else {
-            if (currentWeekNum > 11 && category !== 'SESSION') {
-              status = 'unmarked';
-              checkedInAt = '-';
-              memo = undefined;
-            } else {
-              const isAbsentThisWeek =
-                (member.name === '장나연' && (currentWeekNum === 11 || currentWeekNum === 15)) ||
-                (member.name === '박성준' && currentWeekNum === 10) ||
-                (member.name === '이도현' && currentWeekNum === 11);
-              const isLateThisWeek =
-                (member.name === '김서하' && currentWeekNum === 11) ||
-                (member.name === '한예린' && currentWeekNum === 10) ||
-                (member.name === '고준서' && currentWeekNum === 12);
-              const isRemoteThisWeek =
-                (member.name === '한예린' && currentWeekNum === 11) ||
-                (member.name === '안서연' && currentWeekNum === 10);
-
-              if (isAbsentThisWeek) {
-                status = 'absent';
-                memo = '학기 과제/시험 일정 결석';
-                checkedInAt = '-';
-              } else if (isLateThisWeek) {
-                status = 'late';
-                memo = '수업 종료 후 15분 지각';
-                checkedInAt = '14:15';
-              } else if (isRemoteThisWeek) {
-                status = 'remote';
-                memo = '비대면 참여 승인';
-                checkedInAt = '14:00 (온라인)';
-              } else {
-                status = 'unmarked';
-                checkedInAt = '-';
-              }
-            }
-          }
-        }
+        const cell = resolveStudyCell(member.teamId ?? '', currentWeekNum, member.id);
+        const status: AttendStatus = cell?.status ?? 'unmarked';
+        const memo: string | undefined = cell?.memo;
+        const checkedInAt: string | undefined = '-';
 
         weekData[currentWeekNum] = { status, memo, checkedInAt };
 
@@ -2499,16 +1790,21 @@ export function InternalCategoryAttendancePage({
         lateEarlyLeaveCount,
         remoteCount,
         totalScore,
+        isConcurrent:
+          shouldShowConcurrentColumn(category) &&
+          isConcurrentBaseMember(member.name, memberSampleIndexById.get(member.id) ?? 0),
       };
     });
   }, [
     category,
     termPeriod,
     distinctMembers,
+    memberSampleIndexById,
     currentTermWeeks,
-    attendanceOverrides,
     currentScoreRule,
     config.teams,
+    attendance,
+    studyTeams,
   ]);
 
   const filteredMatrixRows = useMemo(() => {
@@ -2585,6 +1881,10 @@ export function InternalCategoryAttendancePage({
       }
     }
 
+    if (category === 'SESSION') {
+      rows = sortConcurrentMembersLast(rows);
+    }
+
     return rows;
   }, [
     category,
@@ -2615,47 +1915,101 @@ export function InternalCategoryAttendancePage({
     });
   }, [category, isAllSelected, filteredMatrixRows, selectedTeam]);
 
+  const displayedStudyTeamRows = useMemo(() => {
+    if (!isMentoringStudy) {
+      return studyTeamRows.map((row) => ({
+        ...row,
+        studyTypeLabel: null as '멘멘' | '친바' | null,
+        studyTypeIndex: 0,
+      }));
+    }
+
+    return studyTeamRows.flatMap((row) =>
+      (['멘멘', '친바'] as const).map((studyTypeLabel, studyTypeIndex) => {
+        const typedRowId = `${row.id}:${studyTypeLabel}`;
+        const weekData = { ...row.weekData };
+
+        currentTermWeeks.forEach((week) => {
+          const synced = resolveStudyCell(row.teamId, week.weekNum, row.id, studyTypeLabel);
+          if (synced) {
+            weekData[week.weekNum] = { ...weekData[week.weekNum], ...synced };
+            return;
+          }
+        });
+
+        return {
+          ...row,
+          id: typedRowId,
+          weekData,
+          studyTypeLabel,
+          studyTypeIndex,
+        };
+      }),
+    );
+  }, [
+    category,
+    currentTermWeeks,
+    isMentoringStudy,
+    studyTeamRows,
+    termPeriod,
+    attendance,
+    studyTeams,
+  ]);
+
+  /** 공용 저장소(DB)의 출결 기록에서 스터디 셀 하나를 읽는다. 멘멘 스터디는 typeLabel(멘멘/친바)로 줄을 구분한다. */
+  function resolveStudyCell(
+    teamId: string,
+    weekNum: number,
+    memberId: string,
+    typeLabel?: '멘멘' | '친바',
+  ): { status: AttendStatus; memo?: string } | undefined {
+    if (!isDbCategory || !attendance) return undefined;
+    const team = studyTeams?.find((t) => t.id === teamId);
+    if (!team) return undefined;
+    const cell = getStudyCell(attendance, team.id, weekNum, typeLabel ? `${memberId}:${typeLabel}` : memberId);
+    if (!cell || !typeLabel) return cell;
+    // 비고는 멘멘/친바 두 줄이 팀원 한 명에 하나를 함께 쓴다(팀원 ID로 저장).
+    return { status: cell.status, memo: getStudyCell(attendance, team.id, weekNum, memberId)?.memo ?? cell.memo };
+  }
+
+  /** 이 화면에서 바꾼 상태·비고를 공용 저장소(DB)에 저장한다. rawId는 멤버ID 또는 "멤버ID:멘멘"/"멤버ID:친바". */
+  function reportStudyChange(rawId: string, weekNum: number, change: Partial<AttendanceChange>) {
+    if (!isDbCategory || isArchivedView) return;
+    const [memberId] = rawId.split(':');
+    const teamId = attendees.find((a) => a.id === memberId)?.teamId;
+    const team = studyTeams?.find((t) => t.id === teamId);
+    if (!team) return;
+    // 비고는 유형(멘멘/친바)과 관계없이 팀원 ID 하나에 저장한다.
+    const isMemoOnly = change.memo !== undefined && change.status === undefined;
+    onStudyAttendanceChange?.({
+      teamId: team.id,
+      weekNum,
+      memberKey: isMemoOnly ? memberId : rawId,
+      ...change,
+    });
+  }
+
   function handleStatusChange(attendeeId: string, newStatus: AttendStatus, targetWeekNum?: number) {
+    if (isArchivedView) return;
     const rawId = attendeeId.includes('_w') ? attendeeId.split('_w')[0] : attendeeId;
-    const nowTime = new Date().toTimeString().slice(0, 5);
     const targetWeek =
-      targetWeekNum || (selectedWeek === 0 ? (termPeriod === 'VACATION' ? 3 : 11) : selectedWeek);
-    const key = `${category}_${termPeriod}_${targetWeek}_${rawId}`;
-    setAttendanceOverrides((prev) => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        status: newStatus,
-        checkedInAt:
-          newStatus === 'present' ||
-          newStatus === 'late' ||
-          newStatus === 'earlyLeave' ||
-          newStatus === 'unexcusedLate'
-            ? nowTime
-            : '-',
-      },
-    }));
+      targetWeekNum || (selectedWeek === 0 ? latestWeekNum : selectedWeek);
+    reportStudyChange(rawId, targetWeek, { status: newStatus });
   }
 
   function handleMemoChange(attendeeId: string, memo: string, targetWeekNum?: number) {
     const targetWeek =
-      targetWeekNum || (selectedWeek === 0 ? (termPeriod === 'VACATION' ? 3 : 11) : selectedWeek);
-    const key = `${category}_${termPeriod}_${targetWeek}_${attendeeId}`;
-    setAttendanceOverrides((prev) => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        status: prev[key]?.status || 'present',
-        memo,
-      },
-    }));
+      targetWeekNum || (selectedWeek === 0 ? latestWeekNum : selectedWeek);
+    reportStudyChange(attendeeId, targetWeek, { memo });
   }
 
   function handleDeleteAttendee(attendeeId: string) {
     if (!window.confirm('정말 이 부원을 명단에서 제외하시겠습니까?')) {
       return;
     }
-    setAttendees((prev) => prev.filter((a) => a.id !== attendeeId));
+    const memberId = attendeeId.split('_w')[0];
+    const teamId = attendees.find((a) => a.id === memberId)?.teamId;
+    if (teamId) onRemoveStudyMember?.(teamId, memberId);
   }
 
   function handleCreateNewEvent() {
@@ -2679,18 +2033,7 @@ export function InternalCategoryAttendancePage({
       createdAt: new Date().toISOString().slice(0, 10),
     };
 
-    const baseAttendees = attendees.filter((a) => a.eventId === events[0]?.id);
-    const newRoster: InternalAttendee[] = baseAttendees.map((a, idx) => ({
-      ...a,
-      id: `att_${newId}_${idx}`,
-      eventId: newId,
-      status: 'unmarked',
-      checkedInAt: '-',
-      memo: undefined,
-    }));
-
     setEvents((prev) => [created, ...prev]);
-    setAttendees((prev) => [...newRoster, ...prev]);
     setSelectedEventId(newId);
     setShowNewEventModal(false);
     alert(`새 세션 "${created.title}"이(가) 등록되었습니다.`);
@@ -2725,7 +2068,6 @@ export function InternalCategoryAttendancePage({
           },
           ...displayedMatrixWeeks.map((w) => {
             const rawDate = (
-              weekDateMapping[w.weekNum] ||
               savedWeekDateMapping[w.weekNum] ||
               ''
             )?.trim();
@@ -2930,7 +2272,6 @@ export function InternalCategoryAttendancePage({
         },
         ...displayedMatrixWeeks.map((w) => {
           const rawDate = (
-            weekDateMapping[w.weekNum] ||
             savedWeekDateMapping[w.weekNum] ||
             ''
           )?.trim();
@@ -3010,6 +2351,20 @@ export function InternalCategoryAttendancePage({
           },
           exportValue: (row) => String(row?.totalScore ?? 0),
         },
+        {
+          id: 'concurrent',
+          label: '병행 여부',
+          renderCell: (row) => (
+            <span
+              className={`text-xs font-bold whitespace-nowrap ${
+                row?.isConcurrent ? 'text-indigo-700' : 'text-slate-400'
+              }`}
+            >
+              {row?.isConcurrent ? '병행' : '비병행'}
+            </span>
+          ),
+          exportValue: (row) => (row?.isConcurrent ? '병행' : '비병행'),
+        },
       ];
       return {
         defaultModalCols: cols,
@@ -3030,6 +2385,16 @@ export function InternalCategoryAttendancePage({
           exportValue: (row) => `${row?.term ?? 28}기`,
         },
         {
+          id: 'track',
+          label: '부문',
+          renderCell: (row) => (
+            <span className="px-3 text-xs font-medium whitespace-nowrap text-slate-600">
+              {row?.track ?? '-'}
+            </span>
+          ),
+          exportValue: (row) => row?.track ?? '-',
+        },
+        {
           id: 'name',
           label: '이름',
           renderCell: (row) => (
@@ -3041,7 +2406,6 @@ export function InternalCategoryAttendancePage({
         },
         ...displayedMatrixWeeks.map((w) => {
           const rawDate = (
-            weekDateMapping[w.weekNum] ||
             savedWeekDateMapping[w.weekNum] ||
             ''
           )?.trim();
@@ -3113,6 +2477,25 @@ export function InternalCategoryAttendancePage({
           },
           exportValue: (row) => String(row?.totalScore ?? 0),
         },
+        ...(category === 'SESSION'
+          ? [
+              {
+                id: 'concurrent',
+                label: '병행 여부',
+                renderCell: (row: { isConcurrent?: boolean }) => (
+                  <span
+                    className={`text-xs font-bold whitespace-nowrap ${
+                      row?.isConcurrent ? 'text-indigo-700' : 'text-slate-400'
+                    }`}
+                  >
+                    {row?.isConcurrent ? '병행' : '비병행'}
+                  </span>
+                ),
+                exportValue: (row: { isConcurrent?: boolean }) =>
+                  row?.isConcurrent ? '병행' : '비병행',
+              },
+            ]
+          : []),
       ];
       return {
         defaultModalCols: cols,
@@ -3124,7 +2507,6 @@ export function InternalCategoryAttendancePage({
     category,
     isAllSelected,
     displayedMatrixWeeks,
-    weekDateMapping,
     savedWeekDateMapping,
     studyTeamRows,
     filteredMatrixRows,
@@ -3138,8 +2520,11 @@ export function InternalCategoryAttendancePage({
       return defaultModalCols;
     }
     const map = new Map(defaultModalCols.map((c) => [c.id, c]));
+    const concurrentColumn = map.get('concurrent');
+    map.delete('concurrent');
     const ordered: ModalColItem[] = [];
     customColOrder.forEach((id) => {
+      if (id === 'concurrent') return;
       const item = map.get(id);
       if (item) {
         ordered.push(item);
@@ -3147,6 +2532,7 @@ export function InternalCategoryAttendancePage({
       }
     });
     map.forEach((item) => ordered.push(item));
+    if (concurrentColumn) ordered.push(concurrentColumn);
     return ordered;
   }, [defaultModalCols, customColOrder]);
 
@@ -3169,213 +2555,61 @@ export function InternalCategoryAttendancePage({
     document.body.removeChild(link);
   }
 
-  function handleUploadCsv(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (!text) {
-        return;
-      }
+  const renderStudyTeamCard = (team: TeamMeta) => {
+    const isSelected = selectedTeamId === team.id && isPeekOpen;
 
-      const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
-      if (lines.length <= 1) {
-        alert('유효한 CSV 데이터가 없습니다.');
-        return;
-      }
+    return (
+      <div
+        key={team.id}
+        onClick={() => {
+          setSelectedTeamId(team.id);
+          setIsPeekOpen(true);
+        }}
+        className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
+          isSelected
+            ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+            : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-1 min-w-0 flex-1">
+            <h4
+              className={`text-sm font-bold truncate ${
+                isSelected
+                  ? 'text-slate-950 font-bold'
+                  : 'text-slate-900 group-hover:text-slate-950'
+              }`}
+            >
+              {team.name}
+            </h4>
+            {team.leader && (
+              <p className="text-[11px] text-slate-500 font-medium">
+                스터디장: {team.leaderLabel || team.leader}
+              </p>
+            )}
+          </div>
+          <ChevronRight
+            size={16}
+            className={`shrink-0 transition-transform ${
+              isSelected
+                ? 'text-slate-500 translate-x-0.5'
+                : 'text-slate-300 group-hover:text-slate-500'
+            }`}
+          />
+        </div>
+      </div>
+    );
+  };
 
-      // Parse header row
-      const rawHeaderCols = lines[0].split(',').map((c) =>
-        c
-          .replace(/^["']|["']$/g, '')
-          .trim()
-          .toLowerCase(),
-      );
-      const hasHeader = rawHeaderCols.some(
-        (h) =>
-          h.includes('이름') ||
-          h.includes('성명') ||
-          h.includes('트랙') ||
-          h.includes('부문') ||
-          h.includes('팀') ||
-          h.includes('기수'),
-      );
-
-      const nameIdx = rawHeaderCols.findIndex(
-        (h) => h.includes('이름') || h.includes('성명') || h.includes('부원') || h === 'name',
-      );
-      const trackIdx = rawHeaderCols.findIndex(
-        (h) => h.includes('트랙') || h.includes('부문') || h.includes('분야') || h === 'track',
-      );
-      const teamIdx = rawHeaderCols.findIndex(
-        (h) => h.includes('팀') || h.includes('소속') || h === 'team',
-      );
-      const termIdx = rawHeaderCols.findIndex(
-        (h) => h.includes('기수') || h.includes('기') || h === 'term',
-      );
-      const statusIdx = rawHeaderCols.findIndex(
-        (h) => h.includes('출결') || h.includes('상태') || h.includes('출석') || h === 'status',
-      );
-      const memoIdx = rawHeaderCols.findIndex(
-        (h) => h.includes('비고') || h.includes('메모') || h.includes('사유') || h === 'memo',
-      );
-
-      const dataRows = hasHeader ? lines.slice(1) : lines;
-      const newAttendeesList: InternalAttendee[] = [];
-      const trackCountMap: Record<string, number> = {};
-
-      dataRows.forEach((row, idx) => {
-        const cols = row.split(',').map((c) => c.replace(/^["']|["']$/g, '').trim());
-        if (cols.length === 0 || cols.every((c) => c === '')) {
-          return;
-        }
-
-        // Fallback index assignment if not recognized by header
-        let trackRaw = (trackIdx >= 0 ? cols[trackIdx] : '') || '';
-        let teamRaw = (teamIdx >= 0 ? cols[teamIdx] : '') || '';
-        let nameRaw = (nameIdx >= 0 ? cols[nameIdx] : '') || '';
-        let termRaw = (termIdx >= 0 ? cols[termIdx] : '') || '';
-        let statusRaw = (statusIdx >= 0 ? cols[statusIdx] : '') || '';
-        let memoRaw = (memoIdx >= 0 ? cols[memoIdx] : '') || '';
-
-        if (!hasHeader) {
-          if (cols.length >= 6) {
-            // [트랙, 소속팀, 이름, 기수, 출결, 비고]
-            trackRaw = cols[0];
-            teamRaw = cols[1];
-            nameRaw = cols[2];
-            termRaw = cols[3];
-            statusRaw = cols[4];
-            memoRaw = cols[5];
-          } else if (cols.length >= 4) {
-            nameRaw = cols[0];
-            termRaw = cols[1];
-            trackRaw = cols[2];
-            statusRaw = cols[3];
-            memoRaw = cols[4] || '';
-          }
-        }
-
-        const name = nameRaw || `부원_${idx + 1}`;
-        const term = parseInt(termRaw.replace(/[^0-9]/g, ''), 10) || 28;
-
-        // 1. Normalize track (부문)
-        const normalizedTrack = trackRaw.includes('분석')
-          ? '분석'
-          : trackRaw.includes('시각')
-            ? '시각화'
-            : trackRaw.includes('엔지')
-              ? '엔지니어링'
-              : trackRaw || selectedTeam.track || '분석';
-
-        // 2. Intelligently match team in config.teams by track and team name / number
-        let matchedTeam = config.teams.find((t) => {
-          if (t.track && t.track !== normalizedTrack) {
-            return false;
-          }
-          if (t.id.toLowerCase() === teamRaw.toLowerCase()) {
-            return true;
-          }
-
-          const cleanTeamName = t.name.replace(/\s+/g, '');
-          const cleanTeamRaw = teamRaw.replace(/\s+/g, '');
-          if (
-            cleanTeamName &&
-            cleanTeamRaw &&
-            (cleanTeamName.includes(cleanTeamRaw) || cleanTeamRaw.includes(cleanTeamName))
-          ) {
-            return true;
-          }
-
-          const numT = t.name.match(/(\d+)팀/);
-          const numRaw = teamRaw.match(/(\d+)팀/);
-          if (numT && numRaw && numT[1] === numRaw[1]) {
-            return true;
-          }
-          return false;
-        });
-
-        // If no track-filtered team matched, try matching by team name across all teams
-        if (!matchedTeam && teamRaw) {
-          matchedTeam = config.teams.find((t) => {
-            const cleanTeamName = t.name.replace(/\s+/g, '');
-            const cleanTeamRaw = teamRaw.replace(/\s+/g, '');
-            return cleanTeamName.includes(cleanTeamRaw) || cleanTeamRaw.includes(cleanTeamName);
-          });
-        }
-
-        // Fallback: use first team of normalized track or selected team
-        if (!matchedTeam) {
-          matchedTeam =
-            config.teams.find((t) => t.track === normalizedTrack) ||
-            config.teams[0] ||
-            selectedTeam;
-        }
-
-        // 3. Determine status
-        const stLower = statusRaw.toLowerCase();
-        const status: AttendStatus =
-          stLower.includes('지각') || stLower === 'late'
-            ? category === 'SESSION'
-              ? 'late'
-              : 'present'
-            : stLower.includes('결석') || stLower === 'absent'
-              ? 'absent'
-              : 'present';
-
-        const resolvedTeamId = matchedTeam.id;
-        const resolvedTeamName = matchedTeam.name;
-
-        newAttendeesList.push({
-          id: `att_csv_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
-          eventId: selectedEvent.id,
-          teamId: resolvedTeamId,
-          teamName: resolvedTeamName,
-          name,
-          term,
-          track: normalizedTrack,
-          status,
-          checkedInAt: status === 'present' || status === 'late' ? '14:00' : '-',
-          memo: memoRaw || undefined,
-        });
-
-        trackCountMap[normalizedTrack] = (trackCountMap[normalizedTrack] || 0) + 1;
-      });
-
-      if (newAttendeesList.length > 0) {
-        if (isAllSelected) {
-          // Replace all attendees for current event
-          setAttendees((prev) => [
-            ...newAttendeesList,
-            ...prev.filter((a) => a.eventId !== selectedEvent.id),
-          ]);
-        } else {
-          // Replace only selected team/track attendees
-          setAttendees((prev) => [
-            ...newAttendeesList,
-            ...prev.filter(
-              (a) => !(a.eventId === selectedEvent.id && a.teamId === selectedTeam.id),
-            ),
-          ]);
-        }
-
-        const summaryText = Object.entries(trackCountMap)
-          .map(([track, count]) => `${track} ${count}명`)
-          .join(', ');
-
-        alert(
-          `✅ CSV 업로드 완료!\n총 ${newAttendeesList.length}명의 출석 데이터를 팀/부문별로 자동 분류하여 등록했습니다.\n(${summaryText})`,
-        );
-      } else {
-        alert('업로드할 수 있는 유효한 데이터 행이 없습니다.');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  }
+  // 보여줄 출결 기록이 하나도 없으면 표 없이 안내 글자만 보여 준다.
+  const isTableEmpty =
+    category === 'STUDY'
+      ? isAllSelected
+        ? filteredMatrixRows.length === 0
+        : displayedStudyTeamRows.length === 0
+      : isMatrixMode
+        ? filteredMatrixRows.length === 0
+        : filteredAttendees.length === 0;
 
   return (
     <div
@@ -3410,10 +2644,7 @@ export function InternalCategoryAttendancePage({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setTermPeriod('SEMESTER');
-                setSelectedWeekSemester(0);
-              }}
+              onClick={handleSelectSemesterTab}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-bold ${
                 termPeriod === 'SEMESTER'
                   ? 'bg-white text-slate-900 shadow-2xs'
@@ -3425,21 +2656,12 @@ export function InternalCategoryAttendancePage({
           </div>
         </div>
 
-        {/* Global Action Buttons */}
-        <div className="flex items-center gap-2">
-          {category === 'SESSION' && (
-            <label className="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]">
-              <Upload size={13} />
-              <span>CSV 업로드</span>
-              <input
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                onChange={handleUploadCsv}
-              />
-            </label>
-          )}
-        </div>
+        {/* 활동 기수 (맨 오른쪽): 기수를 고르면 그 기수의 출결만 보인다 */}
+        <CohortSelect
+          value={viewCohort}
+          cohorts={cohortOptions}
+          onChange={handleChangeCohort}
+        />
       </div>
 
       {/* ─── 2. 주차 선택 토글 바 (수평 스크롤 & 위치 완전 고정) ─── */}
@@ -3470,7 +2692,7 @@ export function InternalCategoryAttendancePage({
             onClick={() => setSelectedWeek(0)}
             className={`w-[74px] h-[34px] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
               selectedWeek === 0
-                ? 'bg-slate-900 text-white border border-slate-900 shadow-xs'
+                ? BRAND_SELECTED
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
             }`}
           >
@@ -3486,7 +2708,7 @@ export function InternalCategoryAttendancePage({
                 onClick={() => handleSelectWeek(w.weekNum)}
                 className={`w-[58px] h-[34px] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
                   isActive
-                    ? 'bg-slate-900 text-white border border-slate-900 shadow-xs'
+                    ? BRAND_SELECTED
                     : isWeekFuture
                       ? 'text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
@@ -3513,6 +2735,45 @@ export function InternalCategoryAttendancePage({
         )}
       </div>
 
+      {category === 'STUDY' && !isArchivedView && (
+        <div className="flex shrink-0 items-center justify-end px-1">
+          <button
+            type="button"
+            onClick={openCreateStudyModal}
+            className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
+          >
+            <Plus size={13} />
+            <span>{termPeriod === 'VACATION' ? '방학' : '학기'} 스터디 생성</span>
+          </button>
+        </div>
+      )}
+
+      {category === 'SESSION' && !isArchivedView && (
+        <div className="flex shrink-0 items-center justify-end px-1">
+          <button
+            type="button"
+            onClick={() => setShowCreateAttendanceModal(true)}
+            className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
+          >
+            <Plus size={13} />
+            <span>출결 생성</span>
+          </button>
+        </div>
+      )}
+
+      {category === 'ADV' && !isArchivedView && (
+        <div className="flex shrink-0 items-center justify-end px-1">
+          <button
+            type="button"
+            onClick={() => setShowCreateAdvModal(true)}
+            className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
+          >
+            <Plus size={13} />
+            <span>ADV 팀 개설</span>
+          </button>
+        </div>
+      )}
+
       {/* ─── 3. Team-Centric Notion Split View ─── */}
       <div
         ref={containerRef}
@@ -3533,8 +2794,8 @@ export function InternalCategoryAttendancePage({
             }}
             className={`space-y-2.5 shrink-0 h-full overflow-y-auto ${isPeekOpen ? 'pr-1.5' : 'w-full'}`}
           >
-            {/* Master '전체' 통합 Card (ADV / STUDY 전용) */}
-            {(category === 'ADV' || category === 'STUDY') && (
+            {/* Master '전체' 통합 Card (ADV 전용, STUDY는 일반 스터디 그룹에 표시) */}
+            {category === 'ADV' && (
               <div
                 onClick={() => {
                   setSelectedTeamId('ALL');
@@ -3555,7 +2816,7 @@ export function InternalCategoryAttendancePage({
                           : 'text-slate-900 group-hover:text-slate-800'
                       }`}
                     >
-                      {category === 'STUDY' ? '전체 스터디' : '전체'}
+                      전체
                     </h4>
                   </div>
 
@@ -3636,14 +2897,80 @@ export function InternalCategoryAttendancePage({
                   );
                 })}
               </div>
+            ) : category === 'STUDY' ? (
+              <div className="space-y-5">
+                {studyTeamGroups
+                  .filter((group) => group.label !== '멘멘 스터디' || termPeriod === 'VACATION')
+                  .map((group) => (
+                  <section key={group.label} className="space-y-2.5">
+                    <h3 className="px-1 text-[11px] font-bold text-slate-400 select-none">
+                      {group.label}
+                    </h3>
+                    {group.label === '일반 스터디' && (
+                      <div
+                        onClick={() => {
+                          setSelectedTeamId('ALL');
+                          setIsPeekOpen(true);
+                        }}
+                        className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
+                          isAllSelected && isPeekOpen
+                            ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+                            : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <h4
+                            className={`min-w-0 flex-1 truncate text-sm font-bold ${
+                              isAllSelected && isPeekOpen
+                                ? 'text-slate-950'
+                                : 'text-slate-900 group-hover:text-slate-800'
+                            }`}
+                          >
+                            전체 스터디
+                          </h4>
+                          <ChevronRight
+                            size={16}
+                            className={`shrink-0 transition-transform ${
+                              isAllSelected && isPeekOpen
+                                ? 'text-slate-500 translate-x-0.5'
+                                : 'text-slate-300 group-hover:text-slate-500'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {group.label === '멘멘 스터디' ? (
+                      <div className="space-y-4 pl-2">
+                        {mentoringStudyTrackGroups.map((trackGroup) => (
+                          <div key={trackGroup.label} className="space-y-2">
+                            <h4 className="px-1 text-[11px] font-bold text-slate-500 select-none">
+                              {trackGroup.label}
+                            </h4>
+                            {trackGroup.teams.length === 0 ? (
+                              <p className="px-1 py-1 text-[11px] text-slate-400">
+                                등록된 스터디가 없습니다.
+                              </p>
+                            ) : (
+                              <div className="space-y-2.5">
+                                {trackGroup.teams.map(renderStudyTeamCard)}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : group.teams.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
+                        등록된 {group.label}가 없습니다.
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">{group.teams.map(renderStudyTeamCard)}</div>
+                    )}
+                  </section>
+                ))}
+              </div>
             ) : (
               <div className="space-y-2.5">
-                {category === 'STUDY' && (
-                  <div className="px-1 pt-1 text-[11px] font-bold text-slate-400 select-none">
-                    개별 스터디
-                  </div>
-                )}
-                {config.teams.map((team) => {
+                {availableTeams.map((team) => {
                   const isSelected = selectedTeamId === team.id && isPeekOpen;
 
                   return (
@@ -3766,27 +3093,25 @@ export function InternalCategoryAttendancePage({
 
             {/* Photo Section: 원래처럼 사진만 깔끔하게 노출 */}
             {(() => {
-              const studyTeamShortName = selectedTeam.name.includes('A팀')
-                ? 'A팀'
-                : selectedTeam.name.includes('B팀')
-                  ? 'B팀'
-                  : selectedTeam.name.includes('C팀')
-                    ? 'C팀'
-                    : selectedTeam.name.includes('D팀')
-                      ? 'D팀'
-                      : selectedTeam.name.split(' ')[0];
-              const currentWeekKey = selectedWeek === 0 ? 3 : selectedWeek;
+              const studyTeamId = selectedTeam.id;
+              const currentWeekKey = selectedWeek === 0 ? latestWeekNum : selectedWeek;
               const teamUploadedPhoto =
                 category === 'STUDY'
-                  ? attendance?.[sessionKey(`w${currentWeekKey}`, 'study', studyTeamShortName)]
+                  ? attendance?.[sessionKey(`w${currentWeekKey}`, 'study', studyTeamId)]
                       ?.photoUrl
                   : undefined;
               const currentDisplayPhoto =
                 teamUploadedPhoto ||
-                WEEK_SAMPLE_PHOTOS[selectedWeek] ||
-                '/sample-study-photo.jpg?v=2';
+                (category === 'STUDY'
+                  ? ''
+                  : WEEK_SAMPLE_PHOTOS[selectedWeek] || SAMPLE_STUDY_PHOTO_URL);
 
-              if (isAllSelected || category === 'SESSION' || !currentDisplayPhoto) {
+              if (
+                selectedWeek === 0 ||
+                isAllSelected ||
+                category === 'SESSION' ||
+                !currentDisplayPhoto
+              ) {
                 return null;
               }
 
@@ -3807,6 +3132,52 @@ export function InternalCategoryAttendancePage({
               );
             })()}
 
+            {/* 멘멘 스터디: 해당 주차에 첨부된 PDF 자료 */}
+            {(() => {
+              if (
+                category !== 'STUDY' ||
+                selectedWeek === 0 ||
+                isAllSelected ||
+                selectedTeam.studyKind !== 'MENTORING'
+              ) {
+                return null;
+              }
+              const record = attendance?.[sessionKey(`w${selectedWeek}`, 'study', selectedTeam.id)];
+              return (
+                <div className="flex w-full justify-center py-1">
+                  {record?.pdfUrl ? (
+                    <div className="flex h-14 w-full max-w-[540px] items-center gap-3 rounded-sm border border-slate-200 bg-white px-4 shadow-2xs">
+                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPdfPreview({
+                            url: record.pdfUrl ?? '',
+                            name: record.pdfName ?? 'PDF 자료',
+                          })
+                        }
+                        className="min-w-0 flex-1 cursor-pointer truncate text-left text-sm text-slate-800 hover:underline"
+                        title={`${record.pdfName ?? 'PDF 자료'}${record.pdfSize ? ` (${record.pdfSize})` : ''} 미리보기`}
+                      >
+                        {record.pdfName ?? 'PDF 자료'}
+                      </button>
+                      <Check size={20} strokeWidth={2.4} className="shrink-0 text-emerald-500" aria-label="업로드 완료" />
+                    </div>
+                  ) : (
+                    <div className="flex h-14 w-full max-w-[540px] items-center gap-3 rounded-sm border border-dashed border-slate-300 bg-white px-4">
+                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-500">
+                        등록된 파일이 없습니다
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* 출결 기록이 없으면 제목·필터·CSV 버튼도 함께 숨긴다 */}
+            {!isTableEmpty && (
+              <>
             {/* Table Header Summary: 자연스러운 여백 및 트랙 필터 / 기수 필터 / 정렬 / CSV 추출 버튼 */}
             <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1.5 pb-1 px-0.5">
               <div className="flex items-center gap-2 flex-wrap">
@@ -3894,14 +3265,15 @@ export function InternalCategoryAttendancePage({
               <div className="flex items-center gap-2">
                 {/* 수정 버튼: ADV 팀별 탭 & 스터디 개별 탭에서 전체 주차일 때 표시 */}
                 {!isAllSelected &&
+                  !isArchivedView &&
                   selectedWeek === 0 &&
                   (category === 'ADV' || category === 'STUDY') && (
                     <button
                       type="button"
                       onClick={() => setIsTableEditMode((prev) => !prev)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                      className={`px-2.5 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
                         isTableEditMode
-                          ? 'bg-slate-900 hover:bg-slate-800 text-white border border-slate-900 shadow-xs'
+                          ? `${BRAND_SELECTED} hover:bg-slate-800`
                           : 'text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300'
                       }`}
                       title={isTableEditMode ? '출결 수정 완료' : '출결 수정 모드 활성화'}
@@ -3925,17 +3297,47 @@ export function InternalCategoryAttendancePage({
                   <button
                     type="button"
                     onClick={handleOpenSettingsModal}
-                    className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-2.5 py-1 rounded-sm text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
                     title="출결 CSV 날짜 매핑 및 추출 설정"
                   >
                     <Settings size={12} className="text-slate-500" />
                     <span>CSV 추출</span>
                   </button>
                 )}
+
+                {/* 주차 제출 버튼: BASE는 진행 중인 주차, ADV는 3주차까지(지난 주차는 제출 완료 표시)의 팀별 화면 */}
+                {!isAllSelected &&
+                  showsSubmitControl(selectedWeek) &&
+                  (isWeekSubmittedInDb(selectedTeam.id, selectedWeek) ? (
+                    <span className="text-xs font-medium text-slate-500 select-none">
+                      {editingWeekKey === submissionKey(viewCohort, selectedTeam.id, selectedWeek)
+                        ? '수정 중'
+                        : '제출 완료'}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isSubmittingWeek}
+                      onClick={handleSubmitWeek}
+                      className={`px-3.5 py-1 rounded-sm text-xs transition-colors hover:bg-[#dde5ee] active:bg-[#d1dae5] cursor-pointer disabled:cursor-wait disabled:opacity-60 ${ATTEND_STATUS_STYLES.unmarked.active}`}
+                      title="이 주차 출결 상태를 서버에 제출합니다"
+                    >
+                      {isSubmittingWeek ? '제출 중...' : '제출'}
+                    </button>
+                  ))}
               </div>
             </div>
+              </>
+            )}
 
             {/* Table Container: 상단 모서리 깨짐 없는 깔끔한 솔리드 라운드 박스 */}
+            {isTableEmpty ? (
+              <div className="flex min-h-[50vh] items-center justify-center">
+                <p className="text-center text-sm font-medium text-slate-400">
+                  등록된 출결 기록이 없습니다
+                </p>
+              </div>
+            ) : (
             <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
               <div ref={tableContainerRef} className="overflow-x-auto select-none relative">
                 {category === 'STUDY' ? (
@@ -4111,20 +3513,7 @@ export function InternalCategoryAttendancePage({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-mono">
-                        {filteredMatrixRows.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan={5 + config.teams.length}
-                              className="py-12 text-center text-slate-400 space-y-1 font-sans"
-                            >
-                              <Users size={28} className="mx-auto text-slate-300 mb-1" />
-                              <p className="font-bold text-slate-700 text-xs">
-                                해당 조건의 인원이 없습니다.
-                              </p>
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredMatrixRows.map((row, idx) => (
+                        {filteredMatrixRows.map((row, idx) => (
                             <tr
                               key={row.id}
                               className="hover:bg-slate-50/70 transition-colors divide-x divide-slate-200 h-[46px]"
@@ -4197,8 +3586,7 @@ export function InternalCategoryAttendancePage({
                                 </div>
                               </td>
                             </tr>
-                          ))
-                        )}
+                          ))}
                       </tbody>
                     </table>
                   ) : (
@@ -4209,7 +3597,7 @@ export function InternalCategoryAttendancePage({
                       style={{ minWidth: `${studyTeamTableMinWidth}px` }}
                     >
                       <thead className="bg-slate-50/80 select-none">
-                        <tr className="border-b border-slate-200 divide-x divide-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
+                        <tr className="border-b border-slate-200 divide-x divide-slate-50 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
                           <th
                             style={{ width: `${colWidths.study_team_index || 42}px` }}
                             className="relative text-center px-1 py-1 text-slate-500 font-bold bg-slate-100/90"
@@ -4279,6 +3667,21 @@ export function InternalCategoryAttendancePage({
                               title="열 너비 조절"
                             />
                           </th>
+                          {isMentoringStudy && (
+                            <th
+                              style={{ width: `${colWidths.study_team_type || 72}px` }}
+                              className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">유형</div>
+                              <div
+                                onMouseDown={(e) =>
+                                  handleResizeStart(e, 'study_team_type', 60)
+                                }
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                          )}
                           {displayedMatrixWeeks.map((w) => {
                             const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
                             const hasDate = Boolean(rawDate && rawDate !== '-');
@@ -4403,21 +3806,10 @@ export function InternalCategoryAttendancePage({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-mono">
-                        {studyTeamRows.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan={3 + displayedMatrixWeeks.length + 3}
-                              className="py-12 text-center text-slate-400 space-y-1 font-sans"
-                            >
-                              <Users size={28} className="mx-auto text-slate-300 mb-1" />
-                              <p className="font-bold text-slate-700 text-xs">
-                                해당 스터디 팀에 등록된 인원이 없습니다.
-                              </p>
-                            </td>
-                          </tr>
-                        ) : (
-                          studyTeamRows.map((row, idx) => {
-                            const isLeader = row.name === selectedTeam?.leader;
+                        {displayedStudyTeamRows.map((row, idx) => {
+                            const isLeader =
+                              row.name === selectedTeam?.leader &&
+                              (!isMentoringStudy || row.studyTypeIndex === 0);
                             const attendedCount = currentTermWeeks.filter(
                               (w) => row.weekData[w.weekNum]?.status === 'present',
                             ).length;
@@ -4442,26 +3834,57 @@ export function InternalCategoryAttendancePage({
                               return 0;
                             })();
 
+                            const isFirstTypeRow = !isMentoringStudy || row.studyTypeIndex === 0;
+                            const isLastTypeRow = isMentoringStudy && row.studyTypeIndex === 1;
+
                             return (
                               <tr
                                 key={row.id}
-                                className="hover:bg-slate-50/70 transition-colors divide-x divide-slate-200 h-[46px]"
+                                className={`hover:bg-slate-50/70 transition-colors divide-x divide-slate-50 h-[46px] ${
+                                  isLastTypeRow
+                                    ? '[&>td]:border-b [&>td]:border-b-slate-300'
+                                    : ''
+                                }`}
                               >
-                                <td className="relative px-1 py-1.5 text-center text-slate-400 text-[11px]">
-                                  <div className="h-8 flex items-center justify-center">
-                                    {idx + 1}
-                                  </div>
-                                </td>
-                                <td className="relative px-1.5 py-1.5 text-center text-slate-600 text-xs">
-                                  <div className="h-8 flex items-center justify-center">
-                                    {row.term}기
-                                  </div>
-                                </td>
-                                <td className="relative px-2 py-1.5 text-center font-bold text-slate-900 text-xs font-sans">
-                                  <div className="h-8 flex items-center justify-center">
-                                    {row.name}
-                                  </div>
-                                </td>
+                                {isFirstTypeRow && (
+                                  <>
+                                    <td
+                                      rowSpan={isMentoringStudy ? 2 : 1}
+                                      className={`relative px-1 py-1.5 text-center text-slate-400 text-[11px] bg-white ${
+                                        isMentoringStudy ? 'border-b border-b-slate-300' : ''
+                                      }`}
+                                    >
+                                      <div className="h-8 flex items-center justify-center">
+                                        {isMentoringStudy ? Math.floor(idx / 2) + 1 : idx + 1}
+                                      </div>
+                                    </td>
+                                    <td
+                                      rowSpan={isMentoringStudy ? 2 : 1}
+                                      className={`relative px-1.5 py-1.5 text-center text-slate-600 text-xs bg-white ${
+                                        isMentoringStudy ? 'border-b border-b-slate-300' : ''
+                                      }`}
+                                    >
+                                      <div className="h-8 flex items-center justify-center">
+                                        {row.term}기
+                                      </div>
+                                    </td>
+                                    <td
+                                      rowSpan={isMentoringStudy ? 2 : 1}
+                                      className={`relative px-2 py-1.5 text-center font-bold text-slate-900 text-xs font-sans bg-white ${
+                                        isMentoringStudy ? 'border-b border-b-slate-300' : ''
+                                      }`}
+                                    >
+                                      <div className="h-8 flex items-center justify-center">
+                                        {row.name}
+                                      </div>
+                                    </td>
+                                  </>
+                                )}
+                                {isMentoringStudy && (
+                                  <td className="relative px-2 py-1.5 text-center font-bold text-slate-700 text-xs font-sans">
+                                    {row.studyTypeLabel}
+                                  </td>
+                                )}
                                 {displayedMatrixWeeks.map((w) => {
                                   const cell = row.weekData[w.weekNum];
                                   const st = cell?.status || 'unmarked';
@@ -4481,7 +3904,7 @@ export function InternalCategoryAttendancePage({
                                               activeStudyEditCell?.rowId === row.id &&
                                               activeStudyEditCell?.weekNum === w.weekNum;
                                             const isRightEdge = w.weekNum >= 7;
-                                            const isLastRow = idx >= studyTeamRows.length - 1;
+                                            const isLastRow = idx >= displayedStudyTeamRows.length - 1;
                                             const isFirstRow = idx === 0;
                                             const vAlignClass = isLastRow
                                               ? 'bottom-0'
@@ -4624,36 +4047,49 @@ export function InternalCategoryAttendancePage({
                                     {attendedCount}회
                                   </div>
                                 </td>
-                                <td className="relative px-2 py-1.5 text-center text-xs font-sans">
-                                  <div className="h-8 flex items-center justify-center font-mono">
-                                    {isLeader ? (
-                                      <span className="text-xs font-bold text-slate-900">O</span>
-                                    ) : (
-                                      <span className="text-slate-200">-</span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="relative text-center px-1.5 py-1.5 font-mono bg-slate-50/60">
-                                  <div className="h-8 flex items-center justify-center">
-                                    <span
-                                      className={`text-xs font-bold ${
-                                        effectiveScore === 0
-                                          ? 'text-slate-400 font-medium'
-                                          : effectiveScore < 0
-                                            ? 'text-rose-600 font-bold'
-                                            : 'text-emerald-700 font-bold'
+                                {isFirstTypeRow && (
+                                  <>
+                                    <td
+                                      rowSpan={isMentoringStudy ? 2 : 1}
+                                      className={`relative border-l border-slate-50 px-2 py-1.5 text-center text-xs font-sans bg-white ${
+                                        isMentoringStudy ? 'border-b border-b-slate-300' : ''
                                       }`}
                                     >
-                                      {effectiveScore > 0
-                                        ? `+${effectiveScore}점`
-                                        : `${effectiveScore}점`}
-                                    </span>
-                                  </div>
-                                </td>
+                                      <div className="h-8 flex items-center justify-center font-mono">
+                                        {isLeader ? (
+                                          <span className="text-xs font-bold text-slate-900">O</span>
+                                        ) : (
+                                          <span className="text-slate-200">-</span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td
+                                      rowSpan={isMentoringStudy ? 2 : 1}
+                                      className={`relative border-l border-slate-50 text-center px-1.5 py-1.5 font-mono bg-slate-50/60 ${
+                                        isMentoringStudy ? 'border-b border-b-slate-300' : ''
+                                      }`}
+                                    >
+                                      <div className="h-8 flex items-center justify-center">
+                                        <span
+                                          className={`text-xs font-bold ${
+                                            effectiveScore === 0
+                                              ? 'text-slate-400 font-medium'
+                                              : effectiveScore < 0
+                                                ? 'text-rose-600 font-bold'
+                                                : 'text-emerald-700 font-bold'
+                                          }`}
+                                        >
+                                          {effectiveScore > 0
+                                            ? `+${effectiveScore}점`
+                                            : `${effectiveScore}점`}
+                                        </span>
+                                      </div>
+                                    </td>
+                                  </>
+                                )}
                               </tr>
                             );
-                          })
-                        )}
+                          })}
                       </tbody>
                     </table>
                   )
@@ -4710,30 +4146,7 @@ export function InternalCategoryAttendancePage({
                             title="열 너비 조절"
                           />
                         </th>
-                        <th
-                          style={{ width: `${colWidths.matrix_name || 80}px` }}
-                          className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
-                        >
-                          <div className="h-9 flex items-center justify-center">이름</div>
-                          <div
-                            onMouseDown={(e) => handleResizeStart(e, 'matrix_name', 60)}
-                            onMouseEnter={(e) => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol('matrix_name');
-                                updateGuidelinePos(e.currentTarget);
-                              }
-                            }}
-                            onMouseLeave={() => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol(null);
-                                setGuidelineX(null);
-                              }
-                            }}
-                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                            title="열 너비 조절"
-                          />
-                        </th>
-                        {category !== 'SESSION' && selectedTrackFilter === 'ALL' && (
+                        {shouldShowConcurrentColumn(category) && (
                           <th
                             style={{ width: `${colWidths.matrix_track || 72}px` }}
                             className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
@@ -4758,6 +4171,55 @@ export function InternalCategoryAttendancePage({
                             />
                           </th>
                         )}
+                        <th
+                          style={{ width: `${colWidths.matrix_name || 80}px` }}
+                          className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
+                        >
+                          <div className="h-9 flex items-center justify-center">이름</div>
+                          <div
+                            onMouseDown={(e) => handleResizeStart(e, 'matrix_name', 60)}
+                            onMouseEnter={(e) => {
+                              if (!resizingColKey) {
+                                setActiveHoverCol('matrix_name');
+                                updateGuidelinePos(e.currentTarget);
+                              }
+                            }}
+                            onMouseLeave={() => {
+                              if (!resizingColKey) {
+                                setActiveHoverCol(null);
+                                setGuidelineX(null);
+                              }
+                            }}
+                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                            title="열 너비 조절"
+                          />
+                        </th>
+                        {category !== 'SESSION' &&
+                          shouldShowMatrixTrack(category, selectedTrackFilter) && (
+                            <th
+                              style={{ width: `${colWidths.matrix_track || 72}px` }}
+                              className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">부문</div>
+                              <div
+                                onMouseDown={(e) => handleResizeStart(e, 'matrix_track', 72)}
+                                onMouseEnter={(e) => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol('matrix_track');
+                                    updateGuidelinePos(e.currentTarget);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (!resizingColKey) {
+                                    setActiveHoverCol(null);
+                                    setGuidelineX(null);
+                                  }
+                                }}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                                title="열 너비 조절"
+                              />
+                            </th>
+                          )}
                         {displayedMatrixWeeks.map((w) => {
                           const isEditable = isWeekDirectEditable(w.weekNum) && selectedWeek !== 0;
                           const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
@@ -4938,28 +4400,18 @@ export function InternalCategoryAttendancePage({
                             title="열 너비 조절"
                           />
                         </th>
+                        {shouldShowConcurrentColumn(category) && (
+                          <th
+                            style={{ width: `${colWidths.matrix_concurrent || 82}px` }}
+                            className="relative bg-indigo-50 px-2 py-1 text-center font-bold text-slate-900"
+                          >
+                            <div className="flex h-9 items-center justify-center">병행 여부</div>
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-mono">
-                      {filteredMatrixRows.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={
-                              (category !== 'SESSION' && selectedTrackFilter === 'ALL' ? 4 : 3) +
-                              displayedMatrixWeeks.length +
-                              (selectedWeek === 0 ? (category === 'ADV' ? 4 : 3) : 0) +
-                              1
-                            }
-                            className="py-12 text-center text-slate-400 space-y-1 font-sans"
-                          >
-                            <Users size={28} className="mx-auto text-slate-300 mb-1" />
-                            <p className="font-bold text-slate-700 text-xs">
-                              해당 조건의 인원이 없습니다.
-                            </p>
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredMatrixRows.map((row, idx) => {
+                      {filteredMatrixRows.map((row, idx) => {
                           const availableStatuses: AttendStatus[] = [
                             'present',
                             'late',
@@ -5019,18 +4471,26 @@ export function InternalCategoryAttendancePage({
                                   {row.term}기
                                 </div>
                               </td>
-                              <td className="relative px-2 py-1.5 text-center font-bold text-slate-900 text-xs font-sans">
-                                <div className="h-8 flex items-center justify-center">
-                                  {row.name}
-                                </div>
-                              </td>
-                              {category !== 'SESSION' && selectedTrackFilter === 'ALL' && (
+                              {shouldShowConcurrentColumn(category) && (
                                 <td className="relative px-1.5 py-1.5 text-center text-slate-600 text-xs font-sans">
                                   <div className="h-8 flex items-center justify-center font-medium">
                                     {row.track}
                                   </div>
                                 </td>
                               )}
+                              <td className="relative px-2 py-1.5 text-center font-bold text-slate-900 text-xs font-sans">
+                                <div className="h-8 flex items-center justify-center">
+                                  {row.name}
+                                </div>
+                              </td>
+                              {category !== 'SESSION' &&
+                                shouldShowMatrixTrack(category, selectedTrackFilter) && (
+                                  <td className="relative px-1.5 py-1.5 text-center text-slate-600 text-xs font-sans">
+                                    <div className="h-8 flex items-center justify-center font-medium">
+                                      {row.track}
+                                    </div>
+                                  </td>
+                                )}
                               {displayedMatrixWeeks.map((w) => {
                                 const isEditableDirect =
                                   isWeekDirectEditable(w.weekNum) && selectedWeek !== 0;
@@ -5206,10 +4666,22 @@ export function InternalCategoryAttendancePage({
                                   </span>
                                 </div>
                               </td>
+                              {shouldShowConcurrentColumn(category) && (
+                                <td className="relative bg-indigo-50/60 px-2 py-1.5 text-center font-sans">
+                                  <div className="flex h-8 items-center justify-center">
+                                    <span
+                                      className={`text-[11px] font-bold ${
+                                        row.isConcurrent ? 'text-indigo-700' : 'text-slate-500'
+                                      }`}
+                                    >
+                                      {row.isConcurrent ? '병행' : '비병행'}
+                                    </span>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                           );
-                        })
-                      )}
+                        })}
                     </tbody>
                   </table>
                 ) : (
@@ -5370,11 +4842,7 @@ export function InternalCategoryAttendancePage({
                             </th>
                           )}
                         {(() => {
-                          const isSingleTeamEditable =
-                            category === 'SESSION' ||
-                            (category === 'ADV' &&
-                              isWeekDirectEditable(selectedWeek) &&
-                              selectedWeek !== 0);
+                          const isSingleTeamEditable = isBaseStatusColumnWide;
                           const statusMinWidth = isSingleTeamEditable ? 435 : 70;
                           const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
                           const effectiveStatusWidth = isSingleTeamEditable
@@ -5417,6 +4885,35 @@ export function InternalCategoryAttendancePage({
                           className="relative text-center px-3 py-1 text-slate-700 font-semibold"
                         >
                           <div className="h-9 flex items-center justify-center">비고</div>
+                          {!isAllSelected &&
+                            isSubmittableWeek(selectedWeek) &&
+                            (() => {
+                              const key = submissionKey(viewCohort, selectedTeam.id, selectedWeek);
+                              if (!isWeekSubmittedInDb(selectedTeam.id, selectedWeek)) return null;
+                              const isEditingThisWeek = editingWeekKey === key;
+                              return (
+                                <button
+                                  type="button"
+                                  disabled={isSubmittingWeek}
+                                  onClick={() =>
+                                    isEditingThisWeek ? handleSubmitWeek() : setEditingWeekKey(key)
+                                  }
+                                  className="absolute right-2 top-1/2 z-10 inline-flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 transition-[background-color,color,transform] duration-150 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+                                  title={
+                                    isEditingThisWeek
+                                      ? '수정 완료 (변경 내용을 다시 제출)'
+                                      : '이 주차 출결 전체 수정'
+                                  }
+                                  aria-label={isEditingThisWeek ? '수정 완료' : '출결 전체 수정'}
+                                >
+                                  {isEditingThisWeek ? (
+                                    <Check size={15} strokeWidth={2} aria-hidden="true" />
+                                  ) : (
+                                    <Edit3 size={14} aria-hidden="true" />
+                                  )}
+                                </button>
+                              );
+                            })()}
                         </th>
                         {isTableEditMode && (
                           <th
@@ -5429,26 +4926,7 @@ export function InternalCategoryAttendancePage({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-mono">
-                      {filteredAttendees.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={
-                              (selectedWeek === 0 ? 1 : 0) +
-                              (category !== 'SESSION' && selectedTrackFilter === 'ALL' ? 1 : 0) +
-                              (isAllSelected && category !== 'SESSION' ? 1 : 0) +
-                              3 +
-                              (isTableEditMode ? 1 : 0)
-                            }
-                            className="py-12 text-center text-slate-400 space-y-1"
-                          >
-                            <UserCheck size={24} className="mx-auto text-slate-300 mb-1" />
-                            <p className="font-bold text-slate-700 text-xs">
-                              해당 조건의 인원이 없습니다.
-                            </p>
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredAttendees.map((att) => {
+                      {filteredAttendees.map((att) => {
                           const availableStatuses: AttendStatus[] = [
                             'present',
                             'late',
@@ -5485,10 +4963,7 @@ export function InternalCategoryAttendancePage({
                                 ];
 
                           const isDirectEditable =
-                            category === 'SESSION' ||
-                            (category === 'ADV' &&
-                              isWeekDirectEditable(selectedWeek) &&
-                              selectedWeek !== 0);
+                            isBaseWeekSelectable(att.weekNum, att.teamId);
 
                           return (
                             <tr
@@ -5622,10 +5097,7 @@ export function InternalCategoryAttendancePage({
                                 </td>
                               )}
 
-                              {category === 'SESSION' ||
-                              (category === 'ADV' &&
-                                isWeekDirectEditable(selectedWeek) &&
-                                selectedWeek !== 0) ? (
+                              {isBaseWeekSelectable(att.weekNum, att.teamId) ? (
                                 <td className="relative px-3 py-2 text-center">
                                   <div className="h-8 flex items-center justify-center">
                                     <input
@@ -5668,8 +5140,7 @@ export function InternalCategoryAttendancePage({
                               )}
                             </tr>
                           );
-                        })
-                      )}
+                        })}
                     </tbody>
                   </table>
                 )}
@@ -5683,14 +5154,167 @@ export function InternalCategoryAttendancePage({
                 )}
               </div>
             </div>
+            )}
           </div>
         )}
       </div>
 
+      {submitToast && (
+        <div
+          role="status"
+          className={`fixed right-6 top-20 z-70 flex max-w-sm items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium text-white shadow-xl ${
+            submitToast.isError ? 'border-rose-700 bg-rose-900' : 'border-slate-700 bg-slate-900'
+          }`}
+        >
+          {!submitToast.isError && (
+            <Check size={15} strokeWidth={2.5} className="shrink-0 text-emerald-300" aria-hidden="true" />
+          )}
+          <span>{submitToast.message}</span>
+        </div>
+      )}
+
+      {/* ─── Modal: BASE 출결 생성 (트랙 선택 → DB 회원 선택) ─── */}
+      {showCreateAttendanceModal && category === 'SESSION' && (
+        <BaseAttendanceCreateModal
+          titleLabel="출결 생성"
+          submitLabel="출결 생성"
+          currentCohort={currentCohort}
+          weekNums={weekList.map((week) => week.weekNum)}
+          onClose={() => setShowCreateAttendanceModal(false)}
+          onCreate={handleCreateBaseAttendance}
+        />
+      )}
+
+      {/* ─── Modal: ADV 팀 개설 (부문 → 팀원 선택 + 주차별 날짜) ─── */}
+      {showCreateAdvModal && category === 'ADV' && (
+        <BaseAttendanceCreateModal
+          titleLabel="ADV 팀 개설"
+          submitLabel="팀 개설"
+          currentCohort={currentCohort}
+          weekNums={weekList.map((week) => week.weekNum)}
+          onClose={() => setShowCreateAdvModal(false)}
+          onCreate={handleCreateAdvTeam}
+        />
+      )}
+
+      {/* ─── Modal: 스터디 생성 ─── */}
+      {showCreateStudyModal && category === 'STUDY' && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 pb-4 pt-[15vh] backdrop-blur-xs">
+          <div
+            className={`w-full max-w-lg space-y-5 overflow-hidden rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Plus size={16} className="text-slate-800" />
+                <h3 className="text-base font-bold text-slate-900">
+                  {termPeriod === 'VACATION' ? '방학' : '학기'} 스터디 생성
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateStudyModal(false)}
+                className="cursor-pointer rounded-sm p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                aria-label="스터디 생성 창 닫기"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">
+                    스터디명 <span className="text-red-500">*</span>
+                  </label>
+                  {termPeriod === 'VACATION' && (
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={newStudyKind === 'MENTORING'}
+                      onClick={() =>
+                        setNewStudyKind((kind) =>
+                          kind === 'MENTORING' ? 'GENERAL' : 'MENTORING',
+                        )
+                      }
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-[11px] font-semibold text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[9px] ${
+                          newStudyKind === 'MENTORING'
+                            ? 'border-slate-400 bg-slate-300 text-slate-900'
+                            : 'border-slate-300 bg-white'
+                        }`}
+                      >
+                        {newStudyKind === 'MENTORING' ? '✓' : ''}
+                      </span>
+                      멘멘스터디
+                    </button>
+                  )}
+                </div>
+                <input
+                  value={newStudyName}
+                  onChange={(event) => setNewStudyName(event.target.value)}
+                  placeholder="예: 추천 시스템 논문 스터디"
+                  autoFocus
+                  className="w-full rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <span className="mb-1.5 block text-sm font-semibold text-slate-700">부문</span>
+                <div
+                  role="radiogroup"
+                  aria-label="부문"
+                  className="grid grid-cols-3 overflow-hidden rounded-sm bg-slate-100"
+                >
+                  {(['분석', '시각화', '엔지니어링'] as const).map((track) => (
+                    <button
+                      key={track}
+                      type="button"
+                      role="radio"
+                      aria-checked={newStudyTrack === track}
+                      onClick={() => setNewStudyTrack(track)}
+                      className={`cursor-pointer px-2 py-2.5 text-xs font-semibold transition-colors ${
+                        newStudyTrack === track
+                          ? 'bg-[#1E6F94] text-white'
+                          : 'text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {track}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <StudyMemberPicker value={newStudySelection} onChange={setNewStudySelection} />
+
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowCreateStudyModal(false)}
+                className="cursor-pointer rounded-sm px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateStudy}
+                className="cursor-pointer rounded-sm border border-slate-300 bg-transparent px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100"
+              >
+                스터디 생성
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── Modal: 새 회차 생성 ─── */}
       {showNewEventModal && (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl overflow-hidden p-6 space-y-4 bg-white border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+          <div className={`w-full max-w-lg rounded-2xl overflow-hidden p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}>
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Plus size={16} className="text-slate-800" />
@@ -5774,7 +5398,7 @@ export function InternalCategoryAttendancePage({
               <button
                 type="button"
                 onClick={handleCreateNewEvent}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 cursor-pointer shadow-xs"
+                className={`px-4 py-2 rounded-xl text-xs font-bold cursor-pointer ${MODAL_PRIMARY_BTN}`}
               >
                 회차 생성
               </button>
@@ -5803,10 +5427,10 @@ export function InternalCategoryAttendancePage({
               src={
                 selectedEvent.imageUrl ||
                 (category === 'STUDY'
-                  ? '/sample-study-photo.jpg?v=2'
+                  ? SAMPLE_STUDY_PHOTO_URL
                   : category === 'ADV'
-                    ? '/sample-study-photo.jpg?v=2'
-                    : '/sample-study-photo.jpg?v=2')
+                    ? SAMPLE_STUDY_PHOTO_URL
+                    : SAMPLE_STUDY_PHOTO_URL)
               }
               alt={selectedTeam.name}
               className="w-full h-auto max-h-[80vh] object-contain rounded-2xl"
@@ -5824,7 +5448,7 @@ export function InternalCategoryAttendancePage({
       {/* ─── Modal: 주차 매핑 및 CSV 열 순서 드래그 설정 (Settings Modal) ─── */}
       {showSettingsModal && (
         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+          <div className={`w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}>
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <div>
@@ -5845,51 +5469,7 @@ export function InternalCategoryAttendancePage({
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-5 flex-1 min-h-0 text-xs">
-              {/* 1. 상단 날짜 입력 */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800">
-                    주차별 날짜 입력 ({termPeriod === 'VACATION' ? '방학 1~8주차' : '학기 9~16주차'}
-                    )
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                  {(termPeriod === 'VACATION' ? VACATION_WEEKS_8 : SEMESTER_WEEKS_8).map((w) => {
-                    const raw = weekDateMapping[w.weekNum];
-                    const displayVal = !raw || raw === '-' ? '' : raw;
-
-                    return (
-                      <div
-                        key={w.id}
-                        className="group flex flex-col bg-slate-50/90 border border-slate-200/90 rounded-xl p-2 gap-1.5 transition-all hover:border-slate-300 hover:bg-slate-100/60 focus-within:bg-slate-100/60 focus-within:border-slate-500 focus-within:ring-2 focus-within:ring-slate-500/15"
-                      >
-                        <div className="flex items-center justify-between px-0.5">
-                          <span className="text-[11px] font-bold text-slate-700">{w.label}</span>
-                          <Edit3
-                            size={11}
-                            className="text-slate-400 group-hover:text-slate-600 transition-colors"
-                          />
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={displayVal}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setWeekDateMapping((prev) => ({ ...prev, [w.weekNum]: val }));
-                            }}
-                            placeholder="YYYY-MM-DD"
-                            className="w-full text-center text-[11px] sm:text-xs font-mono font-bold text-slate-900 bg-white border border-slate-200 rounded-lg py-1.5 px-1 shadow-2xs outline-none transition-all placeholder:text-slate-300 placeholder:font-normal hover:border-slate-300 focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 2. 하단 표 구성 미리보기 */}
+              {/* 표 구성 미리보기 */}
               <div className="space-y-2.5 pt-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -6039,12 +5619,59 @@ export function InternalCategoryAttendancePage({
                 <button
                   type="button"
                   onClick={handleSaveAndExportCsv}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 ${MODAL_PRIMARY_BTN}`}
                 >
                   <Download size={13} />
                   <span>CSV 다운로드</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pdfPreview && (
+        <PdfPreviewModal
+          url={pdfPreview.url}
+          name={pdfPreview.name}
+          onClose={() => setPdfPreview(null)}
+        />
+      )}
+
+      {/* 방학 중 학기 탭 이동 확인 경고 모달 */}
+      {isSemesterWarningOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setIsSemesterWarningOpen(false)}
+        >
+          <div
+            className={`w-full max-w-sm rounded-2xl p-6 space-y-4 ${MODAL_SURFACE} animate-in zoom-in-95 duration-150`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                학기는 아직 시작 전입니다
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                아직 방학 기간이라 학기 출결 데이터가 없습니다. 학기로 이동할까요?
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsSemesterWarningOpen(false)}
+                className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={moveToSemester}
+                className="px-4 py-2 text-xs font-semibold rounded-sm border border-slate-300 bg-transparent text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer"
+              >
+                이동
+              </button>
             </div>
           </div>
         </div>
@@ -6057,7 +5684,7 @@ export function InternalCategoryAttendancePage({
           onClick={() => setFutureWeekWarning(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl p-6 space-y-4 bg-white border border-slate-200/90 shadow-xl animate-in zoom-in-95 duration-150"
+            className={`w-full max-w-sm rounded-2xl p-6 space-y-4 ${MODAL_SURFACE} animate-in zoom-in-95 duration-150`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="space-y-1.5">
@@ -6073,14 +5700,14 @@ export function InternalCategoryAttendancePage({
               <button
                 type="button"
                 onClick={() => setFutureWeekWarning(null)}
-                className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors cursor-pointer"
               >
                 취소
               </button>
               <button
                 type="button"
                 onClick={confirmMoveToFutureWeek}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all active:scale-[0.98] cursor-pointer shadow-2xs"
+                className="px-4 py-2 text-xs font-semibold rounded-sm border border-slate-300 bg-transparent text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer"
               >
                 이동
               </button>
