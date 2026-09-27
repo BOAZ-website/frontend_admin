@@ -4,11 +4,12 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Folder,
   FolderPlus,
   GripVertical,
   Maximize2,
   Minimize2,
-  Plus,
+  Pencil,
   Trash2,
   Upload,
   Users,
@@ -17,33 +18,66 @@ import {
 
 import { STATUS_CFG } from '@/entities/attendance/model/constants';
 import { sessionKey } from '@/entities/attendance/model/lib';
+import {
+  ADV_DIRECT_SELECT_LAST_WEEK,
+  currentPeriodOf,
+  defaultWeekNum,
+  weekStatusOf,
+  type WeekInfo,
+} from '@/entities/attendance/model/week';
 import type {
   AttendanceState,
   AttendanceStatus,
   SessionRecord,
 } from '@/entities/attendance/model/types';
 import {
-  ADV_INITIAL_TEAMS,
-  ADV_MEMBERS,
-  INITIAL_STUDY_TEAMS,
-  MEMBERS,
-} from '@/entities/study-team/model/constants';
+  MENTORING_TYPE_LABELS,
+  studyDisplayName,
+  studyLeaderLabel,
+  type MentoringTypeLabel,
+} from '@/entities/study-team/model/db';
 import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
 import type { UserRole } from '@/entities/user/model/types';
+import { formatFileSize, isPdfFile, MAX_PDF_SIZE_BYTES } from '@/shared/lib/file';
 import { Btn } from '@/shared/ui/Btn';
+import { PdfPreviewModal } from '@/shared/ui/PdfPreviewModal';
+import { BRAND_SELECTED, MODAL_SURFACE } from '@/shared/ui/modalStyles';
 
 // ─── Page: 출결 입력 (HOST 스터디장 전용 페이지) ───────────────────────────────
 
-const EXT_STATUS_BTNS: { id: AttendanceStatus; label: string }[] = [
+interface MemberRow {
+  m: Member;
+  rowKey: string;
+  typeLabel: MentoringTypeLabel | null;
+}
+
+// 출결 입력은 출석/결석만 고른다(미정 버튼 없음).
+const STATUS_BTNS: { id: AttendanceStatus; label: string }[] = [
   { id: 'present', label: '출석' },
-  { id: 'late', label: '지각' },
-  { id: 'earlyLeave', label: '조퇴' },
   { id: 'absent', label: '결석' },
-  { id: 'excusedAbsent', label: '인정결석' },
-  { id: 'unexcusedLate', label: '무단지각' },
-  { id: 'unexcusedAbsent', label: '무단결석' },
-  { id: 'unmarked', label: '미정' },
 ];
+
+const padDatePart = (value: string | number) => String(value).padStart(2, '0');
+
+function toLocalDateTimeValue(date: Date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())} ${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+}
+
+function formatSubmittedAt(value: string) {
+  const match = value.match(
+    /^\d{4}[-.]\s*(\d{1,2})[-.]\s*(\d{1,2})[.\sT]+(?:(오전|오후)\s*)?(\d{1,2})(?::|시\s*)(\d{1,2})?/,
+  );
+
+  if (!match) return value;
+
+  const [, month, day, meridiem, rawHour, minute = '00'] = match;
+  let hour = Number(rawHour);
+
+  if (meridiem === '오전' && hour === 12) hour = 0;
+  if (meridiem === '오후' && hour < 12) hour += 12;
+
+  return `${padDatePart(month)}-${padDatePart(day)} ${padDatePart(hour)}:${padDatePart(minute)}`;
+}
 
 const ATTEND_STATUS_STYLES: Record<AttendanceStatus, { active: string; inactive: string }> = {
   present: {
@@ -93,18 +127,25 @@ const ATTEND_STATUS_STYLES: Record<AttendanceStatus, { active: string; inactive:
   },
 };
 
+const CLOSED_NOTICE_DURATION_MS = 3000;
+const CLOSED_NOTICE_GAP_PX = 8;
+const PDF_TOAST_DURATION_MS = 3000;
+
+const EDIT_ICON_BUTTON_CLASS =
+  'absolute right-2 top-1/2 z-10 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 transition-[background-color,color,transform] duration-150 after:absolute after:-inset-1 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 cursor-pointer';
+
 export function InputPage({
   attendance,
   setAttendance,
   onRequestException,
   currentHostTeam,
+  advTeams: propAdvTeams,
   studyTeams,
-  setStudyTeams,
   membersMap,
   currentRole,
-  onOpenAddStudy,
   setMembersMap,
   pageTitle,
+  weeks,
 }: {
   attendance: AttendanceState;
   setAttendance: React.Dispatch<React.SetStateAction<AttendanceState>>;
@@ -117,162 +158,176 @@ export function InputPage({
     reason: string,
   ) => void;
   currentHostTeam: string;
+  advTeams?: StudyTeamInfo[];
   studyTeams: StudyTeamInfo[];
-  setStudyTeams?: React.Dispatch<React.SetStateAction<StudyTeamInfo[]>>;
   membersMap: Record<string, Member[]>;
   setMembersMap?: React.Dispatch<React.SetStateAction<Record<string, Member[]>>>;
   currentRole: UserRole;
-  onOpenAddStudy?: () => void;
   pageTitle?: string;
+  /** 주차와 활성 상태(DB의 weeks). 진행 예정 주차는 입력할 수 없고, 진행 중 주차만 입력할 수 있다. */
+  weeks: WeekInfo[];
 }) {
   const [termPeriod, setTermPeriod] = useState<'방학' | '학기'>('방학');
 
   const isAdv = pageTitle?.includes('ADV') ?? false;
   const isHost = currentRole === 'HOST';
 
-  const [advTeams, setAdvTeams] = useState<StudyTeamInfo[]>(ADV_INITIAL_TEAMS);
-  const effectiveTeams = isAdv ? advTeams : studyTeams || INITIAL_STUDY_TEAMS;
+  const effectiveTeams = isAdv ? (propAdvTeams ?? []) : studyTeams;
 
-  // 팀 개설 모달 상태
-  const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
-  const [newTeamTrack, setNewTeamTrack] = useState<'분석' | '시각화' | '엔지니어링'>('분석');
-  const [newTeamName, setNewTeamName] = useState('');
-  const [newTeamLeader, setNewTeamLeader] = useState('');
-  const [newTeamMembersText, setNewTeamMembersText] = useState('');
-
-  const [selectedTeam, setSelectedTeam] = useState(
-    currentRole === 'HOST'
-      ? currentHostTeam || (isAdv ? '분석 1팀' : 'A팀')
-      : isAdv
-        ? '분석 1팀'
-        : studyTeams[0]?.teamName || 'A팀',
-  );
+  // 선택한 팀의 id
+  const [selectedTeam, setSelectedTeam] = useState<string>(() => {
+    if (currentRole === 'HOST' && currentHostTeam) return currentHostTeam;
+    return (isAdv ? (propAdvTeams ?? []) : studyTeams)[0]?.id ?? '';
+  });
 
   // HOST 계정인 경우 본인 팀만 필터링, 관리자인 경우 전체 팀 노출
   const displayedTeams = useMemo(() => {
     if (isHost) {
       const myTeam = currentHostTeam || selectedTeam;
-      const filtered = effectiveTeams.filter(
-        (t) => t.teamName === myTeam || (myTeam && t.teamName.includes(myTeam)),
-      );
+      const filtered = effectiveTeams.filter((t) => t.id === myTeam);
       return filtered.length > 0 ? filtered : effectiveTeams.slice(0, 1);
     }
-    return effectiveTeams;
-  }, [isHost, currentHostTeam, selectedTeam, effectiveTeams]);
-
-  const TOTAL_WEEKS = 8;
+    // 스터디는 스터디 출결 관리와 같이 방학/학기별로 나눠 보여준다.
+    if (isAdv) return effectiveTeams;
+    const periodType = termPeriod === '방학' ? '방학 스터디' : '학기 스터디';
+    return effectiveTeams.filter((t) => t.studyType === periodType);
+  }, [isHost, isAdv, termPeriod, currentHostTeam, selectedTeam, effectiveTeams]);
 
   useEffect(() => {
     if (currentRole === 'HOST' && currentHostTeam) {
       setSelectedTeam(currentHostTeam);
       return;
     }
-    if (isAdv) {
-      if (
-        !selectedTeam.startsWith('분석') &&
-        !selectedTeam.startsWith('시각화') &&
-        !selectedTeam.startsWith('엔지')
-      ) {
-        setSelectedTeam(effectiveTeams[0]?.teamName || '분석 1팀');
-      }
-    } else {
-      if (
-        selectedTeam.startsWith('분석') ||
-        selectedTeam.startsWith('시각화') ||
-        selectedTeam.startsWith('엔지')
-      ) {
-        setSelectedTeam(effectiveTeams[0]?.teamName || 'A팀');
-      }
+    // 스터디/ADV 탭을 오가면 선택한 팀이 그 탭의 목록에 없을 수 있다. 이때는 목록의 첫 팀을 고른다.
+    if (!effectiveTeams.some((t) => t.id === selectedTeam)) {
+      setSelectedTeam(effectiveTeams[0]?.id ?? '');
     }
-  }, [isAdv, effectiveTeams, currentRole, currentHostTeam, selectedTeam]);
+  }, [effectiveTeams, currentRole, currentHostTeam, selectedTeam]);
 
-  const handleCreateTeam = () => {
-    if (!newTeamName.trim()) {
-      alert('팀명을 입력해 주세요.');
-      return;
-    }
-    const memberNames = newTeamMembersText
-      .split(/[,\n]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+  // 지금이 방학인데 학기 탭으로 넘어가면 한 번 확인받는다(학기 주차는 아직 시작 전).
+  const [isSemesterWarningOpen, setIsSemesterWarningOpen] = useState(false);
 
-    if (memberNames.length === 0) {
-      alert('팀원 이름을 입력해 주세요.');
-      return;
-    }
-
-    const finalTeamName = newTeamName.trim();
-    const finalLeader = newTeamLeader.trim() || memberNames[0] || '팀장 미정';
-    const teamId = `team_${Date.now()}`;
-
-    const newTeamObj: StudyTeamInfo = {
-      id: teamId,
-      teamName: finalTeamName,
-      studyName: finalTeamName,
-      leaderName: finalLeader,
-      category: newTeamTrack,
-      schedule: '매주 정기 세션',
-      studyType: termPeriod === '방학' ? '방학 스터디' : '학기 스터디',
-      description: '',
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-
-    const combinedNames =
-      newTeamLeader.trim() && !memberNames.includes(newTeamLeader.trim())
-        ? [newTeamLeader.trim(), ...memberNames]
-        : memberNames;
-
-    const newMemberList: Member[] = combinedNames.map((name, idx) => ({
-      id: `mem_${Date.now()}_${idx}`,
-      name,
-      year: '28',
-      track: newTeamTrack,
-    }));
-
-    if (isAdv) {
-      setAdvTeams((prev) => [...prev, newTeamObj]);
-    } else if (setStudyTeams) {
-      setStudyTeams((prev) => [...prev, newTeamObj]);
-    }
-
-    if (setMembersMap) {
-      setMembersMap((prev) => ({
-        ...prev,
-        [finalTeamName]: newMemberList,
-      }));
-    }
-
-    setSelectedTeam(finalTeamName);
-    setShowCreateTeamModal(false);
-    setNewTeamName('');
-    setNewTeamLeader('');
-    setNewTeamMembersText('');
-  };
-
-  const handlePeriodChange = (period: '방학' | '학기') => {
+  const applyPeriodChange = (period: '방학' | '학기') => {
     setTermPeriod(period);
+    setIsSemesterWarningOpen(false);
     if (!isAdv) {
       const periodTarget = period === '방학' ? '방학 스터디' : '학기 스터디';
       const available = (studyTeams || []).filter((s) => s.studyType === periodTarget);
       if (available.length > 0 && currentRole !== 'HOST') {
-        setSelectedTeam(available[0].teamName);
+        setSelectedTeam(available[0].id);
       }
+    } else {
+      // ADV는 방학 1~8주차, 학기 9~16주차. 접근할 수 있는 주차 중 기본 주차(진행 중 → 마지막 종료 → 첫 주차)로 옮긴다.
+      setWeekNum(
+        defaultWeekNum(
+          weeks.filter(
+            (w) =>
+              (period === '학기' ? w.weekNum >= 9 : w.weekNum <= 8) &&
+              !(w.weekNum <= ADV_DIRECT_SELECT_LAST_WEEK),
+          ),
+        ),
+      );
+    }
+    if (weekScrollRef.current) {
+      weekScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
     }
   };
 
-  const CURRENT_ACTIVE_WEEK = 3;
-  const [weekNum, setWeekNum] = useState(3);
-  const isPastWeek = weekNum < CURRENT_ACTIVE_WEEK;
-  const isFutureWeek = weekNum > CURRENT_ACTIVE_WEEK;
-  // 3주차(현재 활성 제출 기간)에는 제출을 완료한 상태여도 계속 수정 가능
-  const canEdit = !isPastWeek && !isFutureWeek;
+  const handlePeriodChange = (period: '방학' | '학기') => {
+    if (period === termPeriod) return;
+    // 스터디는 학기에도 1~8주차를 쓰므로 학기 시작 전 경고 대상이 아니다(ADV만 9~16주차).
+    if (isAdv && period === '학기' && currentPeriodOf(weeks) === '방학') {
+      setIsSemesterWarningOpen(true);
+      return;
+    }
+    applyPeriodChange(period);
+  };
+
+  // 화면에 보이는 주차 표: ADV 학기는 9~16주차, 그 외에는 1~8주차
+  const visibleWeeks = useMemo(
+    () => weeks.filter((w) => (isAdv && termPeriod === '학기' ? w.weekNum >= 9 : w.weekNum <= 8)),
+    [weeks, isAdv, termPeriod],
+  );
+  // ADV는 3주차까지 ADV 출결 관리 탭에서 입력·제출하므로 이 탭에서는 그 주차에 접근할 수 없다.
+  const isBlockedWeek = (targetWeek: number) => isAdv && targetWeek <= ADV_DIRECT_SELECT_LAST_WEEK;
+  const accessibleWeeks = useMemo(
+    () => visibleWeeks.filter((w) => !(isAdv && w.weekNum <= ADV_DIRECT_SELECT_LAST_WEEK)),
+    [visibleWeeks, isAdv],
+  );
+  const [weekNum, setWeekNum] = useState(() =>
+    defaultWeekNum(
+      weeks.filter((w) => w.weekNum <= 8 && !(isAdv && w.weekNum <= ADV_DIRECT_SELECT_LAST_WEEK)),
+    ),
+  );
+  const weekStatus = weekStatusOf(weeks, weekNum);
+  const isPastWeek = weekStatus === 'CLOSED';
+  const isFutureWeek = weekStatus === 'UPCOMING';
+  const isOpenWeek = weekStatus === 'OPEN';
+  // 아직 오지 않은(진행 예정) 주차도 미리 입력할 수 있다. 제출은 세션이 열린 뒤에 한다.
+  const isInputWeek = isOpenWeek || isFutureWeek;
+  const [isEditing, setIsEditing] = useState(false);
+  const [isClosedNoticeOpen, setIsClosedNoticeOpen] = useState(false);
+  const [isPdfToastOpen, setIsPdfToastOpen] = useState(false);
+  const [closedNoticePos, setClosedNoticePos] = useState<{ top: number; right: number } | null>(
+    null,
+  );
+  const closedNoticeAnchorRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isClosedNoticeOpen) {
+      return;
+    }
+    const timer = window.setTimeout(() => setIsClosedNoticeOpen(false), CLOSED_NOTICE_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [isClosedNoticeOpen]);
+
+  // 토스트는 수정 버튼 바로 아래에 한 번 배치하고, 스크롤·리사이즈로 버튼과 어긋나기 전에 닫는다.
+  useEffect(() => {
+    const anchor = closedNoticeAnchorRef.current;
+    if (!isClosedNoticeOpen || !anchor) {
+      setClosedNoticePos(null);
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    setClosedNoticePos({
+      top: rect.bottom + CLOSED_NOTICE_GAP_PX,
+      right: Math.max(window.innerWidth - rect.right, CLOSED_NOTICE_GAP_PX),
+    });
+    const dismiss = () => setIsClosedNoticeOpen(false);
+    window.addEventListener('scroll', dismiss, { capture: true, passive: true });
+    window.addEventListener('resize', dismiss);
+    return () => {
+      window.removeEventListener('scroll', dismiss, { capture: true });
+      window.removeEventListener('resize', dismiss);
+    };
+  }, [isClosedNoticeOpen]);
+
+  useEffect(() => {
+    if (!isPdfToastOpen) {
+      return;
+    }
+    const timer = window.setTimeout(() => setIsPdfToastOpen(false), PDF_TOAST_DURATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [isPdfToastOpen]);
+
+  function showClosedNotice(button: HTMLElement) {
+    closedNoticeAnchorRef.current = button;
+    setIsClosedNoticeOpen(true);
+  }
+
+  // ADV 탭 전환 또는 방학/학기 변경 시 주차 동기화
+  useEffect(() => {
+    if (!accessibleWeeks.some((w) => w.weekNum === weekNum)) {
+      setWeekNum(defaultWeekNum(accessibleWeeks));
+    }
+  }, [accessibleWeeks]);
 
   // 미래 주차(진행 예정) 이동 전 확인 경고 팝업 상태 및 핸들러
   const [futureWeekWarning, setFutureWeekWarning] = useState<number | null>(null);
 
   const handleSelectWeek = (targetWeek: number) => {
-    if (targetWeek === weekNum) return;
-    if (targetWeek > CURRENT_ACTIVE_WEEK) {
+    if (targetWeek === weekNum || isBlockedWeek(targetWeek)) return;
+    if (weekStatusOf(weeks, targetWeek) === 'UPCOMING') {
       setFutureWeekWarning(targetWeek);
       return;
     }
@@ -302,6 +357,16 @@ export function InputPage({
     size: null,
   });
 
+  // 멘멘 스터디 PDF 첨부 초안. 제출 전까지는 여기에만 담고, 제출할 때 출결 기록에 합친다.
+  // url이 null이면 기존 첨부를 지운 상태이고, 초안이 없으면(null) 기존 기록을 그대로 쓴다.
+  const [pdfDraft, setPdfDraft] = useState<{
+    key: string;
+    url: string | null;
+    name: string | null;
+    size: string | null;
+  } | null>(null);
+
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [reqMember, setReqMember] = useState('');
@@ -309,27 +374,39 @@ export function InputPage({
   const [reqReason, setReqReason] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic Column Resizing for Member Table (like InternalCategoryAttendancePage)
   const DEFAULT_COL_WIDTHS = {
     name: 110,
     year: 75,
     track: 85,
-    status: 455,
+    type: 64,
+    status: 150,
     memo: 280,
     actions: 45,
   };
+
+  const statusColWidth = 150;
 
   const MIN_COL_WIDTHS: Record<string, number> = {
     name: 80,
     year: 55,
     track: 65,
-    status: 435,
+    type: 52,
+    status: 130,
     memo: 180,
     actions: 40,
   };
 
   const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
+
+  useEffect(() => {
+    setColWidths((prev) => ({
+      ...prev,
+      status: statusColWidth,
+    }));
+  }, [statusColWidth]);
   const resizingCol = useRef<{
     key: string;
     startX: number;
@@ -452,14 +529,10 @@ export function InputPage({
     setIsDragging(true);
   }
 
-  const WEEKS_LIST = Array.from({ length: TOTAL_WEEKS }, (_, i) => ({
-    id: `w${i + 1}`,
-    weekNum: i + 1,
-    label: `${i + 1}주차`,
-  }));
-
   const weekId = `w${weekNum}`;
   const key = sessionKey(weekId, 'study', selectedTeam);
+  // 제출 전 입력(출결·비고)은 화면 초안에만 두고, 제출(또는 수정 저장)할 때 DB에 반영한다. 그때까지 DB는 미정이다.
+  const draftKey = key || weekId;
   const rec: SessionRecord = attendance?.[key]
     ? attendance[key]
     : {
@@ -471,12 +544,92 @@ export function InputPage({
         submittedAt: null,
       };
 
-  const members =
-    (membersMap && membersMap[selectedTeam]) ||
-    (isAdv ? ADV_MEMBERS[selectedTeam] || [] : MEMBERS[selectedTeam] || []);
+  const isSubmitted = Boolean(rec?.submitted);
+  // 열려있는 주차에서는 미제출 상태이거나, 사용자가 [수정] 버튼을 눌렀을 때만 수정 가능
+  const canEdit = isInputWeek && (!isSubmitted || isEditing);
+  // 파일(PDF)은 출결과 같은 규칙이다: 제출 전이거나, 제출 후에는 수정 모드(연필 버튼)에서만 올리고 지울 수 있다.
+  const canEditPdf = canEdit && !isFutureWeek;
+  // 활동 사진도 파일과 같은 규칙이다: 제출 전이거나, 제출 후에는 수정 모드(연필 버튼)에서만 바꾼다.
+  const canEditPhoto = canEdit && !isFutureWeek;
+
+  // 팀이나 주차 변경 시 수정 모드 자동 해제
+  useEffect(() => {
+    setIsEditing(false);
+  }, [selectedTeam, weekNum]);
+
+  const members = membersMap[selectedTeam] ?? [];
+
+  // 멘멘 스터디는 부원마다 멘멘/친바 두 줄로 출결을 입력한다(스터디 출결 관리와 동일).
+  const isMentoringTeam =
+    !isAdv && effectiveTeams.find((t) => t.id === selectedTeam)?.studyKind === 'MENTORING';
+  const memberRows = members.flatMap<MemberRow>((m) =>
+    isMentoringTeam
+      ? MENTORING_TYPE_LABELS.map((typeLabel) => ({ m, rowKey: `${m.id}:${typeLabel}`, typeLabel }))
+      : [{ m, rowKey: m.id, typeLabel: null }],
+  );
+
+  // 스터디 출결 관리의 목록과 같은 구성: 멘멘(방학 전용, 부문별) / 일반.
+  const studyTeamGroups = [
+    {
+      label: '멘멘 스터디',
+      teams: displayedTeams.filter((t) => termPeriod === '방학' && t.studyKind === 'MENTORING'),
+    },
+    {
+      label: '일반 스터디',
+      teams: displayedTeams.filter((t) => termPeriod === '학기' || t.studyKind !== 'MENTORING'),
+    },
+  ];
+  const mentoringTrackGroups = [
+    { label: '분석', tracks: ['분석'] },
+    { label: '시각화', tracks: ['시각화'] },
+    { label: '엔지', tracks: ['엔지니어링', '엔지'] },
+  ].map(({ label, tracks }) => ({
+    label,
+    teams: studyTeamGroups[0].teams.filter((t) => tracks.includes(t.track ?? '')),
+  }));
+
+  const renderStudyTeamCard = (team: StudyTeamInfo) => {
+    const isSelected = selectedTeam === team.id;
+    return (
+      <div
+        key={team.id || team.teamName}
+        onClick={() => setSelectedTeam(team.id)}
+        className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
+          isSelected
+            ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+            : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-1 min-w-0 flex-1">
+            <h4
+              className={`text-sm font-bold truncate ${
+                isSelected ? 'text-slate-950 font-bold' : 'text-slate-900 group-hover:text-slate-950'
+              }`}
+            >
+              {studyDisplayName(team)}
+            </h4>
+            {team.leaderName && (
+              <p className="text-[11px] text-slate-500 font-medium">
+                스터디장: {studyLeaderLabel(team, membersMap[team.id] ?? [])}
+              </p>
+            )}
+          </div>
+          <ChevronRight
+            size={16}
+            className={`shrink-0 transition-transform ${
+              isSelected
+                ? 'text-slate-500 translate-x-0.5'
+                : 'text-slate-300 group-hover:text-slate-500'
+            }`}
+          />
+        </div>
+      </div>
+    );
+  };
 
   function handleDeleteMember(memberId: string) {
-    if (rec?.submitted || isPastWeek || isFutureWeek) {
+    if (!canEdit) {
       return;
     }
     if (window.confirm('해당 부원을 스터디 명단에서 삭제하시겠습니까?')) {
@@ -492,13 +645,18 @@ export function InputPage({
     }
   }
   const currentStudy =
-    effectiveTeams.find((s) => s.teamName === selectedTeam) ||
-    (studyTeams && studyTeams.find((s) => s.teamName === selectedTeam)) ||
-    INITIAL_STUDY_TEAMS.find((s) => s.teamName === selectedTeam);
+    effectiveTeams.find((s) => s.id === selectedTeam) ||
+    studyTeams.find((s) => s.id === selectedTeam);
+  const selectedTeamName = currentStudy?.teamName ?? '';
 
   const currentPhotoUrl = uploadedImage?.url || rec?.photoUrl || null;
   const currentPhotoName = uploadedImage?.name || rec?.photoName || rec?.photo || null;
   const currentPhotoSize = uploadedImage?.size || rec?.photoSize || null;
+
+  const activePdfDraft = pdfDraft?.key === key ? pdfDraft : null;
+  const currentPdfUrl = activePdfDraft ? activePdfDraft.url : (rec?.pdfUrl ?? null);
+  const currentPdfName = activePdfDraft ? activePdfDraft.name : (rec?.pdfName ?? null);
+  const currentPdfSize = activePdfDraft ? activePdfDraft.size : (rec?.pdfSize ?? null);
 
   const [photoDimensions, setPhotoDimensions] = useState<{ width: number; height: number } | null>(
     null,
@@ -532,8 +690,8 @@ export function InputPage({
     }
     const { width, height } = photoDimensions;
     const ratio = width / height;
-    const maxW = 520;
-    const maxH = 380;
+    const maxW = 360;
+    const maxH = 240;
     let w = maxW;
     let h = maxW / ratio;
     if (h > maxH) {
@@ -548,45 +706,58 @@ export function InputPage({
   }, [photoDimensions]);
 
   function getStatus(memberId: string): AttendanceStatus {
-    if (isFutureWeek) {
-      return 'unmarked';
+    // DB에 없는 값은 미정으로 보인다.
+    const fallbackStatus: AttendanceStatus = 'unmarked';
+    const rawStatus =
+      extStatuses[draftKey]?.[memberId] ?? rec?.statuses?.[memberId] ?? fallbackStatus;
+    // 출석/결석/미정만 사용한다. 그 외 상태는 결석으로 본다.
+    if (rawStatus !== 'present' && rawStatus !== 'absent' && rawStatus !== 'unmarked') {
+      return 'absent';
     }
-    return extStatuses[weekId]?.[memberId] ?? rec?.statuses?.[memberId] ?? 'present';
+    // 세션이 열린 주차는 고르지 않은 값(DB의 미정 포함)을 출석에서 시작하고, 결석인 사람만 바꿔 제출한다.
+    if (isOpenWeek && rawStatus === 'unmarked') {
+      return 'present';
+    }
+    return rawStatus;
   }
 
-  function setStatus(memberId: string, val: AttendanceStatus) {
-    if (!canEdit) {
-      return;
+  const renderStatusText = (st: AttendanceStatus) => {
+    switch (st) {
+      case 'present':
+        return <span className="text-emerald-600 font-bold">출석</span>;
+      case 'remote':
+        return <span className="text-indigo-600 font-bold">비대면</span>;
+      case 'late':
+        return <span className="text-amber-600 font-bold">지각</span>;
+      case 'earlyLeave':
+        return <span className="text-amber-700 font-bold">조퇴</span>;
+      case 'absent':
+        return <span className="text-rose-600 font-bold">결석</span>;
+      case 'excusedAbsent':
+        return <span className="text-blue-600 font-bold">인정결석</span>;
+      case 'unexcusedLate':
+        return <span className="text-orange-600 font-bold">무단지각</span>;
+      case 'unexcusedAbsent':
+        return <span className="text-red-700 font-bold">무단결석</span>;
+      case 'unmarked':
+      default:
+        return <span className="text-slate-400 font-normal">미정</span>;
     }
-    if (key) {
-      setAttendance((prev) => {
-        const curRec = prev?.[key] ?? {
-          statuses: {},
-          memos: {},
-          photo: null,
-          submitted: false,
-          submittedAt: null,
-        };
-        return {
-          ...prev,
-          [key]: {
-            ...curRec,
-            statuses: { ...(curRec.statuses ?? {}), [memberId]: val },
-          },
-        };
-      });
+  };
+
+  function setStatus(memberId: string, val: AttendanceStatus) {
+    // 세션 오픈 전에는 버튼만 보이고 선택할 수 없다.
+    if (!canEdit || isFutureWeek) {
+      return;
     }
     setExtStatuses((prev) => ({
       ...prev,
-      [weekId]: { ...(prev[weekId] ?? {}), [memberId]: val },
+      [draftKey]: { ...(prev[draftKey] ?? {}), [memberId]: val },
     }));
   }
 
   function getMemo(memberId: string): string {
-    if (isFutureWeek) {
-      return '';
-    }
-    const memoKey = `${weekId}-${memberId}`;
+    const memoKey = `${draftKey}-${memberId}`;
     return memos[memoKey] ?? rec?.memos?.[memberId] ?? '';
   }
 
@@ -594,30 +765,12 @@ export function InputPage({
     if (!canEdit) {
       return;
     }
-    const memoKey = `${weekId}-${memberId}`;
+    const memoKey = `${draftKey}-${memberId}`;
     setMemos((prev) => ({ ...prev, [memoKey]: val }));
-    if (key) {
-      setAttendance((prev) => {
-        const curRec = prev?.[key] ?? {
-          statuses: {},
-          memos: {},
-          photo: null,
-          submitted: false,
-          submittedAt: null,
-        };
-        return {
-          ...prev,
-          [key]: {
-            ...curRec,
-            memos: { ...(curRec.memos ?? {}), [memberId]: val },
-          },
-        };
-      });
-    }
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!canEdit) {
+    if (!canEditPhoto) {
       return;
     }
     const file = e.target.files?.[0];
@@ -655,8 +808,9 @@ export function InputPage({
     }
   }
 
-  function handleRemoveImage() {
-    if (!canEdit) {
+
+  function handleRemovePhoto() {
+    if (!canEditPhoto) {
       return;
     }
     setUploadedImage({ file: null, url: null, name: null, size: null });
@@ -681,8 +835,63 @@ export function InputPage({
     }
   }
 
+  function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // 같은 파일을 다시 골라도 change 이벤트가 나게 한다.
+    if (!canEditPdf || !file) {
+      return;
+    }
+    if (!isPdfFile(file)) {
+      alert('PDF 파일만 첨부할 수 있습니다.');
+      return;
+    }
+    if (file.size > MAX_PDF_SIZE_BYTES) {
+      alert(`PDF는 ${MAX_PDF_SIZE_BYTES / (1024 * 1024)}MB 이하만 첨부할 수 있습니다.`);
+      return;
+    }
+    applyPdf({ url: URL.createObjectURL(file), name: file.name, size: formatFileSize(file.size) });
+    setIsPdfToastOpen(true);
+  }
+
+  function handleRemovePdf() {
+    if (!canEditPdf) {
+      return;
+    }
+    applyPdf({ url: null, name: null, size: null });
+  }
+
+  /** 초안에 담아 두었다가 제출(수정 모드에서는 저장 체크)할 때 출결 기록에 합친다. */
+  function applyPdf(next: { url: string | null; name: string | null; size: string | null }) {
+    setPdfDraft({ key, ...next });
+  }
+
+  function handleCancelEdit() {
+    setPdfDraft(null);
+    setExtStatuses((prev) => {
+      const { [draftKey]: _saved, ...rest } = prev;
+      return rest;
+    });
+    setMemos((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([memoKey]) => !memoKey.startsWith(`${draftKey}-`))),
+    );
+    setUploadedImage({ file: null, url: null, name: null, size: null });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    // 저장하지 않은 출결·비고 초안을 버리고 제출된 값으로 돌아간다.
+    setExtStatuses((prev) => {
+      const { [draftKey]: _discarded, ...rest } = prev;
+      return rest;
+    });
+    setMemos((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([memoKey]) => !memoKey.startsWith(`${draftKey}-`))),
+    );
+    setIsEditing(false);
+  }
+
   function submit() {
-    if (!key || !canEdit) {
+    // 아직 오지 않은 주차는 미리 입력만 해 둘 수 있고 제출은 세션이 열린 뒤에 한다.
+    if (!key || !canEdit || isFutureWeek) {
       return;
     }
 
@@ -704,6 +913,11 @@ export function InputPage({
         currentMemos[m.id] = memo;
       }
     });
+    memberRows.forEach(({ rowKey }) => {
+      if (rowKey.includes(':')) {
+        currentStatuses[rowKey] = getStatus(rowKey);
+      }
+    });
 
     setAttendance((prev) => ({
       ...prev,
@@ -711,14 +925,20 @@ export function InputPage({
         statuses: currentStatuses,
         memos: currentMemos,
         submitted: true,
-        photo: currentPhotoName || `스터디_${selectedTeam}_${weekNum}주차.jpg`,
+        photo: currentPhotoName || `스터디_${selectedTeamName}_${weekNum}주차.jpg`,
         photoUrl: currentPhotoUrl,
-        photoName: currentPhotoName || `스터디_${selectedTeam}_${weekNum}주차.jpg`,
+        photoName: currentPhotoName || `스터디_${selectedTeamName}_${weekNum}주차.jpg`,
         photoSize: currentPhotoSize || '2.1 MB',
-        submittedAt: new Date().toLocaleString('ko-KR', { hour12: false }).slice(0, 16),
+        // PDF는 멘멘 스터디만 첨부한다.
+        pdfUrl: isMentoringTeam ? currentPdfUrl : null,
+        pdfName: isMentoringTeam ? currentPdfName : null,
+        pdfSize: isMentoringTeam ? currentPdfSize : null,
+        submittedAt: toLocalDateTimeValue(new Date()),
         confirmedByAdmin: false,
       },
     }));
+    setPdfDraft(null);
+    setIsEditing(false);
   }
 
   function handleSendRequest() {
@@ -744,19 +964,38 @@ export function InputPage({
     alert('운영지원팀에 출결 수정 요청이 전송되었습니다.');
   }
 
-  void onOpenAddStudy;
+  const effectiveColWidths = useMemo(() => {
+    if (canEdit) {
+      return colWidths;
+    }
+    // 텍스트만 보일 때: 이름/기수/부문/출결은 컴팩트하게 맞추고, 남는 공간은 비고가 길게 채움
+    return {
+      name: 110,
+      year: 70,
+      track: 90,
+      type: 64,
+      status: 85,
+      memo: 0,
+      actions: 0,
+    };
+  }, [canEdit, colWidths]);
+
   const tableMinWidth = useMemo(() => {
+    if (!canEdit) {
+      return 0; // 텍스트만 보일 때는 불필요한 가로 스크롤 제거 및 컴팩트 맞춤
+    }
     let total =
       (colWidths.name || 110) +
       (colWidths.year || 75) +
       (colWidths.track || 85) +
-      (colWidths.status || 455) +
+      (isMentoringTeam ? colWidths.type || 64 : 0) +
+      (colWidths.status || statusColWidth) +
       (colWidths.memo || 280);
     if (canEdit) {
       total += colWidths.actions || 45;
     }
     return total;
-  }, [colWidths, canEdit]);
+  }, [colWidths, canEdit, isAdv, isMentoringTeam]);
 
   return (
     <div
@@ -799,6 +1038,7 @@ export function InputPage({
             </button>
           </div>
         </div>
+
       </div>
 
       {/* ─── 주차 선택 토글 바 (수평 스크롤 & 위치 완전 고정) ─── */}
@@ -824,20 +1064,32 @@ export function InputPage({
           className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 w-full flex-nowrap"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {WEEKS_LIST.map((w) => {
+          {visibleWeeks.map((w) => {
             const isActive = w.weekNum === weekNum;
-            const isWeekFuture = w.weekNum > CURRENT_ACTIVE_WEEK;
+            const isWeekFuture = w.status === 'UPCOMING';
+            const isBlocked = isBlockedWeek(w.weekNum);
+
             return (
               <button
                 key={w.id}
                 type="button"
+                disabled={isBlocked}
                 onClick={() => handleSelectWeek(w.weekNum)}
-                className={`w-[58px] h-[34px] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none relative ${
-                  isActive
-                    ? 'bg-slate-900 text-white border border-slate-900 shadow-xs'
+                title={
+                  isBlocked
+                    ? `${w.weekNum}주차는 ADV 출결 관리 탭에서 입력합니다`
                     : isWeekFuture
-                      ? 'text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
+                      ? `${w.weekNum}주차 (진행 예정)`
+                      : `${w.weekNum}주차`
+                }
+                className={`w-[58px] h-[34px] rounded-xl text-xs font-bold transition-colors flex items-center justify-center shrink-0 select-none relative ${
+                  isBlocked
+                    ? 'cursor-not-allowed border border-slate-200/60 bg-slate-100/60 text-slate-300'
+                    : isActive
+                    ? BRAND_SELECTED + ' cursor-pointer'
+                    : isWeekFuture
+                      ? 'text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70 cursor-pointer'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs cursor-pointer'
                 }`}
               >
                 <span>{w.label}</span>
@@ -876,11 +1128,11 @@ export function InputPage({
             }}
             className="space-y-2.5 shrink-0 h-full overflow-y-auto pr-1.5"
           >
-            {/* 사이드바 상단: 헤더 및 팀 개설 버튼 */}
+            {/* 사이드바 상단: 헤더 */}
             <div className="flex items-center justify-between px-1 pb-1">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {isHost ? '내 담당 팀' : isAdv ? 'ADV 프로젝트 팀' : '스터디 팀'}
+                  {isHost ? '내 담당 팀' : isAdv ? null : '스터디 팀'}
                 </span>
                 {isHost && (
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
@@ -889,19 +1141,6 @@ export function InputPage({
                 )}
               </div>
 
-              {!isHost && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewTeamName('');
-                    setShowCreateTeamModal(true);
-                  }}
-                  className="px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1 cursor-pointer border border-slate-200 shadow-2xs"
-                >
-                  <Plus size={12} />
-                  <span>팀 개설</span>
-                </button>
-              )}
             </div>
 
             {/* 등록된 팀이 없을 때 (Empty State) */}
@@ -911,23 +1150,15 @@ export function InputPage({
                   <FolderPlus size={18} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-800">개설된 팀이 없습니다</p>
+                  <p className="text-xs font-bold text-slate-800">
+                    {isAdv ? '개설된 팀이 없습니다' : '등록된 스터디가 없습니다'}
+                  </p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     {isAdv
-                      ? '새로운 ADV 프로젝트 팀을 개설하세요.'
-                      : '새로운 스터디 팀을 개설하세요.'}
+                      ? 'ADV 출결 관리에서 팀을 개설해 주세요.'
+                      : '스터디 출결 관리에서 스터디를 생성해 주세요.'}
                   </p>
                 </div>
-                {!isHost && (
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateTeamModal(true)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-xs flex items-center gap-1 mx-auto cursor-pointer transition-colors"
-                  >
-                    <Plus size={12} />
-                    <span>팀 개설하기</span>
-                  </button>
-                )}
               </div>
             ) : isAdv ? (
               <div className="space-y-4">
@@ -945,11 +1176,11 @@ export function InputPage({
 
                       <div className="space-y-2">
                         {trackTeams.map((team) => {
-                          const isSelected = selectedTeam === team.teamName;
+                          const isSelected = selectedTeam === team.id;
                           return (
                             <div
                               key={team.id || team.teamName}
-                              onClick={() => setSelectedTeam(team.teamName)}
+                              onClick={() => setSelectedTeam(team.id)}
                               className={`relative rounded-2xl border transition-all cursor-pointer p-3.5 group select-none ${
                                 isSelected
                                   ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
@@ -994,56 +1225,42 @@ export function InputPage({
                 })}
               </div>
             ) : (
-              <div className="space-y-2.5">
-                <div className="px-1 pt-1 text-[11px] font-bold text-slate-400 select-none">
-                  개별 스터디
-                </div>
-                <div className="space-y-2.5">
-                  {displayedTeams.map((team) => {
-                    const isSelected = selectedTeam === team.teamName;
-                    return (
-                      <div
-                        key={team.id || team.teamName}
-                        onClick={() => setSelectedTeam(team.teamName)}
-                        className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
-                          isSelected
-                            ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
-                            : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="space-y-1 min-w-0 flex-1">
-                            <h4
-                              className={`text-sm font-bold truncate ${
-                                isSelected
-                                  ? 'text-slate-950 font-bold'
-                                  : 'text-slate-900 group-hover:text-slate-950'
-                              }`}
-                            >
-                              {team.studyName && team.studyName !== team.teamName
-                                ? `${team.teamName} (${team.studyName})`
-                                : team.teamName}
+              <div className="space-y-5">
+                {studyTeamGroups
+                  .filter((group) => group.label !== '멘멘 스터디' || termPeriod === '방학')
+                  .map((group) => (
+                  <section key={group.label} className="space-y-2.5">
+                    <h3 className="px-1 text-[11px] font-bold text-slate-400 select-none">
+                      {group.label}
+                    </h3>
+                    {group.label === '멘멘 스터디' ? (
+                      <div className="space-y-4 pl-2">
+                        {mentoringTrackGroups.map((trackGroup) => (
+                          <div key={trackGroup.label} className="space-y-2">
+                            <h4 className="px-1 text-[11px] font-bold text-slate-500 select-none">
+                              {trackGroup.label}
                             </h4>
-                            {team.leaderName && (
-                              <p className="text-[11px] text-slate-500 font-medium">
-                                스터디장: {team.leaderName}
+                            {trackGroup.teams.length === 0 ? (
+                              <p className="px-1 py-1 text-[11px] text-slate-400">
+                                등록된 스터디가 없습니다.
                               </p>
+                            ) : (
+                              <div className="space-y-2.5">
+                                {trackGroup.teams.map(renderStudyTeamCard)}
+                              </div>
                             )}
                           </div>
-
-                          <ChevronRight
-                            size={16}
-                            className={`shrink-0 transition-transform ${
-                              isSelected
-                                ? 'text-slate-500 translate-x-0.5'
-                                : 'text-slate-300 group-hover:text-slate-500'
-                            }`}
-                          />
-                        </div>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
+                    ) : group.teams.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
+                        등록된 {group.label}가 없습니다.
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">{group.teams.map(renderStudyTeamCard)}</div>
+                    )}
+                  </section>
+                ))}
               </div>
             )}
           </div>
@@ -1095,26 +1312,17 @@ export function InputPage({
                 <FolderPlus size={22} />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-900">개설된 팀이 없습니다</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  {isAdv ? '개설된 팀이 없습니다' : '등록된 스터디가 없습니다'}
+                </h3>
                 <p className="text-xs text-slate-500">
                   {isHost
                     ? '배정된 담당 팀이 없습니다. 운영지원팀에 문의하세요.'
-                    : `새로운 ${isAdv ? 'ADV 프로젝트' : '스터디'} 팀을 개설하여 출결 입력을 시작하세요.`}
+                    : isAdv
+                      ? 'ADV 출결 관리에서 팀을 개설하면 출결 입력을 시작할 수 있습니다.'
+                      : '스터디 출결 관리에서 스터디를 생성하면 출결 입력을 시작할 수 있습니다.'}
                 </p>
               </div>
-              {!isHost && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewTeamName('');
-                    setShowCreateTeamModal(true);
-                  }}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Plus size={14} />
-                  <span>새 팀 개설하기</span>
-                </button>
-              )}
             </div>
           ) : (
             <>
@@ -1123,7 +1331,7 @@ export function InputPage({
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
-                disabled={!canEdit}
+                disabled={!canEditPhoto}
                 className="hidden"
               />
 
@@ -1136,7 +1344,7 @@ export function InputPage({
                         ? currentStudy.studyName && currentStudy.studyName !== currentStudy.teamName
                           ? `${currentStudy.teamName} (${currentStudy.studyName})`
                           : currentStudy.teamName
-                        : selectedTeam}
+                        : selectedTeamName}
                     </h3>
                     {isHost && (
                       <span className="shrink-0 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
@@ -1147,63 +1355,63 @@ export function InputPage({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {isFutureWeek ? (
-                    <span className="text-xs font-medium text-slate-400 select-none">
-                      세션 미오픈 (진행 예정)
-                    </span>
-                  ) : isPastWeek ? (
+                  {isPastWeek ? (
                     <div className="flex items-center gap-2 select-none">
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-                        <Check size={14} className="text-emerald-600 stroke-[2.5]" />
+                        <Check size={14} className="text-slate-500 stroke-[2.5]" />
                         <span>제출 완료 (마감)</span>
                         {(rec?.submittedAt ||
                           (weekNum === 1 ? '2026-08-04 21:15' : '2026-08-11 20:47')) && (
-                          <span className="text-[11px] font-normal text-slate-400 font-mono">
-                            {(
+                          <span className="text-[11px] font-normal tabular-nums text-slate-400">
+                            {formatSubmittedAt(
                               rec?.submittedAt ||
-                              (weekNum === 1 ? '2026-08-04 21:15' : '2026-08-11 20:47')
-                            ).slice(5, 16)}
+                                (weekNum === 1 ? '2026-08-04 21:15' : '2026-08-11 20:47'),
+                            )}
                           </span>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowRequestModal(true)}
-                        className="text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors cursor-pointer px-1 py-0.5 rounded hover:bg-slate-100"
-                        title="운영지원팀에 출결 수정 요청"
-                      >
-                        수정 요청
-                      </button>
                     </div>
-                  ) : rec?.submitted ? (
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 select-none">
-                        <Check size={14} className="text-emerald-600 stroke-[2.5]" />
-                        <span>제출 완료</span>
-                        {rec?.submittedAt && (
-                          <span className="text-[11px] font-normal text-slate-400 font-mono">
-                            {rec.submittedAt.slice(5, 16)}
-                          </span>
-                        )}
+                  ) : isSubmitted ? (
+                    isEditing ? (
+                      /* 수정 모드 활성화 상태 */
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 shadow-2xs transition-all cursor-pointer"
+                        >
+                          취소
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={submit}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-xs transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
-                        title="수정한 출결 내용을 저장합니다"
-                      >
-                        <Check size={13} />
-                        <span>수정 사항 저장</span>
-                      </button>
-                    </div>
+                    ) : (
+                      /* 기본 보기 상태: 제출 상태 */
+                      <div className="flex items-center">
+                        <div className="inline-flex h-8 items-center gap-2 text-xs text-slate-700 select-none">
+                          <span className="inline-flex items-center gap-1.5 font-semibold">
+                            <Check size={13} className="text-slate-500 stroke-2" aria-hidden="true" />
+                            제출 완료
+                          </span>
+                          {rec?.submittedAt && (
+                            <span className="border-l border-slate-200 pl-2 text-[11px] font-normal tabular-nums text-slate-400">
+                              {formatSubmittedAt(rec.submittedAt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
                   ) : (
                     <button
                       type="button"
                       onClick={submit}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-xs transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+                      disabled={isFutureWeek}
+                      title={isFutureWeek ? '세션이 열린 뒤에 제출할 수 있습니다' : undefined}
+                      className={`px-3.5 py-1.5 rounded-sm text-xs transition-colors flex items-center gap-1.5 ${ATTEND_STATUS_STYLES.unmarked.active} ${
+                        isFutureWeek
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:bg-[#dde5ee] active:bg-[#d1dae5] cursor-pointer'
+                      }`}
                     >
-                      <Check size={13} />
-                      <span>출결 제출하기</span>
+                      <span>제출</span>
                     </button>
                   )}
 
@@ -1221,108 +1429,167 @@ export function InputPage({
                 </div>
               </div>
 
-              {/* 활동 인증 사진 섹션 (중앙 배치 & 모던 카드 디자인) */}
-              <div className="flex flex-col items-center justify-center w-full py-2">
-                {currentPhotoUrl ? (
-                  <div className="flex flex-col items-center gap-2.5 w-full">
-                    <div
-                      onClick={() => setLightboxOpen(true)}
-                      style={
-                        photoDisplaySize
-                          ? {
-                              width: `${photoDisplaySize.width}px`,
-                              maxWidth: '100%',
-                              aspectRatio: `${photoDisplaySize.aspectRatio}`,
-                            }
-                          : undefined
-                      }
-                      className="relative group rounded-2xl overflow-hidden border border-slate-200/90 shadow-2xs cursor-zoom-in select-none transition-all duration-300 hover:shadow-md hover:border-slate-300 mx-auto max-w-[520px] max-h-[380px]"
-                      title="클릭하여 원본 사진 크게 보기"
-                    >
-                      <img
-                        src={currentPhotoUrl}
-                        alt={`${selectedTeam} ${termPeriod} ${weekNum}주차 인증 사진`}
-                        onLoad={(e) => {
-                          const { naturalWidth, naturalHeight } = e.currentTarget;
-                          if (naturalWidth && naturalHeight) {
-                            setPhotoDimensions({ width: naturalWidth, height: naturalHeight });
+              {/* 활동 사진은 가운데, 멘멘 스터디는 그 아래에 파일 업로드 줄을 둔다 */}
+              <div
+                className={
+                  isMentoringTeam ? 'flex w-full flex-col items-center gap-3 py-2' : 'contents'
+                }
+              >
+                {/* 활동 인증 사진 섹션 (중앙 배치 & 모던 카드 디자인) */}
+                <div className="flex flex-col items-center justify-center w-full py-2">
+                  {currentPhotoUrl ? (
+                    <div className="flex flex-col items-center gap-2.5 w-full">
+                      <div
+                        onClick={() => {
+                          if (canEdit) {
+                            fileInputRef.current?.click();
+                          } else {
+                            setLightboxOpen(true);
                           }
                         }}
-                        className="w-full h-full object-cover block transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-                      />
-                    </div>
-
-                    {canEdit && (
-                      <div
                         style={
                           photoDisplaySize
                             ? {
-                                width: `${Math.max(photoDisplaySize.width, 360)}px`,
+                                width: `${photoDisplaySize.width}px`,
                                 maxWidth: '100%',
+                                aspectRatio: `${photoDisplaySize.aspectRatio}`,
                               }
                             : undefined
                         }
-                        className="flex items-center justify-between w-full max-w-[520px] px-1"
+                        className={`relative group rounded-2xl overflow-hidden border border-slate-200/90 shadow-2xs select-none transition-all duration-300 hover:shadow-md hover:border-slate-300 mx-auto max-w-[360px] max-h-[240px] ${
+                          canEdit ? 'cursor-pointer ring-2 ring-blue-500/20' : 'cursor-zoom-in'
+                        }`}
+                        title={canEdit ? '클릭하여 사진 변경' : '클릭하여 원본 사진 크게 보기'}
                       >
-                        <p className="text-[11px] text-slate-400 font-medium">
-                          사진을 클릭하면 크게 확인할 수 있습니다.
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="px-3 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-950 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-[0.98]"
-                          >
-                            <Upload size={13} />
-                            <span>사진 변경</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleRemoveImage}
-                            className="px-3 py-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/60 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-[0.98]"
-                          >
-                            <Trash2 size={13} />
-                            <span>삭제</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    onClick={() => canEdit && fileInputRef.current?.click()}
-                    className={`w-full max-w-[520px] h-44 sm:h-48 rounded-2xl border border-dashed flex flex-col items-center justify-center gap-3 transition-colors select-none border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50/60 ${
-                      canEdit ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'
-                    }`}
-                  >
-                    <div className="flex flex-col items-center gap-2">
-                      <Camera size={26} strokeWidth={1.4} className="text-slate-400" />
-                      <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                        {isFutureWeek
-                          ? '세션 오픈 후 활동 사진을 등록할 수 있습니다'
-                          : isPastWeek
-                            ? '등록된 활동 사진이 없습니다 (마감)'
-                            : '활동 사진을 등록해 주세요'}
-                      </p>
-                    </div>
+                        <img
+                          src={currentPhotoUrl}
+                          alt={`${selectedTeamName} ${termPeriod} ${weekNum}주차 인증 사진`}
+                          onLoad={(e) => {
+                            const { naturalWidth, naturalHeight } = e.currentTarget;
+                            if (naturalWidth && naturalHeight) {
+                              setPhotoDimensions({ width: naturalWidth, height: naturalHeight });
+                            }
+                          }}
+                          className="w-full h-full object-cover block transition-transform duration-300 ease-out group-hover:scale-[1.03]"
+                        />
 
-                    {canEdit && (
-                      <div
-                        className="flex items-center justify-center mt-0.5"
-                        onClick={(e) => e.stopPropagation()}
+                        {/* 수정 모드일 때 사진 우측 상단 플로팅 액션 컨트롤 */}
+                        {canEditPhoto && (
+                          <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5 rounded-md bg-white/70 p-0.5 backdrop-blur-sm">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fileInputRef.current?.click();
+                              }}
+                              className="flex cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
+                              title="사진 변경"
+                            >
+                              <Upload size={11} aria-hidden="true" />
+                              <span>변경</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemovePhoto();
+                              }}
+                              className="cursor-pointer rounded-md p-1 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                              title="사진 삭제"
+                              aria-label="사진 삭제"
+                            >
+                              <Trash2 size={12} aria-hidden="true" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => canEditPhoto && fileInputRef.current?.click()}
+                      className={`group w-full max-w-[360px] h-36 sm:h-40 rounded-2xl border border-dashed flex flex-col items-center justify-center gap-2.5 transition-colors select-none border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50/60 ${
+                        canEditPhoto ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <Camera size={26} strokeWidth={1.4} className="text-slate-400" />
+                        <p
+                          className={`text-xs sm:text-sm text-slate-600 font-medium transition-colors ${
+                            canEditPhoto ? 'group-hover:text-slate-900 group-hover:underline' : ''
+                          }`}
+                        >
+                          {isFutureWeek
+                            ? '세션 오픈 후 사진을 등록할 수 있습니다'
+                            : isPastWeek
+                            ? '등록된 사진이 없습니다 (마감)'
+                            : isSubmitted && !isEditing
+                              ? '등록된 사진이 없습니다'
+                              : '사진을 등록해 주세요'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              {/* 멘멘 스터디 파일(PDF) 업로드 줄: 폴더 아이콘 · 파일명 · 초록 체크 */}
+              {isMentoringTeam && (
+                <div className="w-full max-w-[360px]">
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={handlePdfChange}
+                    disabled={!canEditPdf}
+                    className="hidden"
+                  />
+                  {currentPdfUrl ? (
+                    <div className="flex h-14 items-center gap-3 rounded-sm border border-slate-200 bg-white px-4 shadow-2xs">
+                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPdfPreview({ url: currentPdfUrl, name: currentPdfName ?? 'PDF 자료' })
+                        }
+                        className="min-w-0 flex-1 cursor-pointer truncate text-left text-sm text-slate-800 hover:underline"
+                        title={`${currentPdfName ?? 'PDF 자료'}${currentPdfSize ? ` (${currentPdfSize})` : ''} 미리보기`}
                       >
+                        {currentPdfName ?? 'PDF 자료'}
+                      </button>
+                      <Check size={20} strokeWidth={2.4} className="shrink-0 text-emerald-500" aria-label="업로드 완료" />
+                      {canEditPdf && (
                         <button
                           type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          onClick={handleRemovePdf}
+                          className="shrink-0 cursor-pointer rounded p-0.5 text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700"
+                          title="파일 삭제"
+                          aria-label="파일 삭제"
                         >
-                          <Upload size={13} className="text-slate-500" />
-                          <span>사진 업로드</span>
+                          <Trash2 size={14} aria-hidden="true" />
                         </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => canEditPdf && pdfInputRef.current?.click()}
+                      className={`group flex h-14 select-none items-center gap-3 rounded-sm border border-dashed border-slate-300 bg-white px-4 transition-colors hover:border-slate-400 hover:bg-slate-50/60 ${
+                        canEditPdf ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                      }`}
+                    >
+                      <Folder size={20} strokeWidth={1.3} className="shrink-0 text-slate-400" aria-hidden="true" />
+                      <span
+                        className={`min-w-0 flex-1 truncate text-sm text-slate-500 transition-colors ${
+                          canEditPdf ? 'group-hover:text-slate-900 group-hover:underline' : ''
+                        }`}
+                      >
+                        {isFutureWeek
+                          ? '세션 오픈 후 파일을 등록할 수 있습니다'
+                          : canEditPdf
+                            ? '파일을 업로드해 주세요'
+                            : '등록된 파일이 없습니다'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
               </div>
 
               {members.length === 0 ? (
@@ -1330,229 +1597,341 @@ export function InputPage({
                   <Users size={28} className="mx-auto text-slate-300" />
                   <p className="text-xs font-bold text-slate-700">아직 등록된 팀원이 없습니다</p>
                   <p className="text-[11px] text-slate-500">
-                    팀 개설 시 등록된 팀원 명단이 표시됩니다.
+                    {isAdv
+                      ? '팀 개설 시 등록된 팀원 명단이 표시됩니다.'
+                      : '스터디 생성 시 선택한 스터디원 명단이 표시됩니다.'}
                   </p>
                 </div>
               ) : (
-                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                <div className="w-full rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
                   <div className="overflow-x-auto select-none relative">
                     <table
                       className="w-full text-xs table-fixed border-collapse"
-                      style={{ minWidth: `${tableMinWidth}px` }}
+                      style={
+                        tableMinWidth > 0 ? { minWidth: `${tableMinWidth}px` } : undefined
+                      }
                     >
                       <thead className="bg-slate-50/80 select-none">
                         <tr className="border-b border-slate-200 divide-x divide-slate-200 text-slate-700 font-semibold text-[11px] whitespace-nowrap h-11">
                           {/* 이름 */}
                           <th
-                            style={{ width: `${colWidths.name}px` }}
+                            style={{ width: `${effectiveColWidths.name}px` }}
                             className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-100/90"
                           >
                             <div className="h-9 flex items-center justify-center">이름</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'name', MIN_COL_WIDTHS.name)}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
-                              title="열 너비 조절"
-                            >
+                            {canEdit && (
                               <div
-                                className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === 'name'
-                                    ? 'bg-slate-700 h-full'
-                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
-                                }`}
-                              />
-                            </div>
+                                onMouseDown={(e) => handleResizeStart(e, 'name', MIN_COL_WIDTHS.name)}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
+                                title="열 너비 조절"
+                              >
+                                <div
+                                  className={`w-[2px] transition-all rounded-full ${
+                                    resizingColKey === 'name'
+                                      ? 'bg-slate-700 h-full'
+                                      : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
+                                  }`}
+                                />
+                              </div>
+                            )}
                           </th>
 
                           {/* 기수 */}
                           <th
-                            style={{ width: `${colWidths.year}px` }}
+                            style={{ width: `${effectiveColWidths.year}px` }}
                             className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                           >
                             <div className="h-9 flex items-center justify-center">기수</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'year', MIN_COL_WIDTHS.year)}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
-                              title="열 너비 조절"
-                            >
+                            {canEdit && (
                               <div
-                                className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === 'year'
-                                    ? 'bg-slate-700 h-full'
-                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
-                                }`}
-                              />
-                            </div>
+                                onMouseDown={(e) => handleResizeStart(e, 'year', MIN_COL_WIDTHS.year)}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
+                                title="열 너비 조절"
+                              >
+                                <div
+                                  className={`w-[2px] transition-all rounded-full ${
+                                    resizingColKey === 'year'
+                                      ? 'bg-slate-700 h-full'
+                                      : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
+                                  }`}
+                                />
+                              </div>
+                            )}
                           </th>
 
                           {/* 부문 */}
                           <th
-                            style={{ width: `${colWidths.track}px` }}
+                            style={{ width: `${effectiveColWidths.track}px` }}
                             className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
                           >
                             <div className="h-9 flex items-center justify-center">부문</div>
-                            <div
-                              onMouseDown={(e) =>
-                                handleResizeStart(e, 'track', MIN_COL_WIDTHS.track)
-                              }
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
-                              title="열 너비 조절"
-                            >
+                            {canEdit && (
                               <div
-                                className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === 'track'
-                                    ? 'bg-slate-700 h-full'
-                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
-                                }`}
-                              />
-                            </div>
+                                onMouseDown={(e) =>
+                                  handleResizeStart(e, 'track', MIN_COL_WIDTHS.track)
+                                }
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
+                                title="열 너비 조절"
+                              >
+                                <div
+                                  className={`w-[2px] transition-all rounded-full ${
+                                    resizingColKey === 'track'
+                                      ? 'bg-slate-700 h-full'
+                                      : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
+                                  }`}
+                                />
+                              </div>
+                            )}
                           </th>
+
+                          {/* 유형 (멘멘 스터디: 멘멘/친바) */}
+                          {isMentoringTeam && (
+                            <th
+                              style={{ width: `${effectiveColWidths.type}px` }}
+                              className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
+                            >
+                              <div className="h-9 flex items-center justify-center">유형</div>
+                              {canEdit && (
+                                <div
+                                  onMouseDown={(e) => handleResizeStart(e, 'type', MIN_COL_WIDTHS.type)}
+                                  className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
+                                  title="열 너비 조절"
+                                >
+                                  <div
+                                    className={`w-[2px] transition-all rounded-full ${
+                                      resizingColKey === 'type'
+                                        ? 'bg-slate-700 h-full'
+                                        : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
+                                    }`}
+                                  />
+                                </div>
+                              )}
+                            </th>
+                          )}
 
                           {/* 출결 */}
                           <th
                             style={{
-                              width: `${colWidths.status}px`,
-                              minWidth: `${MIN_COL_WIDTHS.status}px`,
+                              width: `${effectiveColWidths.status}px`,
+                              minWidth: canEdit ? `${MIN_COL_WIDTHS.status}px` : undefined,
                             }}
                             className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-50/80"
                           >
                             <div className="h-9 flex items-center justify-center">출결</div>
-                            <div
-                              onMouseDown={(e) =>
-                                handleResizeStart(e, 'status', MIN_COL_WIDTHS.status)
-                              }
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
-                              title="열 너비 조절"
-                            >
+                            {canEdit && (
                               <div
-                                className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === 'status'
-                                    ? 'bg-slate-700 h-full'
-                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
-                                }`}
-                              />
-                            </div>
+                                onMouseDown={(e) =>
+                                  handleResizeStart(e, 'status', MIN_COL_WIDTHS.status)
+                                }
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
+                                title="열 너비 조절"
+                              >
+                                <div
+                                  className={`w-[2px] transition-all rounded-full ${
+                                    resizingColKey === 'status'
+                                      ? 'bg-slate-700 h-full'
+                                      : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
+                                  }`}
+                                />
+                              </div>
+                            )}
                           </th>
 
                           {/* 비고 */}
                           <th
                             style={{
-                              width: `${colWidths.memo}px`,
-                              minWidth: `${MIN_COL_WIDTHS.memo}px`,
+                              width: canEdit ? `${effectiveColWidths.memo}px` : undefined,
+                              minWidth: canEdit ? `${MIN_COL_WIDTHS.memo}px` : undefined,
                             }}
                             className="relative text-center px-3 py-1 text-slate-700 font-semibold"
                           >
                             <div className="h-9 flex items-center justify-center">비고</div>
-                            <div
-                              onMouseDown={(e) => handleResizeStart(e, 'memo', MIN_COL_WIDTHS.memo)}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
-                              title="열 너비 조절"
-                            >
+                            {isSubmitted && !isEditing && isInputWeek && (
+                              <button
+                                type="button"
+                                onClick={() => setIsEditing(true)}
+                                className={EDIT_ICON_BUTTON_CLASS}
+                                title="출결 수정"
+                                aria-label="출결 수정"
+                              >
+                                <Pencil size={14} aria-hidden="true" />
+                              </button>
+                            )}
+                            {isPastWeek && (
+                              <button
+                                type="button"
+                                onClick={(e) => showClosedNotice(e.currentTarget)}
+                                className={EDIT_ICON_BUTTON_CLASS}
+                                title="출결 수정"
+                                aria-label="출결 수정"
+                              >
+                                <Pencil size={14} aria-hidden="true" />
+                              </button>
+                            )}
+                            {canEdit && (
                               <div
-                                className={`w-[2px] transition-all rounded-full ${
-                                  resizingColKey === 'memo'
-                                    ? 'bg-slate-700 h-full'
-                                    : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
-                                }`}
-                              />
-                            </div>
+                                onMouseDown={(e) => handleResizeStart(e, 'memo', MIN_COL_WIDTHS.memo)}
+                                className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 flex items-center justify-center group"
+                                title="열 너비 조절"
+                              >
+                                <div
+                                  className={`w-[2px] transition-all rounded-full ${
+                                    resizingColKey === 'memo'
+                                      ? 'bg-slate-700 h-full'
+                                      : 'h-3 bg-slate-200 group-hover:bg-slate-400 group-hover:h-4.5'
+                                  }`}
+                                />
+                              </div>
+                            )}
                           </th>
 
                           {/* 관리 */}
                           {canEdit && (
                             <th
-                              style={{ width: `${colWidths.actions}px` }}
+                              style={{ width: `${effectiveColWidths.actions}px` }}
                               className="text-center px-1 py-1 text-slate-400 font-semibold w-10"
                             >
-                              <div className="h-9 flex items-center justify-center">관리</div>
+                              <div className="h-9 flex items-center justify-center">
+                                {isEditing ? (
+                                  <button
+                                    type="button"
+                                    onClick={submit}
+                                    className="relative inline-flex size-8 items-center justify-center rounded-md text-slate-500 transition-[background-color,color,transform] duration-150 after:absolute after:-inset-1 hover:bg-slate-200/70 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 cursor-pointer"
+                                    title="수정 사항 저장"
+                                    aria-label="수정 사항 저장"
+                                  >
+                                    <Check size={15} strokeWidth={2} aria-hidden="true" />
+                                  </button>
+                                ) : (
+                                  '관리'
+                                )}
+                              </div>
                             </th>
                           )}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 font-mono">
-                        {members.map((m) => {
-                          const s = getStatus(m.id);
-                          const currentMemo = getMemo(m.id);
+                      {members.map((m) => {
+                          // 멘멘 스터디는 유형(멘멘/친바)마다 출결 한 줄, 그 외에는 한 줄.
+                          const types = isMentoringTeam ? MENTORING_TYPE_LABELS : [null];
+                          const rowSpan = types.length;
+                          const currentMemo = getMemo(m.id); // 비고는 팀원 한 명에 하나
+
+                          const memberRowsJsx = types.map((typeLabel, typeIndex) => {
+                            const rowKey = typeLabel ? `${m.id}:${typeLabel}` : m.id;
+                            const s = getStatus(rowKey);
+                            const isFirstRow = typeIndex === 0;
+
+                            return (
+                              <tr
+                                key={rowKey}
+                                className="hover:bg-slate-50/70 transition-colors divide-x divide-slate-200 h-[42px]"
+                              >
+                                {isFirstRow && (
+                                  <>
+                                    <td
+                                      rowSpan={rowSpan}
+                                      className="relative px-2 py-1.5 text-center font-bold text-slate-900 text-xs font-sans whitespace-nowrap"
+                                    >
+                                      {m.name}
+                                    </td>
+                                    <td
+                                      rowSpan={rowSpan}
+                                      className="relative px-2 py-1.5 text-center text-slate-600 text-xs whitespace-nowrap"
+                                    >
+                                      {m.year ? `${m.year}기` : '—'}
+                                    </td>
+                                    <td
+                                      rowSpan={rowSpan}
+                                      className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans whitespace-nowrap"
+                                    >
+                                      {m.track || '분석'}
+                                    </td>
+                                  </>
+                                )}
+                                {isMentoringTeam && (
+                                  <td className="relative px-2 py-1.5 text-center text-slate-700 text-xs font-sans font-semibold whitespace-nowrap">
+                                    {typeLabel}
+                                  </td>
+                                )}
+                                <td className="relative px-2 py-1.5 text-center">
+                                  {canEdit ? (
+                                    <div className="flex items-center justify-center w-full px-1">
+                                      <div
+                                        className="grid w-full p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs grid-cols-2 max-w-[140px] min-w-[130px]"
+                                      >
+                                        {STATUS_BTNS.map((btn) => {
+                                          const active = s === btn.id;
+                                          const styleCfg =
+                                            ATTEND_STATUS_STYLES[btn.id] ||
+                                            ATTEND_STATUS_STYLES.unmarked;
+                                          return (
+                                            <button
+                                              key={btn.id}
+                                              type="button"
+                                              onClick={() => setStatus(rowKey, btn.id)}
+                                              disabled={isFutureWeek}
+                                              className={`py-1 text-[10.5px] font-semibold rounded transition-all text-center whitespace-nowrap px-0.5 ${
+                                                isFutureWeek
+                                                  ? 'cursor-not-allowed opacity-50 ' + styleCfg.inactive
+                                                  : 'cursor-pointer ' + (active ? styleCfg.active : styleCfg.inactive)
+                                              }`}
+                                            >
+                                              {btn.label}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-center h-8 font-sans text-xs">
+                                      {renderStatusText(s)}
+                                    </div>
+                                  )}
+                                </td>
+                                {isFirstRow && (
+                                  <td rowSpan={rowSpan} className="relative border-l border-slate-200 px-3 py-2 text-center">
+                                    {canEdit ? (
+                                      <div className="h-8 flex items-center justify-center">
+                                        <input
+                                          type="text"
+                                          value={currentMemo}
+                                          onChange={(e) => setMemo(m.id, e.target.value)}
+                                          placeholder="—"
+                                          className="w-full h-8 text-center px-3 text-xs font-sans text-slate-700 placeholder:text-slate-300 placeholder:font-mono rounded-lg bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-800 focus:ring-2 focus:ring-slate-100 outline-none transition-all shadow-2xs"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className="h-8 flex items-center justify-center font-sans text-xs text-slate-600 truncate px-2">
+                                        {currentMemo || <span className="text-slate-300 font-mono">—</span>}
+                                      </div>
+                                    )}
+                                  </td>
+                                )}
+                                {isFirstRow && canEdit && (
+                                  <td rowSpan={rowSpan} className="border-l border-slate-200 px-2 py-1.5 text-center w-10">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteMember(m.id)}
+                                      className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                                      title="명단에서 삭제"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          });
 
                           return (
-                            <tr
+                            <tbody
                               key={m.id}
-                              className="hover:bg-slate-50/70 transition-colors divide-x divide-slate-200 h-[42px]"
+                              className="border-b border-slate-300 last:border-b-0 font-mono [&>tr+tr]:border-t [&>tr+tr]:border-slate-100"
                             >
-                              {/* 이름 */}
-                              <td className="relative px-2 py-1.5 text-center font-bold text-slate-900 text-xs font-sans whitespace-nowrap">
-                                {m.name}
-                              </td>
-
-                              {/* 기수 */}
-                              <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs whitespace-nowrap">
-                                {m.year ? `${m.year}기` : '—'}
-                              </td>
-
-                              {/* 부문 */}
-                              <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans whitespace-nowrap">
-                                {m.track || '분석'}
-                              </td>
-
-                              {/* 출결 */}
-                              <td className="relative px-2 py-1.5 text-center">
-                                <div className="flex items-center justify-center w-full px-1">
-                                  <div className="grid grid-cols-8 w-full max-w-[445px] min-w-[425px] p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
-                                    {EXT_STATUS_BTNS.map((btn) => {
-                                      const active = s === btn.id;
-                                      const styleCfg =
-                                        ATTEND_STATUS_STYLES[btn.id] ||
-                                        ATTEND_STATUS_STYLES.unmarked;
-                                      return (
-                                        <button
-                                          key={btn.id}
-                                          type="button"
-                                          onClick={() => setStatus(m.id, btn.id)}
-                                          disabled={!canEdit}
-                                          className={`py-1 text-[10.5px] font-semibold rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 disabled:cursor-not-allowed ${
-                                            active ? styleCfg.active : styleCfg.inactive
-                                          }`}
-                                        >
-                                          {btn.label}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* 비고 */}
-                              <td className="relative px-3 py-2 text-center">
-                                <div className="h-8 flex items-center justify-center">
-                                  <input
-                                    type="text"
-                                    value={currentMemo}
-                                    onChange={(e) => setMemo(m.id, e.target.value)}
-                                    disabled={!canEdit}
-                                    placeholder={
-                                      isFutureWeek ? '미오픈' : isPastWeek ? '마감' : '—'
-                                    }
-                                    className="w-full h-8 text-center px-3 text-xs font-sans text-slate-700 placeholder:text-slate-300 placeholder:font-mono rounded-lg bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-800 focus:ring-2 focus:ring-slate-100 outline-none transition-all shadow-2xs disabled:bg-slate-50 disabled:text-slate-400"
-                                  />
-                                </div>
-                              </td>
-
-                              {/* 관리 */}
-                              {canEdit && (
-                                <td className="px-2 py-1.5 text-center w-10">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteMember(m.id)}
-                                    className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
-                                    title="명단에서 삭제"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
+                              {memberRowsJsx}
+                            </tbody>
                           );
                         })}
-                      </tbody>
                     </table>
                   </div>
                 </div>
@@ -1563,6 +1942,18 @@ export function InputPage({
       </div>
 
       {/* Lightbox Modal */}
+      {closedNoticePos && (
+        <div
+          role="status"
+          style={{ top: closedNoticePos.top, right: closedNoticePos.right }}
+          className="fixed z-70 w-max max-w-sm rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-medium leading-relaxed text-white shadow-xl"
+        >
+          마감된 출결은 수정할 수 없습니다.
+          <br />
+          수정이 필요하면 운영지원팀에 문의해 주세요.
+        </div>
+      )}
+
       {lightboxOpen && currentPhotoUrl && (
         <div
           className="fixed inset-0 bg-black/90 z-60 flex flex-col items-center justify-center p-4 cursor-pointer"
@@ -1579,7 +1970,7 @@ export function InputPage({
             />
             <div className="mt-3 flex items-center justify-between w-full text-xs text-slate-700">
               <span>
-                {selectedTeam} · {weekNum}주차 출석 인증 사진 ({currentPhotoName})
+                {selectedTeamName} · {weekNum}주차 출석 인증 사진 ({currentPhotoName})
               </span>
               <button
                 onClick={() => setLightboxOpen(false)}
@@ -1595,7 +1986,7 @@ export function InputPage({
       {/* Exception Request Modal */}
       {showRequestModal && (
         <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl overflow-hidden p-5 space-y-4 bg-white border border-slate-200 shadow-2xl">
+          <div className={`w-full max-w-md rounded-2xl overflow-hidden p-5 space-y-4 ${MODAL_SURFACE}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-foreground">운영지원팀에 출결 수정 요청</h3>
               <button
@@ -1626,7 +2017,7 @@ export function InputPage({
               <div>
                 <label className="text-muted-foreground block mb-1">변경 희망 상태</label>
                 <div className="flex gap-2">
-                  {(['present', 'late', 'absent'] as AttendanceStatus[]).map((s) => (
+                  {(['present', 'absent'] as AttendanceStatus[]).map((s) => (
                     <button
                       key={s}
                       onClick={() => setReqToStatus(s)}
@@ -1665,102 +2056,57 @@ export function InputPage({
         </div>
       )}
 
-      {/* 팀 개설 모달 */}
-      {showCreateTeamModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl overflow-hidden p-6 space-y-5 bg-white border border-slate-200 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900">
-                {isAdv ? 'ADV 팀 개설' : '스터디 팀 개설'}
+      {isPdfToastOpen && (
+        <div
+          role="status"
+          className="fixed right-6 top-20 z-70 flex max-w-sm items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-medium text-white shadow-xl"
+        >
+          <Check size={15} strokeWidth={2.5} className="shrink-0 text-emerald-300" aria-hidden="true" />
+          <span>PDF 첨부가 완료되었습니다.</span>
+        </div>
+      )}
+
+      {pdfPreview && (
+        <PdfPreviewModal
+          url={pdfPreview.url}
+          name={pdfPreview.name}
+          onClose={() => setPdfPreview(null)}
+        />
+      )}
+
+      {/* 방학 중 학기 탭 이동 확인 경고 모달 */}
+      {isSemesterWarningOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setIsSemesterWarningOpen(false)}
+        >
+          <div
+            className={`w-full max-w-sm rounded-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                학기는 아직 시작 전입니다
               </h3>
-              <button
-                type="button"
-                onClick={() => setShowCreateTeamModal(false)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <X size={18} />
-              </button>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                아직 방학 기간이라 학기 출결 데이터가 없습니다. 학기로 이동할까요?
+              </p>
             </div>
 
-            {/* Modal Form */}
-            <div className="space-y-4 text-xs">
-              {/* 부문 (트랙) 선택 */}
-              <div>
-                <label className="text-slate-700 block mb-1.5 font-semibold">
-                  부문 <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['분석', '시각화', '엔지니어링'] as const).map((track) => (
-                    <button
-                      key={track}
-                      type="button"
-                      onClick={() => setNewTeamTrack(track)}
-                      className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        newTeamTrack === track
-                          ? 'bg-slate-900 border-slate-900 text-white shadow-xs'
-                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      {track}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 팀명 & 팀장 이름 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 block mb-1.5 font-semibold">
-                    팀명 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    value={newTeamName}
-                    onChange={(e) => setNewTeamName(e.target.value)}
-                    placeholder={isAdv ? '예: 분석 1팀' : '예: 데이터 분석 스터디'}
-                    className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-slate-400 transition-colors font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-700 block mb-1.5 font-semibold">팀장 이름</label>
-                  <input
-                    value={newTeamLeader}
-                    onChange={(e) => setNewTeamLeader(e.target.value)}
-                    placeholder="예: 홍길동"
-                    className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-slate-400 transition-colors font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* 팀원 이름 */}
-              <div>
-                <label className="text-slate-700 block mb-1.5 font-semibold">
-                  팀원 이름 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  value={newTeamMembersText}
-                  onChange={(e) => setNewTeamMembersText(e.target.value)}
-                  placeholder="예: 홍길동, 김철수, 이영희"
-                  className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:border-slate-400 transition-colors font-medium text-xs"
-                />
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => setShowCreateTeamModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                onClick={() => setIsSemesterWarningOpen(false)}
+                className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors cursor-pointer"
               >
                 취소
               </button>
               <button
                 type="button"
-                onClick={handleCreateTeam}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 shadow-xs transition-all cursor-pointer"
+                onClick={() => applyPeriodChange('학기')}
+                className="px-4 py-2 text-xs font-semibold rounded-sm border border-slate-300 bg-transparent text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer"
               >
-                개설
+                이동
               </button>
             </div>
           </div>
@@ -1774,7 +2120,7 @@ export function InputPage({
           onClick={() => setFutureWeekWarning(null)}
         >
           <div
-            className="w-full max-w-sm rounded-2xl p-6 space-y-4 bg-white border border-slate-200/90 shadow-xl animate-in zoom-in-95 duration-150"
+            className={`w-full max-w-sm rounded-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="space-y-1.5">
@@ -1790,14 +2136,14 @@ export function InputPage({
               <button
                 type="button"
                 onClick={() => setFutureWeekWarning(null)}
-                className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors cursor-pointer"
               >
                 취소
               </button>
               <button
                 type="button"
                 onClick={confirmMoveToFutureWeek}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-all active:scale-[0.98] cursor-pointer shadow-2xs"
+                className="px-4 py-2 text-xs font-semibold rounded-sm border border-slate-300 bg-transparent text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer"
               >
                 이동
               </button>
