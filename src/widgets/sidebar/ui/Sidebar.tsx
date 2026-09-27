@@ -104,7 +104,7 @@ const SIDEBAR_NAV = [
       {
         title: '설정',
         pages: [
-          { id: 'att-hosts', label: 'HOST 계정 관리' },
+          { id: 'att-hosts', label: '그룹 계정 관리' },
           { id: 'att-rules', label: '출결 규정 관리' },
         ],
       },
