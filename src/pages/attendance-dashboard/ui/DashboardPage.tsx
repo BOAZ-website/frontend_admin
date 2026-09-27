@@ -25,6 +25,7 @@ export function DashboardPage({
   attendance,
   exceptions,
   studyTeams,
+  advTeams,
   membersMap,
   onApprove,
   onReject,
@@ -36,6 +37,7 @@ export function DashboardPage({
   exceptions: ExceptionRequest[];
   studyTeams: StudyTeamInfo[];
   membersMap?: Record<string, Member[]>;
+  advTeams?: StudyTeamInfo[];
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
   onDirectEdit: (
@@ -58,8 +60,11 @@ export function DashboardPage({
   const [currentSeason, setCurrentSeason] = useState<StudyPeriodType>('학기 스터디');
 
   const displayedStudyTeams = studyTeams.filter((t) => t.studyType === currentSeason);
+  // 출결 기록은 팀 id로 찾는다(팀 이름은 부문이 다르면 겹칠 수 있다). 이름은 화면 표시에만 쓴다.
+  const teamLabel = (teamId: string) =>
+    [...studyTeams, ...(advTeams ?? [])].find((t) => t.id === teamId)?.teamName ?? teamId;
   const allTeams = displayedStudyTeams.map((t) => ({
-    team: t.teamName,
+    team: t.id,
     studyName: t.studyName,
     actId: 'study',
     color: '#3b82f6',
@@ -238,7 +243,7 @@ export function DashboardPage({
                   </th>
                   {displayedStudyTeams.map((st) => (
                     <th
-                      key={st.teamName}
+                      key={st.id}
                       className="text-center pb-2 font-bold text-slate-800 text-xs min-w-[120px]"
                     >
                       <div
@@ -261,7 +266,7 @@ export function DashboardPage({
                       {w.label}
                     </td>
                     {displayedStudyTeams.map((st) => {
-                      const team = st.teamName;
+                      const team = st.id;
                       const rec = attendance[sessionKey(w.id, 'study', team)];
                       const done = rec?.submitted ?? false;
                       const hasPhoto = !!rec?.photoUrl;
@@ -329,7 +334,7 @@ export function DashboardPage({
                   <AlertTriangle size={14} style={{ color: '#fbbf24' }} className="shrink-0" />
                   <div className="min-w-0">
                     <p className="text-sm text-foreground">
-                      <span className="font-semibold">{ex.team}</span>
+                      <span className="font-semibold">{teamLabel(ex.team)}</span>
                       <span className="text-muted-foreground mx-1">·</span>
                       <span className="text-muted-foreground">{ex.week}</span>
                       <span className="text-muted-foreground mx-1">·</span>
@@ -367,6 +372,7 @@ export function DashboardPage({
           weekId={selectedCell.weekId}
           actId={selectedCell.actId}
           team={selectedCell.team}
+          teamName={teamLabel(selectedCell.team)}
           record={activeModalRecord}
           onClose={() => setSelectedCell(null)}
           onConfirmAdmin={onConfirmAdmin}
