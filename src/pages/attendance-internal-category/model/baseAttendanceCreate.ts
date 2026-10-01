@@ -19,7 +19,7 @@ const BASE_TRACK_DESCRIPTIONS: Record<UserTrack, string> = {
 export function buildBaseTrackTeams(teams: readonly TeamMeta[], cohort: number): TeamMeta[] {
   return BASE_CREATE_TRACKS.map(
     (track) =>
-      teams.find((team) => team.track === track) ?? {
+      teams.find((team) => team.track === track && team.id === baseTeamId(cohort, track)) ?? {
         id: baseTeamId(cohort, track),
         name: track,
         leader: '',

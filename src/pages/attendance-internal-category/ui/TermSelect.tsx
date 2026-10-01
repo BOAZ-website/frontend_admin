@@ -18,7 +18,10 @@ export function TermSelect({ value, terms, onChange }: TermSelectProps) {
       if (!rootRef.current?.contains(event.target as Node)) setIsOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setIsOpen(false);
+      }
     };
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);

@@ -243,3 +243,15 @@ test('ADV 팀 개설: 그 기수·부문의 다음 번호 팀이 팀원·미정 
   // 26기의 팀·출결은 그대로다.
   assert.equal(after.advTeams.filter((team) => team.cohort === 26).length, 9);
 });
+
+test('중간 번호 ADV 팀이 삭제되어도 남은 팀 ID를 재사용하지 않는다', () => {
+  const existing = [1, 3].map((number) => ({
+    id: `adv_27_analysis_${number}`,
+    teamName: `분석 ${number}팀`,
+    cohort: 27,
+    track: '분석',
+  })) as Parameters<typeof createAdvTeamRecords>[1];
+  const created = createAdvTeamRecords({ cohort: 27, track: '분석', members: [] }, existing);
+  assert.equal(created.team.id, 'adv_27_analysis_4');
+  assert.equal(created.team.teamName, '분석 4팀');
+});

@@ -10,11 +10,13 @@ export function LoginModal({
   onLoginSuccess,
   hosts,
   studyTeams,
+  advTeams,
 }: {
   onClose: () => void;
   onLoginSuccess: (role: UserRole, hostTeam?: string, username?: string) => void;
   hosts: HostAccount[];
   studyTeams: StudyTeamInfo[];
+  advTeams: StudyTeamInfo[];
 }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -81,7 +83,10 @@ export function LoginModal({
     setErrorMsg('아이디 또는 비밀번호가 일치하지 않습니다. (아래 퀵 로그인 버튼을 이용해 보세요)');
   }
 
-  const currentSelectedHost = hosts.find((h) => h.team === selectedQuickHostTeam) || hosts[0];
+  const currentSelectedHost = hosts.find((h) => h.teamId === selectedQuickHostTeam);
+  const selectedTeam = [...studyTeams, ...advTeams].find(
+    (team) => team.id === selectedQuickHostTeam,
+  );
 
   return (
     <div className="fixed inset-0 bg-black/60 z-70 flex items-center justify-center p-4 backdrop-blur-xs">
@@ -158,11 +163,12 @@ export function LoginModal({
             <button
               onClick={() => {
                 const targetTeam = selectedQuickHostTeam;
-                const h = hosts.find((item) => item.team === targetTeam);
-                const isAdvTarget =
-                  targetTeam.startsWith('분석') ||
-                  targetTeam.startsWith('시각화') ||
-                  targetTeam.startsWith('엔지');
+                const h = hosts.find((item) => item.teamId === targetTeam);
+                if (!h?.active) {
+                  setErrorMsg('선택한 팀의 활성 HOST 계정이 없습니다.');
+                  return;
+                }
+                const isAdvTarget = advTeams.some((team) => team.id === targetTeam);
                 onLoginSuccess(
                   'HOST',
                   targetTeam,
@@ -173,7 +179,7 @@ export function LoginModal({
               className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-left cursor-pointer transition-colors"
             >
               <div className="flex items-center justify-between gap-1">
-                <p className="font-bold truncate">{selectedQuickHostTeam} 팀장</p>
+                <p className="font-bold truncate">{selectedTeam?.teamName ?? '팀 선택'} 팀장</p>
                 <select
                   value={selectedQuickHostTeam}
                   onChange={(e) => {
@@ -191,21 +197,16 @@ export function LoginModal({
                     ))}
                   </optgroup>
                   <optgroup label="ADV 프로젝트 팀">
-                    <option value="분석 1팀">분석 1팀</option>
-                    <option value="분석 2팀">분석 2팀</option>
-                    <option value="시각화 1팀">시각화 1팀</option>
-                    <option value="엔지니어링 1팀">엔지니어링 1팀</option>
+                    {advTeams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.teamName}
+                      </option>
+                    ))}
                   </optgroup>
                 </select>
               </div>
               <p className="text-[10px] text-emerald-600 font-mono">
-                {currentSelectedHost?.username ||
-                  (selectedQuickHostTeam.startsWith('분석') ||
-                  selectedQuickHostTeam.startsWith('시각화') ||
-                  selectedQuickHostTeam.startsWith('엔지')
-                    ? 'host_adv'
-                    : `host_${selectedQuickHostTeam.toLowerCase()}`)}{' '}
-                (HOST)
+                {currentSelectedHost?.username || '계정 미발급'} (HOST)
               </p>
             </button>
             <button

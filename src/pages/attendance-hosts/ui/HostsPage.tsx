@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   CheckCheck,
@@ -82,7 +82,7 @@ export function HostsPage({
   studyTeams,
   membersMap,
   users,
-  onChangeTeamLeader,
+  onSaveHostWithLeader,
 }: {
   hosts: HostAccount[];
   setHosts: React.Dispatch<React.SetStateAction<HostAccount[]>>;
@@ -90,7 +90,11 @@ export function HostsPage({
   studyTeams: StudyTeamInfo[];
   membersMap: Readonly<Record<string, readonly Member[]>>;
   users: readonly UserProfile[];
-  onChangeTeamLeader: (groupType: GroupType, teamId: string, leaderName: string) => void;
+  onSaveHostWithLeader: (
+    account: HostAccount,
+    teamId: string | undefined,
+    leaderName: string,
+  ) => void;
 }) {
   // 1. 좌측 2개 네비게이션: 'ADV' 또는 'STUDY'
   const [activeCategory, setActiveCategory] = useState<HostCategory>('ADV');
@@ -110,6 +114,11 @@ export function HostsPage({
 
   // 계정 발급 폼 오픈 여부
   const [showIssueCard, setShowIssueCard] = useState(false);
+  const issueTeamRef = useRef<HTMLSelectElement>(null);
+  const deliveryTextRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (showIssueCard) issueTeamRef.current?.focus();
+  }, [showIssueCard]);
 
   // 발급 폼 상태 (이름, 기수, 부문 기반 계정 발급)
   const [formGroupType, setFormGroupType] = useState<GroupType>('ADV');
@@ -133,6 +142,9 @@ export function HostsPage({
     title: string;
     text: string;
   } | null>(null);
+  useEffect(() => {
+    if (deliveryModal) deliveryTextRef.current?.focus();
+  }, [deliveryModal]);
 
   // ADV 팀 목록 (App.tsx 및 InputPage에서 개설된 팀들 포함)
   const effectiveAdvTeams = useMemo(() => {
@@ -490,7 +502,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
 • 접속 URL: https://attendance.boaz.org/host
 
 [안내 사항]
-• 로그인 후 담당 팀 개설 및 출결 관리를 진행해 주시기 바랍니다.
+• 로그인 후 배정된 팀의 출결 입력과 제출을 진행해 주시기 바랍니다.
 • 최초 접속 후 본인 계정 정보 및 비밀번호를 안전하게 변경해 주시기 바랍니다.
 • 겸직 중인 다른 그룹(ADV/스터디)이 있으신 경우 본 단일 계정으로 통합 관리됩니다.`;
   };
@@ -502,16 +514,20 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
     if (getHostPermissions(existingAccount).includes(targetPermission)) return;
 
     const { teamName: finalTeam, teamId: finalTeamId } = resolveTargetTeamInfo();
-    if (finalTeamId) onChangeTeamLeader(formGroupType, finalTeamId, formLeaderName.trim());
     const assignedGroup =
       finalTeam === '팀 개설 대기'
         ? undefined
         : { type: formGroupType, teamName: finalTeam, teamId: finalTeamId };
     const updatedAccount = addPermissionToHost(existingAccount, targetPermission, assignedGroup);
 
-    setHosts((previous) =>
-      previous.map((account) => (account.id === existingAccount.id ? updatedAccount : account)),
-    );
+    try {
+      onSaveHostWithLeader(updatedAccount, finalTeamId, formLeaderName.trim());
+    } catch (error) {
+      window.alert(
+        `권한을 추가하지 못했습니다. (${error instanceof Error ? error.message : String(error)})`,
+      );
+      return;
+    }
 
     setDeliveryModal({
       host: updatedAccount,
@@ -570,8 +586,11 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
     }
 
     const finalType = formGroupType;
+    if (hosts.some((host) => host.username === username)) {
+      window.alert('이미 사용 중인 로그인 아이디입니다.');
+      return;
+    }
     const { teamName: finalTeam, teamId: finalTeamId } = resolveTargetTeamInfo();
-    if (finalTeamId) onChangeTeamLeader(finalType, finalTeamId, leaderClean);
     const concurrent = detectConcurrentRoles(leaderClean, finalTeam, hosts);
     const assignedGroups: AssignedGroup[] =
       finalTeam === '팀 개설 대기'
@@ -597,7 +616,14 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
       accountType: finalType === 'ADV' ? 'ADV' : 'STUDY',
     };
 
-    setHosts((previous) => [...previous, newHostAccount]);
+    try {
+      onSaveHostWithLeader(newHostAccount, finalTeamId, leaderClean);
+    } catch (error) {
+      window.alert(
+        `계정을 만들지 못했습니다. (${error instanceof Error ? error.message : String(error)})`,
+      );
+      return;
+    }
 
     const delivery = buildDeliveryText(
       finalType,
@@ -774,6 +800,12 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
          ========================================================= */}
             {showIssueCard && (
               <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="host-issue-title"
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') setShowIssueCard(false);
+                }}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
                 onClick={() => setShowIssueCard(false)}
               >
@@ -783,7 +815,9 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                 >
                   {/* 모달 헤더 */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-                    <h3 className="text-base font-bold text-slate-900">HOST 계정 생성·권한 추가</h3>
+                    <h3 id="host-issue-title" className="text-base font-bold text-slate-900">
+                      HOST 계정 생성·권한 추가
+                    </h3>
                     <button
                       type="button"
                       onClick={() => setShowIssueCard(false)}
@@ -809,6 +843,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                           팀 이름
                         </label>
                         <select
+                          ref={issueTeamRef}
                           id="host-account-team"
                           required
                           value={formTeamId}
@@ -1365,7 +1400,15 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
           안내문 복사 모달 (카카오톡 / 슬랙 전달용)
          ========================================================= */}
       {deliveryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="host-delivery-title"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setDeliveryModal(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+        >
           <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <div className="flex min-w-0 items-center gap-3">
@@ -1373,7 +1416,10 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                   <MessageSquare size={17} />
                 </span>
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-slate-900 text-wrap-balance">
+                  <h3
+                    id="host-delivery-title"
+                    className="text-sm font-bold text-slate-900 text-wrap-balance"
+                  >
                     {deliveryModal.title} 계정 전달문
                   </h3>
                   <p className="mt-0.5 text-[11px] text-slate-500">카카오톡 · 슬랙 전달용</p>
@@ -1405,6 +1451,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
               </div>
 
               <textarea
+                ref={deliveryTextRef}
                 rows={11}
                 aria-label="계정 전달문 내용"
                 value={deliveryModal.text}
