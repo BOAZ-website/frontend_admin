@@ -11,6 +11,20 @@ interface PdfPreviewModalProps {
 
 /** PDF를 내려받지 않고 화면 안에서 바로 보여주는 미리보기 창. 브라우저 내장 PDF 뷰어를 iframe으로 쓴다. */
 export function PdfPreviewModal({ url, name, onClose }: PdfPreviewModalProps) {
+  const parsedUrl = (() => {
+    try {
+      if (url.startsWith('data:application/pdf;base64,')) return url;
+      const parsed = new URL(url, window.location.href);
+      return parsed.origin === window.location.origin &&
+        (parsed.protocol === 'blob:' ||
+          (parsed.protocol === window.location.protocol &&
+            parsed.pathname.toLowerCase().endsWith('.pdf')))
+        ? parsed.href
+        : null;
+    } catch {
+      return null;
+    }
+  })();
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -34,15 +48,17 @@ export function PdfPreviewModal({ url, name, onClose }: PdfPreviewModalProps) {
         <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-4 py-3">
           <FileText size={16} className="shrink-0 text-slate-500" aria-hidden="true" />
           <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-slate-900">{name}</h3>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
-          >
-            <ExternalLink size={13} aria-hidden="true" />
-            <span>새 탭에서 열기</span>
-          </a>
+          {parsedUrl && (
+            <a
+              href={parsedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            >
+              <ExternalLink size={13} aria-hidden="true" />
+              <span>새 탭에서 열기</span>
+            </a>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -52,11 +68,16 @@ export function PdfPreviewModal({ url, name, onClose }: PdfPreviewModalProps) {
             <X size={18} />
           </button>
         </div>
-        <iframe
-          src={url}
-          title={`${name} 미리보기`}
-          className="min-h-0 w-full flex-1 bg-slate-100"
-        />
+        {parsedUrl ? (
+          <iframe
+            src={parsedUrl}
+            sandbox="allow-downloads"
+            title={`${name} 미리보기`}
+            className="min-h-0 w-full flex-1 bg-slate-100"
+          />
+        ) : (
+          <p className="p-6 text-sm text-rose-700">허용되지 않은 PDF 주소입니다.</p>
+        )}
       </div>
     </div>
   );

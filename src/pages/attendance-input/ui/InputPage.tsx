@@ -38,7 +38,13 @@ import {
 } from '@/entities/study-team/model/db';
 import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
 import type { UserRole } from '@/entities/user/model/types';
-import { formatFileSize, isPdfFile, MAX_PDF_SIZE_BYTES } from '@/shared/lib/file';
+import {
+  formatFileSize,
+  hasPdfSignature,
+  uploadFile,
+  MAX_IMAGE_SIZE_BYTES,
+  MAX_PDF_SIZE_BYTES,
+} from '@/shared/lib/file';
 import { Btn } from '@/shared/ui/Btn';
 import { PdfPreviewModal } from '@/shared/ui/PdfPreviewModal';
 import { BRAND_SELECTED, MODAL_SURFACE } from '@/shared/ui/modalStyles';
@@ -774,7 +780,7 @@ export function InputPage({
     setMemos((prev) => ({ ...prev, [memoKey]: val }));
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (!canEditPhoto) {
       return;
     }
@@ -782,8 +788,23 @@ export function InputPage({
     if (!file) {
       return;
     }
+    if (!file.type.startsWith('image/')) {
+      window.alert('이미지 파일만 첨부할 수 있습니다.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      window.alert(`사진은 ${MAX_IMAGE_SIZE_BYTES / (1024 * 1024)}MB 이하만 첨부할 수 있습니다.`);
+      return;
+    }
 
-    const url = URL.createObjectURL(file);
+    let url: string;
+    try {
+      ({ url } = await uploadFile(file));
+    } catch {
+      window.alert('사진을 읽지 못했습니다. 다시 선택해 주세요.');
+      return;
+    }
+    if (uploadedImage.url?.startsWith('blob:')) URL.revokeObjectURL(uploadedImage.url);
     const sizeStr =
       file.size > 1024 * 1024
         ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
@@ -817,6 +838,7 @@ export function InputPage({
     if (!canEditPhoto) {
       return;
     }
+    if (uploadedImage.url?.startsWith('blob:')) URL.revokeObjectURL(uploadedImage.url);
     setUploadedImage({ file: null, url: null, name: null, size: null });
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -839,13 +861,20 @@ export function InputPage({
     }
   }
 
-  function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ''; // 같은 파일을 다시 골라도 change 이벤트가 나게 한다.
     if (!canEditPdf || !file) {
       return;
     }
-    if (!isPdfFile(file)) {
+    let validPdf: boolean;
+    try {
+      validPdf = await hasPdfSignature(file);
+    } catch {
+      window.alert('PDF 파일을 읽지 못했습니다. 다시 선택해 주세요.');
+      return;
+    }
+    if (!validPdf) {
       alert('PDF 파일만 첨부할 수 있습니다.');
       return;
     }
@@ -853,7 +882,18 @@ export function InputPage({
       alert(`PDF는 ${MAX_PDF_SIZE_BYTES / (1024 * 1024)}MB 이하만 첨부할 수 있습니다.`);
       return;
     }
-    applyPdf({ url: URL.createObjectURL(file), name: file.name, size: formatFileSize(file.size) });
+    let url: string;
+    try {
+      ({ url } = await uploadFile(new Blob([file], { type: 'application/pdf' })));
+    } catch {
+      window.alert('PDF를 저장하지 못했습니다. 다시 선택해 주세요.');
+      return;
+    }
+    applyPdf({
+      url,
+      name: file.name,
+      size: formatFileSize(file.size),
+    });
     setIsPdfToastOpen(true);
   }
 
@@ -866,10 +906,14 @@ export function InputPage({
 
   /** 초안에 담아 두었다가 제출(수정 모드에서는 저장 체크)할 때 출결 기록에 합친다. */
   function applyPdf(next: { url: string | null; name: string | null; size: string | null }) {
+    if (pdfDraft?.url?.startsWith('blob:') && pdfDraft.url !== next.url) {
+      URL.revokeObjectURL(pdfDraft.url);
+    }
     setPdfDraft({ key, ...next });
   }
 
   function handleCancelEdit() {
+    if (pdfDraft?.url?.startsWith('blob:')) URL.revokeObjectURL(pdfDraft.url);
     setPdfDraft(null);
     setExtStatuses((prev) => {
       const next = { ...prev };

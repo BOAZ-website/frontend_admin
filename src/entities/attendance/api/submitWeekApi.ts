@@ -21,7 +21,7 @@ export async function submitWeekAttendance(
   const baseUrl = import.meta.env?.VITE_API_BASE_URL as string | undefined;
   if (!baseUrl) {
     await new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
-    return { submittedAt: new Date().toISOString() };
+    return { submittedAt: new Date().toISOString(), simulated: true };
   }
 
   const response = await fetch(
@@ -30,6 +30,7 @@ export async function submitWeekAttendance(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
+      signal: AbortSignal.timeout(10_000),
     },
   );
   if (!response.ok) {

@@ -682,6 +682,7 @@ export function RecruitmentManagePage({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
     setDownloadSuccess(
       `${CATEGORY_META[track].short} 트랙 지원서 CSV가 성공적으로 다운로드되었습니다.`,

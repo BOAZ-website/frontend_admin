@@ -26,4 +26,6 @@ export interface WeekAttendanceSubmission {
 export interface WeekSubmissionResult {
   /** 서버가 기록한 제출 시각(ISO 8601). */
   submittedAt: string;
+  /** API 미연결 개발 모드에서 서버 확인 없이 로컬에만 기록한 경우. */
+  simulated?: boolean;
 }
