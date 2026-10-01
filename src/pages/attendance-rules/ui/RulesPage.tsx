@@ -10,6 +10,45 @@ interface RulesPageProps {
   onUpdateRules: (newRules: ScoreRule[]) => void;
 }
 
+function validateRuleInput(
+  term: number,
+  startDate: string,
+  endDate: string | null | undefined,
+): boolean {
+  if (!Number.isInteger(term) || term <= 0) {
+    window.alert('기수는 1 이상의 정수로 입력해 주세요.');
+    return false;
+  }
+  if (!startDate) {
+    window.alert('적용 시작일을 입력해 주세요.');
+    return false;
+  }
+  if (endDate && endDate < startDate) {
+    window.alert('적용 종료일은 시작일보다 빠를 수 없습니다.');
+    return false;
+  }
+  return true;
+}
+
+function ruleToEditingValues(rule: ScoreRule) {
+  return {
+    name: rule.name ?? `${rule.term}기 점수 규칙`,
+    startDate: rule.startDate ?? '',
+    endDate: rule.endDate ?? '',
+    description: rule.description ?? '',
+    absentPenalty: rule.absentPenalty ?? -3,
+    unexcusedAbsentPenalty: rule.unexcusedAbsentPenalty ?? -4,
+    latePenalty: rule.latePenalty ?? -1,
+    earlyLeavePenalty: rule.earlyLeavePenalty ?? -1,
+    unexcusedLatePenalty: rule.unexcusedLatePenalty ?? -4,
+    presentScore: rule.presentScore ?? 0,
+    studyFailPenalty: rule.studyFailPenalty ?? -5,
+    studyPerfectBonus: rule.studyPerfectBonus ?? 3,
+    studyPassBonus: rule.studyPassBonus ?? 1,
+    studyLeaderBonus: rule.studyLeaderBonus ?? 1,
+  };
+}
+
 export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
   const todayStr = useMemo(() => getTodayString(), []);
 
@@ -73,22 +112,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
 
   useEffect(() => {
     if (currentRule) {
-      setEditingValues({
-        name: currentRule.name ?? `${currentRule.term}기 점수 규칙`,
-        startDate: currentRule.startDate ?? '',
-        endDate: currentRule.endDate ?? '',
-        description: currentRule.description ?? '',
-        absentPenalty: currentRule.absentPenalty ?? -3,
-        unexcusedAbsentPenalty: currentRule.unexcusedAbsentPenalty ?? -4,
-        latePenalty: currentRule.latePenalty ?? -1,
-        earlyLeavePenalty: currentRule.earlyLeavePenalty ?? -1,
-        unexcusedLatePenalty: currentRule.unexcusedLatePenalty ?? -4,
-        presentScore: currentRule.presentScore ?? 0,
-        studyFailPenalty: currentRule.studyFailPenalty ?? -5,
-        studyPerfectBonus: currentRule.studyPerfectBonus ?? 3,
-        studyPassBonus: currentRule.studyPassBonus ?? 1,
-        studyLeaderBonus: currentRule.studyLeaderBonus ?? 1,
-      });
+      setEditingValues(ruleToEditingValues(currentRule));
       setIsEditMode(false);
     }
   }, [currentRule]);
@@ -96,6 +120,8 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
   // 저장 처리
   const handleSaveCurrentRule = () => {
     if (!currentRule) return;
+    if (!validateRuleInput(currentRule.term, editingValues.startDate, editingValues.endDate))
+      return;
 
     const updatedRules = safeRules.map((r) => {
       if (r.term === currentRule.term) {
@@ -151,7 +177,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
     noEndDate: true,
     description: '',
     templateTerm: currentRule?.term ?? 27,
-    status: 'ACTIVE' as 'ACTIVE' | 'DRAFT',
+    status: 'DRAFT' as 'ACTIVE' | 'DRAFT',
     absentPenalty: currentRule?.absentPenalty ?? -3,
     unexcusedAbsentPenalty: currentRule?.unexcusedAbsentPenalty ?? -4,
     latePenalty: currentRule?.latePenalty ?? -1,
@@ -180,7 +206,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
       noEndDate: true,
       description: '',
       templateTerm: source?.term ?? 27,
-      status: 'ACTIVE',
+      status: 'DRAFT',
       absentPenalty: source?.absentPenalty ?? -3,
       unexcusedAbsentPenalty: source?.unexcusedAbsentPenalty ?? -4,
       latePenalty: source?.latePenalty ?? -1,
@@ -197,12 +223,15 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
 
   const handleCreateNewRule = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRuleForm.startDate) {
-      alert('적용 시작일을 입력해주세요.');
-      return;
-    }
-
     const termNum = Number(newRuleForm.term);
+    if (
+      !validateRuleInput(
+        termNum,
+        newRuleForm.startDate,
+        newRuleForm.noEndDate ? '' : newRuleForm.endDate,
+      )
+    )
+      return;
     if (safeRules.some((r) => r.term === termNum)) {
       alert(`이미 ${termNum}기 규칙이 존재합니다.`);
       return;
@@ -210,7 +239,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
 
     const newRule: ScoreRule = {
       id: `rule-${termNum}`,
-      version: (safeRules.length || 0) + 1,
+      version: Math.max(0, ...safeRules.map((rule) => rule.version ?? 0)) + 1,
       term: termNum,
       name: newRuleForm.name,
       startDate: newRuleForm.startDate,
@@ -234,13 +263,7 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
       studyLeaderBonus: Number(newRuleForm.studyLeaderBonus),
     };
 
-    let updatedList = [...safeRules];
-    if (newRuleForm.status === 'ACTIVE') {
-      updatedList = updatedList.map((r) => ({
-        ...r,
-        status: 'INACTIVE' as const,
-      }));
-    }
+    const updatedList = [...safeRules];
     updatedList.unshift(newRule);
     updatedList.sort((a, b) => b.term - a.term);
 
@@ -289,13 +312,15 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
               const isSelected = rule.term === selectedTerm;
 
               return (
-                <div
+                <button
+                  type="button"
                   key={rule.term}
+                  aria-pressed={isSelected}
                   onClick={() => {
                     setSelectedTerm(rule.term);
                     setIsEditMode(false);
                   }}
-                  className={`relative rounded-2xl border transition-all cursor-pointer p-3.5 select-none ${
+                  className={`w-full text-left relative rounded-2xl border transition-all cursor-pointer p-3.5 select-none ${
                     isSelected
                       ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
                       : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
@@ -313,13 +338,20 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                       <p className="text-[11px] text-slate-400 truncate font-mono">
                         {formatDateRange(rule.startDate, rule.endDate)}
                       </p>
+                      <span className="text-[10px] font-semibold text-slate-500">
+                        {rule.status === 'DRAFT'
+                          ? '초안'
+                          : rule.status === 'ACTIVE'
+                            ? '활성'
+                            : '비활성'}
+                      </span>
                     </div>
                     <ChevronRight
                       size={15}
                       className={`shrink-0 ${isSelected ? 'text-slate-700' : 'text-slate-400'}`}
                     />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -373,7 +405,10 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                   <>
                     <button
                       type="button"
-                      onClick={() => setIsEditMode(false)}
+                      onClick={() => {
+                        if (currentRule) setEditingValues(ruleToEditingValues(currentRule));
+                        setIsEditMode(false);
+                      }}
                       className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold transition-colors cursor-pointer"
                     >
                       취소
@@ -389,6 +424,29 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
                   </>
                 ) : (
                   <>
+                    {currentRule.status !== 'ACTIVE' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateRules(
+                            safeRules.map((rule) => ({
+                              ...rule,
+                              status:
+                                rule.term === currentRule.term
+                                  ? 'ACTIVE'
+                                  : rule.status === 'ACTIVE'
+                                    ? 'INACTIVE'
+                                    : rule.status,
+                              activatedAt:
+                                rule.term === currentRule.term ? todayStr : rule.activatedAt,
+                            })),
+                          )
+                        }
+                        className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
+                      >
+                        활성화
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setIsEditMode(true)}
@@ -681,14 +739,25 @@ export function RulesPage({ rules, onUpdateRules }: RulesPageProps) {
 
       {/* ─── 4. 새 기수 점수 규칙 등록 모달 ─── */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-rule-title"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setIsAddModalOpen(false);
+          }}
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+        >
           <div
             className={`rounded-2xl max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900">새 기수 점수 규칙 등록</h3>
+              <h3 id="add-rule-title" className="text-base font-bold text-slate-900">
+                새 기수 점수 규칙 등록
+              </h3>
               <button
                 type="button"
+                aria-label="규칙 등록 닫기"
                 onClick={() => setIsAddModalOpen(false)}
                 className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
               >

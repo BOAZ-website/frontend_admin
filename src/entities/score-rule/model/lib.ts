@@ -25,7 +25,7 @@ export function getRuleForTerm(rules: ScoreRule[], term: number | string): Score
 
   // 2. 해당 기수의 규칙 중 가장 최근 버전
   return rules
-    .filter((r) => r.term === termNum)
+    .filter((r) => r.term === termNum && r.status !== 'DRAFT')
     .sort((a, b) => (b.version || 0) - (a.version || 0))[0];
 }
 
@@ -33,7 +33,10 @@ export function getRuleForTerm(rules: ScoreRule[], term: number | string): Score
  * 특정 일자(기본값: 오늘)가 적용 기간(startDate ~ endDate)에 포함되는 유효 점수 규칙을 조회합니다.
  * 실시간 출결 입력 및 현재 시점 조회 시 사용됩니다.
  */
-export function getRuleForDate(rules: ScoreRule[], dateStr: string = getTodayString()): ScoreRule {
+export function getRuleForDate(
+  rules: ScoreRule[],
+  dateStr: string = getTodayString(),
+): ScoreRule | undefined {
   // 1. 날짜 범위(startDate <= dateStr <= endDate)에 일치하는 활성 규칙 탐색
   const matchedRule = rules.find((r) => {
     if (r.status === 'DRAFT') return false;
@@ -49,7 +52,7 @@ export function getRuleForDate(rules: ScoreRule[], dateStr: string = getTodayStr
   if (activeRule) return activeRule;
 
   // 3. 최후의 수단으로 첫 번째 규칙 반환
-  return rules[0];
+  return rules.find((rule) => rule.status !== 'DRAFT');
 }
 
 /**
