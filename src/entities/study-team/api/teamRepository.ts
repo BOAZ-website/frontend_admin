@@ -5,16 +5,10 @@
 import type { Database } from 'sql.js';
 
 import { sessionKey } from '@/entities/attendance/model/lib';
-import {
-  loadCohorts,
-  loadWeekDates,
-  type CohortWeekDates,
-} from '@/entities/cohort/api/cohortRepository';
+import type { CohortWeekDates } from '@/entities/cohort/api/cohortRepository';
 import { DEFAULT_CURRENT_COHORT } from '@/entities/cohort/model/lib';
 import type { AttendanceState, SessionRecord } from '@/entities/attendance/model/types';
-import { loadWeeks } from '@/entities/attendance/api/weekRepository';
 import type { WeekInfo } from '@/entities/attendance/model/week';
-import { listUsers } from '@/entities/user/api/usersRepository';
 import type { UserProfile } from '@/entities/user/model/types';
 import { execute, inTransaction, queryAll } from '@/shared/db/createDatabase';
 import { resolveFileUrl, toFilePath } from '@/shared/lib/file';
@@ -61,7 +55,9 @@ interface TeamRow extends Record<string, unknown> {
 
 // ───────────────────────────── 조회 ─────────────────────────────
 
-export function loadTeamState(db: Database): TeamDbState {
+export function loadTeamState(
+  db: Database,
+): Pick<TeamDbState, 'studyTeams' | 'advTeams' | 'baseTeams' | 'members' | 'attendance'> {
   const teamRows = queryAll<TeamRow>(
     db,
     `SELECT t.*, u.name AS leader_name
@@ -112,15 +108,11 @@ export function loadTeamState(db: Database): TeamDbState {
   });
 
   return {
-    users: listUsers(db),
     studyTeams: teamRows.filter((row) => row.group_type === 'STUDY').map(toInfo),
     advTeams: teamRows.filter((row) => row.group_type === 'ADV').map(toInfo),
     baseTeams: teamRows.filter((row) => row.group_type === 'BASE').map(toInfo),
     members,
     attendance: loadAttendance(db),
-    weeks: loadWeeks(db),
-    cohorts: loadCohorts(db),
-    weekDates: loadWeekDates(db),
   };
 }
 
@@ -207,7 +199,7 @@ export function persistTeams(
     next
       .filter((team) => prevById.get(team.id) !== team)
       .forEach((team) => {
-        const leaderId = findUserId(db, team.leaderName);
+        const leaderId = team.leaderId ?? findUserId(db, team.leaderName);
         execute(
           db,
           `INSERT INTO teams (id, group_type, cohort, track, team_name, study_name, leader_id, schedule,

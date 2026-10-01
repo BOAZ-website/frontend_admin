@@ -10,6 +10,12 @@ import {
   type TeamDbState,
 } from '@/entities/study-team/api/teamRepository';
 import { persistWeekDates } from '@/entities/cohort/api/cohortRepository';
+import { loadCohorts, loadWeekDates } from '@/entities/cohort/api/cohortRepository';
+import { loadWeeks } from '@/entities/attendance/api/weekRepository';
+import { listUsers } from '@/entities/user/api/usersRepository';
+import { inTransaction } from '@/shared/db/createDatabase';
+import type { StudyTeamInfo, Member } from '@/entities/study-team/model/types';
+import type { AttendanceState } from '@/entities/attendance/model/types';
 import { getDatabase } from '@/shared/db/database';
 
 type Persist<K extends keyof TeamDbState> = (
@@ -36,7 +42,13 @@ export function useTeamDb() {
       .then((db) => {
         if (cancelled) return;
         dbRef.current = db;
-        stateRef.current = loadTeamState(db);
+        stateRef.current = {
+          ...loadTeamState(db),
+          users: listUsers(db),
+          weeks: loadWeeks(db),
+          cohorts: loadCohorts(db),
+          weekDates: loadWeekDates(db),
+        };
         setState(stateRef.current);
       })
       .catch((cause: unknown) => {
@@ -83,5 +95,55 @@ export function useTeamDb() {
     };
   }, []);
 
-  return { state, error, ...setters };
+  function createTeamWithAttendance(
+    group: 'STUDY' | 'ADV' | 'BASE',
+    team: StudyTeamInfo,
+    members: Member[],
+    records: AttendanceState,
+    weekDates?: Record<number, string>,
+  ): void {
+    const current = stateRef.current;
+    const db = dbRef.current;
+    if (!current || !db) throw new Error('팀 데이터가 아직 준비되지 않았습니다.');
+    const key = group === 'STUDY' ? 'studyTeams' : group === 'ADV' ? 'advTeams' : 'baseTeams';
+    const nextTeams = current[key].some((item) => item.id === team.id)
+      ? current[key]
+      : [...current[key], team];
+    const nextMembers = {
+      ...current.members,
+      [team.id]: [...(current.members[team.id] ?? []), ...members],
+    };
+    const nextAttendance = { ...current.attendance, ...records };
+    const cohort = team.cohort;
+    const nextWeekDates =
+      cohort && weekDates
+        ? { ...current.weekDates, [cohort]: { ...(current.weekDates[cohort] ?? {}), ...weekDates } }
+        : current.weekDates;
+    inTransaction(db, () => {
+      persistTeams(db, current[key], nextTeams, group);
+      persistMembers(db, current.members, nextMembers);
+      persistAttendance(db, current.attendance, nextAttendance);
+      if (nextWeekDates !== current.weekDates) {
+        persistWeekDates(db, current.weekDates, nextWeekDates);
+      }
+    });
+    stateRef.current = {
+      ...current,
+      [key]: nextTeams,
+      members: nextMembers,
+      attendance: nextAttendance,
+      weekDates: nextWeekDates,
+    };
+    setState(stateRef.current);
+  }
+
+  function refreshTeamState(): void {
+    const current = stateRef.current;
+    const db = dbRef.current;
+    if (!current || !db) return;
+    stateRef.current = { ...current, ...loadTeamState(db) };
+    setState(stateRef.current);
+  }
+
+  return { state, error, ...setters, createTeamWithAttendance, refreshTeamState };
 }

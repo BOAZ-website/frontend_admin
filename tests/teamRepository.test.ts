@@ -12,8 +12,10 @@ import {
   persistTeams,
 } from '../src/entities/study-team/api/teamRepository';
 import { applyAttendanceChange, createStudyRecords } from '../src/entities/study-team/model/db';
+import { loadWeeks } from '../src/entities/attendance/api/weekRepository';
+import { loadCohorts } from '../src/entities/cohort/api/cohortRepository';
 import { listUsers } from '../src/entities/user/api/usersRepository';
-import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
+import { createDatabase, inTransaction, queryAll } from '../src/shared/db/createDatabase';
 import { SAMPLE_MENTORING_PDF_PATH } from '../src/shared/lib/file';
 
 const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
@@ -31,9 +33,11 @@ function createStudy(
 ): ReturnType<typeof createStudyRecords> {
   const before = loadTeamState(db);
   const created = createStudyRecords(input);
-  persistTeams(db, before.studyTeams, [...before.studyTeams, created.team], 'STUDY');
-  persistMembers(db, before.members, { ...before.members, [created.team.id]: created.members });
-  persistAttendance(db, before.attendance, { ...before.attendance, ...created.attendance });
+  inTransaction(db, () => {
+    persistTeams(db, before.studyTeams, [...before.studyTeams, created.team], 'STUDY');
+    persistMembers(db, before.members, { ...before.members, [created.team.id]: created.members });
+    persistAttendance(db, before.attendance, { ...before.attendance, ...created.attendance });
+  });
   return created;
 }
 
@@ -70,7 +74,7 @@ test('저장소가 팀·팀원·출결을 팀 id 기준으로 읽어 온다', as
   assert.equal(teamA?.track, '분석');
   assert.equal(teamA?.leaderId, 'u_26_01');
   assert.equal(teamA?.leaderName, '남민서');
-  assert.equal(state.users.find((user) => user.id === teamA?.leaderId)?.term, 26);
+  assert.equal(listUsers(db).find((user) => user.id === teamA?.leaderId)?.term, 26);
   // 모든 팀이 부문을 가진다
   assert.ok(
     [...state.studyTeams, ...state.advTeams].every((t) =>
@@ -107,6 +111,28 @@ test('스터디를 만들면 팀·팀원·전 주차 출결이 DB에 저장되�
     'unmarked',
   );
   assert.equal(after.attendance[`w9|study|${team.id}`], undefined);
+});
+
+test('팀과 팀원 저장 뒤 오류가 나면 팀 생성 전체를 되돌린다', async () => {
+  const db = await freshDb();
+  const before = loadTeamState(db);
+  const created = createStudyRecords({
+    id: 'study_rollback',
+    name: '롤백 테스트',
+    studyKind: 'GENERAL',
+    track: '분석',
+    isVacation: true,
+    leaderName: null,
+    members: [],
+  });
+  assert.throws(() =>
+    inTransaction(db, () => {
+      persistTeams(db, before.studyTeams, [...before.studyTeams, created.team], 'STUDY');
+      persistMembers(db, before.members, { ...before.members, [created.team.id]: created.members });
+      throw new Error('출결 저장 실패');
+    }),
+  );
+  assert.equal(queryAll(db, 'SELECT id FROM teams WHERE id = ?', [created.team.id]).length, 0);
 });
 
 test('부문이 다르면 같은 이름의 스터디를 만들 수 있고, 두 스터디의 출결은 서로 섞이지 않는다', async () => {
@@ -316,7 +342,7 @@ test('DB 제약: 멘멘/친바 출결 줄은 멘멘 스터디에만 저장할 �
 
 test('주차 활성 상태는 DB의 weeks 값에서 오고, 값을 바꾸면 그대로 반영된다', async () => {
   const db = await freshDb();
-  const before = loadTeamState(db).weeks;
+  const before = loadWeeks(db);
   assert.equal(before.length, 16);
   assert.deepEqual(
     before.filter((w) => w.status === 'OPEN').map((w) => w.weekNum),
@@ -332,7 +358,7 @@ test('주차 활성 상태는 DB의 weeks 값에서 오고, 값을 바꾸면 그
 
   db.run("UPDATE weeks SET status = 'CLOSED' WHERE id = 'w3'");
   db.run("UPDATE weeks SET status = 'OPEN' WHERE id = 'w4'");
-  const after = loadTeamState(db).weeks;
+  const after = loadWeeks(db);
   assert.equal(after.find((w) => w.weekNum === 3)?.status, 'CLOSED');
   assert.equal(after.find((w) => w.weekNum === 4)?.status, 'OPEN');
 });
@@ -460,7 +486,7 @@ test('이름 중복 제한은 기수 안에서만 적용된다(다른 기수의 
 
 test('기수 목록은 DB의 cohorts에서 큰 기수부터 읽고, 20~27기가 들어 있다', async () => {
   const db = await freshDb();
-  const { cohorts } = loadTeamState(db);
+  const cohorts = loadCohorts(db);
   assert.deepEqual(cohorts, [27, 26, 25, 24, 23, 22, 21, 20]);
   // 팀이 있는 기수는 모두 목록에 있어야 한다.
   const teamCohorts = new Set(loadTeamState(db).studyTeams.map((team) => team.cohort));

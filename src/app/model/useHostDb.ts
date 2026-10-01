@@ -5,6 +5,7 @@ import type { Database } from 'sql.js';
 import { loadHosts, persistHosts } from '@/entities/host-account/api/hostRepository';
 import type { HostAccount } from '@/entities/host-account/model/types';
 import { getDatabase } from '@/shared/db/database';
+import { execute, inTransaction } from '@/shared/db/createDatabase';
 
 /**
  * HOST 계정을 임시 DB에서 불러와 화면 상태로 들고, 값을 바꾸면 곧바로 DB에도 저장한다.
@@ -45,5 +46,24 @@ export function useHostDb() {
     setHostsState(next);
   }, []);
 
-  return { hosts, error, setHosts };
+  const saveHostWithLeader = useCallback(
+    (account: HostAccount, teamId: string | undefined, leaderId: string | undefined) => {
+      const previous = hostsRef.current;
+      const db = dbRef.current;
+      if (!previous || !db) throw new Error('계정 데이터가 아직 준비되지 않았습니다.');
+      const next = previous.some((host) => host.id === account.id)
+        ? previous.map((host) => (host.id === account.id ? account : host))
+        : [...previous, account];
+      inTransaction(db, () => {
+        persistHosts(db, previous, next);
+        if (teamId && leaderId)
+          execute(db, 'UPDATE teams SET leader_id = ? WHERE id = ?', [leaderId, teamId]);
+      });
+      hostsRef.current = next;
+      setHostsState(next);
+    },
+    [],
+  );
+
+  return { hosts, error, setHosts, saveHostWithLeader };
 }

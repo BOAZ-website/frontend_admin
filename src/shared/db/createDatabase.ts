@@ -33,14 +33,17 @@ export function execute(db: Database, sql: string, params: SqlValue[] = []): voi
 }
 
 /** 여러 쓰기를 한 트랜잭션으로 묶는다. 실패하면 되돌리고 오류를 다시 던진다. */
+let transactionId = 0;
 export function inTransaction<T>(db: Database, work: () => T): T {
-  db.run('BEGIN');
+  const savepoint = `boaz_transaction_${++transactionId}`;
+  db.run(`SAVEPOINT ${savepoint}`);
   try {
     const result = work();
-    db.run('COMMIT');
+    db.run(`RELEASE SAVEPOINT ${savepoint}`);
     return result;
   } catch (error) {
-    db.run('ROLLBACK');
+    db.run(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+    db.run(`RELEASE SAVEPOINT ${savepoint}`);
     throw error;
   }
 }
