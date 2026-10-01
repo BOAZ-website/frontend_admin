@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
+import { formatCohortLabel } from '@/entities/cohort/model/lib';
 
 interface CohortSelectProps {
   value: number;
@@ -19,7 +20,10 @@ export function CohortSelect({ value, cohorts, onChange }: CohortSelectProps) {
       if (!rootRef.current?.contains(event.target as Node)) setIsOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setIsOpen(false);
+      }
     };
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
@@ -35,11 +39,11 @@ export function CohortSelect({ value, cohorts, onChange }: CohortSelectProps) {
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        aria-label="기수 선택"
+        aria-label="반기 선택"
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex min-w-[5.5rem] cursor-pointer items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-white py-1.5 pl-3 pr-2 text-xs font-bold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 focus-visible:border-slate-400 focus-visible:outline-none"
       >
-        {value}기
+        {formatCohortLabel(value)}
         <ChevronDown size={13} className="text-slate-400" />
       </button>
 
@@ -62,7 +66,8 @@ export function CohortSelect({ value, cohorts, onChange }: CohortSelectProps) {
                     isSelected ? 'bg-[#1E6F94] text-white' : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  {cohort}기{isSelected && <Check size={12} />}
+                  {formatCohortLabel(cohort)}
+                  {isSelected && <Check size={12} />}
                 </button>
               </li>
             );

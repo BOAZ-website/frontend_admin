@@ -7,6 +7,13 @@
 /** 기수 정보가 없는 데이터(목 데이터 등)가 속하는 기수이자, 아무 기수도 없을 때의 현재 기수. */
 export const DEFAULT_CURRENT_COHORT = 27;
 
+/** 활동 기수를 운영 반기로 표시한다. 예: 26기 → 26-1, 27기 → 26-2. */
+export function formatCohortLabel(cohort: number): string {
+  const year = Math.floor(cohort / 2) + 13;
+  const half = cohort % 2 === 0 ? 1 : 2;
+  return `${year}-${half}`;
+}
+
 /** 중복 없이 큰 기수부터 정렬한다. 값이 없는 항목은 기본 기수로 본다. */
 export function cohortsOf(values: readonly (number | undefined)[]): number[] {
   return [...new Set(values.map((value) => value ?? DEFAULT_CURRENT_COHORT))].sort((a, b) => b - a);

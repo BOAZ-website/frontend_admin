@@ -66,6 +66,7 @@ test('시드의 행사·참가자·템플릿이 DB에서 그대로 읽힌다', a
   const state = loadEventState(await freshDb());
 
   assert.equal(state.events.length, 3);
+  assert.equal(state.events.filter((event) => event.targetTerms.includes(27)).length, 3);
   assert.equal(state.templates.length, 3);
   assert.equal(state.attendees.length, 26);
 

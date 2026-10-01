@@ -23,6 +23,8 @@ import type {
   CustomFormField,
   FormTemplate,
 } from '@/entities/event/model/types';
+import { formatCohortLabel } from '@/entities/cohort/model/lib';
+import { CohortSelect } from '@/pages/attendance-internal-category/ui/CohortSelect';
 import { MODAL_PRIMARY_BTN, MODAL_SURFACE } from '@/shared/ui/modalStyles';
 
 const ATTEND_STATUS_CFG: Record<
@@ -277,6 +279,8 @@ interface ParsedRosterItem {
 }
 
 export interface EventAttendanceManagePageProps {
+  cohorts: readonly number[];
+  currentCohort: number;
   events: AttendanceEvent[];
   setEvents: Dispatch<SetStateAction<AttendanceEvent[]>>;
   attendees: AttendeeRecord[];
@@ -287,6 +291,8 @@ export interface EventAttendanceManagePageProps {
 
 /** 행사 출결 화면. 행사·참가자·양식 템플릿은 App이 DB에서 불러와 넘겨 주고, 바꾸면 DB에 저장된다. */
 export function EventAttendanceManagePage({
+  cohorts,
+  currentCohort,
   events,
   setEvents,
   attendees,
@@ -294,6 +300,7 @@ export function EventAttendanceManagePage({
   templates,
   setTemplates,
 }: EventAttendanceManagePageProps) {
+  const [selectedCohort, setSelectedCohort] = useState(currentCohort);
   const [subTab, setSubTab] = useState<'events' | 'live' | 'forms' | 'stats'>(() => {
     try {
       const saved = localStorage.getItem('boaz_event_subtab');
@@ -521,7 +528,8 @@ export function EventAttendanceManagePage({
   };
 
   // 최신 활동일자순 (날짜 내림차순 -> 생성일 내림차순) 정렬
-  const sortedEvents = [...events].sort((a, b) => {
+  const cohortEvents = events.filter((event) => event.targetTerms.includes(selectedCohort));
+  const sortedEvents = [...cohortEvents].sort((a, b) => {
     const diff = new Date(b.date).getTime() - new Date(a.date).getTime();
     if (diff !== 0) {
       return diff;
@@ -542,7 +550,7 @@ export function EventAttendanceManagePage({
     checkinMethod: 'CODE',
     checkinCode: '1234',
     customFields: [],
-    targetTerms: [28],
+    targetTerms: [selectedCohort],
     targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
     totalTargetCount: 0,
     internalAttendedCount: 0,
@@ -551,7 +559,7 @@ export function EventAttendanceManagePage({
   };
 
   const selectedEvent =
-    events.find((e) => e.id === selectedEventId) || sortedEvents[0] || events[0] || fallbackEvent;
+    cohortEvents.find((e) => e.id === selectedEventId) || sortedEvents[0] || fallbackEvent;
   const currentEventAttendees = attendees.filter((a) => a.eventId === (selectedEvent?.id || ''));
 
   // Close dropdown when clicked outside
@@ -1163,7 +1171,7 @@ export function EventAttendanceManagePage({
       allowExternal: true,
       checkinMethod: 'QR_CODE',
       checkinCode: String(Math.floor(1000 + Math.random() * 9000)),
-      targetTerms: [28],
+      targetTerms: [selectedCohort],
       targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
       totalTargetCount: 50,
       internalAttendedCount: 0,
@@ -1227,7 +1235,7 @@ export function EventAttendanceManagePage({
       setEvents((prev) => prev.filter((e) => e.id !== evtId));
       setAttendees((prev) => prev.filter((a) => a.eventId !== evtId));
       if (selectedEventId === evtId) {
-        const remaining = events.filter((e) => e.id !== evtId);
+        const remaining = cohortEvents.filter((e) => e.id !== evtId);
         if (remaining.length > 0) {
           setSelectedEventId(remaining[0].id);
         }
@@ -1285,6 +1293,7 @@ export function EventAttendanceManagePage({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   function handleExportCsv() {
@@ -1352,7 +1361,7 @@ export function EventAttendanceManagePage({
       allowExternal: tmpl.allowExternal,
       checkinMethod: tmpl.defaultCheckinMethod,
       checkinCode: String(Math.floor(1000 + Math.random() * 9000)),
-      targetTerms: [28],
+      targetTerms: [selectedCohort],
       targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
       totalTargetCount: 50,
       internalAttendedCount: 0,
@@ -1463,6 +1472,19 @@ export function EventAttendanceManagePage({
 
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2">
+          <CohortSelect
+            value={selectedCohort}
+            cohorts={cohorts}
+            onChange={(cohort) => {
+              setSelectedCohort(cohort);
+              const firstEvent = events
+                .filter((event) => event.targetTerms.includes(cohort))
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+              setSelectedEventId(firstEvent?.id ?? '');
+              setSubTab('events');
+              setIsBreadcrumbMenuOpen(false);
+            }}
+          />
           {subTab === 'live' && (
             <>
               {/* CSV 저장 버튼 */}
@@ -2170,6 +2192,16 @@ export function EventAttendanceManagePage({
       {subTab === 'events' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-3.5">
+            {sortedEvents.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+                <p className="text-sm font-bold text-slate-700">
+                  {formatCohortLabel(selectedCohort)} 반기에 등록된 행사가 없습니다.
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  새 행사를 생성하면 선택한 반기에 등록됩니다.
+                </p>
+              </div>
+            )}
             {sortedEvents.map((evt) => {
               return (
                 <div

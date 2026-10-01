@@ -1469,13 +1469,13 @@ INSERT INTO events (id, title, status, event_date, start_time, end_time, locatio
                     checkin_method, checkin_code, status_column_index, target_terms, target_tracks,
                     total_target_count, internal_attended_count, external_attended_count, created_at) VALUES
   ('evt_hack_01', '2026 하계 LLM & Agentic AI 해커톤', 'IN_PROGRESS', '2026-08-15', '09:00', '21:00', '강남 드림플러스 메인홀', '28기 정회원 및 산학 연계 협력사 멘토와 함께하는 무박 해커톤', 0,
-   'CODE', '9055', NULL, '[28]', '["ANALYSIS","ENGINEERING","VISUALIZATION"]',
+   'CODE', '9055', NULL, '[27,28]', '["ANALYSIS","ENGINEERING","VISUALIZATION"]',
    52, 6, 0, '2026-08-15'),
   ('evt_conf_28', 'BOAZ 제28기 Big Data Conference (빅콘)', 'IN_PROGRESS', '2026-08-08', '13:00', '18:30', '서울대학교 글로벌공학센터 다목적홀 / YouTube Live', 'BOAZ 28기 부원들의 프로젝트 성과 발표 및 외부 IT 기업 데이터 현직자 초청 컨퍼런스', 1,
    'QR_CODE', '8220', NULL, '[27,28]', '["ANALYSIS","ENGINEERING","VISUALIZATION"]',
    75, 5, 4, '2026-08-08'),
   ('evt_session_03', '제28기 3주차 정기 세션 (MLOps 특강)', 'FINISHED', '2026-08-01', '14:00', '17:00', '연세대학교 백양관 101호', '현업 MLOps 아키텍처 실무 강의 및 트랙별 진행 상황 공유', 0,
-   'QR_CODE', '8150', NULL, '[28]', '["ANALYSIS","ENGINEERING","VISUALIZATION"]',
+   'QR_CODE', '8150', NULL, '[27,28]', '["ANALYSIS","ENGINEERING","VISUALIZATION"]',
    52, 6, 0, '2026-08-01');
 
 INSERT INTO event_attendees (id, event_id, position, is_external, name, affiliation, term, email, phone, status,
