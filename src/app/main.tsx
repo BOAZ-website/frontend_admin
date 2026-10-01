@@ -84,9 +84,10 @@ class GlobalErrorBoundary extends Component<Props, State> {
                     localStorage.removeItem('boaz_sidebar_open_v2');
                     localStorage.removeItem('boaz_sidebar_open');
                     localStorage.removeItem('boaz_sidebar_expanded_sections');
+                    localStorage.removeItem('boaz_active_page');
                   } catch {}
                   this.setState({ hasError: false, error: null, errorInfo: null });
-                  window.location.reload();
+                  window.location.assign(`${window.location.pathname}${window.location.search}`);
                 }}
                 className="w-full py-2 px-3 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
               >
