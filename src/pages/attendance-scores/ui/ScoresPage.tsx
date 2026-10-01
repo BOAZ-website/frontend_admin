@@ -2,15 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Download, RefreshCw, Search, Star } from 'lucide-react';
 
 import { fetchActiveAttendanceTerms } from '@/entities/attendance/api/termsApi';
-import type { AttendanceState } from '@/entities/attendance/model/types';
+import { sessionKey } from '@/entities/attendance/model/lib';
+import { isConcurrentBaseMember } from '@/entities/attendance/model/concurrent';
+import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
 import { getRuleForTerm } from '@/entities/score-rule/model/lib';
 import type { ScoreRule } from '@/entities/score-rule/model/types';
 import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
-
-import {
-  getMemberSampleSeed,
-  isConcurrentBaseMember,
-} from '../../attendance-internal-category/model/baseAttendanceConcurrent';
 
 export type AggregationTab = 'BASE_MID' | 'ADV_MID' | 'BASE_FINAL' | 'ADV_FINAL';
 export type ViewMode = 'status' | 'score';
@@ -26,7 +23,7 @@ const SESSION_WEEKS = [
   { id: 'w7', weekNum: 7, label: '7주차', date: '2026-08-17' },
 ];
 
-export type DisplayStatus = '출석' | '비대면' | '지각' | '결석' | '미정';
+export type DisplayStatus = '출석' | '비대면' | '지각' | '조퇴' | '결석' | '인정결석' | '미정';
 
 interface MemberFullRecord {
   id: string;
@@ -79,14 +76,17 @@ interface MemberFullRecord {
 }
 
 export function ScoresPage({
+  attendance,
   studyTeams,
   advTeams,
+  baseTeams,
   membersMap,
   scoreRules,
 }: {
   attendance: AttendanceState;
   studyTeams: StudyTeamInfo[];
   advTeams: StudyTeamInfo[];
+  baseTeams: StudyTeamInfo[];
   membersMap: Record<string, Member[]>;
   scoreRules?: ScoreRule[];
 }) {
@@ -119,8 +119,8 @@ export function ScoresPage({
   }, []);
 
   // 전체 부원 데이터 구축 및 엑셀 수식 기반 점수 산정
-  const leaderNames = useMemo(
-    () => new Set([...studyTeams, ...advTeams].map((team) => team.leaderName)),
+  const leaderIds = useMemo(
+    () => new Set([...studyTeams, ...advTeams].map((team) => team.leaderId).filter(Boolean)),
     [studyTeams, advTeams],
   );
 
@@ -131,15 +131,20 @@ export function ScoresPage({
       term: number;
       track: '분석' | '엔지니어링' | '시각화';
     }[] = [];
-    const seenNames = new Set<string>();
+    const seenIds = new Set<string>();
+    const teams = [...baseTeams, ...studyTeams, ...advTeams];
+    const userIdOf = (member: Member, teamId: string) =>
+      member.id.startsWith(`${teamId}_`) ? member.id.slice(teamId.length + 1) : member.id;
 
-    // 스터디·ADV 팀원 (임시 DB의 team_members → users 기준, 이름이 같으면 한 명으로 본다)
-    Object.values(membersMap).forEach((mList) => {
+    // 팀별 회원 ID에서 원본 사용자 ID를 복원해 동명이인을 구분한다.
+    teams.forEach((team) => {
+      const mList = membersMap[team.id] ?? [];
       mList.forEach((m) => {
-        if (seenNames.has(m.name)) return;
-        seenNames.add(m.name);
+        const userId = userIdOf(m, team.id);
+        if (seenIds.has(userId)) return;
+        seenIds.add(userId);
         const track = (m.track as '분석' | '엔지니어링' | '시각화') || '분석';
-        list.push({ id: m.id, name: m.name, term: Number(m.year) || 0, track });
+        list.push({ id: userId, name: m.name, term: Number(m.year) || 0, track });
       });
     });
 
@@ -150,19 +155,34 @@ export function ScoresPage({
     });
 
     // 각 부원별 실무 엑셀 수식 점수 계산
-    const calculated: MemberFullRecord[] = list.map((m, idx) => {
-      const charSum = getMemberSampleSeed(m.name, idx);
+    const calculated: MemberFullRecord[] = list.map((m) => {
+      const memberTeams = teams.filter((team) =>
+        (membersMap[team.id] ?? []).some((member) => userIdOf(member, team.id) === m.id),
+      );
+      const selectedTeams = activeTab.startsWith('BASE')
+        ? memberTeams.filter((team) => baseTeams.some((base) => base.id === team.id))
+        : memberTeams.filter((team) => advTeams.some((adv) => adv.id === team.id));
+      const selectedTeam = selectedTeams[0];
+      const selectedMember =
+        selectedTeam &&
+        (membersMap[selectedTeam.id] ?? []).find(
+          (member) => userIdOf(member, selectedTeam.id) === m.id,
+        );
 
       // 1) 1~7주차 방학 세션 출결 상태 (사용자 이미지 스타일 일치)
-      const sessionWeeks: DisplayStatus[] = SESSION_WEEKS.map((w) => {
-        if (w.weekNum > 3) return '미정'; // 4주차 이후 미래 주차
-
-        if (m.name === '남소희' && w.weekNum === 3) return '결석';
-        if (m.name === '도현진' && w.weekNum === 2) return '비대면';
-        if (charSum % 19 === 0 && w.weekNum === 2) return '결석';
-        if (charSum % 13 === 0 && w.weekNum === 1) return '지각';
-        if (charSum % 11 === 0 && w.weekNum === 3) return '비대면';
-        return '출석';
+      const rawStatuses: Array<AttendanceStatus | undefined> = SESSION_WEEKS.map((week) =>
+        selectedTeam && selectedMember
+          ? attendance[sessionKey(week.id, 'study', selectedTeam.id)]?.statuses[selectedMember.id]
+          : undefined,
+      );
+      const sessionWeeks: DisplayStatus[] = rawStatuses.map((status) => {
+        if (status === 'present') return '출석';
+        if (status === 'remote') return '비대면';
+        if (status === 'late' || status === 'unexcusedLate') return '지각';
+        if (status === 'earlyLeave') return '조퇴';
+        if (status === 'excusedAbsent') return '인정결석';
+        if (status === 'absent' || status === 'unexcusedAbsent') return '결석';
+        return '미정';
       });
 
       // 2) 출결 감점 계산 (해당 부원의 기수별 점수 규칙 적용)
@@ -171,15 +191,34 @@ export function ScoresPage({
       const unexcusedLatePenalty = termRule?.unexcusedLatePenalty ?? -4;
       const earlyLeavePenalty = termRule?.earlyLeavePenalty ?? -1;
       const absentPenalty = termRule?.absentPenalty ?? -3;
+      const unexcusedAbsentPenalty = termRule?.unexcusedAbsentPenalty ?? -4;
 
-      const lateCount = sessionWeeks.filter((s) => s === '지각').length;
-      const lateDeduction = lateCount >= 3 ? unexcusedLatePenalty : lateCount * latePenalty;
+      const lateCount = rawStatuses.filter(
+        (status) => status === 'late' || status === 'unexcusedLate',
+      ).length;
+      const lateDeduction = rawStatuses.reduce<number>(
+        (sum, status) =>
+          sum +
+          (status === 'unexcusedLate' ? unexcusedLatePenalty : status === 'late' ? latePenalty : 0),
+        0,
+      );
 
-      const earlyLeaveCount = charSum % 17 === 0 ? 1 : 0;
+      const earlyLeaveCount = rawStatuses.filter((status) => status === 'earlyLeave').length;
       const earlyLeaveDeduction = earlyLeaveCount * earlyLeavePenalty;
 
-      const absentCount = sessionWeeks.filter((s) => s === '결석').length;
-      const absentDeduction = absentCount * absentPenalty;
+      const absentCount = rawStatuses.filter(
+        (status) => status === 'absent' || status === 'unexcusedAbsent',
+      ).length;
+      const absentDeduction = rawStatuses.reduce<number>(
+        (sum, status) =>
+          sum +
+          (status === 'unexcusedAbsent'
+            ? unexcusedAbsentPenalty
+            : status === 'absent'
+              ? absentPenalty
+              : 0),
+        0,
+      );
 
       const baseDefaultScore = 10;
       const attendanceScore = Math.max(
@@ -188,17 +227,14 @@ export function ScoresPage({
       );
 
       // 3) 활동 점수 (친바, 홍보, 과제, 스터디, MT, 컨퍼런스)
-      const chinbaCount = (charSum % 5) + 1; // 1~5회
-      const chinbaScore = Number((chinbaCount * 0.5).toFixed(1));
-
-      const promoScore = charSum % 2 === 0 ? 1.0 : 0.5;
-      const mtScore = charSum % 6 === 0 ? 0 : 1.0;
-      const etcScore = charSum % 8 === 0 ? 0.5 : 0;
+      const chinbaScore = 0;
+      const promoScore = 0;
+      const mtScore = 0;
+      const etcScore = 0;
 
       // BASE 스터디 & 과제
-      const baseStudyScore = Number((3.0 - (charSum % 3) * 0.5).toFixed(1));
-      const taskMissCount = charSum % 7 === 0 ? 1 : 0;
-      const baseTaskScore = Number((5.0 - taskMissCount * 0.5).toFixed(1));
+      const baseStudyScore = 0;
+      const baseTaskScore = 0;
 
       // BASE 중간점수 (출석점수 + 스터디 + 친바 + 홍보 + 과제 + MT + 기타)
       const baseMidScore = Number(
@@ -214,12 +250,11 @@ export function ScoresPage({
       );
 
       // ADV 중간 항목
-      const baseFinalRefScore = Number((baseMidScore + 10.0).toFixed(1));
+      const baseFinalRefScore = 0;
       // 스터디 점수: 미이수 0, 기본 +1, 개근 +3, 팀장 +1
-      const isLeader = leaderNames.has(m.name);
-      const isPerfect = charSum % 4 === 0;
-      const advStudyScore = isLeader ? 4.0 : isPerfect ? 3.0 : 1.0;
-      const confScore = charSum % 3 === 0 ? 2.0 : 1.0; // 출석당 1점
+      const isLeader = leaderIds.has(m.id);
+      const advStudyScore = 0;
+      const confScore = 0;
       const advMidScore = Number(
         (
           attendanceScore +
@@ -233,18 +268,25 @@ export function ScoresPage({
       );
 
       // BASE 최종 집계 항목
-      const termSessionScore = 9.5;
-      const finalTaskScore = 5.0;
-      const termStudyScore = 3.0;
-      const officerScore = isLeader ? 2.0 : 0.0;
-      const jointSessionScore = 1.0;
-      const finalEtcScore = 0.5;
-      const newRecruitPromoScore = 1.0;
-      const isParallel = isConcurrentBaseMember(m.name, idx);
-      const parallelMidScore = isParallel ? 18.5 : 0;
-      const parallelScore = isParallel ? 2.0 : 0;
-      const parallelAttendance = isParallel ? 10.0 : 0;
-      const parallelGiveup = isParallel && charSum % 15 === 0 ? 'O' : '-';
+      const termSessionScore = 0;
+      const finalTaskScore = 0;
+      const termStudyScore = 0;
+      const officerScore = isLeader ? 2 : 0;
+      const jointSessionScore = 0;
+      const finalEtcScore = 0;
+      const newRecruitPromoScore = 0;
+      const isParallel = isConcurrentBaseMember(
+        m.id,
+        '',
+        m.term,
+        baseTeams,
+        [...advTeams, ...studyTeams],
+        membersMap,
+      );
+      const parallelMidScore = 0;
+      const parallelScore = 0;
+      const parallelAttendance = 0;
+      const parallelGiveup: string = isParallel ? '미연동' : '-';
 
       const baseFinalScore = Number(
         (
@@ -316,15 +358,8 @@ export function ScoresPage({
       };
     });
 
-    // ADV 최종점수 기준 상위 5명 마킹
-    const sortedAdv = [...calculated].sort((a, b) => b.advFinalScore - a.advFinalScore);
-    const top5Ids = new Set(sortedAdv.slice(0, 5).map((m) => m.id));
-
-    return calculated.map((m) => ({
-      ...m,
-      isTop5: top5Ids.has(m.id),
-    }));
-  }, [membersMap, leaderNames, scoreRules]);
+    return calculated;
+  }, [membersMap, leaderIds, scoreRules, attendance, activeTab, baseTeams, advTeams, studyTeams]);
 
   // 필터링 적용
   const filteredRecords = useMemo(() => {
@@ -351,8 +386,12 @@ export function ScoresPage({
         return <span className="text-indigo-600 font-bold">비대면</span>;
       case '지각':
         return <span className="text-amber-600 font-bold">지각</span>;
+      case '조퇴':
+        return <span className="text-amber-600 font-bold">조퇴</span>;
       case '결석':
         return <span className="text-rose-600 font-bold">결석</span>;
+      case '인정결석':
+        return <span className="text-blue-600 font-medium">인정결석</span>;
       case '미정':
       default:
         return <span className="text-slate-400 font-normal">미정</span>;
@@ -526,7 +565,15 @@ export function ScoresPage({
       ]);
     }
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const csvCell = (value: string | number | boolean) => {
+      if (typeof value === 'number') return String(value);
+      const safe = String(value)
+        .replace(/^[=+@-]/, "'$&")
+        .replace(/"/g, '""');
+      return `"${safe}"`;
+    };
+    const csvContent =
+      '\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -538,6 +585,7 @@ export function ScoresPage({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -601,10 +649,12 @@ export function ScoresPage({
         <div className="flex items-center gap-2">
           <button
             onClick={handleDownloadCsv}
+            disabled
+            title="활동 점수 데이터가 연결되면 내보낼 수 있습니다."
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-md shadow-xs transition-all cursor-pointer"
           >
             <Download size={13} />
-            <span>CSV 다운로드</span>
+            <span>CSV 다운로드 준비 중</span>
           </button>
         </div>
       </div>
@@ -1391,11 +1441,11 @@ export function ScoresPage({
             {activeTab === 'ADV_FINAL' && (
               <span className="text-amber-700 font-semibold flex items-center gap-1">
                 <Star size={12} className="fill-amber-500 text-amber-500" />
-                우수 수료자 상위 5명 자동 판정 완료
+                활동 점수 미연동 · 순위 미확정
               </span>
             )}
             <span className="text-slate-400">
-              CSV 다운로드 시 엑셀 원본 컬럼 양식 그대로 내보내집니다.
+              출결 점수는 실제 기록을 사용합니다. 활동 점수는 미연동이며 0점으로 표시됩니다.
             </span>
           </div>
         </div>

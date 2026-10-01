@@ -20,14 +20,33 @@ test('병행 여부 컬럼은 BASE와 ADV 출결 매트릭스에 표시한다', 
   assert.equal(shouldShowConcurrentColumn('STUDY'), false);
 });
 
-test('BASE 병행 여부는 점수 집계와 같은 샘플 규칙으로 판정한다', () => {
-  assert.equal(isConcurrentBaseMember('김서하', 2), true);
-  assert.equal(isConcurrentBaseMember('고준서', 0), false);
-});
-
-test('BASE 예시 명단에는 명시적인 병행 인원이 포함된다', () => {
-  assert.equal(isConcurrentBaseMember('정채원', 0), true);
-  assert.equal(isConcurrentBaseMember('문지훈', 0), true);
+test('같은 기수 BASE와 ADV에 동일한 사용자 ID가 있을 때만 병행으로 판정한다', () => {
+  const base = { id: 'base_27_analysis', cohort: 27 } as Parameters<
+    typeof isConcurrentBaseMember
+  >[3][number];
+  const adv = { id: 'adv_27_analysis_1', cohort: 27 } as Parameters<
+    typeof isConcurrentBaseMember
+  >[4][number];
+  const older = { id: 'adv_26_analysis_1', cohort: 26 } as Parameters<
+    typeof isConcurrentBaseMember
+  >[4][number];
+  const members = {
+    [base.id]: [{ id: `${base.id}_u1` }],
+    [adv.id]: [{ id: `${adv.id}_u1` }],
+    [older.id]: [{ id: `${older.id}_u2` }],
+  } as unknown as Parameters<typeof isConcurrentBaseMember>[5];
+  assert.equal(
+    isConcurrentBaseMember(`${base.id}_u1`, base.id, 27, [base], [adv, older], members),
+    true,
+  );
+  assert.equal(
+    isConcurrentBaseMember(`${base.id}_u2`, base.id, 27, [base], [adv, older], members),
+    false,
+  );
+  assert.equal(
+    isConcurrentBaseMember(`${base.id}_u1`, base.id, 26, [base], [adv, older], members),
+    false,
+  );
 });
 
 test('기존 그룹 내부 순서를 유지하면서 병행 인원을 마지막 행으로 이동한다', () => {
