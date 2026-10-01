@@ -41,9 +41,9 @@ import {
 import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
 import { SAMPLE_STUDY_PHOTO_PATH, resolveImageUrl } from '@/shared/lib/imagePath';
 import type { ScoreRule } from '@/entities/score-rule/model/types';
+import { isConcurrentBaseMember } from '@/entities/attendance/model/concurrent';
 
 import {
-  isConcurrentBaseMember,
   shouldShowConcurrentColumn,
   shouldShowMatrixTrack,
   sortConcurrentMembersLast,
@@ -51,6 +51,7 @@ import {
 import { buildWeekSubmission, countUnmarked, submissionKey } from '../model/weekSubmission';
 import { BRAND_SELECTED, MODAL_PRIMARY_BTN, MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { PdfPreviewModal } from '@/shared/ui/PdfPreviewModal';
+import { DateTextInput } from '@/shared/ui/DateTextInput';
 import {
   EMPTY_MEMBER_SELECTION,
   findLeader,
@@ -518,21 +519,6 @@ const DEFAULT_WEEK_DATE_MAPPING: Record<number, string> = {
   16: '2026-10-26',
 };
 
-const WEEK_SAMPLE_PHOTOS: Record<number, string> = {
-  1: SAMPLE_STUDY_PHOTO_URL,
-  2: SAMPLE_STUDY_PHOTO_URL,
-  3: SAMPLE_STUDY_PHOTO_URL,
-  4: SAMPLE_STUDY_PHOTO_URL,
-  5: SAMPLE_STUDY_PHOTO_URL,
-  6: SAMPLE_STUDY_PHOTO_URL,
-  7: SAMPLE_STUDY_PHOTO_URL,
-  8: SAMPLE_STUDY_PHOTO_URL,
-  9: SAMPLE_STUDY_PHOTO_URL,
-  10: SAMPLE_STUDY_PHOTO_URL,
-  11: SAMPLE_STUDY_PHOTO_URL,
-  12: SAMPLE_STUDY_PHOTO_URL,
-};
-
 export interface InternalCategoryAttendancePageProps {
   category: InternalCategory;
   activeScoreRule?: ScoreRule;
@@ -540,6 +526,8 @@ export interface InternalCategoryAttendancePageProps {
   /** 공용 저장소(DB)의 팀·팀원(스터디 화면은 스터디 팀, BASE 화면은 BASE 트랙). 이 화면은 이 값에서 파생해 조회한다. */
   studyTeams?: readonly StudyTeamInfo[];
   studyMembers?: Readonly<Record<string, readonly Member[]>>;
+  membershipBaseTeams?: readonly StudyTeamInfo[];
+  membershipOtherTeams?: readonly StudyTeamInfo[];
   /** 주차와 활성 상태(DB의 weeks). 진행 예정 주차는 미정으로 보이고, 종료·진행 중 주차만 기록을 보여준다. */
   weeks?: readonly WeekInfo[];
   /** DB에 있는 활동 기수들과 그중 현재 기수. 가장 큰 기수가 현재이고, 더 작은 기수는 지난 기수로 조회만 할 수 있다. */
@@ -547,6 +535,8 @@ export interface InternalCategoryAttendancePageProps {
   currentCohort?: number;
   /** 만들 수 없으면 사용자에게 보여줄 사유를, 만들었으면 null을 돌려준다. */
   onCreateStudy?: (input: CreateStudyInput) => string | null;
+  openCreateStudyOnMount?: boolean;
+  onCreateStudyOpenConsumed?: () => void;
   onStudyAttendanceChange?: (change: AttendanceChange) => void;
   /** 기수별 주차 날짜 매핑(DB). 출결 생성 창에서 정한 날짜를 BASE 표 머리와 CSV가 읽어서 쓴다. */
   weekDates?: Readonly<Record<number, Readonly<Record<number, string>>>>;
@@ -566,10 +556,14 @@ export function InternalCategoryAttendancePage({
   attendance,
   studyTeams,
   studyMembers,
+  membershipBaseTeams = [],
+  membershipOtherTeams = [],
   weeks: weeksProp = NO_WEEKS,
   cohorts,
   currentCohort: currentCohortProp,
   onCreateStudy,
+  openCreateStudyOnMount,
+  onCreateStudyOpenConsumed,
   onStudyAttendanceChange,
   onRemoveStudyMember,
   weekDates: weekDatesProp,
@@ -932,7 +926,10 @@ export function InternalCategoryAttendancePage({
   const [showImageZoom, setShowImageZoom] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showCreateStudyModal, setShowCreateStudyModal] = useState(false);
+  const [showCreateStudyModal, setShowCreateStudyModal] = useState(Boolean(openCreateStudyOnMount));
+  useEffect(() => {
+    if (openCreateStudyOnMount) onCreateStudyOpenConsumed?.();
+  }, [openCreateStudyOnMount, onCreateStudyOpenConsumed]);
   const [showCreateAttendanceModal, setShowCreateAttendanceModal] = useState(false);
   const [showCreateAdvModal, setShowCreateAdvModal] = useState(false);
 
@@ -958,12 +955,14 @@ export function InternalCategoryAttendancePage({
     setIsSubmittingWeek(true);
     try {
       const result = await submitWeekAttendance(submission);
-      onSubmitWeek?.(selectedTeam.id, selectedWeek, result.submittedAt);
+      if (!result.simulated) onSubmitWeek?.(selectedTeam.id, selectedWeek, result.submittedAt);
       setEditingWeekKey(null);
       setSubmitToast({
-        message: wasEditing
-          ? `${selectedWeek}주차 수정 내용이 제출되었습니다.`
-          : `${selectedWeek}주차 출결이 제출되었습니다.`,
+        message: result.simulated
+          ? `${selectedWeek}주차 출결을 로컬에만 저장했습니다. 서버 제출은 되지 않았습니다.`
+          : wasEditing
+            ? `${selectedWeek}주차 수정 내용이 제출되었습니다.`
+            : `${selectedWeek}주차 출결이 제출되었습니다.`,
         isError: false,
       });
     } catch {
@@ -982,13 +981,16 @@ export function InternalCategoryAttendancePage({
     track: UserTrack,
     picked: UserProfile[],
     dates: Record<number, string>,
+    leaderId: string | null,
   ) => {
+    const leaderName = picked.find((user) => user.id === leaderId)?.name ?? null;
     const failure = onCreateAdvTeam?.({
       cohort,
       track,
       members: picked,
       weekDates: dates,
       weekNums: weekList.map((week) => week.weekNum),
+      leaderName,
     });
     if (failure) {
       alert(failure);
@@ -1037,12 +1039,15 @@ export function InternalCategoryAttendancePage({
     useState<MemberSelection>(EMPTY_MEMBER_SELECTION);
   const [newStudyKind, setNewStudyKind] = useState<'MENTORING' | 'GENERAL'>('GENERAL');
   const [newStudyTrack, setNewStudyTrack] = useState<'분석' | '시각화' | '엔지니어링'>('분석');
+  const [newStudyWeekDates, setNewStudyWeekDates] = useState<Record<number, string>>({});
+  const canSelectStudyTrack = termPeriod === 'VACATION' && newStudyKind === 'MENTORING';
 
   const openCreateStudyModal = () => {
     setNewStudyName('');
     setNewStudySelection(EMPTY_MEMBER_SELECTION);
     setNewStudyKind('GENERAL');
     setNewStudyTrack('분석');
+    setNewStudyWeekDates({});
     setShowCreateStudyModal(true);
   };
 
@@ -1066,6 +1071,9 @@ export function InternalCategoryAttendancePage({
       cohort: currentCohort,
       leaderName: leader?.name ?? null,
       members: newStudySelection.members,
+      weekDates: isVacation
+        ? Object.fromEntries(Object.entries(newStudyWeekDates).filter(([, date]) => date))
+        : undefined,
     });
     if (failure) {
       alert(failure);
@@ -1084,7 +1092,6 @@ export function InternalCategoryAttendancePage({
     { id: '엔지니어링', label: '엔지' },
   ];
   const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>('ALL');
-  const [studySortMode, setStudySortMode] = useState<'TERM' | 'TEAM'>('TERM'); // "TERM" (기수별 기본) | "TEAM" (팀별)
   const [termFilter] = useState<string>('ALL'); // "ALL" | "28" | "27" | "26"
   const [sortOption] = useState<'DEFAULT' | 'TERM_ASC' | 'TERM_DESC' | 'NAME_ASC'>('TERM_ASC');
 
@@ -1099,10 +1106,7 @@ export function InternalCategoryAttendancePage({
   const [customColOrder, setCustomColOrder] = useState<string[] | null>(null);
 
   // BASE·ADV는 주차 날짜가 DB의 기수별 매핑이다. 기수를 바꾸거나 DB 값이 바뀌면 화면 매핑도 그 값으로 맞춘다.
-  const dbWeekDates =
-    category === 'SESSION' || category === 'ADV'
-      ? (weekDatesProp?.[viewCohort] ?? NO_WEEK_DATES)
-      : null;
+  const dbWeekDates = weekDatesProp ? (weekDatesProp[viewCohort] ?? NO_WEEK_DATES) : null;
   useEffect(() => {
     if (!dbWeekDates) return;
     setSavedWeekDateMapping({ ...dbWeekDates });
@@ -1385,6 +1389,20 @@ export function InternalCategoryAttendancePage({
       createdAt: '2026-08-20',
     };
   const isAllSelected = selectedTeamId === 'ALL';
+  const shouldApplyTrackFilter = category !== 'ADV' || isAllSelected;
+  const effectiveTrackFilter = shouldApplyTrackFilter ? selectedTrackFilter : 'ALL';
+
+  useEffect(() => {
+    if (
+      category === 'ADV' &&
+      !isAllSelected &&
+      termPeriod === 'VACATION' &&
+      selectedWeekVacation >= 1 &&
+      selectedWeekVacation <= ADV_DIRECT_SELECT_LAST_WEEK
+    ) {
+      setSelectedWeekVacation(ADV_DIRECT_SELECT_LAST_WEEK + 1);
+    }
+  }, [category, isAllSelected, selectedWeekVacation, termPeriod]);
   const selectedTeam: TeamMeta = useMemo(
     () =>
       isAllSelected
@@ -1472,12 +1490,12 @@ export function InternalCategoryAttendancePage({
 
   const filteredAttendees = useMemo(() => {
     let list = currentTeamAttendees.filter((a) => {
-      if (selectedTrackFilter !== 'ALL') {
+      if (effectiveTrackFilter !== 'ALL') {
         const matchesTrack = (t: string) => {
-          if (selectedTrackFilter === '엔지니어링' || selectedTrackFilter === '엔지') {
+          if (effectiveTrackFilter === '엔지니어링' || effectiveTrackFilter === '엔지') {
             return t === '엔지니어링' || t === '엔지' || t.includes('엔지');
           }
-          return t === selectedTrackFilter;
+          return t === effectiveTrackFilter;
         };
         if (!matchesTrack(a.track || '')) {
           return false;
@@ -1519,7 +1537,7 @@ export function InternalCategoryAttendancePage({
     return list;
   }, [
     currentTeamAttendees,
-    selectedTrackFilter,
+    effectiveTrackFilter,
     termFilter,
     attendStatusFilter,
     attendeeSearch,
@@ -1542,13 +1560,6 @@ export function InternalCategoryAttendancePage({
     });
     return Array.from(map.values());
   }, [baseAttendees]);
-
-  const memberSampleIndexById = useMemo(() => {
-    const sortedMembers = [...distinctMembers].sort(
-      (a, b) => a.term - b.term || a.name.localeCompare(b.name, 'ko'),
-    );
-    return new Map(sortedMembers.map((member, index) => [member.id, index]));
-  }, [distinctMembers]);
 
   const currentTermWeeks = weekList;
 
@@ -1629,7 +1640,7 @@ export function InternalCategoryAttendancePage({
       (colWidths.matrix_index || 42) +
       (colWidths.matrix_term || 52) +
       (colWidths.matrix_name || 80) +
-      (shouldShowMatrixTrack(category, selectedTrackFilter) ? colWidths.matrix_track || 72 : 0) +
+      (shouldShowMatrixTrack(category, effectiveTrackFilter) ? colWidths.matrix_track || 72 : 0) +
       (colWidths.matrix_total || 75) +
       (shouldShowConcurrentColumn(category) ? colWidths.matrix_concurrent || 82 : 0);
 
@@ -1655,10 +1666,10 @@ export function InternalCategoryAttendancePage({
     return Math.max(
       sum,
       selectedWeek === 0
-        ? selectedTrackFilter === 'ALL'
+        ? effectiveTrackFilter === 'ALL'
           ? 850
           : 750
-        : selectedTrackFilter === 'ALL'
+        : effectiveTrackFilter === 'ALL'
           ? 550
           : 490,
     );
@@ -1667,7 +1678,7 @@ export function InternalCategoryAttendancePage({
     colWidths,
     displayedMatrixWeeks,
     selectedWeek,
-    selectedTrackFilter,
+    effectiveTrackFilter,
     termPeriod,
     savedWeekDateMapping,
     isWeekDirectEditable,
@@ -1704,7 +1715,7 @@ export function InternalCategoryAttendancePage({
     if (category !== 'SESSION' && !isAllSelected) {
       sum += colWidths.track || 60;
     }
-    if (isTableEditMode) {
+    if (isTableEditMode && category !== 'ADV') {
       sum += 40;
     }
     return Math.max(sum, 690);
@@ -1842,14 +1853,24 @@ export function InternalCategoryAttendancePage({
         totalScore,
         isConcurrent:
           shouldShowConcurrentColumn(category) &&
-          isConcurrentBaseMember(member.name, memberSampleIndexById.get(member.id) ?? 0),
+          isConcurrentBaseMember(
+            member.originalId ?? member.id,
+            member.teamId,
+            member.cohort ?? viewCohort,
+            membershipBaseTeams,
+            membershipOtherTeams,
+            studyMembers ?? {},
+          ),
       };
     });
   }, [
     category,
     termPeriod,
     distinctMembers,
-    memberSampleIndexById,
+    membershipBaseTeams,
+    membershipOtherTeams,
+    studyMembers,
+    viewCohort,
     currentTermWeeks,
     currentScoreRule,
     config.teams,
@@ -1860,12 +1881,12 @@ export function InternalCategoryAttendancePage({
 
   const filteredMatrixRows = useMemo(() => {
     let rows = matrixRows.filter((row) => {
-      if (category !== 'STUDY' && selectedTrackFilter !== 'ALL') {
+      if (category !== 'STUDY' && effectiveTrackFilter !== 'ALL') {
         const matchesTrack = (t: string) => {
-          if (selectedTrackFilter === '엔지니어링' || selectedTrackFilter === '엔지') {
+          if (effectiveTrackFilter === '엔지니어링' || effectiveTrackFilter === '엔지') {
             return t === '엔지니어링' || t === '엔지' || t.includes('엔지');
           }
-          return t === selectedTrackFilter;
+          return t === effectiveTrackFilter;
         };
         if (!matchesTrack(row.track || '')) {
           return false;
@@ -1899,25 +1920,12 @@ export function InternalCategoryAttendancePage({
     });
 
     if (category === 'STUDY') {
-      if (studySortMode === 'TEAM') {
-        const teamOrderMap = new Map<string, number>();
-        config.teams.forEach((t, i) => teamOrderMap.set(t.id, i));
-        rows = [...rows].sort((a, b) => {
-          const teamA = teamOrderMap.get(a.teamId) ?? 999;
-          const teamB = teamOrderMap.get(b.teamId) ?? 999;
-          if (teamA !== teamB) {
-            return teamA - teamB;
-          }
-          return a.name.localeCompare(b.name, 'ko');
-        });
-      } else {
-        rows = [...rows].sort((a, b) => {
-          if ((a.term || 0) !== (b.term || 0)) {
-            return (a.term || 0) - (b.term || 0);
-          }
-          return a.name.localeCompare(b.name, 'ko');
-        });
-      }
+      rows = [...rows].sort((a, b) => {
+        if ((a.term || 0) !== (b.term || 0)) {
+          return (a.term || 0) - (b.term || 0);
+        }
+        return a.name.localeCompare(b.name, 'ko');
+      });
     } else {
       if (sortOption === 'TERM_ASC') {
         rows = [...rows].sort(
@@ -1940,9 +1948,7 @@ export function InternalCategoryAttendancePage({
   }, [
     category,
     matrixRows,
-    config.teams,
-    studySortMode,
-    selectedTrackFilter,
+    effectiveTrackFilter,
     termFilter,
     attendeeSearch,
     attendStatusFilter,
@@ -2578,6 +2584,7 @@ export function InternalCategoryAttendancePage({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   const renderStudyTeamCard = (team: TeamMeta) => {
@@ -2682,7 +2689,9 @@ export function InternalCategoryAttendancePage({
         </div>
 
         {/* 활동 기수 (맨 오른쪽): 기수를 고르면 그 기수의 출결만 보인다 */}
-        <CohortSelect value={viewCohort} cohorts={cohortOptions} onChange={handleChangeCohort} />
+        <div className="flex items-center gap-2">
+          <CohortSelect value={viewCohort} cohorts={cohortOptions} onChange={handleChangeCohort} />
+        </div>
       </div>
 
       {/* ─── 2. 주차 선택 토글 바 (수평 스크롤 & 위치 완전 고정) ─── */}
@@ -2722,17 +2731,27 @@ export function InternalCategoryAttendancePage({
           {weekList.map((w) => {
             const isActive = selectedWeek === w.weekNum;
             const isWeekFuture = isFutureWeekNum(w.weekNum);
+            const isDisabledBeforeAdvTeamCreation =
+              category === 'ADV' && !isAllSelected && w.weekNum <= ADV_DIRECT_SELECT_LAST_WEEK;
             return (
               <button
                 key={w.id}
                 type="button"
                 onClick={() => handleSelectWeek(w.weekNum)}
-                className={`w-[58px] h-[34px] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
-                  isActive
-                    ? BRAND_SELECTED
-                    : isWeekFuture
-                      ? 'text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
+                disabled={isDisabledBeforeAdvTeamCreation}
+                title={
+                  isDisabledBeforeAdvTeamCreation
+                    ? 'ADV 팀 개설 전 주차는 팀별 출결을 조회할 수 없습니다.'
+                    : undefined
+                }
+                className={`w-[58px] h-[34px] rounded-xl text-xs font-bold transition-colors flex items-center justify-center shrink-0 select-none ${
+                  isDisabledBeforeAdvTeamCreation
+                    ? 'cursor-not-allowed border border-slate-200/60 bg-slate-100/60 text-slate-300'
+                    : isActive
+                      ? BRAND_SELECTED
+                      : isWeekFuture
+                        ? 'cursor-pointer text-slate-400 hover:text-slate-700 bg-slate-50/70 border border-slate-200/70'
+                        : 'cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
                 }`}
               >
                 <span>{w.label}</span>
@@ -2865,55 +2884,61 @@ export function InternalCategoryAttendancePage({
                         {trackName} 트랙
                       </div>
 
-                      <div className="space-y-2">
-                        {trackTeams.map((team) => {
-                          const isSelected = selectedTeamId === team.id && isPeekOpen;
+                      {trackTeams.length === 0 ? (
+                        <p className="px-1 py-1 text-[11px] text-slate-400">
+                          등록된 팀이 없습니다.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {trackTeams.map((team) => {
+                            const isSelected = selectedTeamId === team.id && isPeekOpen;
 
-                          return (
-                            <div
-                              key={team.id}
-                              onClick={() => {
-                                setSelectedTeamId(team.id);
-                                setIsPeekOpen(true);
-                              }}
-                              className={`relative rounded-2xl border transition-all cursor-pointer p-3.5 group select-none ${
-                                isSelected
-                                  ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
-                                  : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="space-y-1 min-w-0 flex-1">
-                                  <h4
-                                    className={`text-sm font-bold truncate ${
+                            return (
+                              <div
+                                key={team.id}
+                                onClick={() => {
+                                  setSelectedTeamId(team.id);
+                                  setIsPeekOpen(true);
+                                }}
+                                className={`relative rounded-2xl border transition-all cursor-pointer p-3.5 group select-none ${
+                                  isSelected
+                                    ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
+                                    : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="space-y-1 min-w-0 flex-1">
+                                    <h4
+                                      className={`text-sm font-bold truncate ${
+                                        isSelected
+                                          ? 'text-slate-950 font-bold'
+                                          : 'text-slate-900 group-hover:text-slate-950'
+                                      }`}
+                                    >
+                                      {team.name}
+                                    </h4>
+
+                                    {team.leader && (
+                                      <p className="text-[11px] text-slate-500 font-medium">
+                                        팀장: {team.leader}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <ChevronRight
+                                    size={16}
+                                    className={`shrink-0 transition-transform ${
                                       isSelected
-                                        ? 'text-slate-950 font-bold'
-                                        : 'text-slate-900 group-hover:text-slate-950'
+                                        ? 'text-slate-500 translate-x-0.5'
+                                        : 'text-slate-300 group-hover:text-slate-500'
                                     }`}
-                                  >
-                                    {team.name}
-                                  </h4>
-
-                                  {team.leader && (
-                                    <p className="text-[11px] text-slate-500 font-medium">
-                                      팀장: {team.leader}
-                                    </p>
-                                  )}
+                                  />
                                 </div>
-
-                                <ChevronRight
-                                  size={16}
-                                  className={`shrink-0 transition-transform ${
-                                    isSelected
-                                      ? 'text-slate-500 translate-x-0.5'
-                                      : 'text-slate-300 group-hover:text-slate-500'
-                                  }`}
-                                />
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -3117,22 +3142,23 @@ export function InternalCategoryAttendancePage({
               const studyTeamId = selectedTeam.id;
               const currentWeekKey = selectedWeek === 0 ? latestWeekNum : selectedWeek;
               const teamUploadedPhoto =
-                category === 'STUDY'
+                category === 'STUDY' || category === 'ADV'
                   ? attendance?.[sessionKey(`w${currentWeekKey}`, 'study', studyTeamId)]?.photoUrl
                   : undefined;
-              const currentDisplayPhoto =
-                teamUploadedPhoto ||
-                (category === 'STUDY'
-                  ? ''
-                  : WEEK_SAMPLE_PHOTOS[selectedWeek] || SAMPLE_STUDY_PHOTO_URL);
+              const currentDisplayPhoto = teamUploadedPhoto || '';
 
-              if (
-                selectedWeek === 0 ||
-                isAllSelected ||
-                category === 'SESSION' ||
-                !currentDisplayPhoto
-              ) {
+              if (selectedWeek === 0 || isAllSelected || category === 'SESSION') {
                 return null;
+              }
+
+              if (!currentDisplayPhoto) {
+                return (
+                  <div className="flex w-full justify-center py-1">
+                    <div className="flex h-24 w-full max-w-[540px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 text-sm font-medium text-slate-400">
+                      등록된 사진이 없습니다.
+                    </div>
+                  </div>
+                );
               }
 
               return (
@@ -3246,7 +3272,7 @@ export function InternalCategoryAttendancePage({
                     </h4>
 
                     {/* Track Filter Pill Buttons (스터디 및 BASE 출결에서는 숨김) */}
-                    {category !== 'STUDY' && category !== 'SESSION' && (
+                    {category !== 'STUDY' && category !== 'SESSION' && shouldApplyTrackFilter && (
                       <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
                         {TRACK_FILTER_OPTIONS.map((tf) => {
                           const isSelected = selectedTrackFilter === tf.id;
@@ -3267,42 +3293,14 @@ export function InternalCategoryAttendancePage({
                         })}
                       </div>
                     )}
-
-                    {/* 전체 스터디 정렬 기준 토글: 기수별(기본) vs 팀별 */}
-                    {category === 'STUDY' && isAllSelected && (
-                      <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
-                        <button
-                          type="button"
-                          onClick={() => setStudySortMode('TERM')}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                            studySortMode === 'TERM'
-                              ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
-                              : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          기수별
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setStudySortMode('TEAM')}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                            studySortMode === 'TEAM'
-                              ? 'bg-white text-slate-950 shadow-xs border border-slate-200/60'
-                              : 'text-slate-500 hover:text-slate-800'
-                          }`}
-                        >
-                          팀별
-                        </button>
-                      </div>
-                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* 수정 버튼: ADV 팀별 탭 & 스터디 개별 탭에서 전체 주차일 때 표시 */}
+                    {/* 수정 버튼: BASE·ADV 팀별 탭 & 스터디 개별 탭에서 전체 주차일 때 표시 */}
                     {!isAllSelected &&
                       !isArchivedView &&
                       selectedWeek === 0 &&
-                      (category === 'ADV' || category === 'STUDY') && (
+                      (category === 'SESSION' || category === 'ADV' || category === 'STUDY') && (
                         <button
                           type="button"
                           onClick={() => setIsTableEditMode((prev) => !prev)}
@@ -4230,7 +4228,7 @@ export function InternalCategoryAttendancePage({
                             />
                           </th>
                           {category !== 'SESSION' &&
-                            shouldShowMatrixTrack(category, selectedTrackFilter) && (
+                            shouldShowMatrixTrack(category, effectiveTrackFilter) && (
                               <th
                                 style={{ width: `${colWidths.matrix_track || 72}px` }}
                                 className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
@@ -4459,17 +4457,20 @@ export function InternalCategoryAttendancePage({
                             'unmarked',
                           ];
 
-                          const editDropdownStatuses: AttendStatus[] = [
-                            'present',
-                            'late',
-                            'earlyLeave',
-                            'absent',
-                            'excusedAbsent',
-                            'remote',
-                            'unexcusedLate',
-                            'unexcusedAbsent',
-                            'unmarked',
-                          ];
+                          const editDropdownStatuses: AttendStatus[] =
+                            category === 'SESSION'
+                              ? availableStatuses
+                              : [
+                                  'present',
+                                  'late',
+                                  'earlyLeave',
+                                  'absent',
+                                  'excusedAbsent',
+                                  'remote',
+                                  'unexcusedLate',
+                                  'unexcusedAbsent',
+                                  'unmarked',
+                                ];
 
                           const effectiveScore = (() => {
                             if (selectedWeek === 0) {
@@ -4520,7 +4521,7 @@ export function InternalCategoryAttendancePage({
                                 </div>
                               </td>
                               {category !== 'SESSION' &&
-                                shouldShowMatrixTrack(category, selectedTrackFilter) && (
+                                shouldShowMatrixTrack(category, effectiveTrackFilter) && (
                                   <td className="relative px-1.5 py-1.5 text-center text-slate-600 text-xs font-sans">
                                     <div className="h-8 flex items-center justify-center font-medium">
                                       {row.track}
@@ -4754,7 +4755,7 @@ export function InternalCategoryAttendancePage({
                           )}
                           {category !== 'SESSION' &&
                             isAllSelected &&
-                            selectedTrackFilter === 'ALL' && (
+                            effectiveTrackFilter === 'ALL' && (
                               <th
                                 style={{ width: `${colWidths.track}px` }}
                                 className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
@@ -4852,7 +4853,7 @@ export function InternalCategoryAttendancePage({
                           </th>
                           {category !== 'SESSION' &&
                             !isAllSelected &&
-                            selectedTrackFilter === 'ALL' && (
+                            effectiveTrackFilter === 'ALL' && (
                               <th
                                 style={{ width: `${colWidths.track}px` }}
                                 className="relative text-center px-2 py-1 text-slate-700 font-bold bg-slate-100/90"
@@ -4924,29 +4925,53 @@ export function InternalCategoryAttendancePage({
                           >
                             <div className="h-9 flex items-center justify-center">비고</div>
                             {!isAllSelected &&
-                              isSubmittableWeek(selectedWeek) &&
+                              selectedWeek !== 0 &&
+                              !isArchivedView &&
+                              weekStatusOf(weeks, selectedWeek) !== 'UPCOMING' &&
                               (() => {
                                 const key = submissionKey(
                                   viewCohort,
                                   selectedTeam.id,
                                   selectedWeek,
                                 );
-                                if (!isWeekSubmittedInDb(selectedTeam.id, selectedWeek))
+                                const isSubmitted = isWeekSubmittedInDb(
+                                  selectedTeam.id,
+                                  selectedWeek,
+                                );
+                                const usesSubmissionEdit =
+                                  isSubmittableWeek(selectedWeek) && isSubmitted;
+
+                                if (category !== 'ADV' && !usesSubmissionEdit) {
                                   return null;
-                                const isEditingThisWeek = editingWeekKey === key;
+                                }
+
+                                const isEditingThisWeek = editingWeekKey === key || isTableEditMode;
+                                const completeEdit = () => {
+                                  if (editingWeekKey === key) {
+                                    void handleSubmitWeek();
+                                    return;
+                                  }
+                                  setIsTableEditMode(false);
+                                };
+                                const startEdit = () => {
+                                  if (usesSubmissionEdit) {
+                                    setEditingWeekKey(key);
+                                    return;
+                                  }
+                                  setIsTableEditMode(true);
+                                };
+
                                 return (
                                   <button
                                     type="button"
                                     disabled={isSubmittingWeek}
-                                    onClick={() =>
-                                      isEditingThisWeek
-                                        ? handleSubmitWeek()
-                                        : setEditingWeekKey(key)
-                                    }
+                                    onClick={isEditingThisWeek ? completeEdit : startEdit}
                                     className="absolute right-2 top-1/2 z-10 inline-flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 transition-[background-color,color,transform] duration-150 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 disabled:cursor-wait disabled:opacity-60"
                                     title={
                                       isEditingThisWeek
-                                        ? '수정 완료 (변경 내용을 다시 제출)'
+                                        ? usesSubmissionEdit
+                                          ? '수정 완료 (변경 내용을 다시 제출)'
+                                          : '수정 완료'
                                         : '이 주차 출결 전체 수정'
                                     }
                                     aria-label={isEditingThisWeek ? '수정 완료' : '출결 전체 수정'}
@@ -4960,7 +4985,7 @@ export function InternalCategoryAttendancePage({
                                 );
                               })()}
                           </th>
-                          {isTableEditMode && (
+                          {isTableEditMode && category !== 'ADV' && (
                             <th
                               style={{ width: '40px' }}
                               className="text-center px-1 py-1 text-slate-400 font-semibold w-10"
@@ -5023,7 +5048,7 @@ export function InternalCategoryAttendancePage({
                               )}
                               {category !== 'SESSION' &&
                                 isAllSelected &&
-                                selectedTrackFilter === 'ALL' && (
+                                effectiveTrackFilter === 'ALL' && (
                                   <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans whitespace-nowrap">
                                     {att.track || '-'}
                                   </td>
@@ -5041,7 +5066,7 @@ export function InternalCategoryAttendancePage({
                               </td>
                               {category !== 'SESSION' &&
                                 !isAllSelected &&
-                                selectedTrackFilter === 'ALL' && (
+                                effectiveTrackFilter === 'ALL' && (
                                   <td className="relative px-2 py-1.5 text-center text-slate-600 text-xs font-sans whitespace-nowrap">
                                     {att.track || '-'}
                                   </td>
@@ -5133,7 +5158,7 @@ export function InternalCategoryAttendancePage({
                                         }`}
                                       >
                                         {att.status === 'unmarked'
-                                          ? '—'
+                                          ? ATTEND_STATUS_CFG.unmarked.label
                                           : ATTEND_STATUS_CFG[att.status]?.label || att.status}
                                       </span>
                                     </div>
@@ -5141,7 +5166,8 @@ export function InternalCategoryAttendancePage({
                                 </td>
                               )}
 
-                              {isBaseWeekSelectable(att.weekNum, att.teamId) ? (
+                              {category !== 'ADV' &&
+                              isBaseWeekSelectable(att.weekNum, att.teamId) ? (
                                 <td className="relative px-3 py-2 text-center">
                                   <div className="h-8 flex items-center justify-center">
                                     <input
@@ -5171,7 +5197,7 @@ export function InternalCategoryAttendancePage({
                                   </div>
                                 </td>
                               )}
-                              {isTableEditMode && (
+                              {isTableEditMode && category !== 'ADV' && (
                                 <td className="px-2 py-1.5 text-center">
                                   <button
                                     onClick={() => handleDeleteAttendee(att.id)}
@@ -5241,6 +5267,7 @@ export function InternalCategoryAttendancePage({
           submitLabel="팀 개설"
           currentCohort={currentCohort}
           weekNums={weekList.map((week) => week.weekNum)}
+          withLeader
           onClose={() => setShowCreateAdvModal(false)}
           onCreate={handleCreateAdvTeam}
         />
@@ -5250,7 +5277,7 @@ export function InternalCategoryAttendancePage({
       {showCreateStudyModal && category === 'STUDY' && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 pb-4 pt-[15vh] backdrop-blur-xs">
           <div
-            className={`w-full max-w-lg space-y-5 overflow-hidden rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+            className={`w-full ${termPeriod === 'VACATION' ? 'max-w-5xl' : 'max-w-lg'} space-y-5 overflow-hidden rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
@@ -5269,72 +5296,114 @@ export function InternalCategoryAttendancePage({
               </button>
             </div>
 
-            <div className="space-y-4 text-xs">
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label className="text-sm font-semibold text-slate-700">
-                    스터디명 <span className="text-red-500">*</span>
-                  </label>
-                  {termPeriod === 'VACATION' && (
-                    <button
-                      type="button"
-                      role="checkbox"
-                      aria-checked={newStudyKind === 'MENTORING'}
-                      onClick={() =>
-                        setNewStudyKind((kind) => (kind === 'MENTORING' ? 'GENERAL' : 'MENTORING'))
-                      }
-                      className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-[11px] font-semibold text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[9px] ${
-                          newStudyKind === 'MENTORING'
-                            ? 'border-slate-400 bg-slate-300 text-slate-900'
-                            : 'border-slate-300 bg-white'
+            <div
+              className={`grid gap-5 text-xs ${termPeriod === 'VACATION' ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]' : ''}`}
+            >
+              <div className="space-y-4">
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <label className="text-sm font-semibold text-slate-700">
+                      스터디명 <span className="text-red-500">*</span>
+                    </label>
+                    {termPeriod === 'VACATION' && (
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={newStudyKind === 'MENTORING'}
+                        onClick={() =>
+                          setNewStudyKind((kind) =>
+                            kind === 'MENTORING' ? 'GENERAL' : 'MENTORING',
+                          )
+                        }
+                        className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-[11px] font-semibold text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[9px] ${
+                            newStudyKind === 'MENTORING'
+                              ? 'border-slate-400 bg-slate-300 text-slate-900'
+                              : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {newStudyKind === 'MENTORING' ? '✓' : ''}
+                        </span>
+                        멘멘스터디
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    value={newStudyName}
+                    onChange={(event) => setNewStudyName(event.target.value)}
+                    placeholder="예: 추천 시스템 논문 스터디"
+                    autoFocus
+                    className="w-full rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
+                  />
+                </div>
+
+                <div
+                  aria-hidden={!canSelectStudyTrack}
+                  className={canSelectStudyTrack ? '' : 'invisible pointer-events-none'}
+                >
+                  <span className="mb-1.5 block text-sm font-semibold text-slate-700">부문</span>
+                  <div
+                    role="radiogroup"
+                    aria-label="멘멘스터디 배치 부문"
+                    className="grid grid-cols-3 overflow-hidden rounded-sm bg-slate-100"
+                  >
+                    {(['분석', '시각화', '엔지니어링'] as const).map((track) => (
+                      <button
+                        key={track}
+                        type="button"
+                        role="radio"
+                        aria-checked={newStudyTrack === track}
+                        disabled={!canSelectStudyTrack}
+                        onClick={() => setNewStudyTrack(track)}
+                        className={`px-2 py-2.5 text-xs font-semibold transition-colors ${
+                          newStudyTrack === track
+                            ? 'bg-[#1E6F94] text-white'
+                            : 'cursor-pointer text-slate-700 hover:bg-slate-200'
                         }`}
                       >
-                        {newStudyKind === 'MENTORING' ? '✓' : ''}
-                      </span>
-                      멘멘스터디
-                    </button>
-                  )}
+                        {track}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <input
-                  value={newStudyName}
-                  onChange={(event) => setNewStudyName(event.target.value)}
-                  placeholder="예: 추천 시스템 논문 스터디"
-                  autoFocus
-                  className="w-full rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 font-medium text-slate-900 outline-none transition-colors focus:border-slate-400 focus:bg-white"
-                />
+
+                <StudyMemberPicker value={newStudySelection} onChange={setNewStudySelection} />
               </div>
 
-              <div>
-                <span className="mb-1.5 block text-sm font-semibold text-slate-700">부문</span>
-                <div
-                  role="radiogroup"
-                  aria-label="부문"
-                  className="grid grid-cols-3 overflow-hidden rounded-sm bg-slate-100"
-                >
-                  {(['분석', '시각화', '엔지니어링'] as const).map((track) => (
-                    <button
-                      key={track}
-                      type="button"
-                      role="radio"
-                      aria-checked={newStudyTrack === track}
-                      onClick={() => setNewStudyTrack(track)}
-                      className={`cursor-pointer px-2 py-2.5 text-xs font-semibold transition-colors ${
-                        newStudyTrack === track
-                          ? 'bg-[#1E6F94] text-white'
-                          : 'text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {track}
-                    </button>
-                  ))}
+              {termPeriod === 'VACATION' && (
+                <div className="flex min-w-0 flex-col">
+                  <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+                    주차별 날짜
+                  </span>
+                  <div className="grid flex-1 auto-rows-fr grid-cols-2 gap-2 rounded-sm border border-slate-200 bg-slate-50 p-2.5">
+                    {weekList.map((week) => (
+                      <div
+                        key={week.id}
+                        className="flex flex-col gap-1 rounded-lg border border-slate-200/90 bg-white px-2 pb-2 pt-3"
+                      >
+                        <span className="px-0.5 text-[11px] font-bold text-slate-700">
+                          {week.label}
+                        </span>
+                        <div className="flex flex-1 items-center">
+                          <DateTextInput
+                            value={newStudyWeekDates[week.weekNum] ?? ''}
+                            onChange={(date) =>
+                              setNewStudyWeekDates((prev) => ({
+                                ...prev,
+                                [week.weekNum]: date,
+                              }))
+                            }
+                            ariaLabel={`${week.label} 날짜`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              <StudyMemberPicker value={newStudySelection} onChange={setNewStudySelection} />
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">

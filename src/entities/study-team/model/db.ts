@@ -25,6 +25,8 @@ export interface CreateStudyInput {
   cohort?: number;
   leaderName: string | null;
   members: readonly UserProfile[];
+  /** 방학 스터디 생성 시 설정한 기수별 주차 날짜(주차 번호 → YYYY-MM-DD). */
+  weekDates?: Readonly<Record<number, string>>;
 }
 
 /** 출결 셀 하나의 변경. memberKey는 일반 스터디는 멤버ID, 멘멘 스터디는 "멤버ID:멘멘" / "멤버ID:친바". */
@@ -267,6 +269,8 @@ export interface CreateAdvTeamInput {
   weekDates?: Readonly<Record<number, string>>;
   /** 출결 세션을 만들 주차 번호(서버가 내려준 주차 목록). 없으면 방학 1~8주차. */
   weekNums?: readonly number[];
+  /** 팀장으로 지정한 팀원 이름. 없으면(미지정) null. */
+  leaderName?: string | null;
 }
 
 export interface CreateAdvTeamResult {
@@ -289,8 +293,16 @@ export function createAdvTeamRecords(
     (team) =>
       (team.cohort ?? DEFAULT_CURRENT_COHORT) === input.cohort && team.track === input.track,
   );
-  const number = sameTrack.length + 1;
   const trackKey = BASE_TRACK_KEYS[input.track] ?? input.track;
+  const existingIds = new Set(advTeams.map((team) => team.id));
+  const existingNames = new Set(sameTrack.map((team) => team.teamName));
+  let number = sameTrack.length + 1;
+  while (
+    existingIds.has(`adv_${input.cohort}_${trackKey}_${number}`) ||
+    existingNames.has(`${input.track} ${number}팀`)
+  ) {
+    number += 1;
+  }
   const id = `adv_${input.cohort}_${trackKey}_${number}`;
   const name = `${input.track} ${number}팀`;
 
@@ -298,7 +310,7 @@ export function createAdvTeamRecords(
     id,
     teamName: name,
     studyName: name,
-    leaderName: '',
+    leaderName: input.leaderName ?? '',
     category: input.track,
     schedule: '미정',
     studyType: '방학 스터디',

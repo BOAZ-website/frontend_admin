@@ -4,7 +4,6 @@ import { ChevronRight, KeyRound, PanelLeft, ShieldCheck, User, X } from 'lucide-
 import { DashboardPage } from '@/pages/attendance-dashboard/ui/DashboardPage';
 import { EventAttendanceManagePage } from '@/pages/attendance-events/ui/EventAttendanceManagePage';
 import { HostsPage } from '@/pages/attendance-hosts/ui/HostsPage';
-import { replaceTeamLeader } from '@/pages/attendance-hosts/model/teamSelection';
 import { InputPage } from '@/pages/attendance-input/ui/InputPage';
 import { InternalCategoryAttendancePage } from '@/pages/attendance-internal-category/ui/InternalCategoryAttendancePage';
 import { RulesPage } from '@/pages/attendance-rules/ui/RulesPage';
@@ -30,7 +29,7 @@ import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/mo
 import type { WeekInfo } from '@/entities/attendance/model/week';
 import { INITIAL_EXCEPTIONS } from '@/entities/exception-request/model/constants';
 import type { ExceptionRequest } from '@/entities/exception-request/model/types';
-import type { GroupType, HostAccount } from '@/entities/host-account/model/types';
+import type { HostAccount } from '@/entities/host-account/model/types';
 import { INITIAL_RULES } from '@/entities/score-rule/model/constants';
 import { getRuleForDate } from '@/entities/score-rule/model/lib';
 import type { ScoreRule } from '@/entities/score-rule/model/types';
@@ -217,12 +216,10 @@ export default function App() {
   const {
     state: teamDb,
     error: teamDbError,
-    setStudyTeams,
-    setAdvTeams,
-    setBaseTeams,
-    setWeekDates,
     setMembers: setMembersMap,
     setAttendance,
+    createTeamWithAttendance,
+    refreshTeamState,
   } = useTeamDb();
   const eventDb = useEventDb();
   // DB에는 지난 기수의 팀도 남아 있다. 출결 입력·점수·대시보드 같은 "지금" 화면은 현재 기수의 팀만 쓰고,
@@ -258,7 +255,7 @@ export default function App() {
   const attendance = teamDb?.attendance ?? NO_ATTENDANCE;
   const weeks = teamDb?.weeks ?? NO_WEEKS;
   // HOST 계정도 임시 DB가 원본이다. 발급·삭제하면 DB에 바로 저장된다.
-  const { hosts: hostRows, error: hostDbError, setHosts } = useHostDb();
+  const { hosts: hostRows, error: hostDbError, setHosts, saveHostWithLeader } = useHostDb();
   const hosts = hostRows ?? NO_HOSTS;
   const [exceptions, setExceptions] = useState<ExceptionRequest[]>(INITIAL_EXCEPTIONS);
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
@@ -330,6 +327,7 @@ export default function App() {
   }
 
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [openStudyCreateFromDashboard, setOpenStudyCreateFromDashboard] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [myCurrentPw, setMyCurrentPw] = useState('');
   const [myNewPw, setMyNewPw] = useState('');
@@ -345,9 +343,7 @@ export default function App() {
   function handleCreateStudyFromAttendance(input: CreateStudyInput): string | null {
     try {
       const { team, members, attendance: records } = createStudyRecords(input);
-      setStudyTeams((prev) => [...prev, team]);
-      setMembersMap((prev) => ({ ...prev, [team.id]: members }));
-      setAttendance((prev) => ({ ...prev, ...records }));
+      createTeamWithAttendance('STUDY', team, members, records, input.weekDates);
       return null;
     } catch (error) {
       return describeStudyCreateError(error);
@@ -364,27 +360,17 @@ export default function App() {
       if (result.addedMembers.length === 0) {
         return '선택한 회원은 이미 모두 등록되어 있습니다.';
       }
-      if (result.isNewTeam) setBaseTeams((prev) => [...prev, result.team]);
-      setMembersMap((prev) => ({
-        ...prev,
-        [result.team.id]: [...(prev[result.team.id] ?? []), ...result.addedMembers],
-      }));
-      setAttendance((prev) => ({ ...prev, ...result.attendance }));
-      if (input.weekDates && Object.keys(input.weekDates).length > 0) {
-        handleSaveWeekDates(input.cohort, {
-          ...(teamDb?.weekDates[input.cohort] ?? {}),
-          ...input.weekDates,
-        });
-      }
+      createTeamWithAttendance(
+        'BASE',
+        result.team,
+        result.addedMembers,
+        result.attendance,
+        input.weekDates,
+      );
       return null;
     } catch (error) {
       return `출결을 만들지 못했습니다. (${error instanceof Error ? error.message : String(error)})`;
     }
-  }
-
-  /** 기수의 주차 날짜 매핑을 DB에 저장한다(그 기수의 이전 매핑을 통째로 바꾼다). */
-  function handleSaveWeekDates(cohort: number, dates: Record<number, string>) {
-    setWeekDates((prev) => ({ ...prev, [cohort]: dates }));
   }
 
   /**
@@ -395,25 +381,30 @@ export default function App() {
     try {
       if (input.members.length === 0) return '팀원을 한 명 이상 선택해 주세요.';
       const result = createAdvTeamRecords(input, allAdvTeams);
-      setAdvTeams((prev) => [...prev, result.team]);
-      setMembersMap((prev) => ({ ...prev, [result.team.id]: result.members }));
-      setAttendance((prev) => ({ ...prev, ...result.attendance }));
-      if (input.weekDates && Object.keys(input.weekDates).length > 0) {
-        handleSaveWeekDates(input.cohort, {
-          ...(teamDb?.weekDates[input.cohort] ?? {}),
-          ...input.weekDates,
-        });
-      }
+      createTeamWithAttendance(
+        'ADV',
+        result.team,
+        result.members,
+        result.attendance,
+        input.weekDates,
+      );
       return null;
     } catch (error) {
       return `ADV 팀을 개설하지 못했습니다. (${error instanceof Error ? error.message : String(error)})`;
     }
   }
 
-  function handleChangeTeamLeader(groupType: GroupType, teamId: string, leaderName: string) {
-    const setTeams = groupType === 'ADV' ? setAdvTeams : setStudyTeams;
-    const leaderId = teamDb?.users.find((user) => user.name === leaderName)?.id;
-    setTeams((prev) => replaceTeamLeader(prev, teamId, leaderName, leaderId));
+  function handleSaveHostWithLeader(
+    account: HostAccount,
+    teamId: string | undefined,
+    leaderName: string,
+  ) {
+    const term = Number(account.generation?.replace(/[^0-9]/g, ''));
+    const leaderId = teamDb?.users.find(
+      (user) => user.name === leaderName && user.term === term && user.track === account.track,
+    )?.id;
+    saveHostWithLeader(account, teamId, leaderId);
+    refreshTeamState();
   }
 
   /** BASE·ADV 주차 제출: 서버 제출이 성공한 팀·주차를 제출 완료로 표시해 DB에 저장한다. */
@@ -423,7 +414,7 @@ export default function App() {
 
   /** 스터디 명단에서 팀원을 뺀다. 팀 소속과 그 팀원의 출결 기록은 DB에서 함께 지워진다. */
   function handleRemoveStudyMember(teamId: string, memberId: string) {
-    const team = [...studyTeams, ...allAdvTeams, ...allBaseTeams].find((t) => t.id === teamId);
+    const team = [...allStudyTeams, ...allAdvTeams, ...allBaseTeams].find((t) => t.id === teamId);
     if (!team) return;
     setMembersMap((prev) => ({
       ...prev,
@@ -806,6 +797,8 @@ export default function App() {
               attendance={attendance}
               studyTeams={allBaseTeams}
               studyMembers={membersMap}
+              membershipBaseTeams={allBaseTeams}
+              membershipOtherTeams={[...allAdvTeams, ...allStudyTeams]}
               weeks={weeks}
               cohorts={cohorts}
               currentCohort={currentCohort}
@@ -822,6 +815,8 @@ export default function App() {
               attendance={attendance}
               studyTeams={allAdvTeams}
               studyMembers={membersMap}
+              membershipBaseTeams={allBaseTeams}
+              membershipOtherTeams={[...allAdvTeams, ...allStudyTeams]}
               onStudyAttendanceChange={handleStudyAttendanceChange}
               onCreateAdvTeam={handleCreateAdvTeam}
               onSubmitWeek={handleSubmitWeek}
@@ -838,10 +833,15 @@ export default function App() {
               attendance={attendance}
               studyTeams={allStudyTeams}
               studyMembers={membersMap}
+              membershipBaseTeams={allBaseTeams}
+              membershipOtherTeams={[...allAdvTeams, ...allStudyTeams]}
               weeks={weeks}
               cohorts={cohorts}
               currentCohort={currentCohort}
+              weekDates={teamDb?.weekDates ?? NO_WEEK_DATES}
               onCreateStudy={handleCreateStudyFromAttendance}
+              openCreateStudyOnMount={openStudyCreateFromDashboard}
+              onCreateStudyOpenConsumed={() => setOpenStudyCreateFromDashboard(false)}
               onStudyAttendanceChange={handleStudyAttendanceChange}
               onRemoveStudyMember={handleRemoveStudyMember}
             />
@@ -852,6 +852,8 @@ export default function App() {
             ) : (
               eventDb.state && (
                 <EventAttendanceManagePage
+                  cohorts={cohorts}
+                  currentCohort={currentCohort}
                   events={eventDb.state.events}
                   setEvents={eventDb.setEvents}
                   attendees={eventDb.state.attendees}
@@ -866,6 +868,7 @@ export default function App() {
               attendance={attendance}
               studyTeams={studyTeams}
               advTeams={advTeams}
+              baseTeams={allBaseTeams}
               membersMap={membersMap}
               scoreRules={scoreRules}
             />
@@ -897,7 +900,7 @@ export default function App() {
               studyTeams={studyTeams}
               membersMap={membersMap}
               users={teamDb?.users ?? []}
-              onChangeTeamLeader={handleChangeTeamLeader}
+              onSaveHostWithLeader={handleSaveHostWithLeader}
             />
           )}
           {activePage === 'att-rules' && (
@@ -914,7 +917,10 @@ export default function App() {
               onReject={rejectException}
               onDirectEdit={handleDirectEdit}
               onConfirmAdmin={handleConfirmAdmin}
-              onOpenAddStudy={() => setActivePage('att-hosts')}
+              onOpenAddStudy={() => {
+                setOpenStudyCreateFromDashboard(true);
+                setActivePage('att-study');
+              }}
             />
           )}
 
@@ -1047,6 +1053,7 @@ export default function App() {
           onLoginSuccess={handleLoginSuccess}
           hosts={hosts}
           studyTeams={studyTeams}
+          advTeams={advTeams}
         />
       )}
     </div>
