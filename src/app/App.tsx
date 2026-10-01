@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Bell, KeyRound, LogIn, Menu, ShieldCheck, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronRight, KeyRound, PanelLeft, ShieldCheck, User, X } from 'lucide-react';
 
 import { DashboardPage } from '@/pages/attendance-dashboard/ui/DashboardPage';
 import { EventAttendanceManagePage } from '@/pages/attendance-events/ui/EventAttendanceManagePage';
@@ -16,21 +16,96 @@ import { EvaluationManagePage } from '@/pages/recruiting-evaluation/ui/Evaluatio
 import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentManagePage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
+import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
+
+import { useEventDb } from './model/useEventDb';
+import { useHostDb } from './model/useHostDb';
+import { useTeamDb } from './model/useTeamDb';
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
-import { WEEKS } from '@/entities/attendance/model/constants';
-import { buildInitialAttendance, sessionKey } from '@/entities/attendance/model/lib';
+import boazLogo from '@/shared/assets/boaz-logo.png';
+import { sessionKey } from '@/entities/attendance/model/lib';
+import { cohortsOf, currentCohortOf, DEFAULT_CURRENT_COHORT } from '@/entities/cohort/model/lib';
 import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
+import type { WeekInfo } from '@/entities/attendance/model/week';
 import { INITIAL_EXCEPTIONS } from '@/entities/exception-request/model/constants';
 import type { ExceptionRequest } from '@/entities/exception-request/model/types';
-import { INITIAL_HOSTS } from '@/entities/host-account/model/constants';
 import type { HostAccount } from '@/entities/host-account/model/types';
 import { INITIAL_RULES } from '@/entities/score-rule/model/constants';
+import { getRuleForDate } from '@/entities/score-rule/model/lib';
 import type { ScoreRule } from '@/entities/score-rule/model/types';
-import { INITIAL_STUDY_TEAMS, MEMBERS } from '@/entities/study-team/model/constants';
-import type { Member, StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
+import {
+  applyAttendanceChange,
+  createAdvTeamRecords,
+  createBaseAttendanceRecords,
+  createStudyRecords,
+  describeStudyCreateError,
+  markWeekSubmitted,
+  type AttendanceChange,
+  type CreateAdvTeamInput,
+  type CreateBaseAttendanceInput,
+  type CreateStudyInput,
+} from '@/entities/study-team/model/db';
+import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
 import type { UserRole } from '@/entities/user/model/types';
 import type { ActivePage } from '@/shared/config/activePage';
 import { PAGE_LABELS } from '@/shared/config/pageLabels';
+
+const VALID_ACTIVE_PAGES = new Set<string>([
+  'att-dashboard',
+  'att-events',
+  'att-hosts',
+  'att-scores',
+  'att-rules',
+  'att-input',
+  'att-input-adv',
+  'att-input-study',
+  'att-session',
+  'att-adv',
+  'att-study',
+  'att-internal',
+  'content-archive',
+  'content-faq',
+  'content-curriculum',
+  'content-reviews',
+  'content',
+  'recruiting',
+  'recruiting-posts',
+  'recruiting-questions',
+  'recruiting-preview',
+  'recruiting-csv',
+  'recruiting-leads',
+  'evaluation',
+  'evaluation-evals',
+  'evaluation-applicants',
+  'evaluation-promote',
+  'system',
+  'system-accounts',
+  'system-permissions',
+  'system-audit',
+]);
+
+const NO_TEAMS: StudyTeamInfo[] = [];
+const NO_HOSTS: HostAccount[] = [];
+const NO_MEMBERS: Record<string, Member[]> = {};
+const NO_ATTENDANCE: AttendanceState = {};
+const NO_WEEKS: WeekInfo[] = [];
+const NO_WEEK_DATES: Record<number, Record<number, string>> = {};
+
+function getInitialActivePage(): ActivePage {
+  try {
+    const hash = window.location.hash.replace(/^#/, '');
+    if (hash && VALID_ACTIVE_PAGES.has(hash)) {
+      return hash as ActivePage;
+    }
+    const saved = localStorage.getItem('boaz_active_page');
+    if (saved && VALID_ACTIVE_PAGES.has(saved)) {
+      return saved as ActivePage;
+    }
+  } catch {
+    // ignore
+  }
+  return 'recruiting-posts';
+}
 
 export default function App() {
   const [scoreRules, setScoreRules] = useState<ScoreRule[]>(() => {
@@ -39,7 +114,30 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((r, idx) => {
+            const fallbackTerm = r.term ?? 27 - idx;
+            return {
+              ...r,
+              term: fallbackTerm,
+              name: r.name ?? `${fallbackTerm}기 점수 규칙`,
+              startDate:
+                r.startDate ??
+                (fallbackTerm === 27
+                  ? '2026-07-01'
+                  : fallbackTerm === 26
+                    ? '2026-01-01'
+                    : '2025-07-01'),
+              endDate:
+                r.endDate !== undefined
+                  ? r.endDate
+                  : fallbackTerm === 27
+                    ? '2026-12-31'
+                    : fallbackTerm === 26
+                      ? '2026-06-30'
+                      : '2025-12-31',
+              status: r.status ?? (idx === 0 ? 'ACTIVE' : 'INACTIVE'),
+            };
+          });
         }
       }
     } catch (e) {
@@ -58,18 +156,178 @@ export default function App() {
     }
   };
 
-  const [activePage, setActivePage] = useState<ActivePage>('recruiting');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [studyTeams, setStudyTeams] = useState<StudyTeamInfo[]>(INITIAL_STUDY_TEAMS);
-  const [membersMap, setMembersMap] = useState<Record<string, Member[]>>(MEMBERS);
-  const [attendance, setAttendance] = useState<AttendanceState>(buildInitialAttendance);
-  const [hosts, setHosts] = useState<HostAccount[]>(INITIAL_HOSTS);
-  const [exceptions, setExceptions] = useState<ExceptionRequest[]>(INITIAL_EXCEPTIONS);
-  const [currentRole, setCurrentRole] = useState<UserRole>('SUPER');
+  const [activePage, setActivePage] = useState<ActivePage>(getInitialActivePage);
 
-  const [loggedHostTeam, setLoggedHostTeam] = useState<string>('A팀');
-  const [loggedUsername, setLoggedUsername] = useState<string>('super');
+  useEffect(() => {
+    try {
+      localStorage.setItem('boaz_active_page', activePage);
+      if (window.location.hash.replace(/^#/, '') !== activePage) {
+        window.history.replaceState(null, '', `#${activePage}`);
+      }
+    } catch {
+      // ignore
+    }
+  }, [activePage]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (hash && VALID_ACTIVE_PAGES.has(hash)) {
+        setActivePage(hash as ActivePage);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('boaz_sidebar_open_v2');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('boaz_sidebar_open_v2', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  // Notion-style Ctrl+\ (or Cmd+\) shortcut to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+  // 스터디·ADV 팀, 팀원, 출결은 임시 DB(db/*.sql)가 원본이다. 값을 바꾸면 DB에 바로 저장된다.
+  const {
+    state: teamDb,
+    error: teamDbError,
+    setMembers: setMembersMap,
+    setAttendance,
+    createTeamWithAttendance,
+    refreshTeamState,
+  } = useTeamDb();
+  const eventDb = useEventDb();
+  // DB에는 지난 기수의 팀도 남아 있다. 출결 입력·점수·대시보드 같은 "지금" 화면은 현재 기수의 팀만 쓰고,
+  // 스터디 출결 관리만 전체 팀을 받아 기수 드롭다운으로 지난 기수를 조회한다.
+  const allAdvTeams = teamDb?.advTeams ?? NO_TEAMS;
+  const allStudyTeams = teamDb?.studyTeams ?? NO_TEAMS;
+  const allBaseTeams = teamDb?.baseTeams ?? NO_TEAMS;
+  const cohorts = useMemo(
+    () =>
+      cohortsOf([
+        ...(teamDb?.cohorts ?? []),
+        ...[...allStudyTeams, ...allAdvTeams, ...allBaseTeams].map((team) => team.cohort),
+      ]),
+    [teamDb?.cohorts, allStudyTeams, allAdvTeams, allBaseTeams],
+  );
+  const currentCohort = currentCohortOf(cohorts);
+  // ADV 팀은 기수가 스터디·BASE보다 하나 늦다(만들어진 가장 큰 ADV 기수가 ADV의 현재 기수).
+  const advCohorts = useMemo(
+    () => cohortsOf(allAdvTeams.map((team) => team.cohort)),
+    [allAdvTeams],
+  );
+  const advCurrentCohort = currentCohortOf(advCohorts);
+  const advTeams = useMemo(
+    () =>
+      allAdvTeams.filter((team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === advCurrentCohort),
+    [allAdvTeams, advCurrentCohort],
+  );
+  const studyTeams = useMemo(
+    () => allStudyTeams.filter((team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === currentCohort),
+    [allStudyTeams, currentCohort],
+  );
+  const membersMap = teamDb?.members ?? NO_MEMBERS;
+  const attendance = teamDb?.attendance ?? NO_ATTENDANCE;
+  const weeks = teamDb?.weeks ?? NO_WEEKS;
+  // HOST 계정도 임시 DB가 원본이다. 발급·삭제하면 DB에 바로 저장된다.
+  const { hosts: hostRows, error: hostDbError, setHosts, saveHostWithLeader } = useHostDb();
+  const hosts = hostRows ?? NO_HOSTS;
+  const [exceptions, setExceptions] = useState<ExceptionRequest[]>(INITIAL_EXCEPTIONS);
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    try {
+      const saved = localStorage.getItem('boaz_user_role');
+      if (saved && ['TEAM', 'HOST', 'CONTENT_ADMIN', 'SUPER'].includes(saved)) {
+        return saved as UserRole;
+      }
+    } catch {}
+    return 'SUPER';
+  });
+
+  const [loggedHostTeam, setLoggedHostTeam] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('boaz_host_team');
+      if (saved) return saved;
+    } catch {}
+    return '';
+  });
+
+  const [loggedUsername, setLoggedUsername] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('boaz_username');
+      if (saved) return saved;
+    } catch {}
+    return 'super';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('boaz_user_role', currentRole);
+    } catch {}
+  }, [currentRole]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('boaz_host_team', loggedHostTeam);
+    } catch {}
+  }, [loggedHostTeam]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('boaz_username', loggedUsername);
+    } catch {}
+  }, [loggedUsername]);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('boaz_is_logged_in') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const displayName = useMemo(() => {
+    if (currentRole === 'HOST') {
+      return loggedUsername || `${loggedHostTeam} 팀장`;
+    }
+    return '남민서';
+  }, [currentRole, loggedHostTeam, loggedUsername]);
+
+  function handleLogout() {
+    if (window.confirm('로그아웃 하시겠습니까?')) {
+      setIsLoggedIn(false);
+      try {
+        localStorage.setItem('boaz_is_logged_in', 'false');
+      } catch {}
+      setLoginModalOpen(true);
+    }
+  }
+
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [openStudyCreateFromDashboard, setOpenStudyCreateFromDashboard] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [myCurrentPw, setMyCurrentPw] = useState('');
   const [myNewPw, setMyNewPw] = useState('');
@@ -77,88 +335,96 @@ export default function App() {
   const [masterPassword, setMasterPassword] = useState('super1234');
   const [myPwError, setMyPwError] = useState('');
 
-  function handleRegisterStudyTeam(teamData: {
-    teamName: string;
-    studyName: string;
-    category: string;
-    leaderName: string;
-    schedule: string;
-    studyType?: StudyPeriodType;
-    description?: string;
-    customUsername: string;
-    customPassword?: string;
-    memberNames?: string[];
-  }): HostAccount {
-    const newStudy: StudyTeamInfo = {
-      id: 'st_' + Date.now(),
-      teamName: teamData.teamName,
-      studyName: teamData.studyName,
-      category: teamData.category,
-      leaderName: teamData.leaderName,
-      schedule: teamData.schedule,
-      studyType: teamData.studyType || '방학 스터디',
-      description: teamData.description || '',
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
+  /** 스터디 출결 관리에서 만든 스터디를 공용 스터디 저장소(팀·부원·출결)에 등록한다. */
+  /**
+   * 이름 중복 같은 입력 검증은 화면에서 하지 않고 저장소(DB)의 제약에 맡긴다.
+   * 저장에 실패하면 화면 상태는 바뀌지 않고, 실패 사유를 문자열로 돌려준다(성공이면 null).
+   */
+  function handleCreateStudyFromAttendance(input: CreateStudyInput): string | null {
+    try {
+      const { team, members, attendance: records } = createStudyRecords(input);
+      createTeamWithAttendance('STUDY', team, members, records, input.weekDates);
+      return null;
+    } catch (error) {
+      return describeStudyCreateError(error);
+    }
+  }
 
-    const newHost: HostAccount = {
-      id: 'h_' + Date.now(),
-      username: teamData.customUsername,
-      initialPassword: teamData.customPassword || 'boaz2026!a',
-      hostName: `${teamData.leaderName} (${teamData.teamName}장)`,
-      team: teamData.teamName,
-      createdAt: new Date().toISOString().slice(0, 10),
-      active: true,
-    };
-
-    const parsedNames =
-      teamData.memberNames && teamData.memberNames.length > 0 ? teamData.memberNames : [];
-    const newMemberList: Member[] = parsedNames.map((name, idx) => ({
-      id: `${teamData.teamName.toLowerCase().replace(/[^a-z0-9]/g, '')}_${idx + 1}`,
-      name,
-      year: `${22 + (idx % 3)}`,
-    }));
-
-    setStudyTeams((prev) => {
-      // replace if existing or append
-      const exists = prev.some((s) => s.teamName === teamData.teamName);
-      if (exists) {
-        return prev.map((s) => (s.teamName === teamData.teamName ? newStudy : s));
+  /**
+   * BASE 출결 생성: 그 기수·트랙 팀이 없으면 만들고, 고른 회원을 트랙원으로 넣어 1~8주차 미정 출결을 만든다.
+   * 만들 수 없으면 사유를, 만들었으면 null을 돌려준다.
+   */
+  function handleCreateBaseAttendance(input: CreateBaseAttendanceInput): string | null {
+    try {
+      const result = createBaseAttendanceRecords(input, allBaseTeams, membersMap, attendance);
+      if (result.addedMembers.length === 0) {
+        return '선택한 회원은 이미 모두 등록되어 있습니다.';
       }
-      return [...prev, newStudy];
-    });
+      createTeamWithAttendance(
+        'BASE',
+        result.team,
+        result.addedMembers,
+        result.attendance,
+        input.weekDates,
+      );
+      return null;
+    } catch (error) {
+      return `출결을 만들지 못했습니다. (${error instanceof Error ? error.message : String(error)})`;
+    }
+  }
 
-    setHosts((prev) => [newHost, ...prev.filter((h) => h.team !== teamData.teamName)]);
+  /**
+   * ADV 팀 개설: 그 기수·부문의 다음 번호 팀과 팀원, 주차별 미정 출결을 DB에 만든다.
+   * 만들 수 없으면 사유를, 만들었으면 null을 돌려준다.
+   */
+  function handleCreateAdvTeam(input: CreateAdvTeamInput): string | null {
+    try {
+      if (input.members.length === 0) return '팀원을 한 명 이상 선택해 주세요.';
+      const result = createAdvTeamRecords(input, allAdvTeams);
+      createTeamWithAttendance(
+        'ADV',
+        result.team,
+        result.members,
+        result.attendance,
+        input.weekDates,
+      );
+      return null;
+    } catch (error) {
+      return `ADV 팀을 개설하지 못했습니다. (${error instanceof Error ? error.message : String(error)})`;
+    }
+  }
 
+  function handleSaveHostWithLeader(
+    account: HostAccount,
+    teamId: string | undefined,
+    leaderName: string,
+  ) {
+    const term = Number(account.generation?.replace(/[^0-9]/g, ''));
+    const leaderId = teamDb?.users.find(
+      (user) => user.name === leaderName && user.term === term && user.track === account.track,
+    )?.id;
+    saveHostWithLeader(account, teamId, leaderId);
+    refreshTeamState();
+  }
+
+  /** BASE·ADV 주차 제출: 서버 제출이 성공한 팀·주차를 제출 완료로 표시해 DB에 저장한다. */
+  function handleSubmitWeek(teamId: string, weekNum: number, submittedAt: string) {
+    setAttendance((prev) => markWeekSubmitted(prev, teamId, weekNum, submittedAt));
+  }
+
+  /** 스터디 명단에서 팀원을 뺀다. 팀 소속과 그 팀원의 출결 기록은 DB에서 함께 지워진다. */
+  function handleRemoveStudyMember(teamId: string, memberId: string) {
+    const team = [...allStudyTeams, ...allAdvTeams, ...allBaseTeams].find((t) => t.id === teamId);
+    if (!team) return;
     setMembersMap((prev) => ({
       ...prev,
-      [teamData.teamName]: newMemberList,
+      [team.id]: (prev[team.id] ?? []).filter((m) => m.id !== memberId),
     }));
+  }
 
-    // initialize attendance keys for the new study team across all weeks
-    setAttendance((prev) => {
-      const updated = { ...prev };
-      WEEKS.forEach((w) => {
-        const k = sessionKey(w.id, 'study', teamData.teamName);
-        if (!updated[k]) {
-          const statuses: Record<string, AttendanceStatus> = {};
-          newMemberList.forEach((m) => {
-            statuses[m.id] = 'present';
-          });
-          updated[k] = {
-            statuses,
-            memos: {},
-            photo: null,
-            photoUrl: null,
-            submitted: false,
-            submittedAt: null,
-          };
-        }
-      });
-      return updated;
-    });
-
-    return newHost;
+  /** 스터디 출결 관리에서 바꾼 상태·비고를 공용 출결 저장소에 반영한다. */
+  function handleStudyAttendanceChange(change: AttendanceChange) {
+    setAttendance((prev) => applyAttendanceChange(prev, change));
   }
 
   function approveException(id: string) {
@@ -167,7 +433,7 @@ export default function App() {
       const weekNum = ex.week.replace(/[^0-9]/g, '');
       const wId = `w${weekNum}`;
       const actId = 'study';
-      const key = sessionKey(wId, actId, ex.team);
+      const key = sessionKey(wId, actId, ex.team); // ex.team은 팀 id
       const members = membersMap[ex.team] ?? [];
       const mem = members.find((m) => m.name === ex.memberName);
       if (mem && attendance[key]) {
@@ -251,6 +517,27 @@ export default function App() {
     });
   }
 
+  /** 팀 id 또는 팀 이름(호스트 계정에 적힌 값)으로 팀 id를 찾는다. 이름은 부문이 다르면 겹칠 수 있어 처음 일치하는 팀을 쓴다. */
+  function resolveTeamId(idOrName?: string): string {
+    if (!idOrName) return '';
+    const teams = [...studyTeams, ...advTeams];
+    return (
+      (teams.find((t) => t.id === idOrName) ?? teams.find((t) => t.teamName === idOrName))?.id ?? ''
+    );
+  }
+
+  /**
+   * 로그인한 HOST 계정이 맡은 팀(DB의 host_accounts·host_assigned_groups) 중 그 출결 입력 탭(ADV/스터디)의 팀을 고른다.
+   * ADV와 스터디를 함께 맡은 계정은 탭마다 자기 팀이 열리고, 못 찾으면 로그인 때 넘어온 팀으로 대신한다.
+   */
+  function resolveHostTeamFor(isAdvTab: boolean): string {
+    const tabTeams = isAdvTab ? advTeams : studyTeams;
+    const host = hosts.find((account) => account.username === loggedUsername);
+    const ownedIds = [host?.teamId, ...(host?.assignedGroups ?? []).map((group) => group.teamId)];
+    const mine = ownedIds.find((id) => id && tabTeams.some((team) => team.id === id));
+    return mine ?? resolveTeamId(loggedHostTeam);
+  }
+
   function handleToggleRole() {
     if (currentRole === 'SUPER') {
       setCurrentRole('TEAM');
@@ -258,7 +545,7 @@ export default function App() {
       setActivePage('att-dashboard');
     } else if (currentRole === 'TEAM') {
       setCurrentRole('HOST');
-      setLoggedHostTeam(studyTeams[0]?.teamName || 'A팀');
+      setLoggedHostTeam(studyTeams[0]?.id ?? '');
       setLoggedUsername('host_a');
       setActivePage('att-input');
     } else if (currentRole === 'HOST') {
@@ -273,11 +560,17 @@ export default function App() {
   }
 
   function handleLoginSuccess(role: UserRole, hostTeam?: string, username?: string) {
+    setIsLoggedIn(true);
+    try {
+      localStorage.setItem('boaz_is_logged_in', 'true');
+    } catch {}
     setCurrentRole(role);
     if (role === 'HOST') {
-      setLoggedHostTeam(hostTeam || studyTeams[0]?.teamName || 'A팀');
+      const chosenTeamId = resolveTeamId(hostTeam) || studyTeams[0]?.id || '';
+      setLoggedHostTeam(chosenTeamId);
       setLoggedUsername(username || 'host_a');
-      setActivePage('att-input');
+      const isAdvTeam = advTeams.some((team) => team.id === chosenTeamId);
+      setActivePage(isAdvTeam ? 'att-input-adv' : 'att-input-study');
     } else if (role === 'CONTENT_ADMIN') {
       setLoggedUsername('content');
       setActivePage('content-archive');
@@ -313,10 +606,18 @@ export default function App() {
     setShowMyProfileModal(false);
   }
 
-  const isRecruiting = activePage.startsWith('recruiting');
-  const isEvaluation = activePage.startsWith('evaluation');
-  const isContentPage = activePage.startsWith('content');
-  const isAttendancePage = activePage.startsWith('att-');
+  const isRecruiting = Boolean(activePage?.startsWith('recruiting'));
+  const isEvaluation = Boolean(activePage?.startsWith('evaluation'));
+  const isContentPage = Boolean(activePage?.startsWith('content'));
+  const isAttendancePage = Boolean(activePage?.startsWith('att-'));
+
+  if ((!teamDb && !teamDbError) || (!hostRows && !hostDbError)) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+        데이터를 불러오는 중...
+      </div>
+    );
+  }
 
   return (
     <div
@@ -330,7 +631,12 @@ export default function App() {
         activePage={activePage}
         onChange={setActivePage}
         open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        onClose={() => {
+          setSidebarOpen(false);
+          try {
+            localStorage.setItem('boaz_sidebar_open_v2', 'false');
+          } catch {}
+        }}
         currentRole={currentRole}
         onToggleRole={handleToggleRole}
         onOpenLogin={() => setLoginModalOpen(true)}
@@ -340,72 +646,111 @@ export default function App() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f8fafc]">
         {/* Topbar */}
-        <header className="h-14 shrink-0 flex items-center justify-between px-8 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] z-10">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-slate-500 hover:text-slate-900 cursor-pointer p-1 rounded-lg hover:bg-slate-100"
-            >
-              <Menu size={18} />
-            </button>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              {isRecruiting && (
-                <>
-                  <span>리크루팅</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              {isEvaluation && (
-                <>
-                  <span>서류 평가</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              {isContentPage && (
-                <>
-                  <span>콘텐츠 관리</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              {isAttendancePage && (
-                <>
-                  <span>출결 관리</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              <span className="text-slate-900 font-bold tracking-tight">
-                {PAGE_LABELS[activePage] || '관리자 콘솔'}
-              </span>
-            </div>
+        <header className="h-14 shrink-0 flex items-center justify-between px-6 bg-white border-b border-slate-200/80 select-none z-10">
+          <div className="flex items-center gap-2.5">
+            {!sidebarOpen ? (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-0.5 rounded-full hover:ring-2 hover:ring-slate-200 transition-all cursor-pointer select-none shrink-0"
+                title="사이드바 열기"
+              >
+                <img
+                  src={boazLogo}
+                  alt="bigdata BOAZ"
+                  className="w-7 h-7 rounded-full object-contain select-none border border-slate-100 shadow-2xs"
+                />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="사이드바 접기"
+              >
+                <PanelLeft size={16} />
+              </button>
+            )}
+
+            {!sidebarOpen && (
+              <>
+                <div className="w-[1px] h-3.5 bg-slate-200" />
+
+                <div className="flex items-center gap-1.5 text-xs">
+                  {isRecruiting && (
+                    <>
+                      <span className="font-medium text-slate-500">리크루팅</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  {isEvaluation && (
+                    <>
+                      <span className="font-medium text-slate-500">서류 평가</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  {isContentPage && (
+                    <>
+                      <span className="font-medium text-slate-500">콘텐츠 관리</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  {isAttendancePage && (
+                    <>
+                      <span className="font-medium text-slate-500">출결 관리</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  <span className="text-slate-900 font-semibold tracking-tight">
+                    {PAGE_LABELS[activePage] || '관리자 콘솔'}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] px-3 py-1 rounded-full font-mono font-semibold hidden sm:inline-block bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
-              {currentRole === 'SUPER'
-                ? '차기대표진 (SUPER)'
-                : currentRole === 'HOST'
-                  ? `HOST (${loggedHostTeam || 'A팀'})`
-                  : currentRole === 'CONTENT_ADMIN'
-                    ? '서비스운영팀'
-                    : '운영지원팀'}
-            </span>
-            <button
-              onClick={() => setLoginModalOpen(true)}
-              className="text-xs px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 flex items-center gap-1.5 cursor-pointer shadow-2xs font-semibold transition-colors"
-            >
-              <LogIn size={12} className="text-slate-500" />
-              <span>계정 전환</span>
-            </button>
-            <button className="relative p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors">
-              <Bell size={16} />
-              {exceptions.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 ring-2 ring-white" />
-              )}
-            </button>
+
+          {/* Right User Auth Area (media_1789198942116 style) */}
+          <div className="flex items-center">
+            {isLoggedIn ? (
+              <div className="flex items-center gap-4 text-sm select-none">
+                <button
+                  type="button"
+                  onClick={() => setShowMyProfileModal(true)}
+                  className="flex items-center gap-1.5 font-semibold text-slate-900 hover:text-slate-700 transition-colors cursor-pointer group"
+                  title="내 프로필 정보 확인"
+                >
+                  <User
+                    size={14}
+                    className="text-slate-800 fill-slate-800 group-hover:text-slate-950 group-hover:fill-slate-950 transition-colors"
+                  />
+                  <span>{displayName}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-sm text-slate-500 hover:text-slate-900 font-normal transition-colors cursor-pointer"
+                >
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setLoginModalOpen(true)}
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                <User size={14} className="text-slate-700 fill-slate-700" />
+                <span>로그인</span>
+              </button>
+            )}
           </div>
         </header>
 
         {/* Content Main Body */}
         <main className="flex-1 overflow-y-auto px-8 py-7" style={{ scrollbarWidth: 'none' }}>
+          {(teamDbError || hostDbError) && isAttendancePage && (
+            <DataLoadFailedNotice onRetry={() => window.location.reload()} />
+          )}
           {/* 1. Recruiting Management */}
           {isRecruiting && (
             <RecruitmentManagePage
@@ -448,46 +793,114 @@ export default function App() {
           {activePage === 'att-session' && (
             <InternalCategoryAttendancePage
               category="SESSION"
-              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
+              activeScoreRule={getRuleForDate(scoreRules)}
+              attendance={attendance}
+              studyTeams={allBaseTeams}
+              studyMembers={membersMap}
+              membershipBaseTeams={allBaseTeams}
+              membershipOtherTeams={[...allAdvTeams, ...allStudyTeams]}
+              weeks={weeks}
+              cohorts={cohorts}
+              currentCohort={currentCohort}
+              onStudyAttendanceChange={handleStudyAttendanceChange}
+              weekDates={teamDb?.weekDates ?? NO_WEEK_DATES}
+              onCreateBaseAttendance={handleCreateBaseAttendance}
+              onSubmitWeek={handleSubmitWeek}
             />
           )}
           {activePage === 'att-adv' && (
             <InternalCategoryAttendancePage
               category="ADV"
-              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
+              activeScoreRule={getRuleForDate(scoreRules)}
+              attendance={attendance}
+              studyTeams={allAdvTeams}
+              studyMembers={membersMap}
+              membershipBaseTeams={allBaseTeams}
+              membershipOtherTeams={[...allAdvTeams, ...allStudyTeams]}
+              onStudyAttendanceChange={handleStudyAttendanceChange}
+              onCreateAdvTeam={handleCreateAdvTeam}
+              onSubmitWeek={handleSubmitWeek}
+              weekDates={teamDb?.weekDates ?? NO_WEEK_DATES}
+              weeks={weeks}
+              cohorts={cohorts.filter((cohort) => cohort <= advCurrentCohort)}
+              currentCohort={advCurrentCohort}
             />
           )}
           {activePage === 'att-study' && (
             <InternalCategoryAttendancePage
               category="STUDY"
-              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
+              activeScoreRule={getRuleForDate(scoreRules)}
+              attendance={attendance}
+              studyTeams={allStudyTeams}
+              studyMembers={membersMap}
+              membershipBaseTeams={allBaseTeams}
+              membershipOtherTeams={[...allAdvTeams, ...allStudyTeams]}
+              weeks={weeks}
+              cohorts={cohorts}
+              currentCohort={currentCohort}
+              weekDates={teamDb?.weekDates ?? NO_WEEK_DATES}
+              onCreateStudy={handleCreateStudyFromAttendance}
+              openCreateStudyOnMount={openStudyCreateFromDashboard}
+              onCreateStudyOpenConsumed={() => setOpenStudyCreateFromDashboard(false)}
+              onStudyAttendanceChange={handleStudyAttendanceChange}
+              onRemoveStudyMember={handleRemoveStudyMember}
             />
           )}
-          {activePage === 'att-events' && <EventAttendanceManagePage />}
+          {activePage === 'att-events' &&
+            (eventDb.error ? (
+              <DataLoadFailedNotice onRetry={() => window.location.reload()} />
+            ) : (
+              eventDb.state && (
+                <EventAttendanceManagePage
+                  cohorts={cohorts}
+                  currentCohort={currentCohort}
+                  events={eventDb.state.events}
+                  setEvents={eventDb.setEvents}
+                  attendees={eventDb.state.attendees}
+                  setAttendees={eventDb.setAttendees}
+                  templates={eventDb.state.templates}
+                  setTemplates={eventDb.setTemplates}
+                />
+              )
+            ))}
           {activePage === 'att-scores' && (
-            <ScoresPage attendance={attendance} studyTeams={studyTeams} membersMap={membersMap} />
+            <ScoresPage
+              attendance={attendance}
+              studyTeams={studyTeams}
+              advTeams={advTeams}
+              baseTeams={allBaseTeams}
+              membersMap={membersMap}
+              scoreRules={scoreRules}
+            />
           )}
           {(activePage === 'att-input' ||
             activePage === 'att-input-adv' ||
             activePage === 'att-input-study') && (
             <InputPage
+              pageTitle={
+                activePage === 'att-input-study' ? '스터디 출결 입력' : 'ADV Term 출결 입력'
+              }
               attendance={attendance}
               setAttendance={setAttendance}
               onRequestException={handleRequestException}
-              currentHostTeam={loggedHostTeam}
+              currentHostTeam={resolveHostTeamFor(activePage !== 'att-input-study')}
+              advTeams={advTeams}
               studyTeams={studyTeams}
               membersMap={membersMap}
               setMembersMap={setMembersMap}
               currentRole={currentRole}
-              onOpenAddStudy={() => setActivePage('att-hosts')}
+              weeks={weeks}
             />
           )}
           {activePage === 'att-hosts' && (
             <HostsPage
               hosts={hosts}
               setHosts={setHosts}
+              advTeams={advTeams}
               studyTeams={studyTeams}
-              onRegisterStudyTeam={handleRegisterStudyTeam}
+              membersMap={membersMap}
+              users={teamDb?.users ?? []}
+              onSaveHostWithLeader={handleSaveHostWithLeader}
             />
           )}
           {activePage === 'att-rules' && (
@@ -498,12 +911,16 @@ export default function App() {
               attendance={attendance}
               exceptions={exceptions}
               studyTeams={studyTeams}
+              advTeams={advTeams}
               membersMap={membersMap}
               onApprove={approveException}
               onReject={rejectException}
               onDirectEdit={handleDirectEdit}
               onConfirmAdmin={handleConfirmAdmin}
-              onOpenAddStudy={() => setActivePage('att-hosts')}
+              onOpenAddStudy={() => {
+                setOpenStudyCreateFromDashboard(true);
+                setActivePage('att-study');
+              }}
             />
           )}
 
@@ -636,6 +1053,7 @@ export default function App() {
           onLoginSuccess={handleLoginSuccess}
           hosts={hosts}
           studyTeams={studyTeams}
+          advTeams={advTeams}
         />
       )}
     </div>

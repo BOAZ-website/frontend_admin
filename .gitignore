@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+.tmp/
 
 # production build
 build/
@@ -28,3 +29,7 @@ yarn-error.log*
 .CLAUDE.md
 .omc/
 .serena/
+
+# local docs
+/docs
+/references

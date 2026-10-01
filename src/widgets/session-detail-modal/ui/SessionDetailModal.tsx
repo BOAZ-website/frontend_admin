@@ -15,15 +15,19 @@ import {
 
 import { STATUS_BUTTON_STYLES, STATUS_CFG, WEEKS } from '@/entities/attendance/model/constants';
 import type { AttendanceStatus, SessionRecord } from '@/entities/attendance/model/types';
-import { ACTIVITIES, MEMBERS } from '@/entities/study-team/model/constants';
+import { ACTIVITIES } from '@/entities/study-team/model/constants';
 import type { Member } from '@/entities/study-team/model/types';
 import { Btn } from '@/shared/ui/Btn';
 import { Tag } from '@/shared/ui/Tag';
+import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 
 interface SessionDetailModalProps {
   weekId: string;
   actId: string;
+  /** 팀 id. 출결 기록과 팀원을 찾는 데 쓴다. */
   team: string;
+  /** 화면에 보여줄 팀 이름 */
+  teamName: string;
   record: SessionRecord | null;
   onClose: () => void;
   onConfirmAdmin: (w: string, a: string, t: string) => void;
@@ -42,6 +46,7 @@ export function SessionDetailModal({
   weekId,
   actId,
   team,
+  teamName,
   record,
   onClose,
   onConfirmAdmin,
@@ -59,7 +64,7 @@ export function SessionDetailModal({
 
   const weekObj = WEEKS.find((w) => w.id === weekId);
   const actObj = ACTIVITIES.find((a) => a.id === actId);
-  const members = (membersMap && membersMap[team]) || MEMBERS[team] || [];
+  const members = membersMap?.[team] ?? [];
 
   if (!record) {
     return null;
@@ -80,7 +85,9 @@ export function SessionDetailModal({
 
   return (
     <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-      <div className="w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden flex flex-col bg-white border border-slate-200 shadow-2xl">
+      <div
+        className={`w-full max-w-3xl max-h-[90vh] rounded-2xl overflow-hidden flex flex-col ${MODAL_SURFACE}`}
+      >
         {/* Header */}
         <div
           className="flex items-center justify-between px-6 py-4"
@@ -99,7 +106,7 @@ export function SessionDetailModal({
             </span>
             <div>
               <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                <span>{team}</span>
+                <span>{teamName}</span>
                 <span className="text-muted-foreground font-normal text-xs">·</span>
                 <span className="text-xs font-mono text-[#8ba5ff]">
                   {weekObj?.label} ({weekObj?.date})
@@ -206,9 +213,19 @@ export function SessionDetailModal({
               </div>
               <span className="text-[11px] text-muted-foreground">
                 총 {members.length}명 (출석{' '}
-                {members.filter((m) => (record.statuses[m.id] ?? 'present') === 'present').length} ·
-                지각 {members.filter((m) => record.statuses[m.id] === 'late').length} · 결석{' '}
-                {members.filter((m) => record.statuses[m.id] === 'absent').length})
+                {members.filter((m) => (record.statuses[m.id] ?? 'present') === 'present').length}
+                {actId !== 'study' && (
+                  <> · 지각 {members.filter((m) => record.statuses[m.id] === 'late').length}</>
+                )}{' '}
+                · 결석{' '}
+                {
+                  members.filter((m) =>
+                    actId === 'study'
+                      ? record.statuses[m.id] === 'absent' || record.statuses[m.id] === 'late'
+                      : record.statuses[m.id] === 'absent',
+                  ).length
+                }
+                )
               </span>
             </div>
 
@@ -235,7 +252,9 @@ export function SessionDetailModal({
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {members.map((m, idx) => {
-                    const st: AttendanceStatus = record.statuses[m.id] ?? 'present';
+                    const rawSt: AttendanceStatus = record.statuses[m.id] ?? 'present';
+                    const st: AttendanceStatus =
+                      actId === 'study' && rawSt === 'late' ? 'absent' : rawSt;
                     const memo = record.memos?.[m.id];
                     const cfg = STATUS_CFG[st] ?? STATUS_CFG.present;
 
@@ -298,7 +317,11 @@ export function SessionDetailModal({
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-xs text-slate-500 mr-1 font-medium">변경 상태:</span>
-                  {(['present', 'late', 'absent'] as AttendanceStatus[]).map((s) => {
+                  {(
+                    (actId === 'study'
+                      ? ['present', 'absent']
+                      : ['present', 'late', 'absent']) as AttendanceStatus[]
+                  ).map((s) => {
                     const active = editStatus === s;
                     const styleCfg = STATUS_BUTTON_STYLES[s];
                     return (
@@ -383,7 +406,8 @@ export function SessionDetailModal({
             />
             <div className="mt-3 flex items-center justify-between w-full text-xs text-slate-700">
               <span>
-                {team} · {weekObj?.label} 출석 인증 원본 사진 ({record.photoName ?? record.photo})
+                {teamName} · {weekObj?.label} 출석 인증 원본 사진 (
+                {record.photoName ?? record.photo})
               </span>
               <button
                 onClick={() => setLightboxOpen(false)}

@@ -10,18 +10,18 @@ export function LoginModal({
   onLoginSuccess,
   hosts,
   studyTeams,
+  advTeams,
 }: {
   onClose: () => void;
   onLoginSuccess: (role: UserRole, hostTeam?: string, username?: string) => void;
   hosts: HostAccount[];
   studyTeams: StudyTeamInfo[];
+  advTeams: StudyTeamInfo[];
 }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [selectedQuickHostTeam, setSelectedQuickHostTeam] = useState(
-    studyTeams[0]?.teamName || 'A팀',
-  );
+  const [selectedQuickHostTeam, setSelectedQuickHostTeam] = useState(studyTeams[0]?.id ?? '');
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -65,7 +65,17 @@ export function LoginModal({
         setErrorMsg('해당 HOST 계정은 현재 회수(잠금) 상태입니다. 운영지원팀에 문의하세요.');
         return;
       }
-      onLoginSuccess('HOST', foundHost.team, foundHost.username);
+      onLoginSuccess('HOST', foundHost.teamId ?? foundHost.team, foundHost.username);
+      onClose();
+      return;
+    }
+
+    // 4. ADV 팀장 계정 테스트 지원 (host_adv1, adv1 등)
+    if (
+      (u === 'host_adv' || u === 'host_adv1' || u === 'adv1') &&
+      (p === 'boaz2026!a' || p === '1234')
+    ) {
+      onLoginSuccess('HOST', '분석 1팀', u);
       onClose();
       return;
     }
@@ -73,7 +83,10 @@ export function LoginModal({
     setErrorMsg('아이디 또는 비밀번호가 일치하지 않습니다. (아래 퀵 로그인 버튼을 이용해 보세요)');
   }
 
-  const currentSelectedHost = hosts.find((h) => h.team === selectedQuickHostTeam) || hosts[0];
+  const currentSelectedHost = hosts.find((h) => h.teamId === selectedQuickHostTeam);
+  const selectedTeam = [...studyTeams, ...advTeams].find(
+    (team) => team.id === selectedQuickHostTeam,
+  );
 
   return (
     <div className="fixed inset-0 bg-black/60 z-70 flex items-center justify-center p-4 backdrop-blur-xs">
@@ -150,18 +163,23 @@ export function LoginModal({
             <button
               onClick={() => {
                 const targetTeam = selectedQuickHostTeam;
-                const h = hosts.find((item) => item.team === targetTeam);
+                const h = hosts.find((item) => item.teamId === targetTeam);
+                if (!h?.active) {
+                  setErrorMsg('선택한 팀의 활성 HOST 계정이 없습니다.');
+                  return;
+                }
+                const isAdvTarget = advTeams.some((team) => team.id === targetTeam);
                 onLoginSuccess(
                   'HOST',
                   targetTeam,
-                  h?.username || `host_${targetTeam.toLowerCase()}`,
+                  h?.username || (isAdvTarget ? 'host_adv1' : `host_${targetTeam.toLowerCase()}`),
                 );
                 onClose();
               }}
               className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-left cursor-pointer transition-colors"
             >
-              <div className="flex items-center justify-between">
-                <p className="font-bold">{selectedQuickHostTeam} 스터디장</p>
+              <div className="flex items-center justify-between gap-1">
+                <p className="font-bold truncate">{selectedTeam?.teamName ?? '팀 선택'} 팀장</p>
                 <select
                   value={selectedQuickHostTeam}
                   onChange={(e) => {
@@ -169,18 +187,26 @@ export function LoginModal({
                     setSelectedQuickHostTeam(e.target.value);
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-[10px] bg-white border border-emerald-300 rounded px-1 py-0.5 font-sans"
+                  className="text-[10px] bg-white border border-emerald-300 rounded px-1 py-0.5 font-sans shrink-0"
                 >
-                  {studyTeams.map((t) => (
-                    <option key={t.teamName} value={t.teamName}>
-                      {t.teamName}
-                    </option>
-                  ))}
+                  <optgroup label="스터디 팀">
+                    {studyTeams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.teamName}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="ADV 프로젝트 팀">
+                    {advTeams.map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.teamName}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
               <p className="text-[10px] text-emerald-600 font-mono">
-                {currentSelectedHost?.username || `host_${selectedQuickHostTeam.toLowerCase()}`}{' '}
-                (HOST)
+                {currentSelectedHost?.username || '계정 미발급'} (HOST)
               </p>
             </button>
             <button
