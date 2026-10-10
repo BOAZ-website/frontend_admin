@@ -58,7 +58,7 @@ export function DateTextInput({ value, onChange, ariaLabel }: DateTextInputProps
         className={`w-full rounded-md border bg-slate-50 py-1.5 pl-1.5 pr-7 text-center font-mono text-[11px] font-bold text-slate-900 outline-none transition-all placeholder:font-normal placeholder:text-slate-400 focus:bg-white focus:ring-1 ${
           isInvalid
             ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-400'
-            : 'border-slate-200 focus:border-slate-900 focus:ring-slate-900'
+            : 'border-slate-200 focus:border-slate-400 focus:ring-slate-400'
         }`}
       />
       <button

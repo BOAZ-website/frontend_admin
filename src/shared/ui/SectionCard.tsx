@@ -7,7 +7,7 @@ export function SectionCard({
 }) {
   return (
     <div
-      className={`rounded-2xl overflow-hidden bg-white border border-slate-200/80 shadow-2xs ${className}`}
+      className={`rounded-md overflow-hidden bg-white border border-slate-200/80 shadow-2xs ${className}`}
     >
       {children}
     </div>

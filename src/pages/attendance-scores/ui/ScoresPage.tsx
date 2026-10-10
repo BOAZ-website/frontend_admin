@@ -492,7 +492,7 @@ export function ScoresPage() {
       </div>
 
       {/* 3. 디자인 시안(media_1789296457006.png) 레이아웃 + 엑셀 시트 4종 컬럼명 100% 일치 */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white shadow-xs overflow-hidden">
+      <div className="rounded-md border border-slate-200/90 bg-white shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           {/* TAB 1: BASE 방학·중간 집계 표 */}
           {activeTab === 'BASE_MID' && (

@@ -2196,7 +2196,7 @@ export function EventAttendanceManagePage({
                 <button
                   type="button"
                   onClick={() => setIsBreadcrumbMenuOpen((prev) => !prev)}
-                  className="font-black text-slate-950 hover:text-slate-700 flex items-center gap-1.5 px-1.5 py-0.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer text-lg sm:text-xl tracking-tight group"
+                  className="font-bold text-slate-900 hover:text-slate-700 flex items-center gap-1.5 px-1.5 py-0.5 rounded-sm hover:bg-slate-100 transition-colors cursor-pointer text-xl tracking-tight group"
                 >
                   <span className="max-w-[320px] sm:max-w-[450px] truncate">
                     {selectedEvent.title}
@@ -2211,7 +2211,7 @@ export function EventAttendanceManagePage({
 
                 {/* Popover Dropdown Menu */}
                 {isBreadcrumbMenuOpen && (
-                  <div className="absolute top-full left-0 mt-1 z-50 w-96 rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute top-full left-0 mt-1.5 z-50 w-96 rounded-md bg-white border border-slate-200 shadow-[0_12px_32px_-14px_rgba(15,23,42,0.28)] overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
                     <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 text-xs">
                       {sortedEvents.map((evt) => {
                         const isCur = evt.id === selectedEvent.id;
@@ -2234,18 +2234,20 @@ export function EventAttendanceManagePage({
                                 window.location.href,
                               );
                             }}
-                            className={`px-3.5 py-2.5 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
-                              isCur ? 'bg-slate-100 font-bold' : 'hover:bg-slate-50'
+                            className={`px-4 py-2.5 transition-colors duration-150 cursor-pointer flex items-center justify-between gap-3 ${
+                              isCur ? 'bg-slate-100' : 'hover:bg-slate-50'
                             }`}
                           >
                             <p
-                              className={`text-sm truncate min-w-0 ${isCur ? 'text-slate-950 font-bold' : 'text-slate-700 font-medium'}`}
+                              className={`text-sm font-semibold truncate min-w-0 ${isCur ? 'text-slate-900' : 'text-slate-700'}`}
                             >
                               {evt.title}
                             </p>
-                            <span className="text-[11px] font-mono text-slate-400 shrink-0 font-medium">
-                              {evt.date}
-                            </span>
+                            {evt.date && (
+                              <span className="text-sm font-normal tabular-nums text-slate-400 shrink-0">
+                                {formatEventDate(evt.date)}
+                              </span>
+                            )}
                           </div>
                         );
                       })}

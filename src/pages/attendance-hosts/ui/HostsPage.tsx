@@ -590,9 +590,9 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
               setActiveCategory('ADV');
               setShowIssueCard(false);
             }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl border transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-sm border transition-all cursor-pointer ${
               activeCategory === 'ADV'
-                ? 'border-blue-600 bg-blue-50/70 shadow-xs ring-1 ring-blue-500/20 text-blue-900 font-bold'
+                ? 'border-slate-300 bg-slate-100/80 shadow-2xs text-slate-950 font-bold'
                 : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/70 text-slate-700 font-semibold'
             }`}
           >
@@ -601,7 +601,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
             </div>
             <ChevronRight
               size={15}
-              className={activeCategory === 'ADV' ? 'text-blue-600' : 'text-slate-400'}
+              className={activeCategory === 'ADV' ? 'text-slate-500' : 'text-slate-400'}
             />
           </button>
 
@@ -611,9 +611,9 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
               setActiveCategory('STUDY');
               setShowIssueCard(false);
             }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl border transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-sm border transition-all cursor-pointer ${
               activeCategory === 'STUDY'
-                ? 'border-blue-600 bg-blue-50/70 shadow-xs ring-1 ring-blue-500/20 text-blue-900 font-bold'
+                ? 'border-slate-300 bg-slate-100/80 shadow-2xs text-slate-950 font-bold'
                 : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/70 text-slate-700 font-semibold'
             }`}
           >
@@ -622,7 +622,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
             </div>
             <ChevronRight
               size={15}
-              className={activeCategory === 'STUDY' ? 'text-blue-600' : 'text-slate-400'}
+              className={activeCategory === 'STUDY' ? 'text-slate-500' : 'text-slate-400'}
             />
           </button>
         </aside>
@@ -631,7 +631,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
             우측 메인 영역: 최대한 넓게 확장 (flex-1 min-w-0)
            ========================================================= */}
         <main className="flex-1 min-w-0 w-full space-y-4">
-          <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs p-6 space-y-5">
+          <div className="rounded-md border border-slate-200/90 bg-white shadow-2xs p-6 space-y-5">
             {/* 헤더 & 통계 배지 */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div>
@@ -645,10 +645,10 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
               </div>
 
               {activeCategory === 'ADV' && (
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200/80">
+                <div className="flex items-center gap-1.5 p-1 rounded-md bg-slate-100 border border-slate-200/80">
                   <button
                     onClick={() => setTrackFilter('ALL')}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer ${
                       trackFilter === 'ALL'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'text-slate-500 hover:text-slate-900'
@@ -658,7 +658,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                   </button>
                   <button
                     onClick={() => setTrackFilter('분석')}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer ${
                       trackFilter === '분석'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'text-slate-500 hover:text-slate-900'
@@ -668,7 +668,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                   </button>
                   <button
                     onClick={() => setTrackFilter('시각화')}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer ${
                       trackFilter === '시각화'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'text-slate-500 hover:text-slate-900'
@@ -678,7 +678,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                   </button>
                   <button
                     onClick={() => setTrackFilter('엔지니어링')}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer ${
                       trackFilter === '엔지니어링'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'text-slate-500 hover:text-slate-900'
@@ -701,22 +701,22 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                 onKeyDown={(event) => {
                   if (event.key === 'Escape') setShowIssueCard(false);
                 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4"
+                className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4"
                 onClick={() => setShowIssueCard(false)}
               >
                 <div
-                  className={`w-full max-w-lg max-h-[92vh] flex flex-col rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+                  className={`host-issue-modal w-full max-w-lg max-h-[92vh] flex flex-col rounded-lg overflow-hidden animate-in fade-in duration-150 ${MODAL_SURFACE}`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* 모달 헤더 */}
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+                  <div className="flex items-center justify-between px-6 pt-5 pb-1 shrink-0">
                     <h3 id="host-issue-title" className="text-base font-bold text-slate-900">
-                      HOST 계정 생성·권한 추가
+                      {targetPermissionLabel} 계정 발급·권한 추가
                     </h3>
                     <button
                       type="button"
                       onClick={() => setShowIssueCard(false)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       <X size={18} />
                     </button>
@@ -728,249 +728,288 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                     onSubmit={handleSaveAccount}
                     className="flex min-h-0 flex-1 flex-col"
                   >
-                    <div className="space-y-3.5 p-6 overflow-y-auto flex-1 min-h-0">
+                    <div className="space-y-5 px-6 pt-4 pb-6 overflow-y-auto [scrollbar-gutter:stable] flex-1 min-h-0">
                       {/* 1. 현재 구성된 팀 */}
                       <div>
                         <label
                           htmlFor="host-account-team"
-                          className="block text-xs font-semibold text-slate-700 mb-1.5"
+                          className="mb-1.5 block text-[11px] font-semibold text-slate-500"
                         >
-                          팀 이름
+                          팀
                         </label>
-                        <select
-                          ref={issueTeamRef}
-                          id="host-account-team"
-                          required
-                          value={formTeamId}
-                          disabled={configuredTeams.length === 0}
-                          onChange={(e) => handleSelectTeam(e.target.value)}
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 outline-none focus:border-slate-800 transition-colors disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        <div
+                          className="relative"
+                          onBlur={(event) => {
+                            if (!event.currentTarget.contains(event.relatedTarget)) {
+                              setIsTeamMenuOpen(false);
+                            }
+                          }}
                         >
-                          <option value="">
+                          <button
+                            ref={issueTeamRef}
+                            id="host-account-team"
+                            type="button"
+                            disabled={configuredTeams.length === 0}
+                            aria-haspopup="listbox"
+                            aria-expanded={isTeamMenuOpen}
+                            onClick={() => setIsTeamMenuOpen((open) => !open)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Escape') setIsTeamMenuOpen(false);
+                            }}
+                            className="h-10 w-full rounded-sm border border-slate-200 bg-white px-3 pr-9 text-left text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                          >
                             {configuredTeams.length === 0
                               ? `출결 관리에서 개설된 ${targetPermissionLabel} 팀이 없습니다`
-                              : '팀을 선택해 주세요'}
-                          </option>
-                          {configuredTeams.map((team) => (
-                            <option key={team.id} value={team.id}>
-                              {team.teamName}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* 2. 현재 팀장: 한 번 클릭하면 팀원 목록이 열린다 */}
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                          현재 팀장
-                        </label>
-                        <div className="relative">
-                          <select
-                            aria-label="팀장 변경"
-                            value={formLeaderName}
-                            disabled={!formTeamId || selectedTeamMembers.length === 0}
-                            onChange={(e) => {
-                              const selectedLeader = selectedTeamMembers.find(
-                                (member) => member.name === e.target.value,
-                              );
-                              if (!selectedLeader) return;
-                              resetAccountLookup();
-                              setFormLeaderName(selectedLeader.name);
-                              setFormGeneration(generationLabel(selectedLeader.year));
-                              setFormTrack(selectedLeader.track || '부문 미정');
-                            }}
-                            className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-9 text-xs font-semibold text-slate-800 outline-none transition-colors hover:border-slate-400 hover:bg-white focus:border-slate-800 disabled:cursor-not-allowed disabled:text-slate-400"
-                          >
-                            {!selectedTeamMembers.some(
-                              (member) => member.name === formLeaderName,
-                            ) && (
-                              <option value={formLeaderName}>
-                                {formLeaderName || '팀장 미정'}
-                              </option>
-                            )}
-                            {selectedTeamMembers.map((member) => (
-                              <option key={member.id} value={member.name}>
-                                {member.name}
-                              </option>
-                            ))}
-                          </select>
+                              : configuredTeams.find((team) => team.id === formTeamId)?.title ||
+                                '팀을 선택해 주세요'}
+                          </button>
                           <ChevronDown
                             size={14}
                             aria-hidden="true"
-                            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                            className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-transform duration-200 ${isTeamMenuOpen ? 'rotate-180' : ''}`}
                           />
+                          {isTeamMenuOpen && (
+                            <div
+                              role="listbox"
+                              aria-label="팀 이름"
+                              className="absolute inset-x-0 top-full z-20 mt-1.5 max-h-56 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-[0_12px_32px_-14px_rgba(15,23,42,0.28)] animate-in fade-in slide-in-from-top-1 duration-150"
+                            >
+                              {configuredTeams.map((team) => (
+                                <button
+                                  key={team.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={team.id === formTeamId}
+                                  onClick={() => handleSelectTeam(team.id)}
+                                  className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5 text-left text-xs transition-colors duration-150 last:border-b-0 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${
+                                    team.id === formTeamId
+                                      ? 'bg-slate-100 font-semibold text-slate-950'
+                                      : 'text-slate-700'
+                                  }`}
+                                >
+                                  <span className="truncate">{team.title}</span>
+                                  <span className="shrink-0 text-[10px] font-medium text-slate-400">
+                                    {'studyKind' in team
+                                      ? studyKindLabel(team.studyKind)
+                                      : team.track}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        {formTeamId && selectedTeamMembers.length === 0 && (
-                          <p className="mt-1 text-[10px] text-slate-400">등록된 팀원이 없습니다.</p>
+                      </div>
+
+                      {/* 2. 팀장: 변경은 출결 관리에서만 한다. 팀장이 바뀌면 예전 팀장 계정의 이 팀 권한이 회수되므로,
+                          새 팀장에게 이 창에서 계정을 다시 발급한다. */}
+                      <div>
+                        <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
+                          팀장
+                        </span>
+                        <div className="flex h-10 items-center rounded-md border border-slate-200 bg-slate-50 px-3">
+                          {formLeaderName ? (
+                            <span className="text-sm font-semibold text-slate-900">
+                              {formLeaderName}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-slate-400">
+                              {formTeamId ? '팀장 미정' : '팀을 먼저 선택해 주세요'}
+                            </span>
+                          )}
+                        </div>
+                        {formTeamId && !formLeaderName && (
+                          <p className="mt-1.5 text-[11px] text-amber-600">
+                            출결 관리에서 팀장을 먼저 지정해 주세요.
+                          </p>
                         )}
                       </div>
 
-                      {/* 3. 선택된 팀원의 기수와 부문 */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <span className="block text-xs font-semibold text-slate-700 mb-1.5">
-                            기수
-                          </span>
-                          <p className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800">
-                            {formGeneration}
-                          </p>
-                        </div>
-
-                        <div>
-                          <span className="block text-xs font-semibold text-slate-700 mb-1.5">
-                            부문
-                          </span>
-                          <p className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800">
-                            {formTrack}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-center pt-3">
-                        <button
-                          type="button"
-                          onClick={handleLookupAccount}
-                          disabled={
-                            !formTeamId ||
-                            !formLeaderName.trim() ||
-                            !formGeneration.trim() ||
-                            !formTrack.trim()
-                          }
-                          className={`text-xs font-semibold underline-offset-4 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline cursor-pointer ${
-                            accountLookup.status === 'not-found'
-                              ? 'text-red-600 hover:text-red-700 hover:underline'
-                              : 'text-slate-600 hover:text-slate-950 hover:underline'
-                          }`}
-                        >
-                          {accountLookup.status === 'not-found'
-                            ? '계정이 존재하지 않습니다. 새 계정을 생성해 주세요.'
-                            : '계정 존재 여부 확인'}
-                        </button>
-                      </div>
-
-                      {accountLookup.status === 'found' && (
-                        <div className="space-y-3 rounded-2xl border border-slate-300 bg-slate-50 p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 text-xs font-semibold text-slate-900">
-                              <UserCheck size={15} className="text-slate-600" />
-                              기존 계정이 있습니다
-                            </div>
-                            <code className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700">
-                              {accountLookup.account.username}
-                            </code>
-                          </div>
-                          <div>
-                            <p className="mb-2 text-[11px] font-semibold text-slate-500">
-                              현재 보유 권한
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {lookupPermissions.map((permission) => (
-                                <span
-                                  key={permission}
-                                  className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700"
-                                >
-                                  {permission === 'ADV' ? 'ADV' : '스터디'}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <p className="text-[11px] leading-5 text-slate-500">
-                            {hasTargetPermission
-                              ? `${targetPermissionLabel} 권한이 이미 등록되어 있습니다. 전달문을 바로 확인할 수 있습니다.`
-                              : `현재 보고 있는 ${targetPermissionLabel} 탭의 권한을 이 계정에 추가할 수 있습니다.`}
-                          </p>
-                        </div>
-                      )}
-
-                      {accountLookup.status === 'not-found' && (
-                        <div className="space-y-4 pt-2">
-                          <div className="border-b border-slate-200">
-                            <span className="inline-block border-b-2 border-slate-900 px-1 pb-2 text-xs font-bold text-slate-900">
-                              계정 생성
+                      {/* 팀장의 기수와 부문 */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {(
+                          [
+                            ['기수', formGeneration],
+                            ['부문', formTrack],
+                          ] as const
+                        ).map(([label, value]) => (
+                          <div key={label}>
+                            <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
+                              {label}
                             </span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                            {/* 로그인 아이디 */}
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                                로그인 아이디 (ID)
-                              </label>
-                              <input
-                                type="text"
-                                required
-                                placeholder="아이디 직접 입력"
-                                value={formUsername}
-                                onChange={(e) => setFormUsername(e.target.value)}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-mono text-slate-800 outline-none focus:border-slate-800 transition-colors"
-                              />
-                              {showRequiredErrors && !formUsername.trim() && (
-                                <p className="mt-1 text-[10px] text-rose-600">
-                                  이 입력란을 작성하세요.
-                                </p>
-                              )}
+                            <div className="flex h-10 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900">
+                              {formLeaderName ? value : <span className="text-slate-400">-</span>}
                             </div>
+                          </div>
+                        ))}
+                      </div>
 
-                            {/* 초기 비밀번호 */}
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                                비밀번호 (PW)
+                      {/* 3. 계정 확인과 결과 */}
+                      <div className="space-y-3">
+                        <div className="flex justify-center pt-1">
+                          <button
+                            type="button"
+                            onClick={handleLookupAccount}
+                            disabled={
+                              !formTeamId ||
+                              !formLeaderName.trim() ||
+                              !formGeneration.trim() ||
+                              !formTrack.trim()
+                            }
+                            className={`text-xs font-semibold underline-offset-4 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline cursor-pointer ${
+                              accountLookup.status === 'not-found'
+                                ? 'text-red-600 hover:text-red-700 hover:underline'
+                                : accountLookup.status === 'found'
+                                  ? 'text-emerald-600'
+                                  : 'text-slate-600 hover:text-slate-950 hover:underline'
+                            }`}
+                          >
+                            {accountLookup.status === 'not-found'
+                              ? '계정이 존재하지 않습니다. 새 계정을 생성해 주세요.'
+                              : accountLookup.status === 'found'
+                                ? '기존 계정이 있습니다'
+                                : '계정 존재 여부 확인'}
+                          </button>
+                        </div>
+
+                        {accountLookup.status === 'found' && (
+                          <div className="overflow-hidden rounded-md border border-slate-200">
+                            {/* 아이디와 권한을 표의 두 컬럼으로 보여 준다. */}
+                            <table className="w-full table-fixed text-center">
+                              <thead>
+                                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
+                                  <th scope="col" className="px-3.5 py-2">
+                                    아이디
+                                  </th>
+                                  <th scope="col" className="border-l border-slate-200 px-3.5 py-2">
+                                    권한
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td className="truncate px-3.5 py-3 font-mono text-sm font-semibold text-slate-900">
+                                    {accountLookup.account.username}
+                                  </td>
+                                  <td className="border-l border-slate-200 px-3.5 py-3">
+                                    {/* 두 권한을 항상 보여 주고 상태로 구분한다: 보유 · 이번에 추가 · 없음 */}
+                                    <ul className="flex justify-center gap-2" aria-label="권한">
+                                      {(['ADV', 'STUDY'] as const).map((permission) => {
+                                        const label = permission === 'ADV' ? 'ADV' : '스터디';
+                                        const isHeld = lookupPermissions.includes(permission);
+                                        const isAdding = !isHeld && permission === targetPermission;
+                                        return (
+                                          <li
+                                            key={permission}
+                                            className={`inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-semibold ${
+                                              isHeld
+                                                ? 'border border-slate-400 bg-white text-slate-900'
+                                                : isAdding
+                                                  ? 'border border-dashed border-slate-400 text-slate-700'
+                                                  : 'bg-slate-100 text-slate-400'
+                                            }`}
+                                          >
+                                            {isAdding && <Plus size={12} aria-hidden />}
+                                            {label}
+                                            <span className="sr-only">
+                                              {isHeld ? '보유' : isAdding ? '추가 예정' : '없음'}
+                                            </span>
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {accountLookup.status === 'not-found' && (
+                          <div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <label className="block">
+                                <span className="mb-1 block text-[11px] font-semibold text-slate-500">
+                                  아이디
+                                </span>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="예: host_study_c"
+                                  value={formUsername}
+                                  onChange={(e) => setFormUsername(e.target.value)}
+                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-mono text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
+                                />
+                                {showRequiredErrors && !formUsername.trim() && (
+                                  <span className="mt-1 block text-[10px] text-rose-600">
+                                    아이디를 입력해 주세요.
+                                  </span>
+                                )}
                               </label>
-                              <input
-                                type="text"
-                                required
-                                placeholder="비밀번호 직접 입력"
-                                value={formPassword}
-                                onChange={(e) => setFormPassword(e.target.value)}
-                                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-mono text-slate-800 outline-none focus:border-slate-800 transition-colors"
-                              />
-                              {showRequiredErrors && !formPassword.trim() && (
-                                <p className="mt-1 text-[10px] text-rose-600">
-                                  이 입력란을 작성하세요.
-                                </p>
-                              )}
+                              <label className="block">
+                                <span className="mb-1 block text-[11px] font-semibold text-slate-500">
+                                  초기 비밀번호
+                                </span>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="비밀번호 입력"
+                                  value={formPassword}
+                                  onChange={(e) => setFormPassword(e.target.value)}
+                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-mono text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
+                                />
+                                {showRequiredErrors && !formPassword.trim() && (
+                                  <span className="mt-1 block text-[10px] text-rose-600">
+                                    비밀번호를 입력해 주세요.
+                                  </span>
+                                )}
+                              </label>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
-                    {/* 모달 하단 버튼 */}
-                    <div className="flex items-center justify-end gap-2 px-6 py-3.5 bg-slate-50/80 border-t border-slate-100 shrink-0">
+                    {/* 모달 하단 버튼: 지금 상태에서 할 수 있는 동작만 보여 준다. */}
+                    <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-3.5 shrink-0">
                       <button
                         type="button"
                         onClick={() => setShowIssueCard(false)}
-                        className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                        className="h-9 rounded-sm px-4 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
                       >
-                        취소
+                        닫기
                       </button>
-                      {accountLookup.status === 'found' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={handleAddPermission}
-                            disabled={hasTargetPermission}
-                            className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer inline-flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 ${MODAL_PRIMARY_BTN}`}
-                          >
-                            <Check size={14} />
-                            <span>{targetPermissionLabel} 권한 추가</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleShowPermissionDelivery}
-                            disabled={!hasTargetPermission}
-                            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:border-slate-500 hover:bg-slate-100 shadow-xs cursor-pointer inline-flex items-center gap-1.5 transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-300"
-                          >
-                            <MessageSquare size={14} />
-                            <span>전달문 보기</span>
-                          </button>
-                        </>
+                      {/* 권한과 이 팀 담당을 모두 가진 계정만 비밀번호 재설정 창(표의 재설정과 같은 창)으로 보낸다.
+                          권한이나 이 팀 담당이 없으면 추가 버튼만 둔다. */}
+                      {accountLookup.status === 'found' && isAccountReady && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const account = accountLookup.account;
+                            setShowIssueCard(false);
+                            openPasswordReset(account);
+                          }}
+                          className="h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
+                        >
+                          비밀번호 재설정
+                        </button>
+                      )}
+                      {accountLookup.status === 'found' && !isAccountReady && (
+                        <button
+                          type="button"
+                          onClick={handleAddPermission}
+                          className="h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
+                        >
+                          {hasTargetPermission
+                            ? '이 팀 담당 추가'
+                            : `${targetPermissionLabel} 권한 추가`}
+                        </button>
                       )}
                       {accountLookup.status === 'not-found' && (
                         <button
                           type="submit"
-                          className="px-3 py-1.5 rounded-lg bg-[#e9eef4] text-[11px] text-slate-800 font-bold border border-slate-300 shadow-2xs hover:bg-slate-200 cursor-pointer inline-flex items-center transition-all active:scale-[0.98]"
+                          className="h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
                         >
-                          <span>계정 및 전달문 생성</span>
+                          계정 발급
                         </button>
                       )}
                     </div>
@@ -982,7 +1021,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
             {/* =========================================================
                 테이블: 이름, 기수, 부문, 아이디, 비밀번호 (출결 입력 페이지 스타일 일치)
                ========================================================= */}
-            <div className="w-full rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+            <div className="w-full rounded-md border border-slate-200 bg-white overflow-hidden shadow-2xs">
               <div className="overflow-x-auto select-none relative">
                 <table className="w-full text-xs border-collapse">
                   <thead className="bg-slate-50/80 select-none">
@@ -1234,12 +1273,9 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
           }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs animate-in fade-in duration-150"
         >
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]">
+          <div className="w-full max-w-lg overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                  <MessageSquare size={17} />
-                </span>
                 <div className="min-w-0">
                   <h3
                     id="host-delivery-title"

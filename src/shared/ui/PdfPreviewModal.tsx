@@ -42,7 +42,7 @@ export function PdfPreviewModal({ url, name, onClose }: PdfPreviewModalProps) {
       onClick={onClose}
     >
       <div
-        className={`flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl animate-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+        className={`flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg animate-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-4 py-3">
@@ -53,7 +53,7 @@ export function PdfPreviewModal({ url, name, onClose }: PdfPreviewModalProps) {
               href={parsedUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+              className="flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
               <ExternalLink size={13} aria-hidden="true" />
               <span>새 탭에서 열기</span>
@@ -62,7 +62,7 @@ export function PdfPreviewModal({ url, name, onClose }: PdfPreviewModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 cursor-pointer rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            className="shrink-0 cursor-pointer rounded-sm p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
             aria-label="미리보기 닫기"
           >
             <X size={18} />

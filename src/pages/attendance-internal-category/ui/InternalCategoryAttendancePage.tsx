@@ -2444,7 +2444,7 @@ export function InternalCategoryAttendancePage({
           setSelectedTeamId(team.id);
           setIsPeekOpen(true);
         }}
-        className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
+        className={`relative rounded-md border transition-all cursor-pointer p-4 group select-none ${
           isSelected
             ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
             : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
@@ -2497,14 +2497,14 @@ export function InternalCategoryAttendancePage({
           </h2>
 
           {/* 방학 / 학기 토글 버튼 (Segmented Control) */}
-          <div className="flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80 text-xs font-semibold select-none">
+          <div className="flex items-center p-0.5 rounded-md bg-slate-100/90 border border-slate-200/80 text-xs font-semibold select-none">
             <button
               type="button"
               onClick={() => {
                 setTermPeriod('VACATION');
                 setSelectedWeekVacation(0);
               }}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-bold ${
+              className={`px-3 py-1 rounded-sm transition-all cursor-pointer font-bold ${
                 termPeriod === 'VACATION'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -2515,7 +2515,7 @@ export function InternalCategoryAttendancePage({
             <button
               type="button"
               onClick={handleSelectSemesterTab}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-bold ${
+              className={`px-3 py-1 rounded-sm transition-all cursor-pointer font-bold ${
                 termPeriod === 'SEMESTER'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -2565,7 +2565,7 @@ export function InternalCategoryAttendancePage({
           <button
             type="button"
             onClick={() => setSelectedWeek(0)}
-            className={`w-[74px] h-[34px] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
+            className={`w-[74px] h-[34px] rounded-sm text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
               selectedWeek === 0
                 ? BRAND_SELECTED
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
@@ -2589,7 +2589,7 @@ export function InternalCategoryAttendancePage({
                     ? 'ADV 팀 개설 전 주차는 팀별 출결을 조회할 수 없습니다.'
                     : undefined
                 }
-                className={`w-[58px] h-[34px] rounded-xl text-xs font-bold transition-colors flex items-center justify-center shrink-0 select-none ${
+                className={`w-[58px] h-[34px] rounded-sm text-xs font-bold transition-colors flex items-center justify-center shrink-0 select-none ${
                   isDisabledBeforeAdvTeamCreation
                     ? 'cursor-not-allowed border border-slate-200/60 bg-slate-100/60 text-slate-300'
                     : isActive
@@ -2668,7 +2668,7 @@ export function InternalCategoryAttendancePage({
               width: isPeekOpen ? `${splitRatio}%` : '100%',
               minWidth: isPeekOpen ? '200px' : undefined,
             }}
-            className={`space-y-2.5 shrink-0 h-full overflow-y-auto ${isPeekOpen ? 'pr-1.5' : 'w-full'}`}
+            className={`space-y-2.5 shrink-0 h-full overflow-y-auto [scrollbar-gutter:stable] ${isPeekOpen ? 'pr-1.5' : 'w-full'}`}
           >
             {/* Master '전체' 통합 Card (ADV 전용, STUDY는 일반 스터디 그룹에 표시) */}
             {category === 'ADV' && (
@@ -2677,7 +2677,7 @@ export function InternalCategoryAttendancePage({
                   setSelectedTeamId('ALL');
                   setIsPeekOpen(true);
                 }}
-                className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
+                className={`relative rounded-md border transition-all cursor-pointer p-4 group select-none ${
                   isAllSelected && isPeekOpen
                     ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
                     : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
@@ -2736,7 +2736,7 @@ export function InternalCategoryAttendancePage({
                                   setSelectedTeamId(team.id);
                                   setIsPeekOpen(true);
                                 }}
-                                className={`relative rounded-2xl border transition-all cursor-pointer p-3.5 group select-none ${
+                                className={`relative rounded-md border transition-all cursor-pointer p-3.5 group select-none ${
                                   isSelected
                                     ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
                                     : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
@@ -2799,7 +2799,7 @@ export function InternalCategoryAttendancePage({
                             setSelectedTeamId('ALL');
                             setIsPeekOpen(true);
                           }}
-                          className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
+                          className={`relative rounded-md border transition-all cursor-pointer p-4 group select-none ${
                             isAllSelected && isPeekOpen
                               ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
                               : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
@@ -2846,7 +2846,7 @@ export function InternalCategoryAttendancePage({
                           ))}
                         </div>
                       ) : group.teams.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
+                        <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
                           등록된 {group.label}가 없습니다.
                         </div>
                       ) : (
@@ -2867,7 +2867,7 @@ export function InternalCategoryAttendancePage({
                         setSelectedTeamId(team.id);
                         setIsPeekOpen(true);
                       }}
-                      className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
+                      className={`relative rounded-md border transition-all cursor-pointer p-4 group select-none ${
                         isSelected
                           ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
                           : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
@@ -2958,7 +2958,7 @@ export function InternalCategoryAttendancePage({
                 <button
                   type="button"
                   onClick={() => setIsFullScreen(!isFullScreen)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer hidden sm:flex items-center gap-0.5 text-xs font-semibold"
+                  className="p-1.5 rounded-sm text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer hidden sm:flex items-center gap-0.5 text-xs font-semibold"
                   title={isFullScreen ? '분할 뷰로 축소' : '전체 화면으로 확장'}
                 >
                   {isFullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
@@ -2970,7 +2970,7 @@ export function InternalCategoryAttendancePage({
                     setIsPeekOpen(false);
                     setIsFullScreen(false);
                   }}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer flex items-center gap-0.5 text-xs font-semibold"
+                  className="p-1.5 rounded-sm text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer flex items-center gap-0.5 text-xs font-semibold"
                   title="사이드 패널 닫기"
                 >
                   <ChevronsRight size={16} />
@@ -2995,7 +2995,7 @@ export function InternalCategoryAttendancePage({
               if (!currentDisplayPhoto) {
                 return (
                   <div className="flex w-full justify-center py-1">
-                    <div className="flex h-24 w-full max-w-[540px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 text-sm font-medium text-slate-400">
+                    <div className="flex h-24 w-full max-w-[540px] items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50/70 text-sm font-medium text-slate-400">
                       등록된 사진이 없습니다.
                     </div>
                   </div>
@@ -3116,7 +3116,7 @@ export function InternalCategoryAttendancePage({
 
                     {/* Track Filter Pill Buttons (스터디 및 BASE 출결에서는 숨김) */}
                     {category !== 'STUDY' && category !== 'SESSION' && shouldApplyTrackFilter && (
-                      <div className="flex items-center p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
+                      <div className="flex items-center p-0.5 rounded-md bg-slate-100 border border-slate-200 text-xs font-semibold select-none shadow-2xs">
                         {TRACK_FILTER_OPTIONS.map((tf) => {
                           const isSelected = selectedTrackFilter === tf.id;
                           return (
@@ -3219,7 +3219,7 @@ export function InternalCategoryAttendancePage({
                 </p>
               </div>
             ) : (
-              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+              <div className="rounded-md border border-slate-200 bg-white overflow-hidden shadow-2xs">
                 <div ref={tableContainerRef} className="overflow-x-auto select-none relative">
                   {category === 'STUDY' ? (
                     isAllSelected ? (
@@ -4385,7 +4385,7 @@ export function InternalCategoryAttendancePage({
                                   return (
                                     <td key={w.id} className="relative px-2 py-1.5 text-center">
                                       <div className="flex items-center justify-center w-full px-1">
-                                        <div className="grid grid-cols-8 w-full max-w-[445px] min-w-[425px] p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
+                                        <div className="grid grid-cols-8 w-full max-w-[445px] min-w-[425px] p-0.5 rounded-md bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
                                           {availableStatuses.map((s) => {
                                             const active = st === s;
                                             return (
@@ -4803,7 +4803,7 @@ export function InternalCategoryAttendancePage({
                                     type="button"
                                     disabled={isSubmittingWeek}
                                     onClick={isEditingThisWeek ? completeEdit : startEdit}
-                                    className="absolute right-2 top-1/2 z-10 inline-flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 transition-[background-color,color,transform] duration-150 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 disabled:cursor-wait disabled:opacity-60"
+                                    className="absolute right-2 top-1/2 z-10 inline-flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm border border-slate-200 bg-slate-100 text-slate-500 transition-[background-color,color,transform] duration-150 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 disabled:cursor-wait disabled:opacity-60"
                                     title={
                                       isEditingThisWeek
                                         ? usesSubmissionEdit
@@ -4918,7 +4918,7 @@ export function InternalCategoryAttendancePage({
                               {isDirectEditable && !isTableEditMode ? (
                                 <td className="relative px-2 py-1.5 text-center">
                                   <div className="flex items-center justify-center w-full px-1">
-                                    <div className="grid grid-cols-8 w-full max-w-[445px] min-w-[425px] p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
+                                    <div className="grid grid-cols-8 w-full max-w-[445px] min-w-[425px] p-0.5 rounded-md bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
                                       {availableStatuses.map((s) => {
                                         const active = att.status === s;
                                         return (
@@ -5024,7 +5024,7 @@ export function InternalCategoryAttendancePage({
                                         )
                                       }
                                       placeholder="—"
-                                      className="w-full h-8 text-center px-3 text-xs font-sans text-slate-700 placeholder:text-slate-300 placeholder:font-mono rounded-lg bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-800 focus:ring-2 focus:ring-slate-200 outline-none transition-all shadow-2xs"
+                                      className="w-full h-8 text-center px-3 text-xs font-sans text-slate-700 placeholder:text-slate-300 placeholder:font-mono rounded-sm bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 outline-none transition-all shadow-2xs"
                                     />
                                   </div>
                                 </td>
@@ -5077,7 +5077,7 @@ export function InternalCategoryAttendancePage({
       {submitToast && (
         <div
           role="status"
-          className={`fixed right-6 top-20 z-70 flex max-w-sm items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium text-white shadow-xl ${
+          className={`fixed right-6 top-20 z-70 flex max-w-sm items-center gap-2 rounded-md border px-4 py-3 text-sm font-medium text-white shadow-xl ${
             submitToast.isError ? 'border-rose-700 bg-rose-900' : 'border-slate-700 bg-slate-900'
           }`}
         >
@@ -5231,7 +5231,7 @@ export function InternalCategoryAttendancePage({
                     {weekList.map((week) => (
                       <div
                         key={week.id}
-                        className="flex flex-col gap-1 rounded-lg border border-slate-200/90 bg-white px-2 pb-2 pt-3"
+                        className="flex flex-col gap-1 rounded-md border border-slate-200/90 bg-white px-2 pb-2 pt-3"
                       >
                         <span className="px-0.5 text-[11px] font-bold text-slate-700">
                           {week.label}
@@ -5538,7 +5538,7 @@ export function InternalCategoryAttendancePage({
               <button
                 type="button"
                 onClick={handleCloseOrCancelSettings}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1.5 rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                 title="닫기"
               >
                 <X size={18} />
@@ -5546,7 +5546,7 @@ export function InternalCategoryAttendancePage({
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-5 flex-1 min-h-0 text-xs">
+            <div className="p-6 overflow-y-auto [scrollbar-gutter:stable] space-y-5 flex-1 min-h-0 text-xs">
               {/* 표 구성 미리보기 */}
               <div className="space-y-2.5 pt-2">
                 <div className="flex items-center justify-between">
@@ -5597,7 +5597,7 @@ export function InternalCategoryAttendancePage({
                 </div>
 
                 {/* Table Container with Horizontal Scroll and min-width */}
-                <div className="rounded-xl border border-slate-200 bg-white overflow-x-auto shadow-2xs">
+                <div className="rounded-md border border-slate-200 bg-white overflow-x-auto shadow-2xs">
                   <table
                     className="w-full text-xs border-collapse table-auto whitespace-nowrap"
                     style={{ minWidth: '1150px' }}

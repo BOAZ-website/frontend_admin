@@ -557,7 +557,7 @@ export function InputPage({
       <div
         key={team.id || team.teamName}
         onClick={() => setSelectedTeam(team.id)}
-        className={`relative rounded-2xl border transition-all cursor-pointer p-4 group select-none ${
+        className={`relative rounded-md border transition-all cursor-pointer p-4 group select-none ${
           isSelected
             ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
             : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
@@ -961,11 +961,11 @@ export function InputPage({
           </h2>
 
           {/* 방학 / 학기 토글 버튼 (Segmented Control) */}
-          <div className="flex items-center p-0.5 rounded-xl bg-slate-100/90 border border-slate-200/80 text-xs font-semibold select-none">
+          <div className="flex items-center p-0.5 rounded-md bg-slate-100/90 border border-slate-200/80 text-xs font-semibold select-none">
             <button
               type="button"
               onClick={() => handlePeriodChange('방학')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-bold ${
+              className={`px-3 py-1 rounded-sm transition-all cursor-pointer font-bold ${
                 termPeriod === '방학'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -976,7 +976,7 @@ export function InputPage({
             <button
               type="button"
               onClick={() => handlePeriodChange('학기')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-bold ${
+              className={`px-3 py-1 rounded-sm transition-all cursor-pointer font-bold ${
                 termPeriod === '학기'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -1029,7 +1029,7 @@ export function InputPage({
                       ? `${w.weekNum}주차 (진행 예정)`
                       : `${w.weekNum}주차`
                 }
-                className={`w-[58px] h-[34px] rounded-xl text-xs font-bold transition-colors flex items-center justify-center shrink-0 select-none relative ${
+                className={`w-[58px] h-[34px] rounded-sm text-xs font-bold transition-colors flex items-center justify-center shrink-0 select-none relative ${
                   isBlocked
                     ? 'cursor-not-allowed border border-slate-200/60 bg-slate-100/60 text-slate-300'
                     : isActive
@@ -1127,7 +1127,7 @@ export function InputPage({
                             <div
                               key={team.id || team.teamName}
                               onClick={() => setSelectedTeam(team.id)}
-                              className={`relative rounded-2xl border transition-all cursor-pointer p-3.5 group select-none ${
+                              className={`relative rounded-md border transition-all cursor-pointer p-3.5 group select-none ${
                                 isSelected
                                   ? 'bg-slate-100/80 border-slate-300 shadow-2xs'
                                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
@@ -1197,7 +1197,7 @@ export function InputPage({
                           ))}
                         </div>
                       ) : group.teams.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
+                        <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-slate-400">
                           등록된 {group.label}가 없습니다.
                         </div>
                       ) : (
@@ -1244,15 +1244,15 @@ export function InputPage({
             width: isFullScreen ? '100%' : `${100 - splitRatio}%`,
             minWidth: isFullScreen ? undefined : '320px',
           }}
-          className={`min-w-0 flex-1 h-full overflow-y-auto ${
+          className={`min-w-0 flex-1 h-full overflow-y-auto [scrollbar-gutter:stable] ${
             displayedTeams.length === 0
               ? ''
-              : 'rounded-2xl border border-slate-200/90 bg-white p-6 lg:p-7 shadow-sm space-y-5 animate-in slide-in-from-right duration-150'
+              : 'rounded-md border border-slate-200/90 bg-white p-6 lg:p-7 shadow-sm space-y-5 animate-in slide-in-from-right duration-150'
           }`}
         >
           {displayedTeams.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl border border-dashed border-slate-200 bg-white space-y-4 shadow-2xs my-2">
-              <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 mx-auto shadow-2xs">
+            <div className="p-12 text-center rounded-md border border-dashed border-slate-200 bg-white space-y-4 shadow-2xs my-2">
+              <div className="w-12 h-12 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 mx-auto shadow-2xs">
                 <FolderPlus size={22} />
               </div>
               <div className="space-y-1">
@@ -1317,7 +1317,7 @@ export function InputPage({
                         <button
                           type="button"
                           onClick={handleCancelEdit}
-                          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 shadow-2xs transition-all cursor-pointer"
+                          className="px-3 py-1.5 rounded-sm text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 shadow-2xs transition-all cursor-pointer"
                         >
                           취소
                         </button>
@@ -1366,7 +1366,7 @@ export function InputPage({
                     <button
                       type="button"
                       onClick={() => setIsFullScreen(!isFullScreen)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer flex items-center gap-0.5 text-xs font-semibold"
+                      className="p-1.5 rounded-sm text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer flex items-center gap-0.5 text-xs font-semibold"
                       title={isFullScreen ? '분할 뷰로 축소' : '전체 화면으로 확장'}
                     >
                       {isFullScreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
@@ -1402,7 +1402,7 @@ export function InputPage({
                               }
                             : undefined
                         }
-                        className={`relative group rounded-2xl overflow-hidden border border-slate-200/90 shadow-2xs select-none transition-all duration-300 hover:shadow-md hover:border-slate-300 mx-auto max-w-[360px] max-h-[240px] ${
+                        className={`relative group rounded-md overflow-hidden border border-slate-200/90 shadow-2xs select-none transition-all duration-300 hover:shadow-md hover:border-slate-300 mx-auto max-w-[360px] max-h-[240px] ${
                           canEdit ? 'cursor-pointer ring-2 ring-blue-500/20' : 'cursor-zoom-in'
                         }`}
                         title={canEdit ? '클릭하여 사진 변경' : '클릭하여 원본 사진 크게 보기'}
@@ -1440,7 +1440,7 @@ export function InputPage({
                                 e.stopPropagation();
                                 handleRemovePhoto();
                               }}
-                              className="cursor-pointer rounded-md p-1 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                              className="cursor-pointer rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
                               title="사진 삭제"
                               aria-label="사진 삭제"
                             >
@@ -1453,7 +1453,7 @@ export function InputPage({
                   ) : (
                     <div
                       onClick={() => canEditPhoto && fileInputRef.current?.click()}
-                      className={`group w-full max-w-[360px] h-36 sm:h-40 rounded-2xl border border-dashed flex flex-col items-center justify-center gap-2.5 transition-colors select-none border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50/60 ${
+                      className={`group w-full max-w-[360px] h-36 sm:h-40 rounded-md border border-dashed flex flex-col items-center justify-center gap-2.5 transition-colors select-none border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50/60 ${
                         canEditPhoto ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'
                       }`}
                     >
@@ -1557,7 +1557,7 @@ export function InputPage({
               </div>
 
               {members.length === 0 ? (
-                <div className="py-10 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-2">
+                <div className="py-10 text-center bg-slate-50 rounded-md border border-dashed border-slate-200 space-y-2">
                   <Users size={28} className="mx-auto text-slate-300" />
                   <p className="text-xs font-bold text-slate-700">아직 등록된 팀원이 없습니다</p>
                   <p className="text-[11px] text-slate-500">
@@ -1567,7 +1567,7 @@ export function InputPage({
                   </p>
                 </div>
               ) : (
-                <div className="w-full rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+                <div className="w-full rounded-md border border-slate-200 bg-white overflow-hidden shadow-2xs">
                   <div className="overflow-x-auto select-none relative">
                     <table
                       className="w-full text-xs table-fixed border-collapse"
@@ -1825,7 +1825,7 @@ export function InputPage({
                               <td className="relative px-2 py-1.5 text-center">
                                 {canEdit ? (
                                   <div className="flex items-center justify-center w-full px-1">
-                                    <div className="grid w-full p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs grid-cols-2 max-w-[140px] min-w-[130px]">
+                                    <div className="grid w-full p-0.5 rounded-md bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs grid-cols-2 max-w-[140px] min-w-[130px]">
                                       {STATUS_BTNS.map((btn) => {
                                         const active = s === btn.id;
                                         const styleCfg =
@@ -1869,7 +1869,7 @@ export function InputPage({
                                         value={currentMemo}
                                         onChange={(e) => setMemo(m.id, e.target.value)}
                                         placeholder="—"
-                                        className="w-full h-8 text-center px-3 text-xs font-sans text-slate-700 placeholder:text-slate-300 placeholder:font-mono rounded-lg bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-800 focus:ring-2 focus:ring-slate-100 outline-none transition-all shadow-2xs"
+                                        className="w-full h-8 text-center px-3 text-xs font-sans text-slate-700 placeholder:text-slate-300 placeholder:font-mono rounded-sm bg-white border border-slate-200 hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 outline-none transition-all shadow-2xs"
                                       />
                                     </div>
                                   ) : (
@@ -1916,7 +1916,7 @@ export function InputPage({
             <img
               src={currentPhotoUrl}
               alt="출석 인증 사진"
-              className="max-w-full max-h-[80vh] rounded-lg shadow-2xl object-contain border border-slate-300"
+              className="max-w-full max-h-[80vh] rounded-md shadow-2xl object-contain border border-slate-300"
             />
             <div className="mt-3 flex items-center justify-between w-full text-xs text-slate-700">
               <span>
