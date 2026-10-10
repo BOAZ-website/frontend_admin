@@ -15,13 +15,13 @@
 
 ## 검증 결과
 
-| 보장 사항 | 검증 | 결과 |
-| --- | --- | --- |
-| 검색과 기수·부문·상태 필터를 함께 적용한다 | `tests/memberManagement.test.ts` | PASS |
-| 원본을 변경하지 않고 최신 기수·이름순으로 정렬한다 | `tests/memberManagement.test.ts` | PASS |
-| 전체·활동·수료·운영진 인원을 요약한다 | `tests/memberManagement.test.ts` | PASS |
-| 코드 품질과 타입이 유효하다 | `npm run lint`, `npm run format:check`, `npm run check-types` | PASS |
-| 프로덕션 번들이 생성된다 | `npm run build` | PASS |
+| 보장 사항                                          | 검증                                                          | 결과 |
+| -------------------------------------------------- | ------------------------------------------------------------- | ---- |
+| 검색과 기수·부문·상태 필터를 함께 적용한다         | `tests/memberManagement.test.ts`                              | PASS |
+| 원본을 변경하지 않고 최신 기수·이름순으로 정렬한다 | `tests/memberManagement.test.ts`                              | PASS |
+| 전체·활동·수료·운영진 인원을 요약한다              | `tests/memberManagement.test.ts`                              | PASS |
+| 코드 품질과 타입이 유효하다                        | `npm run lint`, `npm run format:check`, `npm run check-types` | PASS |
+| 프로덕션 번들이 생성된다                           | `npm run build`                                               | PASS |
 
 ## 알려진 제한
 
