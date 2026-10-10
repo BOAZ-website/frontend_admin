@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronRight, KeyRound, PanelLeft, ShieldCheck, User, X } from 'lucide-react';
 
-import { DashboardPage } from '@/pages/attendance-dashboard/ui/DashboardPage';
-import { EventAttendanceManagePage } from '@/pages/attendance-events/ui/EventAttendanceManagePage';
+import { EventAttendanceContainer } from '@/pages/attendance-events/ui/EventAttendanceContainer';
 import { HostsPage } from '@/pages/attendance-hosts/ui/HostsPage';
-import { InputPage } from '@/pages/attendance-input/ui/InputPage';
-import { InternalCategoryAttendancePage } from '@/pages/attendance-internal-category/ui/InternalCategoryAttendancePage';
+import { InputPageContainer } from '@/pages/attendance-input/ui/InputPageContainer';
+import { InternalCategoryAttendanceContainer } from '@/pages/attendance-internal-category/ui/InternalCategoryAttendanceContainer';
 import { RulesPage } from '@/pages/attendance-rules/ui/RulesPage';
 import { ScoresPage } from '@/pages/attendance-scores/ui/ScoresPage';
 import { ArchivingSection } from '@/pages/content-archive/ui/ArchivingSection';
@@ -18,40 +17,23 @@ import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPag
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
 
-import { useEventDb } from './model/useEventDb';
-import { useHostDb } from './model/useHostDb';
-import { useTeamDb } from './model/useTeamDb';
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
 import boazLogo from '@/shared/assets/boaz-logo.png';
-import { sessionKey } from '@/entities/attendance/model/lib';
-import { cohortsOf, currentCohortOf, DEFAULT_CURRENT_COHORT } from '@/entities/cohort/model/lib';
-import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
+import { useAttendanceMeta } from '@/entities/attendance/model/useAttendanceMeta';
+import { useCurrentTeams } from '@/entities/study-team/model/useCurrentTeams';
+import { useHosts } from '@/entities/host-account/model/useHosts';
+import type { SemesterAttendanceKind, SemesterDto } from '@/entities/cohort/model/dto';
+import { createSemester, updateSemester } from '@/entities/cohort/api/semesterApi';
 import type { WeekInfo } from '@/entities/attendance/model/week';
-import { INITIAL_EXCEPTIONS } from '@/entities/exception-request/model/constants';
-import type { ExceptionRequest } from '@/entities/exception-request/model/types';
 import type { HostAccount } from '@/entities/host-account/model/types';
-import { INITIAL_RULES } from '@/entities/score-rule/model/constants';
-import { getRuleForDate } from '@/entities/score-rule/model/lib';
-import type { ScoreRule } from '@/entities/score-rule/model/types';
-import {
-  applyAttendanceChange,
-  createAdvTeamRecords,
-  createBaseAttendanceRecords,
-  createStudyRecords,
-  describeStudyCreateError,
-  markWeekSubmitted,
-  type AttendanceChange,
-  type CreateAdvTeamInput,
-  type CreateBaseAttendanceInput,
-  type CreateStudyInput,
-} from '@/entities/study-team/model/db';
-import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
-import type { UserRole } from '@/entities/user/model/types';
+import { useScoreRules } from '@/entities/score-rule/model/useScoreRules';
+import type { StudyTeamInfo } from '@/entities/study-team/model/types';
+import type { UserRole, UserTrack } from '@/entities/user/model/types';
 import type { ActivePage } from '@/shared/config/activePage';
 import { PAGE_LABELS } from '@/shared/config/pageLabels';
+import { confirmLeave } from '@/shared/lib/leaveGuard';
 
 const VALID_ACTIVE_PAGES = new Set<string>([
-  'att-dashboard',
   'att-events',
   'att-hosts',
   'att-scores',
@@ -86,10 +68,9 @@ const VALID_ACTIVE_PAGES = new Set<string>([
 
 const NO_TEAMS: StudyTeamInfo[] = [];
 const NO_HOSTS: HostAccount[] = [];
-const NO_MEMBERS: Record<string, Member[]> = {};
-const NO_ATTENDANCE: AttendanceState = {};
+const NO_SEMESTERS: SemesterDto[] = [];
+const NO_TRACKS: UserTrack[] = [];
 const NO_WEEKS: WeekInfo[] = [];
-const NO_WEEK_DATES: Record<number, Record<number, string>> = {};
 
 function getInitialActivePage(): ActivePage {
   try {
@@ -108,55 +89,13 @@ function getInitialActivePage(): ActivePage {
 }
 
 export default function App() {
-  const [scoreRules, setScoreRules] = useState<ScoreRule[]>(() => {
-    try {
-      const saved = localStorage.getItem('boaz_score_rules');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((r, idx) => {
-            const fallbackTerm = r.term ?? 27 - idx;
-            return {
-              ...r,
-              term: fallbackTerm,
-              name: r.name ?? `${fallbackTerm}기 점수 규칙`,
-              startDate:
-                r.startDate ??
-                (fallbackTerm === 27
-                  ? '2026-07-01'
-                  : fallbackTerm === 26
-                    ? '2026-01-01'
-                    : '2025-07-01'),
-              endDate:
-                r.endDate !== undefined
-                  ? r.endDate
-                  : fallbackTerm === 27
-                    ? '2026-12-31'
-                    : fallbackTerm === 26
-                      ? '2026-06-30'
-                      : '2025-12-31',
-              status: r.status ?? (idx === 0 ? 'ACTIVE' : 'INACTIVE'),
-            };
-          });
-        }
-      }
-    } catch (e) {
-      // ignore malformed localStorage data, fall back to defaults
-    }
-    return INITIAL_RULES;
-  });
-
-  const handleUpdateScoreRules = (newRules: ScoreRule[]) => {
-    setScoreRules(newRules);
-    try {
-      localStorage.setItem('boaz_score_rules', JSON.stringify(newRules));
-      window.dispatchEvent(new Event('storage'));
-    } catch (e) {
-      // ignore localStorage write failures (e.g. quota exceeded, private mode)
-    }
-  };
+  // 점수 규칙의 원본은 DB다. 목록을 API에서 읽고, 규칙 화면에서 바꾸면 다시 읽는다.
+  // 점수 계산은 점수 API가 적용 중인 규칙으로 하므로, 출결 화면에 규칙을 내려주지 않는다.
+  const { rules: scoreRules, reload: reloadScoreRules } = useScoreRules();
 
   const [activePage, setActivePage] = useState<ActivePage>(getInitialActivePage);
+  // 행사 출결 메뉴를 다시 누른 횟수. 바뀌면 행사 출결 화면이 행사 목록으로 돌아간다.
+  const [eventListRequest, setEventListRequest] = useState(0);
 
   useEffect(() => {
     try {
@@ -212,52 +151,105 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-  // 스터디·ADV 팀, 팀원, 출결은 임시 DB(db/*.sql)가 원본이다. 값을 바꾸면 DB에 바로 저장된다.
+  // 각 출결 탭은 열릴 때 자기 데이터를 API로 읽는다. App은 로그인한 HOST의 담당 팀을 찾는 데 쓰는
+  // 현재 반기의 스터디·ADV 팀만 API로 읽고, 다른 탭에서 저장하면 다시 읽는다.
+  const { teams: currentTeams, error: teamDbError, reload: refreshTeamState } = useCurrentTeams();
+  // 반기(현재·다음 반기, 반기 표기, ADV 기수)와 주차 진행 상태는 화면이 계산하지 않고 반기 API에서 받는다.
   const {
-    state: teamDb,
-    error: teamDbError,
-    setMembers: setMembersMap,
-    setAttendance,
-    createTeamWithAttendance,
-    refreshTeamState,
-  } = useTeamDb();
-  const eventDb = useEventDb();
-  // DB에는 지난 기수의 팀도 남아 있다. 출결 입력·점수·대시보드 같은 "지금" 화면은 현재 기수의 팀만 쓰고,
-  // 스터디 출결 관리만 전체 팀을 받아 기수 드롭다운으로 지난 기수를 조회한다.
-  const allAdvTeams = teamDb?.advTeams ?? NO_TEAMS;
-  const allStudyTeams = teamDb?.studyTeams ?? NO_TEAMS;
-  const allBaseTeams = teamDb?.baseTeams ?? NO_TEAMS;
-  const cohorts = useMemo(
-    () =>
-      cohortsOf([
-        ...(teamDb?.cohorts ?? []),
-        ...[...allStudyTeams, ...allAdvTeams, ...allBaseTeams].map((team) => team.cohort),
-      ]),
-    [teamDb?.cohorts, allStudyTeams, allAdvTeams, allBaseTeams],
+    meta: attendanceMeta,
+    error: attendanceMetaError,
+    reload: reloadAttendanceMeta,
+  } = useAttendanceMeta();
+  const semesters = attendanceMeta?.semesters ?? NO_SEMESTERS;
+  const currentSemester = attendanceMeta?.currentSemester ?? null;
+  const nextSemester = attendanceMeta?.nextSemester ?? null;
+  // 반기 선택 목록은 그 화면의 출결이 등록된 반기만 보여 준다(반기 API의 attendanceKinds 기준).
+  // 현재 반기는 출결을 새로 만들 수 있어야 하므로 비어 있어도 늘 넣는다.
+  const cohortsWith = useCallback(
+    (kind: SemesterAttendanceKind) =>
+      semesters
+        .filter((semester) => semester.isCurrent || semester.attendanceKinds.includes(kind))
+        .map((semester) => semester.cohort),
+    [semesters],
   );
-  const currentCohort = currentCohortOf(cohorts);
-  // ADV 팀은 기수가 스터디·BASE보다 하나 늦다(만들어진 가장 큰 ADV 기수가 ADV의 현재 기수).
+  const baseCohorts = useMemo(() => cohortsWith('BASE'), [cohortsWith]);
+  const studyCohorts = useMemo(() => cohortsWith('STUDY'), [cohortsWith]);
+  const eventCohorts = useMemo(() => cohortsWith('EVENT'), [cohortsWith]);
+  const currentCohort = currentSemester?.cohort ?? null;
+  // ADV 팀의 기수는 회원 기수다. 반기마다 ADV를 진행하는 기수(advTerm)가 정해져 있다.
   const advCohorts = useMemo(
-    () => cohortsOf(allAdvTeams.map((team) => team.cohort)),
-    [allAdvTeams],
-  );
-  const advCurrentCohort = currentCohortOf(advCohorts);
-  const advTeams = useMemo(
     () =>
-      allAdvTeams.filter((team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === advCurrentCohort),
-    [allAdvTeams, advCurrentCohort],
+      semesters.flatMap((semester) =>
+        semester.advTerm === null ||
+        !(semester.isCurrent || semester.attendanceKinds.includes('ADV'))
+          ? []
+          : [semester.advTerm],
+      ),
+    [semesters],
   );
-  const studyTeams = useMemo(
-    () => allStudyTeams.filter((team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === currentCohort),
-    [allStudyTeams, currentCohort],
+  const advCurrentCohort = currentSemester?.advTerm ?? null;
+  /** 활동 기수 → 반기 표기, ADV 기수 → 그 기수가 ADV를 진행하는 반기 표기 */
+  // 반기 선택 목록(semesters)에는 다음 반기가 없으므로, 출결 생성 창이 쓰는 다음 반기 표기를 함께 넣는다.
+  const labeledSemesters = useMemo(
+    () => (nextSemester ? [...semesters, nextSemester] : semesters),
+    [semesters, nextSemester],
   );
-  const membersMap = teamDb?.members ?? NO_MEMBERS;
-  const attendance = teamDb?.attendance ?? NO_ATTENDANCE;
-  const weeks = teamDb?.weeks ?? NO_WEEKS;
+  const cohortLabels = useMemo(
+    () =>
+      Object.fromEntries(labeledSemesters.map((semester) => [semester.cohort, semester.semester])),
+    [labeledSemesters],
+  );
+  const advCohortLabels = useMemo(
+    () =>
+      Object.fromEntries(
+        labeledSemesters.flatMap((semester) =>
+          semester.advTerm === null ? [] : [[semester.advTerm, semester.semester]],
+        ),
+      ),
+    [labeledSemesters],
+  );
+  const advTeams = currentTeams?.adv ?? NO_TEAMS;
+  const studyTeams = currentTeams?.study ?? NO_TEAMS;
+  const tracks = attendanceMeta?.tracks ?? NO_TRACKS;
+  async function handleAdvanceSemester(): Promise<void> {
+    if (!nextSemester || !attendanceMeta) throw new Error('다음 반기 정보를 불러오지 못했습니다.');
+    if (attendanceMeta.canCreateNextSemester) {
+      await createSemester({
+        cohort: nextSemester.cohort,
+        semester: nextSemester.semester,
+        startDate: nextSemester.startDate,
+        endDate: nextSemester.endDate,
+        advTerm: nextSemester.advTerm,
+        memberTerms: nextSemester.memberTerms,
+      });
+    }
+    await updateSemester(nextSemester.semester, { isCurrent: true });
+    reloadAttendanceMeta();
+    reloadHosts();
+    refreshTeamState();
+  }
+  // 현재 반기의 주차와 진행 상태(semester_weeks). 화면이 쓰는 주차 모양(WeekInfo)으로만 바꾼다.
+  const weeks = useMemo<WeekInfo[]>(
+    () =>
+      attendanceMeta?.weeks.map((week) => ({
+        id: `w${week.weekNum}`,
+        weekNum: week.weekNum,
+        period: week.period,
+        label: week.label,
+        status: week.status,
+      })) ?? NO_WEEKS,
+    [attendanceMeta],
+  );
+  /** 반기 정보를 아직 못 받았을 때 출결 관리 화면 대신 보여줄 안내. */
+  const semesterNotice = attendanceMetaError ? (
+    <DataLoadFailedNotice onRetry={() => window.location.reload()} />
+  ) : (
+    <p className="py-8 text-center text-xs text-slate-400">반기 정보를 불러오는 중입니다.</p>
+  );
   // HOST 계정도 임시 DB가 원본이다. 발급·삭제하면 DB에 바로 저장된다.
-  const { hosts: hostRows, error: hostDbError, setHosts, saveHostWithLeader } = useHostDb();
+  // 로그인할 때 담당 팀을 찾는 데 쓰는 HOST 계정 목록(API). HOST 관리 화면은 자기 데이터를 따로 읽는다.
+  const { hosts: hostRows, error: hostDbError, reload: reloadHosts } = useHosts();
   const hosts = hostRows ?? NO_HOSTS;
-  const [exceptions, setExceptions] = useState<ExceptionRequest[]>(INITIAL_EXCEPTIONS);
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     try {
       const saved = localStorage.getItem('boaz_user_role');
@@ -327,195 +319,12 @@ export default function App() {
   }
 
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [openStudyCreateFromDashboard, setOpenStudyCreateFromDashboard] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [myCurrentPw, setMyCurrentPw] = useState('');
   const [myNewPw, setMyNewPw] = useState('');
   const [myConfirmPw, setMyConfirmPw] = useState('');
   const [masterPassword, setMasterPassword] = useState('super1234');
   const [myPwError, setMyPwError] = useState('');
-
-  /** 스터디 출결 관리에서 만든 스터디를 공용 스터디 저장소(팀·부원·출결)에 등록한다. */
-  /**
-   * 이름 중복 같은 입력 검증은 화면에서 하지 않고 저장소(DB)의 제약에 맡긴다.
-   * 저장에 실패하면 화면 상태는 바뀌지 않고, 실패 사유를 문자열로 돌려준다(성공이면 null).
-   */
-  function handleCreateStudyFromAttendance(input: CreateStudyInput): string | null {
-    try {
-      const { team, members, attendance: records } = createStudyRecords(input);
-      createTeamWithAttendance('STUDY', team, members, records, input.weekDates);
-      return null;
-    } catch (error) {
-      return describeStudyCreateError(error);
-    }
-  }
-
-  /**
-   * BASE 출결 생성: 그 기수·트랙 팀이 없으면 만들고, 고른 회원을 트랙원으로 넣어 1~8주차 미정 출결을 만든다.
-   * 만들 수 없으면 사유를, 만들었으면 null을 돌려준다.
-   */
-  function handleCreateBaseAttendance(input: CreateBaseAttendanceInput): string | null {
-    try {
-      const result = createBaseAttendanceRecords(input, allBaseTeams, membersMap, attendance);
-      if (result.addedMembers.length === 0) {
-        return '선택한 회원은 이미 모두 등록되어 있습니다.';
-      }
-      createTeamWithAttendance(
-        'BASE',
-        result.team,
-        result.addedMembers,
-        result.attendance,
-        input.weekDates,
-      );
-      return null;
-    } catch (error) {
-      return `출결을 만들지 못했습니다. (${error instanceof Error ? error.message : String(error)})`;
-    }
-  }
-
-  /**
-   * ADV 팀 개설: 그 기수·부문의 다음 번호 팀과 팀원, 주차별 미정 출결을 DB에 만든다.
-   * 만들 수 없으면 사유를, 만들었으면 null을 돌려준다.
-   */
-  function handleCreateAdvTeam(input: CreateAdvTeamInput): string | null {
-    try {
-      if (input.members.length === 0) return '팀원을 한 명 이상 선택해 주세요.';
-      const result = createAdvTeamRecords(input, allAdvTeams);
-      createTeamWithAttendance(
-        'ADV',
-        result.team,
-        result.members,
-        result.attendance,
-        input.weekDates,
-      );
-      return null;
-    } catch (error) {
-      return `ADV 팀을 개설하지 못했습니다. (${error instanceof Error ? error.message : String(error)})`;
-    }
-  }
-
-  function handleSaveHostWithLeader(
-    account: HostAccount,
-    teamId: string | undefined,
-    leaderName: string,
-  ) {
-    const term = Number(account.generation?.replace(/[^0-9]/g, ''));
-    const leaderId = teamDb?.users.find(
-      (user) => user.name === leaderName && user.term === term && user.track === account.track,
-    )?.id;
-    saveHostWithLeader(account, teamId, leaderId);
-    refreshTeamState();
-  }
-
-  /** BASE·ADV 주차 제출: 서버 제출이 성공한 팀·주차를 제출 완료로 표시해 DB에 저장한다. */
-  function handleSubmitWeek(teamId: string, weekNum: number, submittedAt: string) {
-    setAttendance((prev) => markWeekSubmitted(prev, teamId, weekNum, submittedAt));
-  }
-
-  /** 스터디 명단에서 팀원을 뺀다. 팀 소속과 그 팀원의 출결 기록은 DB에서 함께 지워진다. */
-  function handleRemoveStudyMember(teamId: string, memberId: string) {
-    const team = [...allStudyTeams, ...allAdvTeams, ...allBaseTeams].find((t) => t.id === teamId);
-    if (!team) return;
-    setMembersMap((prev) => ({
-      ...prev,
-      [team.id]: (prev[team.id] ?? []).filter((m) => m.id !== memberId),
-    }));
-  }
-
-  /** 스터디 출결 관리에서 바꾼 상태·비고를 공용 출결 저장소에 반영한다. */
-  function handleStudyAttendanceChange(change: AttendanceChange) {
-    setAttendance((prev) => applyAttendanceChange(prev, change));
-  }
-
-  function approveException(id: string) {
-    const ex = exceptions.find((e) => e.id === id);
-    if (ex) {
-      const weekNum = ex.week.replace(/[^0-9]/g, '');
-      const wId = `w${weekNum}`;
-      const actId = 'study';
-      const key = sessionKey(wId, actId, ex.team); // ex.team은 팀 id
-      const members = membersMap[ex.team] ?? [];
-      const mem = members.find((m) => m.name === ex.memberName);
-      if (mem && attendance[key]) {
-        setAttendance((prev) => ({
-          ...prev,
-          [key]: {
-            ...prev[key],
-            statuses: { ...prev[key].statuses, [mem.id]: ex.to },
-          },
-        }));
-      }
-    }
-    setExceptions((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  function rejectException(id: string) {
-    setExceptions((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  function handleRequestException(
-    team: string,
-    week: string,
-    memberName: string,
-    from: AttendanceStatus,
-    to: AttendanceStatus,
-    reason: string,
-  ) {
-    setExceptions((prev) => [
-      {
-        id: `e_${Date.now()}`,
-        team,
-        week,
-        memberName,
-        from,
-        to,
-        reason,
-      },
-      ...prev,
-    ]);
-  }
-
-  function handleDirectEdit(
-    w: string,
-    a: string,
-    t: string,
-    memberId: string,
-    to: AttendanceStatus,
-    reason: string,
-  ) {
-    const key = sessionKey(w, a, t);
-    setAttendance((prev) => {
-      const cur = prev[key];
-      if (!cur) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [key]: {
-          ...cur,
-          statuses: { ...cur.statuses, [memberId]: to },
-          memos: { ...(cur.memos ?? {}), [memberId]: `[운영지원팀 수정] ${reason}` },
-        },
-      };
-    });
-  }
-
-  function handleConfirmAdmin(w: string, a: string, t: string) {
-    const key = sessionKey(w, a, t);
-    setAttendance((prev) => {
-      const cur = prev[key];
-      if (!cur) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [key]: {
-          ...cur,
-          confirmedByAdmin: true,
-        },
-      };
-    });
-  }
 
   /** 팀 id 또는 팀 이름(호스트 계정에 적힌 값)으로 팀 id를 찾는다. 이름은 부문이 다르면 겹칠 수 있어 처음 일치하는 팀을 쓴다. */
   function resolveTeamId(idOrName?: string): string {
@@ -542,7 +351,7 @@ export default function App() {
     if (currentRole === 'SUPER') {
       setCurrentRole('TEAM');
       setLoggedUsername('admin');
-      setActivePage('att-dashboard');
+      setActivePage('att-study');
     } else if (currentRole === 'TEAM') {
       setCurrentRole('HOST');
       setLoggedHostTeam(studyTeams[0]?.id ?? '');
@@ -579,7 +388,7 @@ export default function App() {
       setActivePage('recruiting');
     } else {
       setLoggedUsername('admin');
-      setActivePage('att-dashboard');
+      setActivePage('att-study');
     }
   }
 
@@ -611,7 +420,7 @@ export default function App() {
   const isContentPage = Boolean(activePage?.startsWith('content'));
   const isAttendancePage = Boolean(activePage?.startsWith('att-'));
 
-  if ((!teamDb && !teamDbError) || (!hostRows && !hostDbError)) {
+  if ((!currentTeams && !teamDbError) || (!hostRows && !hostDbError)) {
     return (
       <div className="flex h-screen items-center justify-center text-sm text-slate-500">
         데이터를 불러오는 중...
@@ -629,7 +438,16 @@ export default function App() {
     >
       <Sidebar
         activePage={activePage}
-        onChange={setActivePage}
+        onChange={(page) => {
+          // 이미 열려 있는 행사 출결 메뉴를 다시 누르면 행사 목록으로 돌아가게 알린다.
+          if (page === activePage && page === 'att-events') {
+            setEventListRequest((count) => count + 1);
+            return;
+          }
+          // 저장하지 않은 수정 내용이 있는 화면이면 옮기기 전에 묻는다(취소하면 머문다).
+          if (page !== activePage && !confirmLeave()) return;
+          setActivePage(page);
+        }}
         open={sidebarOpen}
         onClose={() => {
           setSidebarOpen(false);
@@ -747,7 +565,10 @@ export default function App() {
         </header>
 
         {/* Content Main Body */}
-        <main className="flex-1 overflow-y-auto px-8 py-7" style={{ scrollbarWidth: 'none' }}>
+        <main
+          className="flex-1 overflow-y-auto overscroll-y-none px-8 py-7"
+          style={{ scrollbarWidth: 'none' }}
+        >
           {(teamDbError || hostDbError) && isAttendancePage && (
             <DataLoadFailedNotice onRetry={() => window.location.reload()} />
           )}
@@ -790,138 +611,97 @@ export default function App() {
           {activePage === 'content-reviews' && <ReviewsSection />}
 
           {/* 4. Attendance Management */}
-          {activePage === 'att-session' && (
-            <InternalCategoryAttendancePage
-              category="SESSION"
-              activeScoreRule={getRuleForDate(scoreRules)}
-              attendance={attendance}
-              studyTeams={allBaseTeams}
-              studyMembers={membersMap}
-              membershipBaseTeams={allBaseTeams}
-              membershipOtherTeams={[...allAdvTeams, ...allStudyTeams]}
-              weeks={weeks}
-              cohorts={cohorts}
-              currentCohort={currentCohort}
-              onStudyAttendanceChange={handleStudyAttendanceChange}
-              weekDates={teamDb?.weekDates ?? NO_WEEK_DATES}
-              onCreateBaseAttendance={handleCreateBaseAttendance}
-              onSubmitWeek={handleSubmitWeek}
-            />
-          )}
-          {activePage === 'att-adv' && (
-            <InternalCategoryAttendancePage
-              category="ADV"
-              activeScoreRule={getRuleForDate(scoreRules)}
-              attendance={attendance}
-              studyTeams={allAdvTeams}
-              studyMembers={membersMap}
-              membershipBaseTeams={allBaseTeams}
-              membershipOtherTeams={[...allAdvTeams, ...allStudyTeams]}
-              onStudyAttendanceChange={handleStudyAttendanceChange}
-              onCreateAdvTeam={handleCreateAdvTeam}
-              onSubmitWeek={handleSubmitWeek}
-              weekDates={teamDb?.weekDates ?? NO_WEEK_DATES}
-              weeks={weeks}
-              cohorts={cohorts.filter((cohort) => cohort <= advCurrentCohort)}
-              currentCohort={advCurrentCohort}
-            />
-          )}
-          {activePage === 'att-study' && (
-            <InternalCategoryAttendancePage
-              category="STUDY"
-              activeScoreRule={getRuleForDate(scoreRules)}
-              attendance={attendance}
-              studyTeams={allStudyTeams}
-              studyMembers={membersMap}
-              membershipBaseTeams={allBaseTeams}
-              membershipOtherTeams={[...allAdvTeams, ...allStudyTeams]}
-              weeks={weeks}
-              cohorts={cohorts}
-              currentCohort={currentCohort}
-              weekDates={teamDb?.weekDates ?? NO_WEEK_DATES}
-              onCreateStudy={handleCreateStudyFromAttendance}
-              openCreateStudyOnMount={openStudyCreateFromDashboard}
-              onCreateStudyOpenConsumed={() => setOpenStudyCreateFromDashboard(false)}
-              onStudyAttendanceChange={handleStudyAttendanceChange}
-              onRemoveStudyMember={handleRemoveStudyMember}
-            />
-          )}
-          {activePage === 'att-events' &&
-            (eventDb.error ? (
-              <DataLoadFailedNotice onRetry={() => window.location.reload()} />
+          {activePage === 'att-session' &&
+            (currentCohort === null ? (
+              semesterNotice
             ) : (
-              eventDb.state && (
-                <EventAttendanceManagePage
-                  cohorts={cohorts}
-                  currentCohort={currentCohort}
-                  events={eventDb.state.events}
-                  setEvents={eventDb.setEvents}
-                  attendees={eventDb.state.attendees}
-                  setAttendees={eventDb.setAttendees}
-                  templates={eventDb.state.templates}
-                  setTemplates={eventDb.setTemplates}
-                />
-              )
+              <InternalCategoryAttendanceContainer
+                category="SESSION"
+                semesters={semesters}
+                weeks={weeks}
+                cohorts={baseCohorts}
+                currentCohort={currentCohort}
+                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
+                onAdvanceSemester={handleAdvanceSemester}
+                cohortLabels={cohortLabels}
+                tracks={tracks}
+                onDataChanged={refreshTeamState}
+              />
             ))}
-          {activePage === 'att-scores' && (
-            <ScoresPage
-              attendance={attendance}
-              studyTeams={studyTeams}
-              advTeams={advTeams}
-              baseTeams={allBaseTeams}
-              membersMap={membersMap}
-              scoreRules={scoreRules}
-            />
-          )}
+          {activePage === 'att-adv' &&
+            (advCurrentCohort === null ? (
+              semesterNotice
+            ) : (
+              <InternalCategoryAttendanceContainer
+                category="ADV"
+                semesters={semesters}
+                weeks={weeks}
+                cohorts={advCohorts}
+                currentCohort={advCurrentCohort}
+                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
+                onAdvanceSemester={handleAdvanceSemester}
+                cohortLabels={advCohortLabels}
+                tracks={tracks}
+                onDataChanged={refreshTeamState}
+              />
+            ))}
+          {activePage === 'att-study' &&
+            (currentCohort === null ? (
+              semesterNotice
+            ) : (
+              <InternalCategoryAttendanceContainer
+                category="STUDY"
+                semesters={semesters}
+                weeks={weeks}
+                cohorts={studyCohorts}
+                currentCohort={currentCohort}
+                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
+                onAdvanceSemester={handleAdvanceSemester}
+                cohortLabels={cohortLabels}
+                tracks={tracks}
+                onDataChanged={refreshTeamState}
+              />
+            ))}
+          {activePage === 'att-events' &&
+            (currentCohort === null ? (
+              semesterNotice
+            ) : (
+              <EventAttendanceContainer
+                cohorts={eventCohorts}
+                currentCohort={currentCohort}
+                cohortLabels={cohortLabels}
+                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
+                onAdvanceSemester={handleAdvanceSemester}
+                listRequest={eventListRequest}
+              />
+            ))}
+          {activePage === 'att-scores' && <ScoresPage />}
           {(activePage === 'att-input' ||
             activePage === 'att-input-adv' ||
             activePage === 'att-input-study') && (
-            <InputPage
+            <InputPageContainer
+              key={activePage}
               pageTitle={
                 activePage === 'att-input-study' ? '스터디 출결 입력' : 'ADV Term 출결 입력'
               }
-              attendance={attendance}
-              setAttendance={setAttendance}
-              onRequestException={handleRequestException}
               currentHostTeam={resolveHostTeamFor(activePage !== 'att-input-study')}
-              advTeams={advTeams}
-              studyTeams={studyTeams}
-              membersMap={membersMap}
-              setMembersMap={setMembersMap}
               currentRole={currentRole}
               weeks={weeks}
+              currentWeekNum={currentSemester?.currentWeekNum ?? null}
+              currentPeriod={currentSemester?.currentPeriod ?? null}
+              onDataChanged={refreshTeamState}
             />
           )}
           {activePage === 'att-hosts' && (
             <HostsPage
-              hosts={hosts}
-              setHosts={setHosts}
-              advTeams={advTeams}
-              studyTeams={studyTeams}
-              membersMap={membersMap}
-              users={teamDb?.users ?? []}
-              onSaveHostWithLeader={handleSaveHostWithLeader}
+              onDataChanged={() => {
+                reloadHosts();
+                refreshTeamState();
+              }}
             />
           )}
           {activePage === 'att-rules' && (
-            <RulesPage rules={scoreRules} onUpdateRules={handleUpdateScoreRules} />
-          )}
-          {activePage === 'att-dashboard' && (
-            <DashboardPage
-              attendance={attendance}
-              exceptions={exceptions}
-              studyTeams={studyTeams}
-              advTeams={advTeams}
-              membersMap={membersMap}
-              onApprove={approveException}
-              onReject={rejectException}
-              onDirectEdit={handleDirectEdit}
-              onConfirmAdmin={handleConfirmAdmin}
-              onOpenAddStudy={() => {
-                setOpenStudyCreateFromDashboard(true);
-                setActivePage('att-study');
-              }}
-            />
+            <RulesPage rules={scoreRules} onRulesChanged={reloadScoreRules} />
           )}
 
           {/* 5. System Section */}
