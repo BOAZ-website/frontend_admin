@@ -18,13 +18,13 @@ import {
   Settings,
   Trash2,
   X,
+  Send,
 } from 'lucide-react';
 
 import { sessionKey } from '@/entities/attendance/model/lib';
 import type { AttendanceState } from '@/entities/attendance/model/types';
 import {
   ADV_DIRECT_SELECT_LAST_WEEK,
-  currentPeriodOf,
   defaultWeekNum,
   isHeldWeek,
   weekStatusOf,
@@ -47,7 +47,10 @@ import {
   sortConcurrentMembersLast,
 } from '../model/baseAttendanceConcurrent';
 import { buildWeekSubmission, countUnmarked, submissionKey } from '../model/weekSubmission';
-import { BRAND_SELECTED, MODAL_PRIMARY_BTN, MODAL_SURFACE } from '@/shared/ui/modalStyles';
+import { BRAND_SELECTED, MODAL_SURFACE } from '@/shared/ui/modalStyles';
+import { SelectDropdown } from '@/shared/ui/SelectDropdown';
+import { Tooltip } from '@/shared/ui/Tooltip';
+import { CreateButton } from '@/shared/ui/CreateButton';
 import { PdfPreviewModal } from '@/shared/ui/PdfPreviewModal';
 import { DateTextInput } from '@/shared/ui/DateTextInput';
 import {
@@ -2375,6 +2378,62 @@ export function InternalCategoryAttendancePage({
     URL.revokeObjectURL(url);
   }
 
+  /** 팀 설정 변경 창을 연다. 팀 이름 칸은 화면 제목을 고친다(ADV는 study_name, 스터디는 team_name). */
+  const openTeamSettings = (teamId: string) => {
+    const info = (studyTeams ?? []).find((item) => item.id === teamId);
+    setTeamSettingsTeamId(teamId);
+    setTeamNameDraft((category === 'ADV' ? info?.studyName : info?.teamName) ?? '');
+    setTeamSettingsMessage('');
+  };
+
+  /** 팀 카드의 휴지통 아이콘: 브라우저 확인 창으로 한 번 더 묻고 팀을 지운다. */
+  const confirmAndDeleteTeam = async (teamId: string) => {
+    if (!onDeleteTeam) return;
+    const team = (studyTeams ?? []).find((info) => info.id === teamId);
+    const confirmed = window.confirm(
+      `${team ? `'${studyDisplayName(team)}'` : '이'} 팀을 정말 삭제할까요?
+` + '출결 기록과 팀장 계정도 함께 삭제되며 되돌릴 수 없습니다.',
+    );
+    if (!confirmed || !(await onDeleteTeam(teamId))) return;
+    if (selectedTeamId === teamId) {
+      setSelectedTeamId('ALL');
+      setIsPeekOpen(false);
+    }
+  };
+
+  const teamSettingsButton = (team: TeamMeta) => (
+    <div className="flex shrink-0 items-center">
+      <Tooltip label="팀 설정" align="end">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            openTeamSettings(team.id);
+          }}
+          className="rounded-sm p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
+          aria-label={`${team.name} 팀 설정`}
+        >
+          <Settings size={14} />
+        </button>
+      </Tooltip>
+      {onDeleteTeam && (
+        <Tooltip label="팀 삭제" align="end">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void confirmAndDeleteTeam(team.id);
+            }}
+            className="rounded-sm p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
+            aria-label={`${team.name} 팀 삭제`}
+          >
+            <Trash2 size={14} />
+          </button>
+        </Tooltip>
+      )}
+    </div>
+  );
+
   const renderStudyTeamCard = (team: TeamMeta) => {
     const isSelected = selectedTeamId === team.id && isPeekOpen;
 
@@ -2563,40 +2622,31 @@ export function InternalCategoryAttendancePage({
 
       {category === 'STUDY' && !isArchivedView && (
         <div className="flex shrink-0 items-center justify-end px-1">
-          <button
-            type="button"
+          <CreateButton
+            label="스터디"
+            aria-label={`${termPeriod === 'VACATION' ? '방학' : '학기'} 스터디 생성`}
             onClick={openCreateStudyModal}
-            className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
-          >
-            <Plus size={13} />
-            <span>{termPeriod === 'VACATION' ? '방학' : '학기'} 스터디 생성</span>
-          </button>
+          />
         </div>
       )}
 
       {category === 'SESSION' && !isArchivedView && (
         <div className="flex shrink-0 items-center justify-end px-1">
-          <button
-            type="button"
+          <CreateButton
+            label="BASE"
+            aria-label="BASE 출결 생성"
             onClick={() => setShowCreateAttendanceModal(true)}
-            className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
-          >
-            <Plus size={13} />
-            <span>출결 생성</span>
-          </button>
+          />
         </div>
       )}
 
       {category === 'ADV' && !isArchivedView && (
         <div className="flex shrink-0 items-center justify-end px-1">
-          <button
-            type="button"
+          <CreateButton
+            label="ADV"
+            aria-label="ADV 팀 개설"
             onClick={() => setShowCreateAdvModal(true)}
-            className="flex cursor-pointer items-center gap-1.5 rounded-sm border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50 hover:text-slate-900"
-          >
-            <Plus size={13} />
-            <span>ADV 팀 개설</span>
-          </button>
+          />
         </div>
       )}
 
@@ -2711,14 +2761,19 @@ export function InternalCategoryAttendancePage({
                                     )}
                                   </div>
 
-                                  <ChevronRight
-                                    size={16}
-                                    className={`shrink-0 transition-transform ${
-                                      isSelected
-                                        ? 'text-slate-500 translate-x-0.5'
-                                        : 'text-slate-300 group-hover:text-slate-500'
-                                    }`}
-                                  />
+                                  {/* 지난 반기는 고칠 수 없어 설정 버튼 대신 이동 표시만 둔다. */}
+                                  {isArchivedView ? (
+                                    <ChevronRight
+                                      size={16}
+                                      className={`shrink-0 transition-transform ${
+                                        isSelected
+                                          ? 'text-slate-500 translate-x-0.5'
+                                          : 'text-slate-300 group-hover:text-slate-500'
+                                      }`}
+                                    />
+                                  ) : (
+                                    teamSettingsButton(team)
+                                  )}
                                 </div>
                               </div>
                             );
@@ -3084,47 +3139,48 @@ export function InternalCategoryAttendancePage({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* CSV 추출 버튼: 전체 주차일 때 표시 (단, ADV 팀별 탭은 제외) */}
+                    {selectedWeek === 0 && !(category === 'ADV' && !isAllSelected) && (
+                      // 아이콘만 있는 버튼(옆의 연필 버튼과 같은 모양). 마우스를 올리면 바로 'CSV 추출'이 뜬다.
+                      <Tooltip label="CSV 추출">
+                        <button
+                          type="button"
+                          onClick={handleOpenSettingsModal}
+                          className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                          aria-label="CSV 추출"
+                        >
+                          <Download size={14} aria-hidden="true" />
+                        </button>
+                      </Tooltip>
+                    )}
+
                     {/* 수정 버튼: BASE·ADV 팀별 탭 & 스터디 개별 탭에서 전체 주차일 때 표시 */}
                     {!isAllSelected &&
                       !isArchivedView &&
                       selectedWeek === 0 &&
                       (category === 'SESSION' || category === 'ADV' || category === 'STUDY') && (
-                        <button
-                          type="button"
-                          onClick={() => setIsTableEditMode((prev) => !prev)}
-                          className={`px-2.5 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
-                            isTableEditMode
-                              ? `${BRAND_SELECTED} hover:bg-slate-800`
-                              : 'text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300'
-                          }`}
-                          title={isTableEditMode ? '출결 수정 완료' : '출결 수정 모드 활성화'}
-                        >
-                          {isTableEditMode ? (
-                            <>
-                              <Check size={12} className="text-white" />
-                              <span>수정 완료</span>
-                            </>
-                          ) : (
-                            <>
-                              <Edit3 size={12} className="text-slate-500" />
-                              <span>수정</span>
-                            </>
-                          )}
-                        </button>
+                        <Tooltip label={isTableEditMode ? '적용' : '전체 수정'}>
+                          <button
+                            type="button"
+                            onClick={() => setIsTableEditMode((prev) => !prev)}
+                            // 아이콘만 있는 버튼: 평소에는 연필(전체 수정), 수정 중에는 체크(적용).
+                            // 마우스를 올리면 하는 일이 바로 글자로 뜬다. 두 상태의 크기는 같다.
+                            aria-pressed={isTableEditMode}
+                            aria-label={isTableEditMode ? '적용' : '전체 수정'}
+                            className={`inline-flex size-8 cursor-pointer items-center justify-center rounded-sm transition-colors ${
+                              isTableEditMode
+                                ? 'bg-slate-100 text-slate-800 hover:bg-slate-200/70'
+                                : 'text-slate-400 hover:bg-slate-100 hover:text-slate-800'
+                            }`}
+                          >
+                            {isTableEditMode ? (
+                              <Check size={15} strokeWidth={2} aria-hidden="true" />
+                            ) : (
+                              <Edit3 size={14} aria-hidden="true" />
+                            )}
+                          </button>
+                        </Tooltip>
                       )}
-
-                    {/* CSV 추출 버튼: 전체 주차일 때 표시 (단, ADV 팀별 탭은 제외) */}
-                    {selectedWeek === 0 && !(category === 'ADV' && !isAllSelected) && (
-                      <button
-                        type="button"
-                        onClick={handleOpenSettingsModal}
-                        className="px-2.5 py-1 rounded-sm text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors cursor-pointer flex items-center gap-1.5"
-                        title="출결 CSV 날짜 매핑 및 추출 설정"
-                      >
-                        <Settings size={12} className="text-slate-500" />
-                        <span>CSV 추출</span>
-                      </button>
-                    )}
 
                     {/* 주차 제출 버튼: BASE는 진행 중인 주차, ADV는 3주차까지(지난 주차는 제출 완료 표시)의 팀별 화면 */}
                     {!isAllSelected &&
@@ -3137,15 +3193,18 @@ export function InternalCategoryAttendancePage({
                             : '제출 완료'}
                         </span>
                       ) : (
-                        <button
-                          type="button"
-                          disabled={isSubmittingWeek}
-                          onClick={handleSubmitWeek}
-                          className={`px-3.5 py-1 rounded-sm text-xs transition-colors hover:bg-[#dde5ee] active:bg-[#d1dae5] cursor-pointer disabled:cursor-wait disabled:opacity-60 ${ATTEND_STATUS_STYLES.unmarked.active}`}
-                          title="이 주차 출결 상태를 서버에 제출합니다"
-                        >
-                          {isSubmittingWeek ? '제출 중...' : '제출'}
-                        </button>
+                        // 제출: 종이비행기 아이콘 버튼(다른 아이콘 버튼처럼 배경 없음, 아이콘은 조금 더 진하게).
+                        <Tooltip label={isSubmittingWeek ? '제출 중' : '제출'} align="end">
+                          <button
+                            type="button"
+                            disabled={isSubmittingWeek}
+                            onClick={handleSubmitWeek}
+                            aria-label={isSubmittingWeek ? '제출 중' : '제출'}
+                            className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60"
+                          >
+                            <Send size={14} aria-hidden="true" />
+                          </button>
+                        </Tooltip>
                       ))}
                   </div>
                 </div>

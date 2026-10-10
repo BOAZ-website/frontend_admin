@@ -13,14 +13,12 @@ import {
   Trash2,
   Upload,
   Users,
-  X,
+  Send,
 } from 'lucide-react';
 
-import { STATUS_CFG } from '@/entities/attendance/model/constants';
 import { sessionKey } from '@/entities/attendance/model/lib';
 import {
   ADV_DIRECT_SELECT_LAST_WEEK,
-  currentPeriodOf,
   defaultWeekNum,
   weekStatusOf,
   type WeekInfo,
@@ -133,47 +131,48 @@ const ATTEND_STATUS_STYLES: Record<AttendanceStatus, { active: string; inactive:
   },
 };
 
-const CLOSED_NOTICE_DURATION_MS = 3000;
-const CLOSED_NOTICE_GAP_PX = 8;
+/** 마감된 주차의 출결 수정 버튼에 마우스를 올리면 보이는 이유. */
+const CLOSED_WEEK_REASON =
+  '마감된 출결은 수정할 수 없습니다. 수정이 필요하면 운영지원팀에 문의해 주세요.';
 const PDF_TOAST_DURATION_MS = 3000;
 
+/** 비고 머리글 오른쪽에 수정·저장 아이콘 버튼을 놓는 자리. 버튼은 이 안에서 공용 말풍선(Tooltip)으로 감싼다. */
+const EDIT_ICON_SLOT_CLASS = 'absolute right-2 top-1/2 z-10 -translate-y-1/2';
 const EDIT_ICON_BUTTON_CLASS =
-  'absolute right-2 top-1/2 z-10 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 transition-[background-color,color,transform] duration-150 after:absolute after:-inset-1 hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 cursor-pointer';
+  'inline-flex size-8 items-center justify-center rounded-sm border border-slate-200 bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 cursor-pointer';
 
 export function InputPage({
   attendance,
   setAttendance,
-  onRequestException,
   currentHostTeam,
   advTeams: propAdvTeams,
   studyTeams,
   membersMap,
   currentRole,
-  setMembersMap,
+  onSubmitWeek,
   pageTitle,
   weeks,
+  currentWeekNum = null,
+  currentPeriod = null,
 }: {
   attendance: AttendanceState;
   setAttendance: React.Dispatch<React.SetStateAction<AttendanceState>>;
-  onRequestException: (
-    team: string,
-    week: string,
-    memberName: string,
-    from: AttendanceStatus,
-    to: AttendanceStatus,
-    reason: string,
-  ) => void;
   currentHostTeam: string;
   advTeams?: StudyTeamInfo[];
   studyTeams: StudyTeamInfo[];
   membersMap: Record<string, Member[]>;
-  setMembersMap?: React.Dispatch<React.SetStateAction<Record<string, Member[]>>>;
+  /** 주차 출결(출결·비고·사진·PDF)을 제출 API로 보낸다. 실패하면 오류를 던진다. */
+  onSubmitWeek: (teamId: string, weekNum: number, record: SessionRecord) => Promise<void>;
   currentRole: UserRole;
   pageTitle?: string;
   /** 주차와 활성 상태(DB의 weeks). 진행 예정 주차는 입력할 수 없고, 진행 중 주차만 입력할 수 있다. */
   weeks: WeekInfo[];
+  /** 현재 반기의 지금 주차(반기 API). 반기 시작 전이면 null. */
+  currentWeekNum?: number | null;
+  /** 현재 반기의 지금 기간(반기 API). 처음 여는 탭과 학기 전환 경고에 쓴다. */
+  currentPeriod?: '방학' | '학기' | null;
 }) {
-  const [termPeriod, setTermPeriod] = useState<'방학' | '학기'>('방학');
+  const [termPeriod, setTermPeriod] = useState<'방학' | '학기'>(currentPeriod ?? '방학');
 
   const isAdv = pageTitle?.includes('ADV') ?? false;
   const isHost = currentRole === 'HOST';
@@ -278,42 +277,7 @@ export function InputPage({
   // 아직 오지 않은(진행 예정) 주차도 미리 입력할 수 있다. 제출은 세션이 열린 뒤에 한다.
   const isInputWeek = isOpenWeek || isFutureWeek;
   const [isEditing, setIsEditing] = useState(false);
-  const [isClosedNoticeOpen, setIsClosedNoticeOpen] = useState(false);
   const [isPdfToastOpen, setIsPdfToastOpen] = useState(false);
-  const [closedNoticePos, setClosedNoticePos] = useState<{ top: number; right: number } | null>(
-    null,
-  );
-  const closedNoticeAnchorRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!isClosedNoticeOpen) {
-      return;
-    }
-    const timer = window.setTimeout(() => setIsClosedNoticeOpen(false), CLOSED_NOTICE_DURATION_MS);
-    return () => window.clearTimeout(timer);
-  }, [isClosedNoticeOpen]);
-
-  // 토스트는 수정 버튼 바로 아래에 한 번 배치하고, 스크롤·리사이즈로 버튼과 어긋나기 전에 닫는다.
-  useEffect(() => {
-    const anchor = closedNoticeAnchorRef.current;
-    if (!isClosedNoticeOpen || !anchor) {
-      setClosedNoticePos(null);
-      return;
-    }
-    const rect = anchor.getBoundingClientRect();
-    setClosedNoticePos({
-      top: rect.bottom + CLOSED_NOTICE_GAP_PX,
-      right: Math.max(window.innerWidth - rect.right, CLOSED_NOTICE_GAP_PX),
-    });
-    const dismiss = () => setIsClosedNoticeOpen(false);
-    window.addEventListener('scroll', dismiss, { capture: true, passive: true });
-    window.addEventListener('resize', dismiss);
-    return () => {
-      window.removeEventListener('scroll', dismiss, { capture: true });
-      window.removeEventListener('resize', dismiss);
-    };
-  }, [isClosedNoticeOpen]);
-
   useEffect(() => {
     if (!isPdfToastOpen) {
       return;
@@ -321,11 +285,6 @@ export function InputPage({
     const timer = window.setTimeout(() => setIsPdfToastOpen(false), PDF_TOAST_DURATION_MS);
     return () => window.clearTimeout(timer);
   }, [isPdfToastOpen]);
-
-  function showClosedNotice(button: HTMLElement) {
-    closedNoticeAnchorRef.current = button;
-    setIsClosedNoticeOpen(true);
-  }
 
   // ADV 탭 전환 또는 방학/학기 변경 시 주차 동기화
   useEffect(() => {
@@ -1339,8 +1298,7 @@ export function InputPage({
                   {isPastWeek ? (
                     <div className="flex items-center gap-2 select-none">
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-                        <Check size={14} className="text-slate-500 stroke-[2.5]" />
-                        <span>제출 완료 (마감)</span>
+                        <span>제출 완료</span>
                         {(rec?.submittedAt ||
                           (weekNum === 1 ? '2026-08-04 21:15' : '2026-08-11 20:47')) && (
                           <span className="text-[11px] font-normal tabular-nums text-slate-400">
@@ -1368,14 +1326,7 @@ export function InputPage({
                       /* 기본 보기 상태: 제출 상태 */
                       <div className="flex items-center">
                         <div className="inline-flex h-8 items-center gap-2 text-xs text-slate-700 select-none">
-                          <span className="inline-flex items-center gap-1.5 font-semibold">
-                            <Check
-                              size={13}
-                              className="text-slate-500 stroke-2"
-                              aria-hidden="true"
-                            />
-                            제출 완료
-                          </span>
+                          <span className="font-semibold">제출 완료</span>
                           {rec?.submittedAt && (
                             <span className="border-l border-slate-200 pl-2 text-[11px] font-normal tabular-nums text-slate-400">
                               {formatSubmittedAt(rec.submittedAt)}
@@ -1385,19 +1336,29 @@ export function InputPage({
                       </div>
                     )
                   ) : (
-                    <button
-                      type="button"
-                      onClick={submit}
-                      disabled={isFutureWeek}
-                      title={isFutureWeek ? '세션이 열린 뒤에 제출할 수 있습니다' : undefined}
-                      className={`px-3.5 py-1.5 rounded-sm text-xs transition-colors flex items-center gap-1.5 ${ATTEND_STATUS_STYLES.unmarked.active} ${
-                        isFutureWeek
-                          ? 'opacity-50 cursor-not-allowed'
-                          : 'hover:bg-[#dde5ee] active:bg-[#d1dae5] cursor-pointer'
-                      }`}
+                    // 제출: 종이비행기 아이콘 버튼(다른 아이콘 버튼처럼 배경 없음, 아이콘은 조금 더 진하게).
+                    // 아직 열리지 않은 주차는 쓸 수 없고, 마우스를 올리면 금지 표시와 이유가 뜬다.
+                    <Tooltip
+                      label={isFutureWeek ? '세션이 열린 뒤에 제출할 수 있습니다' : '제출'}
+                      align="end"
+                      isBlocked={isFutureWeek}
                     >
-                      <span>제출</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={submit}
+                        disabled={isFutureWeek}
+                        aria-label={
+                          isFutureWeek ? '제출 (세션이 열린 뒤에 제출할 수 있습니다)' : '제출'
+                        }
+                        className={`inline-flex size-8 items-center justify-center rounded-sm transition-colors ${
+                          isFutureWeek
+                            ? 'pointer-events-none text-slate-300'
+                            : 'cursor-pointer text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <Send size={14} aria-hidden="true" />
+                      </button>
+                    </Tooltip>
                   )}
 
                   {/* 전체화면 확장 / 분할 뷰 축소 버튼 */}
@@ -1515,7 +1476,7 @@ export function InputPage({
                     </div>
                   )}
                 </div>
-                {/* 멘멘 스터디 파일(PDF) 업로드 줄: 폴더 아이콘 · 파일명 · 초록 체크 */}
+                {/* 멘멘 스터디 파일(PDF) 업로드 줄: 폴더 아이콘 · 파일명 · 초록 체크 · 삭제(회색 아이콘) */}
                 {isMentoringTeam && (
                   <div className="w-full max-w-[360px]">
                     <input
@@ -1557,7 +1518,7 @@ export function InputPage({
                           <button
                             type="button"
                             onClick={handleRemovePdf}
-                            className="shrink-0 cursor-pointer rounded p-0.5 text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700"
+                            className="shrink-0 cursor-pointer rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
                             title="파일 삭제"
                             aria-label="파일 삭제"
                           >
@@ -1943,18 +1904,6 @@ export function InputPage({
       </div>
 
       {/* Lightbox Modal */}
-      {closedNoticePos && (
-        <div
-          role="status"
-          style={{ top: closedNoticePos.top, right: closedNoticePos.right }}
-          className="fixed z-70 w-max max-w-sm rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-medium leading-relaxed text-white shadow-xl"
-        >
-          마감된 출결은 수정할 수 없습니다.
-          <br />
-          수정이 필요하면 운영지원팀에 문의해 주세요.
-        </div>
-      )}
-
       {lightboxOpen && currentPhotoUrl && (
         <div
           className="fixed inset-0 bg-black/90 z-60 flex flex-col items-center justify-center p-4 cursor-pointer"

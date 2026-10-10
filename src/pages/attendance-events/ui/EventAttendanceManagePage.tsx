@@ -2445,95 +2445,118 @@ export function EventAttendanceManagePage({
                           setAttendeeCategoryFilter(cat);
                           setFocusedIndex(0);
                         }}
-                        className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                          attendeeCategoryFilter === cat
-                            ? 'bg-white text-slate-900 shadow-2xs font-semibold'
-                            : 'text-slate-500 hover:text-slate-900'
-                        }`}
+                        type="button"
+                        className={segmentItemClass(attendeeCategoryFilter === cat)}
                       >
                         {labelMap[cat]}
                       </button>
                     );
-                  },
-                )}
-              </div>
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {/* + 1명 현장 추가 버튼 */}
-              <button
-                type="button"
-                onClick={() => setShowQuickAddDrawer(true)}
-                className={`h-8 px-3 rounded-sm text-xs transition-colors hover:bg-[#dde5ee] active:bg-[#d1dae5] flex items-center justify-center gap-1.5 cursor-pointer ${ATTEND_STATUS_STYLES.unmarked.active}`}
-              >
-                <UserPlus size={13} />
-                <span>+ 1명 현장 추가</span>
-              </button>
+              {/* 참가자 추가 버튼(현장에서 명단에 없는 사람을 한 명씩 추가). 옆의 연필 버튼과 같은 아이콘 버튼이다. */}
+              <Tooltip label="참가자 추가">
+                <button
+                  type="button"
+                  onClick={() => {
+                    // 외부 참석자는 컨퍼런스만 받는다. 컨퍼런스는 보고 있는 시트에 맞춰 정해 둔다.
+                    setQuickAdd((prev) => ({ ...prev, isExternal: isExternalSheet }));
+                    setHasTriedQuickAdd(false);
+                    setShowQuickAddDrawer(true);
+                  }}
+                  aria-label="참가자 추가"
+                  className="inline-flex size-9 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                >
+                  <Plus size={16} strokeWidth={2.25} aria-hidden="true" />
+                </button>
+              </Tooltip>
 
               {/* 수정 모드 전환 버튼 (고정 너비/높이로 상태 전환 시 크기 완벽 일치) */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsTableEditMode((prev) => !prev);
-                  setEditingRowId(null);
-                }}
-                className={`h-8 min-w-[124px] px-3 rounded-sm text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors hover:bg-[#dde5ee] active:bg-[#d1dae5] ${ATTEND_STATUS_STYLES.unmarked.active}`}
-              >
-                {isTableEditMode ? (
-                  <>
-                    <Check size={13} />
-                    <span>수정 완료</span>
-                  </>
-                ) : (
-                  <>
-                    <Edit3 size={13} />
-                    <span>명단/비고 수정</span>
-                  </>
-                )}
-              </button>
+              {/* 기타 방식은 칸을 눌러 바로 입력하므로 일괄 수정이 없다. */}
+              {!usesFreeformColumns(eventFormat) && (
+                <Tooltip label={isTableEditMode ? '적용' : '전체 수정'}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleTableEditMode();
+                    }}
+                    aria-pressed={isTableEditMode}
+                    // 아이콘만 있는 버튼: 평소에는 연필(전체 수정), 수정 중에는 체크(적용).
+                    // 마우스를 올리면 하는 일이 바로 글자로 뜬다. 두 상태의 크기는 같다.
+                    aria-label={isTableEditMode ? '적용' : '전체 수정'}
+                    className={`inline-flex size-9 cursor-pointer items-center justify-center rounded-sm transition-colors ${
+                      isTableEditMode
+                        ? 'bg-slate-100 text-slate-800 hover:bg-slate-200/70'
+                        : 'text-slate-400 hover:bg-slate-100 hover:text-slate-800'
+                    }`}
+                  >
+                    {isTableEditMode ? (
+                      <Check size={15} strokeWidth={2} aria-hidden="true" />
+                    ) : (
+                      <Edit3 size={14} aria-hidden="true" />
+                    )}
+                  </button>
+                </Tooltip>
+              )}
 
               <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
+                <Search
+                  size={13}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                />
                 <input
                   value={attendeeSearch}
                   onChange={(e) => {
                     setAttendeeSearch(e.target.value);
                     setFocusedIndex(0);
                   }}
-                  placeholder="참가자 검색..."
-                  className="h-8 pl-7 pr-3 text-xs rounded-sm bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 outline-none w-40 font-mono shadow-2xs transition-colors hover:border-slate-400 focus:border-slate-500"
+                  placeholder="검색"
+                  aria-label="참가자 검색"
+                  className={`w-44 pl-8 pr-3 font-medium placeholder:font-normal placeholder:text-slate-400 ${TOOLBAR_FIELD}`}
                 />
               </div>
             </div>
           </div>
 
           {/* Table Container */}
-          <div className="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
-            <div ref={tableContainerRef} className="overflow-x-auto select-none relative">
+          <div className="rounded-md border border-slate-200 bg-white overflow-hidden shadow-2xs">
+            {/* 가로 스크롤 끝에서 튕기거나(트랙패드) 브라우저 뒤로 가기 제스처로 번지지 않게 막는다 */}
+            <div
+              ref={tableContainerRef}
+              onScroll={handleTableScroll}
+              className="overflow-x-auto overscroll-x-contain select-none relative"
+            >
               <table className="text-xs min-w-full w-max table-fixed border-collapse">
                 <colgroup>
                   <col style={{ width: `${colWidths.index || 48}px` }} />
-                  <col style={{ width: `${colWidths.name || 130}px` }} />
                   {(() => {
                     const renderCol = (cf: CustomFormField) => (
-                      <col
-                        key={cf.id}
-                        style={{ width: `${colWidths[`custom_${cf.id}`] || 140}px` }}
-                      />
+                      <col key={cf.id} style={{ width: `${extraColWidth(cf)}px` }} />
                     );
                     return (
                       <>
                         {eventExtraCols.slice(0, statusColumnAt).map(renderCol)}
-                        <col style={{ width: `${colWidths.status || 450}px` }} />
+                        <col style={{ width: `${colWidths.name || 130}px` }} />
+                        {statusColumns.map((column) => (
+                          <col
+                            key={column.key}
+                            style={{ width: `${statusColumnWidth(column)}px` }}
+                          />
+                        ))}
                         {eventExtraCols.slice(statusColumnAt).map(renderCol)}
                       </>
                     );
                   })()}
-                  <col style={{ width: `${colWidths.memo || 240}px`, minWidth: '220px' }} />
+                  {!isMemoHidden && (
+                    <col style={{ width: `${colWidths.memo || 240}px`, minWidth: '220px' }} />
+                  )}
                   <col style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }} />
                 </colgroup>
                 <thead className="bg-slate-50/80 select-none">
-                  <tr className="border-b border-slate-200/70 divide-x divide-slate-200/70 text-slate-700 font-semibold text-[11px] whitespace-nowrap">
+                  <tr className="border-b border-slate-200 divide-x divide-slate-200 bg-slate-100/90 text-slate-700 font-bold text-[11px] whitespace-nowrap h-11">
                     <th
                       style={{ width: `${colWidths.index || 48}px`, minWidth: '48px' }}
                       className="relative text-center px-2 py-2.5 text-slate-400 font-bold"
@@ -3201,17 +3224,15 @@ export function EventAttendanceManagePage({
               return (
                 <div
                   key={evt.id}
-                  onClick={() => handleSelectEvent(evt.id, 'live')}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white hover:border-slate-400 hover:shadow-xs px-6 py-5 transition-all cursor-pointer group"
+                  onClick={() => handleSelectEvent(evt.id)}
+                  className="flex items-center justify-between rounded-md border border-slate-200/90 bg-white shadow-2xs hover:border-slate-300 hover:bg-slate-50/70 hover:shadow-xs px-6 py-5 transition-all cursor-pointer group"
                 >
+                  {/* 일자·장소는 입력한 것만 보여 준다 */}
                   <div className="space-y-1 min-w-0 flex-1 pr-4">
                     <h3 className="text-base font-bold text-slate-900 group-hover:text-slate-950 transition-colors truncate">
                       {evt.title}
                     </h3>
-                    <p className="text-xs text-slate-500">
-                      {evt.date}
-                      {evt.location ? ` · ${evt.location}` : ''}
-                    </p>
+                    <EventMeta event={evt} />
                   </div>
 
                   {/* 액션 아이콘들 (다운로드 -> 톱니바퀴 -> 휴지통) */}
@@ -3220,156 +3241,44 @@ export function EventAttendanceManagePage({
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* 1. 다운로드 (CSV 저장) */}
-                    <button
-                      type="button"
-                      onClick={() => handleExportEventCsv(evt)}
-                      className="p-2.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer"
-                      title="출석부 CSV 다운로드"
-                    >
-                      <Download size={20} />
-                    </button>
+                    <Tooltip label="출석부 CSV 다운로드">
+                      <button
+                        aria-label="출석부 CSV 다운로드"
+                        type="button"
+                        onClick={() => handleExportEventCsv(evt)}
+                        className="p-2 rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        <Download size={16} />
+                      </button>
+                    </Tooltip>
 
                     {/* 2. 톱니바퀴 (행사 설정) */}
-                    <button
-                      type="button"
-                      onClick={() => handleOpenBasicInfoSettings(evt)}
-                      className="p-2.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer group/btn"
-                      title="행사 기본 정보 수정"
-                    >
-                      <Settings
-                        size={20}
-                        className="group-hover/btn:rotate-45 transition-transform duration-200"
-                      />
-                    </button>
+                    <Tooltip label="행사 기본 정보 수정">
+                      <button
+                        aria-label="행사 기본 정보 수정"
+                        type="button"
+                        onClick={() => handleOpenBasicInfoSettings(evt)}
+                        className="p-2 rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer group/btn"
+                      >
+                        <Settings
+                          size={16}
+                          className="group-hover/btn:rotate-45 transition-transform duration-200"
+                        />
+                      </button>
+                    </Tooltip>
 
                     {/* 3. 휴지통 (행사 삭제) */}
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteEvent(evt.id, evt.title)}
-                      className="p-2.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                      title="행사 삭제"
-                    >
-                      <Trash2 size={20} />
-                    </button>
+                    <Tooltip label="행사 삭제">
+                      <button
+                        aria-label="행사 삭제"
+                        type="button"
+                        onClick={() => handleDeleteEvent(evt.id, evt.title)}
+                        className="p-2 rounded-sm text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </Tooltip>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ─── TAB 3: 양식 템플릿 설정 ─── */}
-      {subTab === 'forms' && (
-        <div className="space-y-5">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                출석 양식 템플릿 관리
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                운영지원팀의 용도에 맞게 출석 양식 템플릿과 추가 수집 항목(커스텀 필드)을 생성,
-                수정, 삭제합니다.
-              </p>
-            </div>
-
-            <button
-              onClick={handleOpenCreateTemplate}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
-            >
-              <Plus size={14} />
-              <span>+ 새 양식 템플릿 생성</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {templates.map((tmpl) => {
-              return (
-                <div
-                  key={tmpl.id}
-                  className="p-6 rounded-2xl bg-white border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-4 flex flex-col justify-between hover:border-slate-300 transition-all"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {tmpl.allowExternal ? (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
-                            외부인 허용
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
-                            부원 전용
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => {
-                            setIsNewTemplate(false);
-                            setEditingTemplate({
-                              ...tmpl,
-                              customFields: tmpl.customFields.map((f) => ({
-                                ...f,
-                                options: f.options ? [...f.options] : [],
-                              })),
-                            });
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 border border-slate-200 cursor-pointer transition-colors"
-                          title="양식 수정"
-                        >
-                          <Edit3 size={13} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTemplate(tmpl.id, tmpl.title)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 border border-slate-200 cursor-pointer transition-colors"
-                          title="양식 삭제"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-base font-bold text-slate-900">{tmpl.title}</h3>
-                      <p className="text-xs text-slate-500 leading-relaxed mt-1">
-                        {tmpl.description}
-                      </p>
-                    </div>
-
-                    {/* Custom Fields Summary */}
-                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                      <span className="text-[11px] font-bold text-slate-600">
-                        추가 입력 항목 ({tmpl.customFields.length}개):
-                      </span>
-                      {tmpl.customFields.length === 0 ? (
-                        <p className="text-[11px] text-slate-400">기본 인적사항만 수집</p>
-                      ) : (
-                        <div className="space-y-1">
-                          {tmpl.customFields.map((f) => (
-                            <div
-                              key={f.id}
-                              className="flex items-center justify-between text-[11px] text-slate-700 font-mono"
-                            >
-                              <span>• {f.label}</span>
-                              <span className="text-slate-400 text-[10px] font-sans">
-                                [{f.type === 'SELECT' ? '선택형' : '텍스트'}]{' '}
-                                {f.isRequired && <strong className="text-red-500">필수</strong>}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => handleCreateEventFromTemplate(tmpl)}
-                    className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
-                  >
-                    <Plus size={13} />
-                    <span>이 양식으로 행사 개설</span>
-                  </button>
                 </div>
               );
             })}

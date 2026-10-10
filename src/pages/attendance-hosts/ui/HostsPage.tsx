@@ -566,15 +566,9 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
           </h1>
         </div>
 
-        {/* 상단 우측 계정 생성 및 권한 추가 버튼 */}
+        {/* 상단 우측 계정 발급 및 권한 추가 버튼 */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={openNewIssueForm}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-2xs transition-[background-color,border-color,color,box-shadow,transform] duration-150 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 active:scale-[0.98] cursor-pointer"
-          >
-            <Plus size={14} className="text-slate-500" />
-            <span>계정 생성</span>
-          </button>
+          <CreateButton label="계정" aria-label="계정 발급" onClick={openNewIssueForm} />
         </div>
       </div>
 
@@ -1013,164 +1007,99 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                       <th className="text-center px-4 py-2 text-slate-900 font-bold bg-slate-50/80 min-w-[170px]">
                         아이디
                       </th>
-                      <th className="text-center px-4 py-2 text-slate-700 font-bold min-w-[170px]">
-                        비밀번호
-                      </th>
-                      <th className="text-center px-2 py-2 w-[56px]">
-                        {isDeleteMode && selectedAccounts.length > 0 ? (
-                          <button
-                            type="button"
-                            onClick={handleDeleteSelected}
-                            title="선택한 계정 삭제"
-                            aria-label="선택한 계정 삭제"
-                            className="inline-flex items-center justify-center p-1.5 text-rose-600 hover:text-rose-800 transition-colors cursor-pointer"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        ) : isDeleteMode ? (
-                          <button
-                            type="button"
-                            onClick={exitDeleteMode}
-                            title="삭제 모드 종료"
-                            aria-label="삭제 모드 종료"
-                            className="inline-flex items-center justify-center p-1.5 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
-                          >
-                            <Check size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setIsDeleteMode(true)}
-                            disabled={deletableAccounts.length === 0}
-                            title="계정 삭제"
-                            aria-label="계정 삭제 모드"
-                            className="inline-flex items-center justify-center p-1.5 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </th>
+                      <th className="text-center px-2 py-2 min-w-[96px]">비밀번호 재설정</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-sans">
                     {activeCategory === 'ADV' ? (
                       filteredAdvRows.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-slate-400">
+                          <td colSpan={6} className="py-8 text-center text-slate-400">
                             검색 조건에 일치하는 Adv 팀이 없습니다.
                           </td>
                         </tr>
                       ) : (
                         filteredAdvRows.map((row) => {
                           const account = row.account;
-                          if (!account) return null;
 
-                          const effectiveLeader = account.hostName || row.team.defaultLeader || '—';
-                          const effectiveGen = account.generation || '27기';
-                          const effectiveTrack = account.track || row.team.track || '분석';
+                          const person = rowPersonOf(row.team, account, users);
 
                           return (
                             <tr
                               key={row.team.id}
-                              className="hover:bg-slate-50/70 transition-colors divide-x divide-slate-200 h-[46px]"
+                              className="transition-colors divide-x divide-slate-200 h-[46px] hover:bg-slate-50/70"
                             >
                               {/* 팀 이름 */}
                               <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                                {teamNameOf(account, row.team.teamName)}
+                                {teamNameOf(account, row.team.title)}
                               </td>
 
-                              {/* 이름 */}
-                              <td className="px-4 py-2 text-center whitespace-nowrap">
-                                <span className="font-bold text-slate-900 text-xs">
-                                  {effectiveLeader}
-                                </span>
+                              {/* 이름: 현재 팀장 */}
+                              <td className="px-4 py-2 text-center whitespace-nowrap font-bold text-slate-900 text-xs">
+                                {person.name}
                               </td>
 
                               {/* 기수 */}
                               <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                                {effectiveGen}
+                                {person.generation}
                               </td>
 
                               {/* 부문 */}
                               <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                                {effectiveTrack}
+                                {person.track}
                               </td>
 
-                              {/* 아이디 */}
-                              <td className="px-4 py-2 text-center font-mono">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <code className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-[11px] border border-slate-200/80">
-                                    {account.username}
-                                  </code>
-                                  <button
-                                    onClick={() => copyToClipboard(account.username)}
-                                    title="아이디 복사"
-                                    className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                  >
-                                    <Copy size={12} />
-                                  </button>
-                                </div>
-                              </td>
+                              {/* 아이디·비밀번호·선택: 계정이 없으면 비워 둔다(계정이 아직 없다는 표시). */}
+                              {account ? (
+                                <>
+                                  {/* 아이디 */}
+                                  <td className="px-4 py-2 text-center font-mono">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <code className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-[11px] border border-slate-200/80">
+                                        {account.username}
+                                      </code>
+                                      <button
+                                        onClick={() => copyToClipboard(account.username)}
+                                        title="아이디 복사"
+                                        className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                                      >
+                                        <Copy size={12} />
+                                      </button>
+                                    </div>
+                                  </td>
 
-                              {/* 비밀번호 */}
-                              <td className="px-4 py-2 text-center font-mono">
-                                <div className="flex items-center justify-center gap-1.5">
-                                  <span className="text-slate-700">
-                                    {visiblePwId === account.id
-                                      ? account.initialPassword
-                                      : '••••••••'}
-                                  </span>
-                                  <button
-                                    onClick={() =>
-                                      setVisiblePwId(visiblePwId === account.id ? null : account.id)
-                                    }
-                                    className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                  >
-                                    {visiblePwId === account.id ? (
-                                      <EyeOff size={13} />
-                                    ) : (
-                                      <Eye size={13} />
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => copyToClipboard(account.initialPassword || '')}
-                                    title="비밀번호 복사"
-                                    className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                  >
-                                    <Copy size={12} />
-                                  </button>
-                                </div>
-                              </td>
-
-                              {/* 삭제 */}
-                              {renderSelectCell(account)}
+                                  {renderResetCell(account)}
+                                </>
+                              ) : (
+                                <>
+                                  <td className="px-4 py-2" aria-label="계정 없음" />
+                                  <td className="px-2 py-2" />
+                                </>
+                              )}
                             </tr>
                           );
                         })
                       )
                     ) : filteredStudyRows.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-slate-400">
+                        <td colSpan={7} className="py-8 text-center text-slate-400">
                           검색 조건에 일치하는 스터디 팀이 없습니다.
                         </td>
                       </tr>
                     ) : (
                       filteredStudyRows.map((row) => {
                         const account = row.account;
-                        if (!account) return null;
 
-                        const effectiveLeader = account.hostName || row.team.defaultLeader || '—';
-                        const effectiveGen = account.generation || '27기';
-                        const effectiveTrack = account.track || '분석';
+                        const person = rowPersonOf(row.team, account, users);
 
                         return (
                           <tr
                             key={row.team.id}
-                            className="hover:bg-slate-50/70 transition-colors divide-x divide-slate-200 h-[46px]"
+                            className="transition-colors divide-x divide-slate-200 h-[46px] hover:bg-slate-50/70"
                           >
                             {/* 팀 이름 */}
                             <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                              {teamNameOf(account, row.team.teamName)}
+                              {teamNameOf(account, row.team.title)}
                             </td>
 
                             {/* 스터디 유형: 멘멘 스터디 / 일반 스터디 */}
@@ -1178,71 +1107,48 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                               {studyKindLabel(row.team.studyKind)}
                             </td>
 
-                            {/* 이름 */}
-                            <td className="px-4 py-2 text-center whitespace-nowrap">
-                              <span className="font-bold text-slate-900 text-xs">
-                                {effectiveLeader}
-                              </span>
+                            {/* 이름: 현재 팀장 */}
+                            <td className="px-4 py-2 text-center whitespace-nowrap font-bold text-slate-900 text-xs">
+                              {person.name}
                             </td>
 
                             {/* 기수 */}
                             <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                              {effectiveGen}
+                              {person.generation}
                             </td>
 
                             {/* 부문 */}
                             <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                              {effectiveTrack}
+                              {person.track}
                             </td>
 
-                            {/* 아이디 */}
-                            <td className="px-4 py-2 text-center font-mono">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <code className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-[11px] border border-slate-200/80">
-                                  {account.username}
-                                </code>
-                                <button
-                                  onClick={() => copyToClipboard(account.username)}
-                                  title="아이디 복사"
-                                  className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                >
-                                  <Copy size={12} />
-                                </button>
-                              </div>
-                            </td>
+                            {/* 아이디·비밀번호·선택: 계정이 없으면 비워 둔다(계정이 아직 없다는 표시). */}
+                            {account ? (
+                              <>
+                                {/* 아이디 */}
+                                <td className="px-4 py-2 text-center font-mono">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <code className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-[11px] border border-slate-200/80">
+                                      {account.username}
+                                    </code>
+                                    <button
+                                      onClick={() => copyToClipboard(account.username)}
+                                      title="아이디 복사"
+                                      className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                                    >
+                                      <Copy size={12} />
+                                    </button>
+                                  </div>
+                                </td>
 
-                            {/* 비밀번호 */}
-                            <td className="px-4 py-2 text-center font-mono">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <span className="text-slate-700">
-                                  {visiblePwId === account.id
-                                    ? account.initialPassword
-                                    : '••••••••'}
-                                </span>
-                                <button
-                                  onClick={() =>
-                                    setVisiblePwId(visiblePwId === account.id ? null : account.id)
-                                  }
-                                  className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                >
-                                  {visiblePwId === account.id ? (
-                                    <EyeOff size={13} />
-                                  ) : (
-                                    <Eye size={13} />
-                                  )}
-                                </button>
-                                <button
-                                  onClick={() => copyToClipboard(account.initialPassword || '')}
-                                  title="비밀번호 복사"
-                                  className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                >
-                                  <Copy size={12} />
-                                </button>
-                              </div>
-                            </td>
-
-                            {/* 삭제 */}
-                            {renderSelectCell(account)}
+                                {renderResetCell(account)}
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-4 py-2" aria-label="계정 없음" />
+                                <td className="px-2 py-2" />
+                              </>
+                            )}
                           </tr>
                         );
                       })
@@ -1255,45 +1161,63 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
         </main>
       </div>
 
-      {/* 삭제 모드: 하단 플로팅 액션 필 (선택 개수 + 삭제 + 취소) */}
-      {isDeleteMode && (
-        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 flex items-center gap-1 rounded-full bg-slate-900 py-1.5 pl-4 pr-1.5 text-white shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150">
-          <span className="pr-2 text-xs font-semibold tabular-nums">
-            {selectedAccounts.length > 0
-              ? `${selectedAccounts.length}개 선택됨`
-              : '계정을 선택해 주세요'}
-          </span>
-          <button
-            type="button"
-            onClick={toggleSelectAll}
-            disabled={deletableAccounts.length === 0}
-            title={isAllSelected ? '전체 선택 해제' : '전체 선택'}
-            aria-label={isAllSelected ? '전체 선택 해제' : '전체 선택'}
-            className={`inline-flex size-8 items-center justify-center rounded-full hover:bg-white/10 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-30 ${
-              isAllSelected ? 'text-white' : 'text-slate-400 hover:text-white'
-            }`}
+      {passwordResetTarget && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="password-reset-title"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setPasswordResetTarget(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <form
+            onSubmit={handleResetPassword}
+            className="w-full max-w-sm overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]"
           >
-            <CheckCheck size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={handleDeleteSelected}
-            disabled={selectedAccounts.length === 0}
-            title="선택 항목 삭제"
-            aria-label="선택 항목 삭제"
-            className="inline-flex size-8 items-center justify-center rounded-full text-rose-300 hover:bg-white/10 hover:text-rose-200 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
-          >
-            <Trash2 size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={exitDeleteMode}
-            title="취소"
-            aria-label="삭제 모드 취소"
-            className="inline-flex size-8 items-center justify-center rounded-full text-slate-300 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-          >
-            <X size={15} />
-          </button>
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <h3 id="password-reset-title" className="text-sm font-bold text-slate-900">
+                비밀번호 재생성
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPasswordResetTarget(null)}
+                aria-label="비밀번호 재생성 창 닫기"
+                className="flex size-9 items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div>
+                <label
+                  htmlFor="new-host-password"
+                  className="mb-1.5 block text-xs font-semibold text-slate-700"
+                >
+                  새 비밀번호
+                </label>
+                <input
+                  id="new-host-password"
+                  type="text"
+                  required
+                  autoFocus
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="새 비밀번호 직접 입력"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  className="w-full rounded-sm border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-800 outline-none transition-all focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-100"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!newPassword.trim()}
+                className="w-full rounded-sm border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-2xs transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+              >
+                비밀번호 재생성
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -1323,55 +1247,37 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
                   >
                     {deliveryModal.title} 계정 전달문
                   </h3>
-                  <p className="mt-0.5 text-[11px] text-slate-500">카카오톡 · 슬랙 전달용</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setDeliveryModal(null)}
                 aria-label="전달문 닫기"
-                className="flex size-10 shrink-0 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                className="flex size-10 shrink-0 items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             <div className="space-y-3 px-6 py-5">
-              <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
-                <span className="text-xs text-slate-600 text-wrap-pretty">
-                  내용을 확인한 뒤 팀장님께 전달해 주세요.
-                </span>
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(deliveryModal.text)}
-                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-slate-800 px-3 text-xs font-semibold text-white shadow-2xs transition-[background-color,transform] hover:bg-slate-700 active:scale-[0.97] active:bg-slate-900 cursor-pointer"
-                >
-                  {copiedNotice ? <Check size={13} /> : <Copy size={13} />}
-                  <span>{copiedNotice ? '복사 완료' : '전달문 복사'}</span>
-                </button>
-              </div>
-
               <textarea
                 ref={deliveryTextRef}
                 rows={11}
                 aria-label="계정 전달문 내용"
                 value={deliveryModal.text}
                 onChange={(e) => setDeliveryModal({ ...deliveryModal, text: e.target.value })}
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 font-mono text-xs leading-6 text-slate-700 outline-none transition-[background-color,border-color,box-shadow] focus:border-slate-400 focus:bg-white focus:ring-3 focus:ring-slate-100"
+                className="w-full resize-none rounded-sm border border-slate-200 bg-slate-50 p-4 font-mono text-xs leading-6 text-slate-700 outline-none transition-[background-color,border-color,box-shadow] focus:border-slate-400 focus:bg-white focus:ring-3 focus:ring-slate-100"
               />
-            </div>
-
-            <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/70 px-6 py-3.5">
-              <span className="text-[11px] font-medium text-slate-500">
-                HOST 계정: {deliveryModal.host.username}
-              </span>
-              <button
-                type="button"
-                onClick={() => setDeliveryModal(null)}
-                className="h-9 rounded-lg border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-700 shadow-2xs transition-colors hover:bg-slate-100 cursor-pointer"
-              >
-                닫기
-              </button>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(deliveryModal.text)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.97] cursor-pointer"
+                >
+                  {copiedNotice ? <Check size={13} /> : <Copy size={13} />}
+                  <span>{copiedNotice ? '복사 완료' : '전달문 복사'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
