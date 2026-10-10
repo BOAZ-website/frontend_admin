@@ -1,100 +1,56 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, RefreshCw, Search, Star } from 'lucide-react';
 
+import { fetchScoreSheet } from '@/entities/attendance/api/attendanceApi';
 import { fetchActiveAttendanceTerms } from '@/entities/attendance/api/termsApi';
-import { sessionKey } from '@/entities/attendance/model/lib';
-import { isConcurrentBaseMember } from '@/entities/attendance/model/concurrent';
-import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
-import { getRuleForTerm } from '@/entities/score-rule/model/lib';
-import type { ScoreRule } from '@/entities/score-rule/model/types';
-import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
+import type { ScoreSheetMemberDto, ScoreSheetResponse } from '@/entities/attendance/model/dto';
+import type { AttendanceStatus } from '@/entities/attendance/model/types';
+import { Tooltip } from '@/shared/ui/Tooltip';
+import { withoutKeys } from '@/shared/lib/object';
+
+/** CSV 저장을 아직 할 수 없는 이유. 저장 버튼에 마우스를 올리면 보인다. */
+const CSV_BLOCKED_REASON = '활동 점수가 아직 연결되지 않아 저장할 수 없습니다';
 
 export type AggregationTab = 'BASE_MID' | 'ADV_MID' | 'BASE_FINAL' | 'ADV_FINAL';
-export type ViewMode = 'status' | 'score';
-
-// 1~7주차 방학 세션 일정 정의 (사용자 엑셀 명세 준수)
-const SESSION_WEEKS = [
-  { id: 'w1', weekNum: 1, label: '1주차', date: '2026-07-06' },
-  { id: 'w2', weekNum: 2, label: '2주차', date: '2026-07-13' },
-  { id: 'w3', weekNum: 3, label: '3주차', date: '2026-07-20' },
-  { id: 'w4', weekNum: 4, label: '4주차', date: '2026-07-27' },
-  { id: 'w5', weekNum: 5, label: '5주차', date: '2026-08-03' },
-  { id: 'w6', weekNum: 6, label: '6주차', date: '2026-08-10' },
-  { id: 'w7', weekNum: 7, label: '7주차', date: '2026-08-17' },
-];
 
 export type DisplayStatus = '출석' | '비대면' | '지각' | '조퇴' | '결석' | '인정결석' | '미정';
 
-interface MemberFullRecord {
-  id: string;
-  name: string;
-  term: number;
-  track: '분석' | '엔지니어링' | '시각화';
-  // 1~7주차 출결 상태
-  sessionWeeks: DisplayStatus[];
+/**
+ * 점수표 한 행. 주차·감점·점수는 모두 API(GET /api/v1/attendance/score-sheet)가 계산해 내려주고,
+ * 화면은 출결 상태를 표시용 글자로 바꾸기만 한다.
+ */
+type MemberFullRecord = Omit<ScoreSheetMemberDto, 'statuses'> & { sessionWeeks: DisplayStatus[] };
 
-  // 1. BASE 중간 항목
-  baseDefaultScore: number; // 기본점수 10점
-  lateCount: number; // 지각 회수
-  lateDeduction: number; // 기본 -1, 무단 3회시 -4
-  earlyLeaveCount: number; // 조퇴 회수
-  earlyLeaveDeduction: number; // 기본 -1
-  absentCount: number; // 결석 회수
-  absentDeduction: number; // 기본 -3, 무단 -4, 인정 -0
-  attendanceScore: number; // 출석점수 = 10 - 감점들
-  baseStudyScore: number; // 스터디 점수 (감점 포함)
-  chinbaScore: number; // 친바 참여점수 (회당 +0.5)
-  promoScore: number; // 홍보점수 (컨퍼런스)
-  baseTaskScore: number; // BASE 과제점수 (분석 6회, 시각화 4회, 미제출시 -0.5)
-  mtScore: number; // MT 참여 (정규세션과 동일)
-  etcScore: number; // 기타
-  baseMidScore: number; // BASE 중간점수
-
-  // 2. ADV 중간 항목
-  baseFinalRefScore: number; // BASE 최종점수
-  advStudyScore: number; // 스터디 점수 (미이수 0, 기본 +1, 개근 +3, 팀장 +1)
-  confScore: number; // 컨퍼런스 참여 (출석당 1점)
-  advMidScore: number; // ADV 중간점수
-
-  // 3. BASE 최종 집계 항목
-  termSessionScore: number; // 학기세션 출석
-  finalTaskScore: number; // 과제점수
-  termStudyScore: number; // 학기스터디
-  officerScore: number; // 운영진
-  jointSessionScore: number; // 공동세션
-  finalEtcScore: number; // 기타점수
-  newRecruitPromoScore: number; // 신입모집 홍보점수
-  parallelMidScore: number; // 병행 중간점수
-  parallelScore: number; // 병행점수
-  parallelAttendance: number; // 병행출석
-  parallelGiveup: string; // 병행포기
-  baseFinalScore: number; // BASE 최종점수
-
-  // 4. ADV 최종 집계 항목
-  advFinalScore: number; // ADV 최종점수
-  isTop5: boolean; // 상위 5명
+function toDisplayStatus(status: AttendanceStatus | null): DisplayStatus {
+  if (status === 'present') return '출석';
+  if (status === 'remote') return '비대면';
+  if (status === 'late' || status === 'unexcusedLate') return '지각';
+  if (status === 'earlyLeave') return '조퇴';
+  if (status === 'excusedAbsent') return '인정결석';
+  if (status === 'absent' || status === 'unexcusedAbsent') return '결석';
+  return '미정';
 }
 
-export function ScoresPage({
-  attendance,
-  studyTeams,
-  advTeams,
-  baseTeams,
-  membersMap,
-  scoreRules,
-}: {
-  attendance: AttendanceState;
-  studyTeams: StudyTeamInfo[];
-  advTeams: StudyTeamInfo[];
-  baseTeams: StudyTeamInfo[];
-  membersMap: Record<string, Member[]>;
-  scoreRules?: ScoreRule[];
-}) {
+type SheetGroup = ScoreSheetResponse['group'];
+
+/** 구분(BASE·ADV)별로 받아 둔 점수표와 읽기 실패 사유. */
+interface ScoreSheetCache {
+  sheets: Partial<Record<SheetGroup, ScoreSheetResponse>>;
+  errors: Partial<Record<SheetGroup, Error>>;
+}
+
+const SHEET_GROUPS: readonly SheetGroup[] = ['BASE', 'ADV'];
+
+/**
+ * 출결 점수 집계 탭. 탭을 열면 BASE·ADV 점수표를 둘 다 API에서 읽어 두고,
+ * 탭을 바꾸면 받아 둔 표를 바로 보여 주면서 그 구분의 점수표를 다시 읽어 갱신한다(표가 비었다가 다시 채워지며 깜빡이지 않게).
+ */
+export function ScoresPage() {
   const [activeTab, setActiveTab] = useState<AggregationTab>('BASE_MID');
 
   // 검색 및 필터 상태
   const [searchQuery, setSearchQuery] = useState('');
-  const [termsList, setTermsList] = useState<string[]>(['26', '27']);
+  const [termsList, setTermsList] = useState<string[]>([]);
   const [termFilter, setTermFilter] = useState<string>('ALL');
   const [trackFilter, setTrackFilter] = useState<'ALL' | '분석' | '엔지니어링' | '시각화'>('ALL');
   const [isLoadingTerms, setIsLoadingTerms] = useState(false);
@@ -108,7 +64,7 @@ export function ScoresPage({
         setTermsList(fetched);
       }
     } catch {
-      // fallback
+      // 기수 목록을 못 읽으면 '전체'만 보여준다. 점수표 자체의 오류는 아래에서 따로 표시한다.
     } finally {
       setIsLoadingTerms(false);
     }
@@ -118,248 +74,56 @@ export function ScoresPage({
     loadTerms();
   }, []);
 
-  // 전체 부원 데이터 구축 및 엑셀 수식 기반 점수 산정
-  const leaderIds = useMemo(
-    () => new Set([...studyTeams, ...advTeams].map((team) => team.leaderId).filter(Boolean)),
-    [studyTeams, advTeams],
+  // BASE 탭은 BASE 트랙 출결, ADV 탭은 ADV 팀 출결로 계산한 점수표를 API에서 받는다.
+  const group = activeTab.startsWith('BASE') ? 'BASE' : 'ADV';
+  const [sheetCache, setSheetCache] = useState<ScoreSheetCache>({ sheets: {}, errors: {} });
+  const loadSheet = useCallback((target: SheetGroup) => {
+    fetchScoreSheet({ group: target })
+      .then((sheet) =>
+        setSheetCache((prev) => {
+          return {
+            sheets: { ...prev.sheets, [target]: sheet },
+            errors: withoutKeys(prev.errors, target),
+          };
+        }),
+      )
+      .catch((error: unknown) =>
+        setSheetCache((prev) => ({
+          ...prev,
+          errors: {
+            ...prev.errors,
+            [target]: error instanceof Error ? error : new Error(String(error)),
+          },
+        })),
+      );
+  }, []);
+  // 처음 열 때 다른 구분의 점수표도 미리 읽어 둔다.
+  useEffect(() => {
+    SHEET_GROUPS.forEach(loadSheet);
+  }, [loadSheet]);
+  // 탭을 바꾸면 그 구분의 점수표를 다시 읽어 최신 값으로 갱신한다(받아 둔 표는 그동안 그대로 보인다).
+  const isFirstGroupRef = useRef(true);
+  useEffect(() => {
+    if (isFirstGroupRef.current) {
+      isFirstGroupRef.current = false;
+      return;
+    }
+    loadSheet(group);
+  }, [group, loadSheet]);
+  const sheet = sheetCache.sheets[group] ?? null;
+  const sheetError = sheet ? null : (sheetCache.errors[group] ?? null);
+  const isLoadingSheet = !sheet && !sheetError;
+  const weeks = sheet?.weeks ?? [];
+  const weekLabels = weeks.map((week) => week.label);
+
+  const allMemberRecords: MemberFullRecord[] = useMemo(
+    () =>
+      (sheet?.members ?? []).map(({ statuses, ...row }) => ({
+        ...row,
+        sessionWeeks: statuses.map(toDisplayStatus),
+      })),
+    [sheet],
   );
-
-  const allMemberRecords: MemberFullRecord[] = useMemo(() => {
-    const list: {
-      id: string;
-      name: string;
-      term: number;
-      track: '분석' | '엔지니어링' | '시각화';
-    }[] = [];
-    const seenIds = new Set<string>();
-    const teams = [...baseTeams, ...studyTeams, ...advTeams];
-    const userIdOf = (member: Member, teamId: string) =>
-      member.id.startsWith(`${teamId}_`) ? member.id.slice(teamId.length + 1) : member.id;
-
-    // 팀별 회원 ID에서 원본 사용자 ID를 복원해 동명이인을 구분한다.
-    teams.forEach((team) => {
-      const mList = membersMap[team.id] ?? [];
-      mList.forEach((m) => {
-        const userId = userIdOf(m, team.id);
-        if (seenIds.has(userId)) return;
-        seenIds.add(userId);
-        const track = (m.track as '분석' | '엔지니어링' | '시각화') || '분석';
-        list.push({ id: userId, name: m.name, term: Number(m.year) || 0, track });
-      });
-    });
-
-    // 기본 정렬: 기수 순 -> 이름 가나다 순 (사용자 제공 엑셀 형태: 27기 고준서, 김동현, 남소희 ...)
-    list.sort((a, b) => {
-      if (a.term !== b.term) return a.term - b.term;
-      return a.name.localeCompare(b.name, 'ko');
-    });
-
-    // 각 부원별 실무 엑셀 수식 점수 계산
-    const calculated: MemberFullRecord[] = list.map((m) => {
-      const memberTeams = teams.filter((team) =>
-        (membersMap[team.id] ?? []).some((member) => userIdOf(member, team.id) === m.id),
-      );
-      const selectedTeams = activeTab.startsWith('BASE')
-        ? memberTeams.filter((team) => baseTeams.some((base) => base.id === team.id))
-        : memberTeams.filter((team) => advTeams.some((adv) => adv.id === team.id));
-      const selectedTeam = selectedTeams[0];
-      const selectedMember =
-        selectedTeam &&
-        (membersMap[selectedTeam.id] ?? []).find(
-          (member) => userIdOf(member, selectedTeam.id) === m.id,
-        );
-
-      // 1) 1~7주차 방학 세션 출결 상태 (사용자 이미지 스타일 일치)
-      const rawStatuses: Array<AttendanceStatus | undefined> = SESSION_WEEKS.map((week) =>
-        selectedTeam && selectedMember
-          ? attendance[sessionKey(week.id, 'study', selectedTeam.id)]?.statuses[selectedMember.id]
-          : undefined,
-      );
-      const sessionWeeks: DisplayStatus[] = rawStatuses.map((status) => {
-        if (status === 'present') return '출석';
-        if (status === 'remote') return '비대면';
-        if (status === 'late' || status === 'unexcusedLate') return '지각';
-        if (status === 'earlyLeave') return '조퇴';
-        if (status === 'excusedAbsent') return '인정결석';
-        if (status === 'absent' || status === 'unexcusedAbsent') return '결석';
-        return '미정';
-      });
-
-      // 2) 출결 감점 계산 (해당 부원의 기수별 점수 규칙 적용)
-      const termRule = scoreRules ? getRuleForTerm(scoreRules, m.term) : undefined;
-      const latePenalty = termRule?.latePenalty ?? -1;
-      const unexcusedLatePenalty = termRule?.unexcusedLatePenalty ?? -4;
-      const earlyLeavePenalty = termRule?.earlyLeavePenalty ?? -1;
-      const absentPenalty = termRule?.absentPenalty ?? -3;
-      const unexcusedAbsentPenalty = termRule?.unexcusedAbsentPenalty ?? -4;
-
-      const lateCount = rawStatuses.filter(
-        (status) => status === 'late' || status === 'unexcusedLate',
-      ).length;
-      const lateDeduction = rawStatuses.reduce<number>(
-        (sum, status) =>
-          sum +
-          (status === 'unexcusedLate' ? unexcusedLatePenalty : status === 'late' ? latePenalty : 0),
-        0,
-      );
-
-      const earlyLeaveCount = rawStatuses.filter((status) => status === 'earlyLeave').length;
-      const earlyLeaveDeduction = earlyLeaveCount * earlyLeavePenalty;
-
-      const absentCount = rawStatuses.filter(
-        (status) => status === 'absent' || status === 'unexcusedAbsent',
-      ).length;
-      const absentDeduction = rawStatuses.reduce<number>(
-        (sum, status) =>
-          sum +
-          (status === 'unexcusedAbsent'
-            ? unexcusedAbsentPenalty
-            : status === 'absent'
-              ? absentPenalty
-              : 0),
-        0,
-      );
-
-      const baseDefaultScore = 10;
-      const attendanceScore = Math.max(
-        0,
-        baseDefaultScore + lateDeduction + earlyLeaveDeduction + absentDeduction,
-      );
-
-      // 3) 활동 점수 (친바, 홍보, 과제, 스터디, MT, 컨퍼런스)
-      const chinbaScore = 0;
-      const promoScore = 0;
-      const mtScore = 0;
-      const etcScore = 0;
-
-      // BASE 스터디 & 과제
-      const baseStudyScore = 0;
-      const baseTaskScore = 0;
-
-      // BASE 중간점수 (출석점수 + 스터디 + 친바 + 홍보 + 과제 + MT + 기타)
-      const baseMidScore = Number(
-        (
-          attendanceScore +
-          baseStudyScore +
-          chinbaScore +
-          promoScore +
-          baseTaskScore +
-          mtScore +
-          etcScore
-        ).toFixed(1),
-      );
-
-      // ADV 중간 항목
-      const baseFinalRefScore = 0;
-      // 스터디 점수: 미이수 0, 기본 +1, 개근 +3, 팀장 +1
-      const isLeader = leaderIds.has(m.id);
-      const advStudyScore = 0;
-      const confScore = 0;
-      const advMidScore = Number(
-        (
-          attendanceScore +
-          advStudyScore +
-          chinbaScore +
-          promoScore +
-          confScore +
-          mtScore +
-          etcScore
-        ).toFixed(1),
-      );
-
-      // BASE 최종 집계 항목
-      const termSessionScore = 0;
-      const finalTaskScore = 0;
-      const termStudyScore = 0;
-      const officerScore = isLeader ? 2 : 0;
-      const jointSessionScore = 0;
-      const finalEtcScore = 0;
-      const newRecruitPromoScore = 0;
-      const isParallel = isConcurrentBaseMember(
-        m.id,
-        '',
-        m.term,
-        baseTeams,
-        [...advTeams, ...studyTeams],
-        membersMap,
-      );
-      const parallelMidScore = 0;
-      const parallelScore = 0;
-      const parallelAttendance = 0;
-      const parallelGiveup: string = isParallel ? '미연동' : '-';
-
-      const baseFinalScore = Number(
-        (
-          baseMidScore +
-          termSessionScore +
-          finalTaskScore +
-          termStudyScore +
-          officerScore +
-          jointSessionScore +
-          finalEtcScore +
-          newRecruitPromoScore +
-          (parallelGiveup === 'O' ? 0 : parallelScore)
-        ).toFixed(1),
-      );
-
-      // ADV 최종 집계 항목
-      const advFinalScore = Number(
-        (
-          advMidScore +
-          termSessionScore +
-          termStudyScore +
-          officerScore +
-          jointSessionScore +
-          finalEtcScore +
-          newRecruitPromoScore +
-          (parallelGiveup === 'O' ? 0 : parallelScore)
-        ).toFixed(1),
-      );
-
-      return {
-        id: m.id,
-        name: m.name,
-        term: m.term,
-        track: m.track,
-        sessionWeeks,
-        baseDefaultScore,
-        lateCount,
-        lateDeduction,
-        earlyLeaveCount,
-        earlyLeaveDeduction,
-        absentCount,
-        absentDeduction,
-        attendanceScore,
-        baseStudyScore,
-        chinbaScore,
-        promoScore,
-        baseTaskScore,
-        mtScore,
-        etcScore,
-        baseMidScore,
-        baseFinalRefScore,
-        advStudyScore,
-        confScore,
-        advMidScore,
-        termSessionScore,
-        finalTaskScore,
-        termStudyScore,
-        officerScore,
-        jointSessionScore,
-        finalEtcScore,
-        newRecruitPromoScore,
-        parallelMidScore,
-        parallelScore,
-        parallelAttendance,
-        parallelGiveup,
-        baseFinalScore,
-        advFinalScore,
-        isTop5: false,
-      };
-    });
-
-    return calculated;
-  }, [membersMap, leaderIds, scoreRules, attendance, activeTab, baseTeams, advTeams, studyTeams]);
 
   // 필터링 적용
   const filteredRecords = useMemo(() => {
@@ -408,13 +172,7 @@ export function ScoresPage({
         '기수',
         '부문',
         '이름',
-        '1주차',
-        '2주차',
-        '3주차',
-        '4주차',
-        '5주차',
-        '6주차',
-        '7주차',
+        ...weekLabels,
         '기본점수',
         '지각',
         '조퇴',
@@ -451,13 +209,7 @@ export function ScoresPage({
         '기수',
         '부문',
         '이름',
-        '1주차',
-        '2주차',
-        '3주차',
-        '4주차',
-        '5주차',
-        '6주차',
-        '7주차',
+        ...weekLabels,
         'BASE 최종점수',
         '지각',
         '조퇴',
@@ -602,10 +354,10 @@ export function ScoresPage({
         <div className="flex items-center gap-1 p-1 rounded-md bg-slate-100 border border-slate-200">
           <button
             onClick={() => setActiveTab('BASE_MID')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
               activeTab === 'BASE_MID'
-                ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'border-slate-200 bg-white text-slate-900 shadow-xs'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             BASE 중간 점수 집계
@@ -613,10 +365,10 @@ export function ScoresPage({
 
           <button
             onClick={() => setActiveTab('ADV_MID')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
               activeTab === 'ADV_MID'
-                ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'border-slate-200 bg-white text-slate-900 shadow-xs'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             ADV 중간 점수 집계
@@ -624,10 +376,10 @@ export function ScoresPage({
 
           <button
             onClick={() => setActiveTab('BASE_FINAL')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
               activeTab === 'BASE_FINAL'
-                ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'border-slate-200 bg-white text-slate-900 shadow-xs'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             BASE 최종 점수 집계
@@ -635,32 +387,35 @@ export function ScoresPage({
 
           <button
             onClick={() => setActiveTab('ADV_FINAL')}
-            className={`px-3.5 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
               activeTab === 'ADV_FINAL'
-                ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'border-slate-200 bg-white text-slate-900 shadow-xs'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
             ADV 최종 점수 집계
           </button>
         </div>
 
-        {/* CSV 다운로드 버튼 */}
+        {/* CSV 저장 버튼: 아이콘만 있는 버튼. 지금은 저장할 수 없어서, 마우스를 올리면 금지 표시와 그 이유가 뜬다. */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleDownloadCsv}
-            disabled
-            title="활동 점수 데이터가 연결되면 내보낼 수 있습니다."
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 rounded-md shadow-xs transition-all cursor-pointer"
-          >
-            <Download size={13} />
-            <span>CSV 다운로드 준비 중</span>
-          </button>
+          <Tooltip label={CSV_BLOCKED_REASON} align="end" isBlocked>
+            <button
+              type="button"
+              onClick={handleDownloadCsv}
+              disabled
+              aria-label={`CSV 저장 (${CSV_BLOCKED_REASON})`}
+              // 쓸 수 없는 버튼은 마우스 동작을 감싼 칸(말풍선)에 넘긴다.
+              className="pointer-events-none inline-flex size-9 items-center justify-center rounded-sm text-slate-300"
+            >
+              <Download size={16} aria-hidden="true" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
       {/* 2. 필터 바 및 범례 */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 flex items-center justify-between flex-wrap gap-3 shadow-2xs">
+      <div className="bg-white rounded-md border border-slate-200/90 p-3.5 flex items-center justify-between flex-wrap gap-3 shadow-2xs">
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* 이름 검색 */}
           <div className="relative">
@@ -684,12 +439,11 @@ export function ScoresPage({
               <button
                 onClick={() => {
                   setTermFilter('ALL');
-                  loadTerms();
                 }}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
                   termFilter === 'ALL'
-                    ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80'
-                    : 'text-slate-500 hover:text-slate-900'
+                    ? 'border-slate-200/80 bg-white text-slate-900 shadow-xs'
+                    : 'border-transparent text-slate-500 hover:text-slate-900'
                 }`}
               >
                 전체
@@ -699,12 +453,11 @@ export function ScoresPage({
                   key={tm}
                   onClick={() => {
                     setTermFilter(tm);
-                    loadTerms();
                   }}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
                     termFilter === tm
-                      ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80'
-                      : 'text-slate-500 hover:text-slate-900'
+                      ? 'border-slate-200/80 bg-white text-slate-900 shadow-xs'
+                      : 'border-transparent text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   {tm}기
@@ -724,10 +477,10 @@ export function ScoresPage({
                 <button
                   key={tr}
                   onClick={() => setTrackFilter(tr)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-sm transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-sm transition-all cursor-pointer border ${
                     trackFilter === tr
-                      ? 'bg-white text-slate-900 font-bold shadow-xs border border-slate-200/80'
-                      : 'text-slate-500 hover:text-slate-900'
+                      ? 'border-slate-200/80 bg-white text-slate-900 shadow-xs'
+                      : 'border-transparent text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   {tr === 'ALL' ? '전체' : tr}
@@ -766,9 +519,9 @@ export function ScoresPage({
                     이름
                   </th>
 
-                  {/* 방학 세션 출결 점수 7주차 묶음 헤더 */}
+                  {/* 방학 세션 출결 점수 주차 묶음 헤더 */}
                   <th
-                    colSpan={7}
+                    colSpan={Math.max(weeks.length, 1)}
                     className="py-2.5 px-2 text-center font-bold text-blue-900 bg-blue-50/70 border-r border-slate-200/60 border-b border-blue-200/80 tracking-tight"
                   >
                     방학 세션 출결 점수
@@ -819,11 +572,11 @@ export function ScoresPage({
                   </th>
                 </tr>
 
-                {/* 2행: 1주차~7주차 및 각 컬럼 감점/안내 */}
+                {/* 2행: 주차(API가 내려준 주차) 및 각 컬럼 감점/안내 */}
                 <tr className="bg-[#f8fafc] border-b border-slate-200 text-xs">
-                  {SESSION_WEEKS.map((w) => (
+                  {weeks.map((w) => (
                     <th
-                      key={w.id}
+                      key={w.weekNum}
                       className="min-w-[70px] py-2.5 px-1 text-center border-r border-slate-200/60 bg-blue-50/20 font-bold text-slate-900 text-xs"
                     >
                       {w.label}
@@ -851,7 +604,7 @@ export function ScoresPage({
                   </th>
 
                   <th className="py-2 px-1 text-center border-r border-slate-200/60 text-[10px] text-slate-500 font-normal">
-                    감점 포함
+                    결석 횟수 기준
                   </th>
                   <th className="py-2 px-1 text-center border-r border-slate-200/60 text-[10px] text-emerald-600 font-semibold">
                     회당 +0.5
@@ -961,9 +714,9 @@ export function ScoresPage({
                     이름
                   </th>
 
-                  {/* 방학 세션 출결 7주차 묶음 헤더 */}
+                  {/* 방학 세션 출결 주차 묶음 헤더 */}
                   <th
-                    colSpan={7}
+                    colSpan={Math.max(weeks.length, 1)}
                     className="py-2.5 px-2 text-center font-bold text-purple-900 bg-purple-50/70 border-r border-slate-200/60 border-b border-purple-200/80 tracking-tight"
                   >
                     방학 세션 출결
@@ -1014,11 +767,11 @@ export function ScoresPage({
                   </th>
                 </tr>
 
-                {/* 2행: 1주차~7주차 및 각 컬럼 감점/안내 */}
+                {/* 2행: 주차(API가 내려준 주차) 및 각 컬럼 감점/안내 */}
                 <tr className="bg-[#f8fafc] border-b border-slate-200 text-xs">
-                  {SESSION_WEEKS.map((w) => (
+                  {weeks.map((w) => (
                     <th
-                      key={w.id}
+                      key={w.weekNum}
                       className="min-w-[70px] py-2.5 px-1 text-center border-r border-slate-200/60 bg-purple-50/20 font-bold text-slate-900 text-xs"
                     >
                       {w.label}
@@ -1045,10 +798,8 @@ export function ScoresPage({
                     SUM
                   </th>
 
-                  <th className="py-2 px-1 text-center border-r border-slate-200/60 text-[9.5px] text-slate-500 font-normal leading-tight">
-                    미0/기1
-                    <br />
-                    개3/팀1
+                  <th className="py-2 px-1 text-center border-r border-slate-200/60 text-[10px] text-slate-500 font-normal">
+                    결석 횟수 기준
                   </th>
                   <th className="py-2 px-1 text-center border-r border-slate-200/60 text-[10px] text-emerald-600 font-semibold">
                     회당 +0.5
@@ -1431,24 +1182,17 @@ export function ScoresPage({
           )}
         </div>
 
-        {/* 테이블 하단 푸터 바 */}
-        <div className="px-5 py-3 border-t border-slate-200 bg-[#f8fafc] flex items-center justify-between flex-wrap gap-2 text-xs text-slate-500">
-          <div>
-            총 <span className="font-bold text-slate-800">{filteredRecords.length}</span>명의 부원
-            점수가 집계되었습니다. (정렬: 기수 순 → 가나다 순)
+        {(sheetError || isLoadingSheet) && (
+          <div
+            className={`px-5 py-3 border-t border-slate-200 text-xs ${
+              sheetError ? 'text-red-600 bg-red-50' : 'text-slate-500'
+            }`}
+          >
+            {sheetError
+              ? `점수표를 불러오지 못했습니다. (${sheetError.message})`
+              : '점수표를 불러오는 중입니다.'}
           </div>
-          <div className="flex items-center gap-4 text-xs">
-            {activeTab === 'ADV_FINAL' && (
-              <span className="text-amber-700 font-semibold flex items-center gap-1">
-                <Star size={12} className="fill-amber-500 text-amber-500" />
-                활동 점수 미연동 · 순위 미확정
-              </span>
-            )}
-            <span className="text-slate-400">
-              출결 점수는 실제 기록을 사용합니다. 활동 점수는 미연동이며 0점으로 표시됩니다.
-            </span>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
