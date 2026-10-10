@@ -569,9 +569,11 @@ export function EventAttendanceManagePage({
   });
 
   // 새 행사 등록 창에서 올린 CSV 명단(행사를 만들 때 함께 등록)
-  const [newEventRoster, setNewEventRoster] = useState<ParsedRosterItem[]>([]);
-  const [newEventCsvName, setNewEventCsvName] = useState('');
-  const newEventCsvInputRef = useRef<HTMLInputElement>(null);
+  // 출결 방식에 따라 명단 파일을 받는 칸이 다르다(컨퍼런스는 참석자 구분별 3칸).
+  const [newEventFormat, setNewEventFormat] = useState<EventAttendanceFormat>(DEFAULT_EVENT_FORMAT);
+  const [newEventUploads, setNewEventUploads] = useState<
+    Partial<Record<RosterSlotId, { fileName: string; roster: ParsedRosterItem[] }>>
+  >({});
 
   // Modal: Event Form Create / Edit (BASIC_INFO: 기본정보, COLUMNS_ONLY: 출석컬럼, CREATE_FULL: 새 행사 전체)
   const [editingEvent, setEditingEvent] = useState<AttendanceEvent | null>(null);
@@ -1291,7 +1293,10 @@ export function EventAttendanceManagePage({
    * 올린 CSV의 머리글을 표 컬럼으로 바꾼다. 이름·번호·출결·비고처럼 표에 이미 있는 열은 뺀다.
    * 머리글이 없는 파일이면 추가 컬럼이 없다.
    */
-  function rosterColumnsFromText(text: string): {
+  function rosterColumnsFromText(
+    text: string,
+    statusHeaders: readonly string[] = [],
+  ): {
     fields: CustomFormField[];
     statusColumnIndex?: number;
   } {
@@ -1302,12 +1307,15 @@ export function EventAttendanceManagePage({
     if (!hasHeader) {
       return { fields: [] };
     }
-    const statusLabels = ['출결', '출석상태', '출석 상태'];
-    const fixedLabels = ['번호', '이름', '성명', '비고', ...statusLabels];
+    // 출결 열은 표의 글자 컬럼으로 만들지 않는다. 방식별 양식의 출결 열(예: 신입 OT의 출석)도 포함한다.
+    const statusLabels = ['출결', '출석상태', '출석 상태', ...statusHeaders];
+    const nameLabels = ['이름', '성명'];
+    // 출결 특이사항은 별도 컬럼으로 만들지 않고 비고에 담는다.
+    const fixedLabels = ['번호', ...nameLabels, ...MEMO_LABELS, ...statusLabels];
     const labels: string[] = [];
     let statusColumnIndex: number | undefined;
     rawHeaderTokens.forEach((label) => {
-      // 출결 열이 오는 자리 = 그 앞에 나온 추가 컬럼 수
+      // 출결 열이 오는 자리 = 그 앞에 나온 추가 컬럼 수.
       if (statusLabels.includes(label) && statusColumnIndex === undefined) {
         statusColumnIndex = labels.length;
       }
@@ -1320,12 +1328,14 @@ export function EventAttendanceManagePage({
         labels.push(label);
       }
     });
-    const fields = labels.map((label, idx) => ({
+    const fields = labels.map((label, idx): CustomFormField => ({
       id: `cf_${Date.now()}_${idx}`,
       label,
-      type: 'TEXT' as const,
+      ...(OX_COLUMN_LABELS.includes(label)
+        ? { type: 'SELECT' as const, options: [...OX_OPTIONS] }
+        : { type: 'TEXT' as const }),
       isRequired: false,
-      target: 'ALL' as const,
+      target: 'ALL',
     }));
     return { fields, statusColumnIndex };
   }
@@ -1364,10 +1374,13 @@ export function EventAttendanceManagePage({
       }
 
       let name = '';
-      let affiliation = event.allowExternal ? '외부 참가자' : 'BOAZ 28기';
+      // 소속을 모르면 비워 둔다(지어낸 값을 넣지 않는다).
+      let affiliation = '';
       let email = '';
       let phone = '';
       let isExt = false;
+      let term: number | undefined;
+      const memoParts: string[] = [];
       const customAnswers: Record<string, string> = {};
 
       const eventCols = event.customFields || [];
@@ -1378,6 +1391,10 @@ export function EventAttendanceManagePage({
         }
         const colHeader = headerMap[idx] || (eventCols[idx] ? eventCols[idx].label : `col_${idx}`);
 
+        if (MEMO_LABELS.includes(colHeader)) {
+          memoParts.push(val);
+          return;
+        }
         customAnswers[colHeader] = val;
 
         const matchedField = eventCols.find(
@@ -1398,6 +1415,10 @@ export function EventAttendanceManagePage({
           colHeader.toLowerCase().includes('name')
         ) {
           name = val;
+        } else if (colHeader === '기수' || colHeader.includes('기수')) {
+          // '27기', '27' 모두 받는다.
+          const parsedTerm = Number.parseInt(val.replace(/[^0-9]/g, ''), 10);
+          term = Number.isNaN(parsedTerm) ? undefined : parsedTerm;
         } else if (
           colHeader.includes('소속') ||
           colHeader.includes('대학') ||
@@ -1431,7 +1452,16 @@ export function EventAttendanceManagePage({
             affiliation.includes('기업') ||
             !affiliation.includes('기');
         }
-        parsed.push({ name, affiliation, email, phone, isExternal: isExt, customAnswers });
+        parsed.push({
+          name,
+          affiliation,
+          email,
+          phone,
+          isExternal: isExt,
+          term,
+          ...(memoParts.length > 0 ? { memo: memoParts.join(' / ') } : {}),
+          customAnswers,
+        });
       }
     }
 
@@ -1443,65 +1473,206 @@ export function EventAttendanceManagePage({
     eventId: string,
     idPrefix: string,
   ): AttendeeRecord[] {
-    return items.map((item, idx) => ({
-      id: `${idPrefix}_${Date.now()}_${idx}`,
-      eventId,
-      isExternal: item.isExternal,
-      name: item.name,
-      affiliation: item.affiliation,
-      term: item.term,
-      email: item.email,
-      phone: item.phone,
-      status: 'unmarked' as AttendStatus,
-      checkedInAt: '-',
-      customAnswers: item.customAnswers || {},
-    }));
+    return items.map((item, idx) => {
+      const record: AttendeeRecord = {
+        id: `${idPrefix}_${Date.now()}_${idx}`,
+        eventId,
+        isExternal: item.isExternal,
+        name: item.name,
+        affiliation: item.affiliation,
+        term: item.term,
+        email: item.email,
+        phone: item.phone,
+        status: item.status ?? ('unmarked' as AttendStatus),
+        ...(item.secondStatus ? { secondStatus: item.secondStatus } : {}),
+        checkedInAt: '-',
+        ...(item.memo ? { memo: item.memo } : {}),
+        ...(item.sessionStatuses ? { sessionStatuses: item.sessionStatuses } : {}),
+        customAnswers: item.customAnswers || {},
+      };
+      // 회원 DB에서 찾은 사람은 그 회원으로 연결하고 이름·기수·부문을 회원 DB 값으로 맞춘다.
+      return item.member
+        ? withMemberIdentity({ ...record, userId: item.member.userId }, item.member)
+        : record;
+    });
+  }
+
+  /**
+   * 올린 명단의 사람들을 백엔드 API로 회원 DB에서 찾아 연결한다.
+   * 확인하지 못하면 연결 없이 그대로 두고 알린다(이때는 모두 고칠 수 있는 상태다).
+   */
+  async function linkRosterMembers(roster: ParsedRosterItem[]): Promise<ParsedRosterItem[]> {
+    try {
+      const matches = await lookupMembers(roster);
+      // 이전 기수는 회원 DB에 없을 수 있다. 현재 활동 기수인데 없으면 오타일 수 있어 따로 표시한다.
+      const activeTerms = semesterMemberTerms?.get(selectedCohort);
+      return roster.map((item, idx) => {
+        const member = matches[idx];
+        const memberCheck = memberCheckOf(item, member, activeTerms);
+        return member
+          ? { ...item, member, memberCheck, name: member.name, term: member.term }
+          : { ...item, memberCheck };
+      });
+    } catch {
+      alert(
+        '회원 DB를 확인하지 못해 회원 연결 없이 명단을 올렸습니다. 이름·기수·부문을 직접 확인해 주세요.',
+      );
+      return roster;
+    }
+  }
+
+  /** 신입 특칙형·컨퍼런스 파일의 출결 열 값을 출결로 읽고, 그 열은 추가 컬럼 값에서 뺀다. */
+  function withImportedStatuses(
+    item: ParsedRosterItem,
+    statusHeaders: readonly string[],
+  ): ParsedRosterItem {
+    if (statusHeaders.length === 0) {
+      return item;
+    }
+    const { status, secondStatus } = importedStatusesOf(newEventFormat, item.customAnswers);
+    const customAnswers = Object.fromEntries(
+      Object.entries(item.customAnswers).filter(([key]) => !statusHeaders.includes(key)),
+    );
+    return {
+      ...item,
+      customAnswers,
+      ...(status ? { status } : {}),
+      ...(secondStatus ? { secondStatus } : {}),
+    };
+  }
+
+  /**
+   * 일반 행사형 파일은 이름 뒤의 열(MT, 해커톤 …)을 행사별 출결 열로 쓴다.
+   * 그 열의 출결 코드를 출결 값으로 바꾸고, 추가 컬럼에서는 뺀다. 빈칸이나 알 수 없는 코드는 기록하지 않는다.
+   */
+  function splitGeneralSessions(
+    text: string,
+    roster: ParsedRosterItem[],
+    fields: CustomFormField[],
+  ) {
+    const sessions = sessionLabelsFromHeader(readRosterHeader(text).rawHeaderTokens);
+    if (sessions.length === 0) {
+      return { sessions, roster, fields };
+    }
+    const sessionRoster = roster.map((item) => {
+      const sessionStatuses: Record<string, AttendStatus> = {};
+      const customAnswers = { ...item.customAnswers };
+      sessions.forEach((session) => {
+        const status = statusOfKey('GENERAL', (customAnswers[session] ?? '').trim());
+        if (status) {
+          sessionStatuses[session] = status;
+        }
+        delete customAnswers[session];
+      });
+      return { ...item, sessionStatuses, customAnswers };
+    });
+    return {
+      sessions,
+      roster: sessionRoster,
+      fields: fields.filter((field) => !sessions.includes(field.label)),
+    };
+  }
+
+  /** 출석 표 컬럼은 그 방식의 첫 칸(컨퍼런스는 현재 활동기수) 파일 머리글로 만든다. */
+  function isColumnSourceSlot(slot: RosterSlot) {
+    return eventFormatOptionOf(newEventFormat).slots[0].id === slot.id;
   }
 
   /** 새 행사 등록 창에서 고른 CSV를 읽어, 행사를 만들 때 함께 등록할 명단으로 담아 둔다. */
-  function handleNewEventCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    const input = e.target;
-    if (!file || !editingEvent) {
+  function handleNewEventCsvUpload(slot: RosterSlot, file: File) {
+    if (!editingEvent) {
       return;
     }
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const text = String(evt.target?.result ?? '');
-      const roster = parseRosterText(text, editingEvent);
-      if (roster.length === 0) {
+      const parsedRoster = parseRosterText(text, editingEvent).map((item) => ({
+        ...item,
+        isExternal: slot.isExternal,
+      }));
+      if (parsedRoster.length === 0) {
         alert('CSV에서 읽을 수 있는 명단이 없습니다. 이름 열이 있는지 확인해 주세요.');
-        clearNewEventCsv();
+        clearNewEventCsv(slot);
         return;
       }
-      setNewEventRoster(roster);
-      setNewEventCsvName(file.name);
       // 올린 파일의 머리글대로 이 행사의 출석 표 컬럼을 구성한다.
-      const { fields, statusColumnIndex } = rosterColumnsFromText(text);
-      setEditingEvent((prev) =>
-        prev ? { ...prev, customFields: fields, statusColumnIndex } : prev,
-      );
+      const statusHeaders = STATUS_HEADERS_BY_FORMAT[newEventFormat];
+      const columns = rosterColumnsFromText(text, statusHeaders);
+      const {
+        sessions,
+        roster: fileRoster,
+        fields,
+      } = newEventFormat === 'GENERAL'
+        ? splitGeneralSessions(text, parsedRoster, columns.fields)
+        : {
+            sessions: [],
+            roster: parsedRoster.map((item) => withImportedStatuses(item, statusHeaders)),
+            fields: columns.fields,
+          };
+      // 회원 DB에 있는 사람(이름·기수가 같은 회원)은 올릴 때 연결해 둔다.
+      const roster = await linkRosterMembers(fileRoster);
+      setNewEventUploads((prev) => ({ ...prev, [slot.id]: { fileName: file.name, roster } }));
+      if (isColumnSourceSlot(slot)) {
+        // 행사 열이 있으면 출결 열은 맨 끝(이름 뒤)이다.
+        const statusColumnIndex = sessions.length > 0 ? undefined : columns.statusColumnIndex;
+        setEditingEvent((prev) =>
+          prev
+            ? {
+                ...prev,
+                customFields: fields,
+                statusColumnIndex,
+                sessionLabels: sessions.length > 0 ? sessions : undefined,
+              }
+            : prev,
+        );
+      }
     };
     reader.readAsText(file, 'UTF-8');
-    input.value = '';
   }
 
-  function clearNewEventCsv() {
-    setNewEventRoster([]);
-    setNewEventCsvName('');
-    // 올린 파일에서 만든 컬럼도 함께 비운다(새 행사 등록에서는 컬럼을 직접 추가하지 않는다).
+  function clearNewEventCsv(slot: RosterSlot) {
+    setNewEventUploads((prev) => withoutKeys(prev, slot.id));
+    if (isColumnSourceSlot(slot)) {
+      clearNewEventColumns();
+    }
+  }
+
+  /** 올린 파일을 모두 비운다(새 행사 등록에서는 컬럼을 직접 추가하지 않으므로 파일에서 만든 컬럼도 비운다). */
+  function clearAllNewEventCsv() {
+    setNewEventUploads({});
+    clearNewEventColumns();
+  }
+
+  function clearNewEventColumns() {
     setEditingEvent((prev) =>
-      prev && isNewEvent ? { ...prev, customFields: [], statusColumnIndex: undefined } : prev,
+      prev && isNewEvent
+        ? { ...prev, customFields: [], statusColumnIndex: undefined, sessionLabels: undefined }
+        : prev,
+    );
+  }
+
+  /** 방식마다 받는 파일 양식이 다르므로, 방식을 바꾸면 올린 파일을 비운다. */
+  function handleChangeNewEventFormat(format: EventAttendanceFormat) {
+    if (format === newEventFormat) {
+      return;
+    }
+    setNewEventFormat(format);
+    clearAllNewEventCsv();
+    // 외부 참석자를 받는 방식은 컨퍼런스뿐이다.
+    setEditingEvent((prev) =>
+      prev ? { ...prev, attendanceFormat: format, allowExternal: format === 'CONFERENCE' } : prev,
     );
   }
 
   function handleQuickAddSubmit() {
-    if (!quickAdd.name.trim()) {
-      alert('이름을 입력하세요.');
+    // 이름이 비었거나 형식이 틀린 칸이 있으면 추가하지 않는다(칸 아래에 빨갛게 고치는 방법을 보여 준다).
+    if (!quickAdd.name.trim() || Object.keys(quickAddFieldErrors).length > 0) {
+      setHasTriedQuickAdd(true);
       return;
     }
 
-    const answers = { ...quickAdd.customAnswers };
+    // 외부 참석자 양식은 이름·출석·비고만 받으므로 추가 컬럼 값은 저장하지 않는다.
+    const answers = isQuickAddExternal ? {} : { ...quickAdd.customAnswers };
     if (quickAdd.affiliation && !answers['소속']) {
       answers['소속'] = quickAdd.affiliation.trim();
     }
@@ -1652,17 +1823,19 @@ export function EventAttendanceManagePage({
     setIsNewEvent(true);
     setEventModalType('CREATE_FULL');
     setNewColInputText('');
-    clearNewEventCsv();
+    setNewEventFormat(DEFAULT_EVENT_FORMAT);
+    clearAllNewEventCsv();
     setEditingEvent({
       id: 'evt_' + Date.now(),
       title: '',
       status: 'UPCOMING',
-      date: new Date().toISOString().slice(0, 10),
+      date: '', // 일자·장소는 선택 입력이다
       startTime: '14:00',
       endTime: '18:00',
       location: '',
       description: '',
-      allowExternal: true,
+      attendanceFormat: DEFAULT_EVENT_FORMAT,
+      allowExternal: DEFAULT_EVENT_FORMAT === 'CONFERENCE',
       checkinMethod: 'QR_CODE',
       checkinCode: String(Math.floor(1000 + Math.random() * 9000)),
       targetTerms: [selectedCohort],
@@ -1707,15 +1880,56 @@ export function EventAttendanceManagePage({
     }
 
     if (isNewEvent) {
-      setEvents((prev) => [editingEvent, ...prev]);
-      if (newEventRoster.length > 0) {
-        const records = toAttendeeRecords(newEventRoster, editingEvent.id, 'att_new');
+      // 컨퍼런스: 현재 활동기수 파일에 나온 기수를 대상 기수로 삼는다(명단 시트를 나누는 기준).
+      const currentCohortTerms =
+        newEventFormat === 'CONFERENCE'
+          ? (newEventUploads.CURRENT_COHORT?.roster ?? []).flatMap((item) =>
+              item.term === undefined ? [] : [item.term],
+            )
+          : [];
+      const createdEvent =
+        currentCohortTerms.length > 0
+          ? {
+              ...editingEvent,
+              targetTerms: [...new Set([...editingEvent.targetTerms, ...currentCohortTerms])].sort(
+                (a, b) => a - b,
+              ),
+            }
+          : editingEvent;
+      // 지금 방식의 칸에 올린 명단만 칸 순서대로 합쳐 등록한다.
+      const roster = eventFormatOptionOf(newEventFormat).slots.flatMap(
+        (slot) => newEventUploads[slot.id]?.roster ?? [],
+      );
+      // 컨퍼런스 내부 참가자는 2차 출결도 받는다(외부 참석자는 1차·2차를 나누지 않는다).
+      const records = toAttendeeRecords(roster, editingEvent.id, 'att_new').map((record) =>
+        newEventFormat === 'CONFERENCE' && !record.isExternal
+          ? { ...record, secondStatus: record.secondStatus ?? ('unmarked' as AttendStatus) }
+          : record,
+      );
+      setEvents((prev) => [createdEvent, ...prev]);
+      if (records.length > 0) {
         setAttendees((prev) => [...records, ...prev]);
       }
-      clearNewEventCsv();
+      clearAllNewEventCsv();
       setSelectedEventId(editingEvent.id);
     } else {
+      // 컬럼 설정은 창을 열 때 서버에서 읽은 행사와 비교한다(지운 열의 값을 비우는 기준).
+      const before =
+        eventModalType === 'COLUMNS_ONLY' && columnSettingsBaseRef.current?.id === editingEvent.id
+          ? columnSettingsBaseRef.current
+          : events.find((e) => e.id === editingEvent.id);
       setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? editingEvent : e)));
+      // 컬럼 설정에서 지운 열(추가 컬럼·출결·비고)에 입력해 둔 값을 비운다.
+      if (eventModalType === 'COLUMNS_ONLY' && before) {
+        setAttendees((prev) => {
+          const next = prev.map((a) =>
+            a.eventId === editingEvent.id
+              ? withRemovedColumnValuesCleared(before, editingEvent, a)
+              : a,
+          );
+          return next.every((a, idx) => a === prev[idx]) ? prev : next;
+        });
+      }
     }
     setEditingEvent(null);
   }
@@ -3344,41 +3558,37 @@ export function EventAttendanceManagePage({
       {editingEvent && (
         <div className="fixed inset-0 bg-slate-900/40 z-60 flex items-center justify-center p-4 backdrop-blur-xs">
           <div
-            className={`w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl p-6 space-y-4 overflow-hidden ${MODAL_SURFACE}`}
+            // 새 행사 등록은 출결 방식에 따라 명단 파일 칸 수가 달라도 창 높이를 고정한다.
+            // 칸이 가장 많은 컨퍼런스 1/2차형(3칸)이 스크롤 없이 들어가는 높이다(넘치면 창 안에서 스크롤).
+            // 컬럼 설정 창은 표 구성 미리보기가 줄바꿈 없이 보이도록 더 넓다.
+            className={`w-full ${eventModalType === 'COLUMNS_ONLY' ? 'max-w-4xl' : 'max-w-xl'} max-h-[92vh] flex flex-col rounded-lg p-6 space-y-4 overflow-hidden animate-in fade-in duration-150 ${
+              eventModalType === 'CREATE_FULL' ? 'h-[584px]' : ''
+            } ${MODAL_SURFACE}`}
           >
-            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  {eventModalType === 'COLUMNS_ONLY'
-                    ? '출석 명단 표 컬럼 설정'
-                    : eventModalType === 'BASIC_INFO'
-                      ? '행사 기본 정보 수정'
-                      : '새 행사 등록'}
-                </h3>
-                {eventModalType !== 'CREATE_FULL' && (
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {eventModalType === 'COLUMNS_ONLY'
-                      ? `대상: ${editingEvent.title || selectedEvent.title}`
-                      : '행사명, 일자, 장소 등 기본 정보를 수정합니다.'}
-                  </p>
-                )}
-              </div>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">
+                {eventModalType === 'COLUMNS_ONLY'
+                  ? '컬럼 설정'
+                  : eventModalType === 'BASIC_INFO'
+                    ? '행사 기본 정보 수정'
+                    : '새 행사 등록'}
+              </h3>
               <button
+                type="button"
                 onClick={() => setEditingEvent(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer p-1 rounded-lg hover:bg-slate-100 transition-colors"
+                className={MODAL_CLOSE_BTN}
+                aria-label="창 닫기"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
+            <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable] space-y-5 pr-1 text-xs">
               {/* 1. 기본 정보 섹션 (BASIC_INFO 또는 CREATE_FULL) */}
               {(eventModalType === 'BASIC_INFO' || eventModalType === 'CREATE_FULL') && (
-                <div className="space-y-3">
+                <div className="space-y-5">
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
-                      행사명 *
-                    </label>
+                    <label className={FIELD_LABEL}>행사명 *</label>
                     <input
                       value={editingEvent.title}
                       onChange={(e) =>
@@ -3386,16 +3596,14 @@ export function EventAttendanceManagePage({
                           prev ? { ...prev, title: e.target.value } : null,
                         )
                       }
-                      placeholder="예: BOAZ 제28기 Big Data Conference"
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-200 transition-all"
+                      className={FIELD_INPUT}
                     />
                   </div>
 
+                  {/* 일자·장소는 선택 입력이다. 입력한 것만 행사 목록에 보인다. */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">
-                        일자
-                      </label>
+                      <label className={FIELD_LABEL}>일자</label>
                       <input
                         type="date"
                         value={editingEvent.date}
@@ -3404,14 +3612,12 @@ export function EventAttendanceManagePage({
                             prev ? { ...prev, date: e.target.value } : null,
                           )
                         }
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-200 transition-all"
+                        className={`${FIELD_INPUT}`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">
-                        장소
-                      </label>
+                      <label className={FIELD_LABEL}>장소</label>
                       <input
                         value={editingEvent.location}
                         onChange={(e) =>
@@ -3419,83 +3625,29 @@ export function EventAttendanceManagePage({
                             prev ? { ...prev, location: e.target.value } : null,
                           )
                         }
-                        placeholder="예: 서울대학교 글로벌공학센터"
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-200 transition-all"
+                        className={FIELD_INPUT}
                       />
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* 새 행사 등록: 참가자 명단 업로드 */}
+              {/* 새 행사 등록: 출결 방식 선택과 방식별 명단 업로드 */}
               {eventModalType === 'CREATE_FULL' && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 block">
-                    참가자 명단 업로드
-                  </label>
-                  <input
-                    ref={newEventCsvInputRef}
-                    type="file"
-                    accept=".csv,text/csv"
-                    onChange={handleNewEventCsvUpload}
-                    className="hidden"
-                  />
-                  {newEventCsvName ? (
-                    <div className="flex h-14 w-full max-w-[360px] items-center gap-3 rounded-sm border border-slate-200 bg-white px-4 shadow-2xs">
-                      <Folder
-                        size={20}
-                        strokeWidth={1.3}
-                        className="shrink-0 text-slate-400"
-                        aria-hidden="true"
-                      />
-                      <span
-                        className="min-w-0 flex-1 truncate text-left text-sm text-slate-800"
-                        title={`${newEventCsvName} (${newEventRoster.length}명)`}
-                      >
-                        {newEventCsvName} · {newEventRoster.length}명
-                      </span>
-                      <Check
-                        size={20}
-                        strokeWidth={2.4}
-                        className="shrink-0 text-emerald-500"
-                        aria-label="업로드 완료"
-                      />
-                      <button
-                        type="button"
-                        onClick={clearNewEventCsv}
-                        className="shrink-0 cursor-pointer rounded p-0.5 text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700"
-                        title="파일 삭제"
-                        aria-label="파일 삭제"
-                      >
-                        <Trash2 size={14} aria-hidden="true" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      onClick={() => newEventCsvInputRef.current?.click()}
-                      className="group flex h-14 w-full max-w-[360px] cursor-pointer select-none items-center gap-3 rounded-sm border border-dashed border-slate-300 bg-white px-4 transition-colors hover:border-slate-400 hover:bg-slate-50/60"
-                    >
-                      <Folder
-                        size={20}
-                        strokeWidth={1.3}
-                        className="shrink-0 text-slate-400"
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0 flex-1 truncate text-sm text-slate-500 transition-colors group-hover:text-slate-900 group-hover:underline">
-                        파일을 업로드해 주세요
-                      </span>
-                    </div>
-                  )}
-                </div>
+                <NewEventRosterSection
+                  format={newEventFormat}
+                  onChangeFormat={handleChangeNewEventFormat}
+                  uploads={newEventUploads}
+                  onSelectFile={handleNewEventCsvUpload}
+                  onClearFile={clearNewEventCsv}
+                />
               )}
 
               {/* 2. 출석 명단 표 컬럼 설정 섹션 (출석 체크 화면의 톱니바퀴에서만. 새 행사 등록에서는 컬럼을 추가하지 않는다) */}
               {eventModalType === 'COLUMNS_ONLY' && (
                 <div className="space-y-4 pt-1">
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-                      컬럼 추가
-                    </label>
+                    <label className={FIELD_LABEL}>컬럼 추가</label>
                     <div className="flex gap-2">
                       <input
                         value={newColInputText}
