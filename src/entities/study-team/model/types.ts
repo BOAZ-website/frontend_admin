@@ -1,5 +1,7 @@
 export interface Member {
   id: string;
+  /** 회원 id(users.id). 팀장 지정은 이 값으로 한다. */
+  userId?: string;
   name: string;
   year: string;
   track?: string;

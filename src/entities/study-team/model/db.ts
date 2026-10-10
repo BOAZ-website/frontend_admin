@@ -5,7 +5,6 @@
  * 백엔드가 붙으면 이 함수들이 API 호출로 대체된다.
  */
 import { ALL_8_WEEKS, sessionKey } from '@/entities/attendance/model/lib';
-import { DEFAULT_CURRENT_COHORT } from '@/entities/cohort/model/lib';
 import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
 import type { UserProfile } from '@/entities/user/model/types';
 
@@ -21,8 +20,8 @@ export interface CreateStudyInput {
   /** 부문(분석·시각화·엔지니어링). 이름은 같은 부문 안에서만 겹칠 수 없다. */
   track: string;
   isVacation: boolean;
-  /** 활동 기수. 없으면 기본(현재) 기수. */
-  cohort?: number;
+  /** 활동 기수(반기 API가 내려준 현재 기수 등). */
+  cohort: number;
   leaderName: string | null;
   members: readonly UserProfile[];
   /** 방학 스터디 생성 시 설정한 기수별 주차 날짜(주차 번호 → YYYY-MM-DD). */
@@ -37,18 +36,6 @@ export interface AttendanceChange {
   memberKey: string;
   status?: AttendanceStatus;
   memo?: string;
-}
-
-/**
- * 스터디 생성 저장이 DB에서 거부됐을 때 사용자에게 보여줄 문구. 이름을 화면에서 검사하는 것이 아니라
- * DB(백엔드)가 돌려준 거부 사유를 알아보기 쉽게 옮기는 것이다. 모르는 사유는 원문을 덧붙인다.
- */
-export function describeStudyCreateError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/UNIQUE constraint failed: teams\.cohort, teams\.track, teams\.team_name/.test(message)) {
-    return '같은 기수·부문에 이미 사용 중인 스터디 이름입니다. 다른 이름을 쓰거나 다른 부문으로 만들어 주세요.';
-  }
-  return `스터디를 만들지 못했습니다. (${message})`;
 }
 
 export function memberKeysOf(memberId: string, isMentoring: boolean): string[] {
@@ -77,7 +64,7 @@ export function createStudyRecords(
     track: input.track,
     description: '',
     createdAt: today,
-    cohort: input.cohort ?? DEFAULT_CURRENT_COHORT,
+    cohort: input.cohort,
   };
   const members: Member[] = input.members.map((user) => ({
     id: `${input.id}_${user.id}`,
@@ -135,18 +122,9 @@ export function getStudyCell(
   return status ? { status, memo: record?.memos?.[memberKey] } : undefined;
 }
 
-/** 스터디장 표시 라벨. 예: "26기 분석 남민서" (부원 정보가 없으면 이름만). */
-export function studyLeaderLabel(team: StudyTeamInfo, members: readonly Member[]): string {
-  const leader = members.find((m) => m.name === team.leaderName);
-  if (!leader) return team.leaderName;
-  return [leader.year && `${leader.year}기`, leader.track, leader.name].filter(Boolean).join(' ');
-}
-
-/** 스터디 카드 제목. 팀명과 스터디명이 다르면 "팀명 (스터디명)". */
+/** 팀 카드 제목. 설정한 제목(study_name)을 그대로 쓰고, 없으면 팀명. ADV는 "분석 1팀" 대신 설정한 제목이 보인다. */
 export function studyDisplayName(team: StudyTeamInfo): string {
-  return team.studyName && team.studyName !== team.teamName
-    ? `${team.teamName} (${team.studyName})`
-    : team.teamName;
+  return team.studyName || team.teamName;
 }
 
 const BASE_TRACK_KEYS: Record<string, string> = {
@@ -248,19 +226,6 @@ export function createBaseAttendanceRecords(
   return { team, isNewTeam: !existing, addedMembers, attendance: patch };
 }
 
-/** 한 팀의 한 주차를 제출 완료로 표시한다(상태값은 그대로). 세션이 없으면 그대로 돌려준다. */
-export function markWeekSubmitted(
-  attendance: AttendanceState,
-  teamId: string,
-  weekNum: number,
-  submittedAt: string,
-): AttendanceState {
-  const key = sessionKey(`w${weekNum}`, 'study', teamId);
-  const record = attendance[key];
-  if (!record) return attendance;
-  return { ...attendance, [key]: { ...record, submitted: true, submittedAt } };
-}
-
 export interface CreateAdvTeamInput {
   cohort: number;
   track: string;
@@ -271,6 +236,8 @@ export interface CreateAdvTeamInput {
   weekNums?: readonly number[];
   /** 팀장으로 지정한 팀원 이름. 없으면(미지정) null. */
   leaderName?: string | null;
+  /** 팀 이름. 없으면(null·빈 값) 그 기수·부문의 다음 번호 이름(예: 분석 3팀). */
+  teamName?: string | null;
 }
 
 export interface CreateAdvTeamResult {
@@ -281,7 +248,7 @@ export interface CreateAdvTeamResult {
 }
 
 /**
- * ADV 팀 개설. 그 기수·부문의 다음 번호 팀(예: 분석 3팀)을 만들고, 고른 회원을 팀원으로 넣어
+ * ADV 팀 개설. 그 기수·부문의 다음 번호 팀(예: 분석 3팀, 팀 이름을 주면 그 이름)을 만들고, 고른 회원을 팀원으로 넣어
  * 주어진 주차(기본 1~8주차)의 모든 세션에 미정 출결을 만든다.
  */
 export function createAdvTeamRecords(
@@ -290,8 +257,7 @@ export function createAdvTeamRecords(
   today: string = new Date().toISOString().slice(0, 10),
 ): CreateAdvTeamResult {
   const sameTrack = advTeams.filter(
-    (team) =>
-      (team.cohort ?? DEFAULT_CURRENT_COHORT) === input.cohort && team.track === input.track,
+    (team) => team.cohort === input.cohort && team.track === input.track,
   );
   const trackKey = BASE_TRACK_KEYS[input.track] ?? input.track;
   const existingIds = new Set(advTeams.map((team) => team.id));
@@ -304,7 +270,7 @@ export function createAdvTeamRecords(
     number += 1;
   }
   const id = `adv_${input.cohort}_${trackKey}_${number}`;
-  const name = `${input.track} ${number}팀`;
+  const name = input.teamName?.trim() || `${input.track} ${number}팀`;
 
   const team: StudyTeamInfo = {
     id,

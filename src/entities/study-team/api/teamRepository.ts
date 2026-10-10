@@ -6,7 +6,6 @@ import type { Database } from 'sql.js';
 
 import { sessionKey } from '@/entities/attendance/model/lib';
 import type { CohortWeekDates } from '@/entities/cohort/api/cohortRepository';
-import { DEFAULT_CURRENT_COHORT } from '@/entities/cohort/model/lib';
 import type { AttendanceState, SessionRecord } from '@/entities/attendance/model/types';
 import type { WeekInfo } from '@/entities/attendance/model/week';
 import type { UserProfile } from '@/entities/user/model/types';
@@ -88,10 +87,12 @@ export function loadTeamState(
     track: string;
   }>(
     db,
-    `SELECT m.id, m.team_id, u.name, u.term, u.track
-       FROM team_members m
-       JOIN teams t ON t.id = m.team_id
-       JOIN users u ON u.id = m.user_id
+    `SELECT m.id, m.team_id, COALESCE(mem.name, u.name) AS name,
+              COALESCE(mem.term, u.term) AS term, COALESCE(mem.track, u.track) AS track
+         FROM team_members m
+         JOIN teams t ON t.id = m.team_id
+         JOIN users u ON u.id = m.user_id
+         LEFT JOIN members mem ON mem.id = m.member_id
       ORDER BY t.rowid, m.sort_order`,
   );
   const members: Record<string, Member[]> = {};
@@ -124,7 +125,6 @@ function loadAttendance(db: Database): AttendanceState {
     week_id: string;
     submitted: number;
     submitted_at: string | null;
-    confirmed_by_admin: number;
     path: string | null;
     url: string | null;
     original_name: string | null;
@@ -134,7 +134,7 @@ function loadAttendance(db: Database): AttendanceState {
     pdf_size: string | null;
   }>(
     db,
-    `SELECT s.team_id, s.week_id, s.submitted, s.submitted_at, s.confirmed_by_admin,
+    `SELECT s.team_id, s.week_id, s.submitted, s.submitted_at,
             s.pdf_url, s.pdf_name, s.pdf_size,
             i.path, i.url, i.original_name, i.size_label
        FROM attendance_sessions s
@@ -152,7 +152,6 @@ function loadAttendance(db: Database): AttendanceState {
       pdfSize: row.pdf_size,
       submitted: row.submitted === 1,
       submittedAt: row.submitted_at,
-      confirmedByAdmin: row.confirmed_by_admin === 1,
     };
     attendance[sessionKey(row.week_id, 'study', row.team_id)] = record;
   });
@@ -213,7 +212,7 @@ export function persistTeams(
           [
             team.id,
             group,
-            team.cohort ?? DEFAULT_CURRENT_COHORT,
+            cohortOf(team),
             team.track ?? team.category,
             team.teamName,
             team.studyName,
@@ -245,12 +244,12 @@ export function persistMembers(
         .forEach((row) => execute(db, 'DELETE FROM team_members WHERE id = ?', [row.id]));
 
       list.forEach((member, index) => {
-        const userId = ensureUser(db, member);
+        const { memberId, userId } = ensureMember(db, member);
         execute(
           db,
-          `INSERT INTO team_members (id, team_id, user_id, sort_order) VALUES (?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET sort_order = excluded.sort_order`,
-          [member.id, teamId, userId, index],
+          `INSERT INTO team_members (id, team_id, member_id, user_id, sort_order) VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET member_id = excluded.member_id, user_id = excluded.user_id, sort_order = excluded.sort_order`,
+          [member.id, teamId, memberId, userId, index],
         );
       });
     });
@@ -296,19 +295,18 @@ function writeSession(
   const imageId = resolveImageId(db, teamId, weekId, prevRecord, record);
   execute(
     db,
-    `INSERT INTO attendance_sessions (team_id, week_id, submitted, submitted_at, confirmed_by_admin,
+    `INSERT INTO attendance_sessions (team_id, week_id, submitted, submitted_at,
                                      image_id, pdf_url, pdf_name, pdf_size)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(team_id, week_id) DO UPDATE SET
        submitted = excluded.submitted, submitted_at = excluded.submitted_at,
-       confirmed_by_admin = excluded.confirmed_by_admin, image_id = excluded.image_id,
+       image_id = excluded.image_id,
        pdf_url = excluded.pdf_url, pdf_name = excluded.pdf_name, pdf_size = excluded.pdf_size`,
     [
       teamId,
       weekId,
       record.submitted ? 1 : 0,
       record.submittedAt,
-      record.confirmedByAdmin ? 1 : 0,
       imageId,
       record.pdfUrl ? toFilePath(record.pdfUrl) : null,
       record.pdfUrl ? (record.pdfName ?? null) : null,
@@ -361,6 +359,12 @@ function resolveImageId(
 
 // ───────────────────────────── 보조 ─────────────────────────────
 
+/** 팀의 활동 기수. 기수가 없는 팀은 저장하지 않는다(기본 기수로 채우지 않는다). */
+function cohortOf(team: StudyTeamInfo): number {
+  if (team.cohort === undefined) throw new Error(`팀의 활동 기수가 없습니다: ${team.id}`);
+  return team.cohort;
+}
+
 function teamExists(db: Database, teamId: string): boolean {
   return queryAll(db, 'SELECT 1 FROM teams WHERE id = ?', [teamId]).length > 0;
 }
@@ -374,23 +378,53 @@ function findUserId(db: Database, name: string): string | null {
   );
 }
 
-/** 팀원은 항상 users의 사람을 가리킨다. 이름·기수가 같은 사용자가 없으면 새로 만든다. */
-function ensureUser(db: Database, member: Member): string {
+/** 로그인 계정(users)과 활동 명단(members)을 함께 보장한다. */
+function ensureMember(db: Database, member: Member): { memberId: string; userId: string } {
   const term = Number(member.year) || 0;
   const existing = queryAll<{ id: string }>(
     db,
     'SELECT id FROM users WHERE name = ? AND term = ?',
     [member.name, term],
   )[0];
-  if (existing) return existing.id;
+  const userId =
+    existing?.id ??
+    `u_${term}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
-  const id = `u_${term}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   const track = VALID_TRACKS.includes(member.track ?? '') ? (member.track as string) : '분석';
-  execute(db, 'INSERT INTO users (id, name, term, track) VALUES (?, ?, ?, ?)', [
+  if (!existing)
+    execute(db, 'INSERT INTO users (id, name, term, track) VALUES (?, ?, ?, ?)', [
+      userId,
+      member.name,
+      term,
+      track,
+    ]);
+  return { memberId: ensureMemberProfile(db, userId, term, track, member.name), userId };
+}
+
+/**
+ * 회원의 기수·부문별 활동 명단(members) 행 id. 이미 있으면 그 행을 쓰고, 없으면 만든다.
+ * members는 (user_id, term, track)이 유일하므로 id를 새로 지어 넣으면 시드 행과 충돌한다.
+ */
+export function ensureMemberProfile(
+  db: Database,
+  userId: string,
+  term: number,
+  track: string,
+  name: string,
+): string {
+  const existing = queryAll<{ id: string }>(
+    db,
+    'SELECT id FROM members WHERE user_id = ? AND term = ? AND track = ?',
+    [userId, term, track],
+  )[0];
+  if (existing) return existing.id;
+  const id = `member_${userId}_${term}_${track}`;
+  execute(db, 'INSERT INTO members (id, user_id, term, track, name) VALUES (?, ?, ?, ?, ?)', [
     id,
-    member.name,
+    userId,
     term,
     track,
+    name,
   ]);
   return id;
 }
