@@ -1,5 +1,5 @@
 /**
- * 행사 출결(행사·참가자·양식 템플릿)을 임시 DB(SQLite)에서 읽고 쓰는 저장소 계층.
+ * 행사 출결(행사·참가자)을 임시 DB(SQLite)에서 읽고 쓰는 저장소 계층.
  * 화면은 DB를 직접 다루지 않고 이 함수들로만 조회·저장한다. 백엔드가 붙으면 이 파일만 API 호출로 바꾸면 된다.
  */
 import type { Database } from 'sql.js';
@@ -12,14 +12,16 @@ import type {
   AttendStatus,
   CheckinMethod,
   CustomFormField,
+  EventAttendanceFormat,
+  EventBaseColumn,
   EventStatus,
-  FormTemplate,
+  EventStatusOption,
 } from '../model/types';
+import { withMemberIdentity } from '../model/memberIdentity';
 
 export interface EventDbState {
   events: AttendanceEvent[];
   attendees: AttendeeRecord[];
-  templates: FormTemplate[];
 }
 
 interface FieldRow extends Record<string, unknown> {
@@ -45,20 +47,15 @@ interface EventRow extends Record<string, unknown> {
   checkin_method: CheckinMethod;
   checkin_code: string;
   status_column_index: number | null;
+  attendance_format: EventAttendanceFormat;
+  session_labels: string;
+  status_options: string;
+  hidden_columns: string;
   target_terms: string;
   target_tracks: string;
   total_target_count: number;
   internal_attended_count: number;
   external_attended_count: number;
-  created_at: string;
-}
-
-interface TemplateRow extends Record<string, unknown> {
-  id: string;
-  title: string;
-  description: string;
-  allow_external: number;
-  default_checkin_method: CheckinMethod;
   created_at: string;
 }
 
@@ -73,14 +70,12 @@ interface AttendeeRow extends Record<string, unknown> {
   email: string;
   phone: string;
   status: AttendStatus;
+  second_status: AttendStatus | null;
+  session_statuses: string;
+  custom_status: string | null;
   checked_in_at: string;
   memo: string | null;
   custom_answers: string;
-  user_name: string | null;
-  user_affiliation: string | null;
-  user_term: number | null;
-  user_email: string | null;
-  user_phone: string | null;
 }
 
 // ───────────────────────────── 조회 ─────────────────────────────
@@ -124,13 +119,6 @@ export function loadEventState(db: Database): EventDbState {
          FROM event_fields ORDER BY event_id, position`,
     ),
   );
-  const templateFields = groupFields(
-    queryAll<FieldRow>(
-      db,
-      `SELECT template_id AS owner_id, field_id, label, type, options, is_required, target
-         FROM event_template_fields ORDER BY template_id, position`,
-    ),
-  );
 
   const events = queryAll<EventRow>(db, 'SELECT * FROM events ORDER BY created_at, id').map(
     (row): AttendanceEvent => {
@@ -146,6 +134,7 @@ export function loadEventState(db: Database): EventDbState {
         allowExternal: row.allow_external === 1,
         checkinMethod: row.checkin_method,
         checkinCode: row.checkin_code,
+        attendanceFormat: row.attendance_format,
         customFields: eventFields.get(row.id) ?? [],
         targetTerms: parseJson<number[]>(row.target_terms, []),
         targetTracks: parseJson<string[]>(row.target_tracks, []),
@@ -154,55 +143,50 @@ export function loadEventState(db: Database): EventDbState {
         externalAttendedCount: row.external_attended_count,
         createdAt: row.created_at,
       };
-      return row.status_column_index === null
-        ? event
-        : { ...event, statusColumnIndex: row.status_column_index };
+      const sessionLabels = parseJson<string[]>(row.session_labels, []);
+      const statusOptions = parseJson<EventStatusOption[]>(row.status_options, []);
+      const hiddenColumns = parseJson<EventBaseColumn[]>(row.hidden_columns, []);
+      return {
+        ...event,
+        ...(row.status_column_index === null ? {} : { statusColumnIndex: row.status_column_index }),
+        ...(sessionLabels.length === 0 ? {} : { sessionLabels }),
+        ...(statusOptions.length === 0 ? {} : { statusOptions }),
+        ...(hiddenColumns.length === 0 ? {} : { hiddenColumns }),
+      };
     },
   );
 
-  const templates = queryAll<TemplateRow>(
-    db,
-    'SELECT * FROM event_templates ORDER BY created_at, id',
-  ).map((row): FormTemplate => ({
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    allowExternal: row.allow_external === 1,
-    defaultCheckinMethod: row.default_checkin_method,
-    customFields: templateFields.get(row.id) ?? [],
-    createdAt: row.created_at,
-  }));
-
   const attendees = queryAll<AttendeeRow>(
     db,
-    `SELECT a.*, u.name AS user_name, u.affiliation AS user_affiliation,
-            u.term AS user_term, u.email AS user_email, u.phone AS user_phone
-       FROM event_attendees a LEFT JOIN users u ON u.id = a.user_id
-      ORDER BY a.position, a.id`,
+    // 행사 DB만 읽는다(유저 DB와 조인하지 않는다). 회원의 이름·기수·부문은 저장할 때 유저 DB 값으로 맞춰 둔다.
+    'SELECT * FROM event_attendees ORDER BY position, id',
   ).map((row): AttendeeRecord => {
     const attendee: AttendeeRecord = {
       id: row.id,
       eventId: row.event_id,
       ...(row.user_id === null ? {} : { userId: row.user_id }),
       isExternal: row.is_external === 1,
-      name: row.user_name ?? row.name,
-      affiliation: row.user_affiliation ?? row.affiliation,
-      email: row.user_email ?? row.email,
-      phone: row.user_phone ?? row.phone,
+      name: row.name,
+      affiliation: row.affiliation,
+      email: row.email,
+      phone: row.phone,
       status: row.status,
       checkedInAt: row.checked_in_at,
       customAnswers: parseJson<Record<string, string>>(row.custom_answers, {}),
     };
     return {
       ...attendee,
-      ...(row.user_term === null && row.term === null
+      ...(row.term === null ? {} : { term: row.term }),
+      ...(row.second_status === null ? {} : { secondStatus: row.second_status }),
+      ...(row.session_statuses === '{}'
         ? {}
-        : { term: row.user_term ?? row.term ?? undefined }),
+        : { sessionStatuses: parseJson<Record<string, AttendStatus>>(row.session_statuses, {}) }),
+      ...(row.custom_status === null ? {} : { customStatus: row.custom_status }),
       ...(row.memo === null ? {} : { memo: row.memo }),
     };
   });
 
-  return { events, attendees, templates };
+  return { events, attendees };
 }
 
 // ───────────────────────────── 저장 ─────────────────────────────
@@ -211,8 +195,8 @@ const flag = (value: boolean) => (value ? 1 : 0);
 
 function writeFields(
   db: Database,
-  table: 'event_fields' | 'event_template_fields',
-  ownerColumn: 'event_id' | 'template_id',
+  table: 'event_fields',
+  ownerColumn: 'event_id',
   ownerId: string,
   fields: readonly CustomFormField[],
 ): void {
@@ -256,10 +240,11 @@ export function persistEvents(
         execute(
           db,
           `INSERT INTO events (id, title, status, event_date, start_time, end_time, location, description,
-                               allow_external, checkin_method, checkin_code, status_column_index, target_terms,
-                               target_tracks, total_target_count, internal_attended_count,
-                               external_attended_count, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               allow_external, checkin_method, checkin_code, status_column_index,
+                               attendance_format, session_labels, status_options, hidden_columns,
+                               target_terms, target_tracks, total_target_count,
+                               internal_attended_count, external_attended_count, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
              title = excluded.title, status = excluded.status,
              event_date = excluded.event_date, start_time = excluded.start_time,
@@ -267,6 +252,10 @@ export function persistEvents(
              description = excluded.description, allow_external = excluded.allow_external,
              checkin_method = excluded.checkin_method, checkin_code = excluded.checkin_code,
              status_column_index = excluded.status_column_index,
+             attendance_format = excluded.attendance_format,
+             session_labels = excluded.session_labels,
+             status_options = excluded.status_options,
+             hidden_columns = excluded.hidden_columns,
              target_terms = excluded.target_terms, target_tracks = excluded.target_tracks,
              total_target_count = excluded.total_target_count,
              internal_attended_count = excluded.internal_attended_count,
@@ -284,6 +273,10 @@ export function persistEvents(
             event.checkinMethod,
             event.checkinCode,
             event.statusColumnIndex ?? null,
+            event.attendanceFormat ?? 'GENERAL',
+            JSON.stringify(event.sessionLabels ?? []),
+            JSON.stringify(event.statusOptions ?? []),
+            JSON.stringify(event.hiddenColumns ?? []),
             JSON.stringify(event.targetTerms),
             JSON.stringify(event.targetTracks),
             event.totalTargetCount,
@@ -297,75 +290,35 @@ export function persistEvents(
   });
 }
 
-export function persistTemplates(
-  db: Database,
-  prev: readonly FormTemplate[],
-  next: readonly FormTemplate[],
-): void {
-  const prevById = new Map(prev.map((template) => [template.id, template]));
-  const nextIds = new Set(next.map((template) => template.id));
-
-  inTransaction(db, () => {
-    prev
-      .filter((template) => !nextIds.has(template.id))
-      .forEach((template) =>
-        execute(db, 'DELETE FROM event_templates WHERE id = ?', [template.id]),
-      );
-
-    next
-      .filter((template) => prevById.get(template.id) !== template)
-      .forEach((template) => {
-        execute(
-          db,
-          `INSERT INTO event_templates (id, title, description, allow_external, default_checkin_method, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET
-             title = excluded.title, description = excluded.description,
-             allow_external = excluded.allow_external,
-             default_checkin_method = excluded.default_checkin_method`,
-          [
-            template.id,
-            template.title,
-            template.description,
-            flag(template.allowExternal),
-            template.defaultCheckinMethod,
-            template.createdAt,
-          ],
-        );
-        writeFields(db, 'event_template_fields', 'template_id', template.id, template.customFields);
-      });
-  });
+/**
+ * 저장할 참가자의 회원 연결. 명단을 올릴 때 회원 API로 확인해 연결한 회원(userId)만 인정한다.
+ * 외부 참가자, 연결이 없는 참가자, 회원 DB에 없는 userId는 연결하지 않는다.
+ * 행사 명단으로 회원을 새로 만들거나 이름으로 짐작해 연결하지 않는다.
+ */
+function resolveAttendeeUserId(db: Database, attendee: AttendeeRecord): string | null {
+  if (attendee.isExternal || !attendee.userId) return null;
+  const existing = queryAll<{ id: string }>(db, 'SELECT id FROM users WHERE id = ?', [
+    attendee.userId,
+  ]);
+  return existing.length > 0 ? attendee.userId : null;
 }
 
-function resolveOrCreateAttendeeUserId(db: Database, attendee: AttendeeRecord): string | null {
-  if (attendee.isExternal) return null;
-  if (attendee.userId) {
-    const existing = queryAll<{ id: string }>(db, 'SELECT id FROM users WHERE id = ?', [
-      attendee.userId,
-    ]);
-    if (existing.length > 0) return attendee.userId;
-  }
-  if (attendee.term === undefined) return null;
-  const matched = queryAll<{ id: string }>(
+/**
+ * 동아리 회원의 이름·기수·부문은 행사 출결에서 바꿀 수 없다.
+ * 화면이 다른 값을 보내도 유저 DB(users) 값으로 덮어써 행사 DB에 저장한다.
+ * (행사 DB와 유저 DB는 따로이며, 여기서 users를 읽는 것은 유저 DB 조회를 대신한다.)
+ */
+function lockMemberIdentity(
+  db: Database,
+  attendee: AttendeeRecord,
+  userId: string,
+): AttendeeRecord {
+  const member = queryAll<{ name: string; term: number; track: string | null }>(
     db,
-    'SELECT id FROM users WHERE name = ? AND term = ? LIMIT 1',
-    [attendee.name, attendee.term],
+    'SELECT name, term, track FROM users WHERE id = ?',
+    [userId],
   )[0];
-  if (matched) return matched.id;
-
-  const track = attendee.affiliation.includes('시각화')
-    ? '시각화'
-    : attendee.affiliation.includes('엔지니어링')
-      ? '엔지니어링'
-      : '분석';
-  const id = `u_event_${attendee.id}`;
-  execute(
-    db,
-    `INSERT INTO users (id, name, term, track, affiliation, email, phone)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [id, attendee.name, attendee.term, track, attendee.affiliation, attendee.email, attendee.phone],
-  );
-  return id;
+  return member ? withMemberIdentity({ ...attendee, userId }, member) : attendee;
 }
 
 /**
@@ -397,34 +350,41 @@ export function persistAttendees(
           .length > 0;
       if (!eventExists) return;
 
-      const userId = resolveOrCreateAttendeeUserId(db, attendee);
+      const userId = resolveAttendeeUserId(db, attendee);
+      const record = userId === null ? attendee : lockMemberIdentity(db, attendee, userId);
 
       execute(
         db,
         `INSERT INTO event_attendees (id, event_id, user_id, position, is_external, name, affiliation, term, email,
-                                      phone, status, checked_in_at, memo, custom_answers)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                      phone, status, second_status, session_statuses, custom_status,
+                                      checked_in_at, memo, custom_answers)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            user_id = excluded.user_id, position = excluded.position,
            is_external = excluded.is_external, name = excluded.name,
            affiliation = excluded.affiliation, term = excluded.term, email = excluded.email,
-           phone = excluded.phone, status = excluded.status, checked_in_at = excluded.checked_in_at,
+           phone = excluded.phone, status = excluded.status, second_status = excluded.second_status,
+           session_statuses = excluded.session_statuses, custom_status = excluded.custom_status,
+           checked_in_at = excluded.checked_in_at,
            memo = excluded.memo, custom_answers = excluded.custom_answers`,
         [
-          attendee.id,
-          attendee.eventId,
+          record.id,
+          record.eventId,
           userId,
           position,
-          flag(attendee.isExternal),
-          attendee.name,
-          attendee.affiliation,
-          attendee.term ?? null,
-          attendee.email,
-          attendee.phone,
-          attendee.status,
-          attendee.checkedInAt,
-          attendee.memo ?? null,
-          JSON.stringify(attendee.customAnswers ?? {}),
+          flag(record.isExternal),
+          record.name,
+          record.affiliation,
+          record.term ?? null,
+          record.email,
+          record.phone,
+          record.status,
+          record.secondStatus ?? null,
+          JSON.stringify(record.sessionStatuses ?? {}),
+          record.customStatus ?? null,
+          record.checkedInAt,
+          record.memo ?? null,
+          JSON.stringify(record.customAnswers ?? {}),
         ],
       );
     });
