@@ -1,11 +1,10 @@
-import { useState } from 'react';
-import { Bell, KeyRound, LogIn, Menu, ShieldCheck, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronRight, KeyRound, PanelLeft, ShieldCheck, User, X } from 'lucide-react';
 
-import { DashboardPage } from '@/pages/attendance-dashboard/ui/DashboardPage';
-import { EventAttendanceManagePage } from '@/pages/attendance-events/ui/EventAttendanceManagePage';
+import { EventAttendanceContainer } from '@/pages/attendance-events/ui/EventAttendanceContainer';
 import { HostsPage } from '@/pages/attendance-hosts/ui/HostsPage';
-import { InputPage } from '@/pages/attendance-input/ui/InputPage';
-import { InternalCategoryAttendancePage } from '@/pages/attendance-internal-category/ui/InternalCategoryAttendancePage';
+import { InputPageContainer } from '@/pages/attendance-input/ui/InputPageContainer';
+import { InternalCategoryAttendanceContainer } from '@/pages/attendance-internal-category/ui/InternalCategoryAttendanceContainer';
 import { RulesPage } from '@/pages/attendance-rules/ui/RulesPage';
 import { ScoresPage } from '@/pages/attendance-scores/ui/ScoresPage';
 import { ArchivingSection } from '@/pages/content-archive/ui/ArchivingSection';
@@ -16,59 +15,309 @@ import { EvaluationManagePage } from '@/pages/recruiting-evaluation/ui/Evaluatio
 import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentManagePage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
+import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
+
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
-import { WEEKS } from '@/entities/attendance/model/constants';
-import { buildInitialAttendance, sessionKey } from '@/entities/attendance/model/lib';
-import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
-import { INITIAL_EXCEPTIONS } from '@/entities/exception-request/model/constants';
-import type { ExceptionRequest } from '@/entities/exception-request/model/types';
-import { INITIAL_HOSTS } from '@/entities/host-account/model/constants';
+import boazLogo from '@/shared/assets/boaz-logo.png';
+import { useAttendanceMeta } from '@/entities/attendance/model/useAttendanceMeta';
+import { useCurrentTeams } from '@/entities/study-team/model/useCurrentTeams';
+import { useHosts } from '@/entities/host-account/model/useHosts';
+import type { SemesterAttendanceKind, SemesterDto } from '@/entities/cohort/model/dto';
+import { createSemester, updateSemester } from '@/entities/cohort/api/semesterApi';
+import type { WeekInfo } from '@/entities/attendance/model/week';
 import type { HostAccount } from '@/entities/host-account/model/types';
-import { INITIAL_RULES } from '@/entities/score-rule/model/constants';
-import type { ScoreRule } from '@/entities/score-rule/model/types';
-import { INITIAL_STUDY_TEAMS, MEMBERS } from '@/entities/study-team/model/constants';
-import type { Member, StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
-import type { UserRole } from '@/entities/user/model/types';
+import { useScoreRules } from '@/entities/score-rule/model/useScoreRules';
+import type { StudyTeamInfo } from '@/entities/study-team/model/types';
+import type { UserRole, UserTrack } from '@/entities/user/model/types';
 import type { ActivePage } from '@/shared/config/activePage';
 import { PAGE_LABELS } from '@/shared/config/pageLabels';
+import { confirmLeave } from '@/shared/lib/leaveGuard';
+
+const VALID_ACTIVE_PAGES = new Set<string>([
+  'att-events',
+  'att-hosts',
+  'att-scores',
+  'att-rules',
+  'att-input',
+  'att-input-adv',
+  'att-input-study',
+  'att-session',
+  'att-adv',
+  'att-study',
+  'att-internal',
+  'content-archive',
+  'content-faq',
+  'content-curriculum',
+  'content-reviews',
+  'content',
+  'recruiting',
+  'recruiting-posts',
+  'recruiting-questions',
+  'recruiting-preview',
+  'recruiting-csv',
+  'recruiting-leads',
+  'evaluation',
+  'evaluation-evals',
+  'evaluation-applicants',
+  'evaluation-promote',
+  'system',
+  'system-accounts',
+  'system-permissions',
+  'system-audit',
+]);
+
+const NO_TEAMS: StudyTeamInfo[] = [];
+const NO_HOSTS: HostAccount[] = [];
+const NO_SEMESTERS: SemesterDto[] = [];
+const NO_TRACKS: UserTrack[] = [];
+const NO_WEEKS: WeekInfo[] = [];
+
+function getInitialActivePage(): ActivePage {
+  try {
+    const hash = window.location.hash.replace(/^#/, '');
+    if (hash && VALID_ACTIVE_PAGES.has(hash)) {
+      return hash as ActivePage;
+    }
+    const saved = localStorage.getItem('boaz_active_page');
+    if (saved && VALID_ACTIVE_PAGES.has(saved)) {
+      return saved as ActivePage;
+    }
+  } catch {
+    // ignore
+  }
+  return 'recruiting-posts';
+}
 
 export default function App() {
-  const [scoreRules, setScoreRules] = useState<ScoreRule[]>(() => {
+  // 점수 규칙의 원본은 DB다. 목록을 API에서 읽고, 규칙 화면에서 바꾸면 다시 읽는다.
+  // 점수 계산은 점수 API가 적용 중인 규칙으로 하므로, 출결 화면에 규칙을 내려주지 않는다.
+  const { rules: scoreRules, reload: reloadScoreRules } = useScoreRules();
+
+  const [activePage, setActivePage] = useState<ActivePage>(getInitialActivePage);
+  // 행사 출결 메뉴를 다시 누른 횟수. 바뀌면 행사 출결 화면이 행사 목록으로 돌아간다.
+  const [eventListRequest, setEventListRequest] = useState(0);
+
+  useEffect(() => {
     try {
-      const saved = localStorage.getItem('boaz_score_rules');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
+      localStorage.setItem('boaz_active_page', activePage);
+      if (window.location.hash.replace(/^#/, '') !== activePage) {
+        window.history.replaceState(null, '', `#${activePage}`);
       }
-    } catch (e) {
-      // ignore malformed localStorage data, fall back to defaults
+    } catch {
+      // ignore
     }
-    return INITIAL_RULES;
+  }, [activePage]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (hash && VALID_ACTIVE_PAGES.has(hash)) {
+        setActivePage(hash as ActivePage);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('boaz_sidebar_open_v2');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
   });
 
-  const handleUpdateScoreRules = (newRules: ScoreRule[]) => {
-    setScoreRules(newRules);
-    try {
-      localStorage.setItem('boaz_score_rules', JSON.stringify(newRules));
-      window.dispatchEvent(new Event('storage'));
-    } catch (e) {
-      // ignore localStorage write failures (e.g. quota exceeded, private mode)
-    }
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('boaz_sidebar_open_v2', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
   };
 
-  const [activePage, setActivePage] = useState<ActivePage>('recruiting');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [studyTeams, setStudyTeams] = useState<StudyTeamInfo[]>(INITIAL_STUDY_TEAMS);
-  const [membersMap, setMembersMap] = useState<Record<string, Member[]>>(MEMBERS);
-  const [attendance, setAttendance] = useState<AttendanceState>(buildInitialAttendance);
-  const [hosts, setHosts] = useState<HostAccount[]>(INITIAL_HOSTS);
-  const [exceptions, setExceptions] = useState<ExceptionRequest[]>(INITIAL_EXCEPTIONS);
-  const [currentRole, setCurrentRole] = useState<UserRole>('SUPER');
+  // Notion-style Ctrl+\ (or Cmd+\) shortcut to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+  // 각 출결 탭은 열릴 때 자기 데이터를 API로 읽는다. App은 로그인한 HOST의 담당 팀을 찾는 데 쓰는
+  // 현재 반기의 스터디·ADV 팀만 API로 읽고, 다른 탭에서 저장하면 다시 읽는다.
+  const { teams: currentTeams, error: teamDbError, reload: refreshTeamState } = useCurrentTeams();
+  // 반기(현재·다음 반기, 반기 표기, ADV 기수)와 주차 진행 상태는 화면이 계산하지 않고 반기 API에서 받는다.
+  const {
+    meta: attendanceMeta,
+    error: attendanceMetaError,
+    reload: reloadAttendanceMeta,
+  } = useAttendanceMeta();
+  const semesters = attendanceMeta?.semesters ?? NO_SEMESTERS;
+  const currentSemester = attendanceMeta?.currentSemester ?? null;
+  const nextSemester = attendanceMeta?.nextSemester ?? null;
+  // 반기 선택 목록은 그 화면의 출결이 등록된 반기만 보여 준다(반기 API의 attendanceKinds 기준).
+  // 현재 반기는 출결을 새로 만들 수 있어야 하므로 비어 있어도 늘 넣는다.
+  const cohortsWith = useCallback(
+    (kind: SemesterAttendanceKind) =>
+      semesters
+        .filter((semester) => semester.isCurrent || semester.attendanceKinds.includes(kind))
+        .map((semester) => semester.cohort),
+    [semesters],
+  );
+  const baseCohorts = useMemo(() => cohortsWith('BASE'), [cohortsWith]);
+  const studyCohorts = useMemo(() => cohortsWith('STUDY'), [cohortsWith]);
+  const eventCohorts = useMemo(() => cohortsWith('EVENT'), [cohortsWith]);
+  const currentCohort = currentSemester?.cohort ?? null;
+  // ADV 팀의 기수는 회원 기수다. 반기마다 ADV를 진행하는 기수(advTerm)가 정해져 있다.
+  const advCohorts = useMemo(
+    () =>
+      semesters.flatMap((semester) =>
+        semester.advTerm === null ||
+        !(semester.isCurrent || semester.attendanceKinds.includes('ADV'))
+          ? []
+          : [semester.advTerm],
+      ),
+    [semesters],
+  );
+  const advCurrentCohort = currentSemester?.advTerm ?? null;
+  /** 활동 기수 → 반기 표기, ADV 기수 → 그 기수가 ADV를 진행하는 반기 표기 */
+  // 반기 선택 목록(semesters)에는 다음 반기가 없으므로, 출결 생성 창이 쓰는 다음 반기 표기를 함께 넣는다.
+  const labeledSemesters = useMemo(
+    () => (nextSemester ? [...semesters, nextSemester] : semesters),
+    [semesters, nextSemester],
+  );
+  const cohortLabels = useMemo(
+    () =>
+      Object.fromEntries(labeledSemesters.map((semester) => [semester.cohort, semester.semester])),
+    [labeledSemesters],
+  );
+  const advCohortLabels = useMemo(
+    () =>
+      Object.fromEntries(
+        labeledSemesters.flatMap((semester) =>
+          semester.advTerm === null ? [] : [[semester.advTerm, semester.semester]],
+        ),
+      ),
+    [labeledSemesters],
+  );
+  const advTeams = currentTeams?.adv ?? NO_TEAMS;
+  const studyTeams = currentTeams?.study ?? NO_TEAMS;
+  const tracks = attendanceMeta?.tracks ?? NO_TRACKS;
+  async function handleAdvanceSemester(): Promise<void> {
+    if (!nextSemester || !attendanceMeta) throw new Error('다음 반기 정보를 불러오지 못했습니다.');
+    if (attendanceMeta.canCreateNextSemester) {
+      await createSemester({
+        cohort: nextSemester.cohort,
+        semester: nextSemester.semester,
+        startDate: nextSemester.startDate,
+        endDate: nextSemester.endDate,
+        advTerm: nextSemester.advTerm,
+        memberTerms: nextSemester.memberTerms,
+      });
+    }
+    await updateSemester(nextSemester.semester, { isCurrent: true });
+    reloadAttendanceMeta();
+    reloadHosts();
+    refreshTeamState();
+  }
+  // 현재 반기의 주차와 진행 상태(semester_weeks). 화면이 쓰는 주차 모양(WeekInfo)으로만 바꾼다.
+  const weeks = useMemo<WeekInfo[]>(
+    () =>
+      attendanceMeta?.weeks.map((week) => ({
+        id: `w${week.weekNum}`,
+        weekNum: week.weekNum,
+        period: week.period,
+        label: week.label,
+        status: week.status,
+      })) ?? NO_WEEKS,
+    [attendanceMeta],
+  );
+  /** 반기 정보를 아직 못 받았을 때 출결 관리 화면 대신 보여줄 안내. */
+  const semesterNotice = attendanceMetaError ? (
+    <DataLoadFailedNotice onRetry={() => window.location.reload()} />
+  ) : (
+    <p className="py-8 text-center text-xs text-slate-400">반기 정보를 불러오는 중입니다.</p>
+  );
+  // HOST 계정도 임시 DB가 원본이다. 발급·삭제하면 DB에 바로 저장된다.
+  // 로그인할 때 담당 팀을 찾는 데 쓰는 HOST 계정 목록(API). HOST 관리 화면은 자기 데이터를 따로 읽는다.
+  const { hosts: hostRows, error: hostDbError, reload: reloadHosts } = useHosts();
+  const hosts = hostRows ?? NO_HOSTS;
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    try {
+      const saved = localStorage.getItem('boaz_user_role');
+      if (saved && ['TEAM', 'HOST', 'CONTENT_ADMIN', 'SUPER'].includes(saved)) {
+        return saved as UserRole;
+      }
+    } catch {}
+    return 'SUPER';
+  });
 
-  const [loggedHostTeam, setLoggedHostTeam] = useState<string>('A팀');
-  const [loggedUsername, setLoggedUsername] = useState<string>('super');
+  const [loggedHostTeam, setLoggedHostTeam] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('boaz_host_team');
+      if (saved) return saved;
+    } catch {}
+    return '';
+  });
+
+  const [loggedUsername, setLoggedUsername] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('boaz_username');
+      if (saved) return saved;
+    } catch {}
+    return 'super';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('boaz_user_role', currentRole);
+    } catch {}
+  }, [currentRole]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('boaz_host_team', loggedHostTeam);
+    } catch {}
+  }, [loggedHostTeam]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('boaz_username', loggedUsername);
+    } catch {}
+  }, [loggedUsername]);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('boaz_is_logged_in') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const displayName = useMemo(() => {
+    if (currentRole === 'HOST') {
+      return loggedUsername || `${loggedHostTeam} 팀장`;
+    }
+    return '남민서';
+  }, [currentRole, loggedHostTeam, loggedUsername]);
+
+  function handleLogout() {
+    if (window.confirm('로그아웃 하시겠습니까?')) {
+      setIsLoggedIn(false);
+      try {
+        localStorage.setItem('boaz_is_logged_in', 'false');
+      } catch {}
+      setLoginModalOpen(true);
+    }
+  }
+
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [myCurrentPw, setMyCurrentPw] = useState('');
@@ -77,188 +326,35 @@ export default function App() {
   const [masterPassword, setMasterPassword] = useState('super1234');
   const [myPwError, setMyPwError] = useState('');
 
-  function handleRegisterStudyTeam(teamData: {
-    teamName: string;
-    studyName: string;
-    category: string;
-    leaderName: string;
-    schedule: string;
-    studyType?: StudyPeriodType;
-    description?: string;
-    customUsername: string;
-    customPassword?: string;
-    memberNames?: string[];
-  }): HostAccount {
-    const newStudy: StudyTeamInfo = {
-      id: 'st_' + Date.now(),
-      teamName: teamData.teamName,
-      studyName: teamData.studyName,
-      category: teamData.category,
-      leaderName: teamData.leaderName,
-      schedule: teamData.schedule,
-      studyType: teamData.studyType || '방학 스터디',
-      description: teamData.description || '',
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-
-    const newHost: HostAccount = {
-      id: 'h_' + Date.now(),
-      username: teamData.customUsername,
-      initialPassword: teamData.customPassword || 'boaz2026!a',
-      hostName: `${teamData.leaderName} (${teamData.teamName}장)`,
-      team: teamData.teamName,
-      createdAt: new Date().toISOString().slice(0, 10),
-      active: true,
-    };
-
-    const parsedNames =
-      teamData.memberNames && teamData.memberNames.length > 0 ? teamData.memberNames : [];
-    const newMemberList: Member[] = parsedNames.map((name, idx) => ({
-      id: `${teamData.teamName.toLowerCase().replace(/[^a-z0-9]/g, '')}_${idx + 1}`,
-      name,
-      year: `${22 + (idx % 3)}`,
-    }));
-
-    setStudyTeams((prev) => {
-      // replace if existing or append
-      const exists = prev.some((s) => s.teamName === teamData.teamName);
-      if (exists) {
-        return prev.map((s) => (s.teamName === teamData.teamName ? newStudy : s));
-      }
-      return [...prev, newStudy];
-    });
-
-    setHosts((prev) => [newHost, ...prev.filter((h) => h.team !== teamData.teamName)]);
-
-    setMembersMap((prev) => ({
-      ...prev,
-      [teamData.teamName]: newMemberList,
-    }));
-
-    // initialize attendance keys for the new study team across all weeks
-    setAttendance((prev) => {
-      const updated = { ...prev };
-      WEEKS.forEach((w) => {
-        const k = sessionKey(w.id, 'study', teamData.teamName);
-        if (!updated[k]) {
-          const statuses: Record<string, AttendanceStatus> = {};
-          newMemberList.forEach((m) => {
-            statuses[m.id] = 'present';
-          });
-          updated[k] = {
-            statuses,
-            memos: {},
-            photo: null,
-            photoUrl: null,
-            submitted: false,
-            submittedAt: null,
-          };
-        }
-      });
-      return updated;
-    });
-
-    return newHost;
+  /** 팀 id 또는 팀 이름(호스트 계정에 적힌 값)으로 팀 id를 찾는다. 이름은 부문이 다르면 겹칠 수 있어 처음 일치하는 팀을 쓴다. */
+  function resolveTeamId(idOrName?: string): string {
+    if (!idOrName) return '';
+    const teams = [...studyTeams, ...advTeams];
+    return (
+      (teams.find((t) => t.id === idOrName) ?? teams.find((t) => t.teamName === idOrName))?.id ?? ''
+    );
   }
 
-  function approveException(id: string) {
-    const ex = exceptions.find((e) => e.id === id);
-    if (ex) {
-      const weekNum = ex.week.replace(/[^0-9]/g, '');
-      const wId = `w${weekNum}`;
-      const actId = 'study';
-      const key = sessionKey(wId, actId, ex.team);
-      const members = membersMap[ex.team] ?? [];
-      const mem = members.find((m) => m.name === ex.memberName);
-      if (mem && attendance[key]) {
-        setAttendance((prev) => ({
-          ...prev,
-          [key]: {
-            ...prev[key],
-            statuses: { ...prev[key].statuses, [mem.id]: ex.to },
-          },
-        }));
-      }
-    }
-    setExceptions((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  function rejectException(id: string) {
-    setExceptions((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  function handleRequestException(
-    team: string,
-    week: string,
-    memberName: string,
-    from: AttendanceStatus,
-    to: AttendanceStatus,
-    reason: string,
-  ) {
-    setExceptions((prev) => [
-      {
-        id: `e_${Date.now()}`,
-        team,
-        week,
-        memberName,
-        from,
-        to,
-        reason,
-      },
-      ...prev,
-    ]);
-  }
-
-  function handleDirectEdit(
-    w: string,
-    a: string,
-    t: string,
-    memberId: string,
-    to: AttendanceStatus,
-    reason: string,
-  ) {
-    const key = sessionKey(w, a, t);
-    setAttendance((prev) => {
-      const cur = prev[key];
-      if (!cur) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [key]: {
-          ...cur,
-          statuses: { ...cur.statuses, [memberId]: to },
-          memos: { ...(cur.memos ?? {}), [memberId]: `[운영지원팀 수정] ${reason}` },
-        },
-      };
-    });
-  }
-
-  function handleConfirmAdmin(w: string, a: string, t: string) {
-    const key = sessionKey(w, a, t);
-    setAttendance((prev) => {
-      const cur = prev[key];
-      if (!cur) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [key]: {
-          ...cur,
-          confirmedByAdmin: true,
-        },
-      };
-    });
+  /**
+   * 로그인한 HOST 계정이 맡은 팀(DB의 host_accounts·host_assigned_groups) 중 그 출결 입력 탭(ADV/스터디)의 팀을 고른다.
+   * ADV와 스터디를 함께 맡은 계정은 탭마다 자기 팀이 열리고, 못 찾으면 로그인 때 넘어온 팀으로 대신한다.
+   */
+  function resolveHostTeamFor(isAdvTab: boolean): string {
+    const tabTeams = isAdvTab ? advTeams : studyTeams;
+    const host = hosts.find((account) => account.username === loggedUsername);
+    const ownedIds = [host?.teamId, ...(host?.assignedGroups ?? []).map((group) => group.teamId)];
+    const mine = ownedIds.find((id) => id && tabTeams.some((team) => team.id === id));
+    return mine ?? resolveTeamId(loggedHostTeam);
   }
 
   function handleToggleRole() {
     if (currentRole === 'SUPER') {
       setCurrentRole('TEAM');
       setLoggedUsername('admin');
-      setActivePage('att-dashboard');
+      setActivePage('att-study');
     } else if (currentRole === 'TEAM') {
       setCurrentRole('HOST');
-      setLoggedHostTeam(studyTeams[0]?.teamName || 'A팀');
+      setLoggedHostTeam(studyTeams[0]?.id ?? '');
       setLoggedUsername('host_a');
       setActivePage('att-input');
     } else if (currentRole === 'HOST') {
@@ -273,11 +369,17 @@ export default function App() {
   }
 
   function handleLoginSuccess(role: UserRole, hostTeam?: string, username?: string) {
+    setIsLoggedIn(true);
+    try {
+      localStorage.setItem('boaz_is_logged_in', 'true');
+    } catch {}
     setCurrentRole(role);
     if (role === 'HOST') {
-      setLoggedHostTeam(hostTeam || studyTeams[0]?.teamName || 'A팀');
+      const chosenTeamId = resolveTeamId(hostTeam) || studyTeams[0]?.id || '';
+      setLoggedHostTeam(chosenTeamId);
       setLoggedUsername(username || 'host_a');
-      setActivePage('att-input');
+      const isAdvTeam = advTeams.some((team) => team.id === chosenTeamId);
+      setActivePage(isAdvTeam ? 'att-input-adv' : 'att-input-study');
     } else if (role === 'CONTENT_ADMIN') {
       setLoggedUsername('content');
       setActivePage('content-archive');
@@ -286,7 +388,7 @@ export default function App() {
       setActivePage('recruiting');
     } else {
       setLoggedUsername('admin');
-      setActivePage('att-dashboard');
+      setActivePage('att-study');
     }
   }
 
@@ -313,10 +415,18 @@ export default function App() {
     setShowMyProfileModal(false);
   }
 
-  const isRecruiting = activePage.startsWith('recruiting');
-  const isEvaluation = activePage.startsWith('evaluation');
-  const isContentPage = activePage.startsWith('content');
-  const isAttendancePage = activePage.startsWith('att-');
+  const isRecruiting = Boolean(activePage?.startsWith('recruiting'));
+  const isEvaluation = Boolean(activePage?.startsWith('evaluation'));
+  const isContentPage = Boolean(activePage?.startsWith('content'));
+  const isAttendancePage = Boolean(activePage?.startsWith('att-'));
+
+  if ((!currentTeams && !teamDbError) || (!hostRows && !hostDbError)) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+        데이터를 불러오는 중...
+      </div>
+    );
+  }
 
   return (
     <div
@@ -328,9 +438,23 @@ export default function App() {
     >
       <Sidebar
         activePage={activePage}
-        onChange={setActivePage}
+        onChange={(page) => {
+          // 이미 열려 있는 행사 출결 메뉴를 다시 누르면 행사 목록으로 돌아가게 알린다.
+          if (page === activePage && page === 'att-events') {
+            setEventListRequest((count) => count + 1);
+            return;
+          }
+          // 저장하지 않은 수정 내용이 있는 화면이면 옮기기 전에 묻는다(취소하면 머문다).
+          if (page !== activePage && !confirmLeave()) return;
+          setActivePage(page);
+        }}
         open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        onClose={() => {
+          setSidebarOpen(false);
+          try {
+            localStorage.setItem('boaz_sidebar_open_v2', 'false');
+          } catch {}
+        }}
         currentRole={currentRole}
         onToggleRole={handleToggleRole}
         onOpenLogin={() => setLoginModalOpen(true)}
@@ -340,72 +464,114 @@ export default function App() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f8fafc]">
         {/* Topbar */}
-        <header className="h-14 shrink-0 flex items-center justify-between px-8 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] z-10">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-slate-500 hover:text-slate-900 cursor-pointer p-1 rounded-lg hover:bg-slate-100"
-            >
-              <Menu size={18} />
-            </button>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              {isRecruiting && (
-                <>
-                  <span>리크루팅</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              {isEvaluation && (
-                <>
-                  <span>서류 평가</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              {isContentPage && (
-                <>
-                  <span>콘텐츠 관리</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              {isAttendancePage && (
-                <>
-                  <span>출결 관리</span>
-                  <span className="text-slate-300">/</span>
-                </>
-              )}
-              <span className="text-slate-900 font-bold tracking-tight">
-                {PAGE_LABELS[activePage] || '관리자 콘솔'}
-              </span>
-            </div>
+        <header className="h-14 shrink-0 flex items-center justify-between px-6 bg-white border-b border-slate-200/80 select-none z-10">
+          <div className="flex items-center gap-2.5">
+            {!sidebarOpen ? (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-0.5 rounded-full hover:ring-2 hover:ring-slate-200 transition-all cursor-pointer select-none shrink-0"
+                title="사이드바 열기"
+              >
+                <img
+                  src={boazLogo}
+                  alt="bigdata BOAZ"
+                  className="w-7 h-7 rounded-full object-contain select-none border border-slate-100 shadow-2xs"
+                />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="사이드바 접기"
+              >
+                <PanelLeft size={16} />
+              </button>
+            )}
+
+            {!sidebarOpen && (
+              <>
+                <div className="w-[1px] h-3.5 bg-slate-200" />
+
+                <div className="flex items-center gap-1.5 text-xs">
+                  {isRecruiting && (
+                    <>
+                      <span className="font-medium text-slate-500">리크루팅</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  {isEvaluation && (
+                    <>
+                      <span className="font-medium text-slate-500">서류 평가</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  {isContentPage && (
+                    <>
+                      <span className="font-medium text-slate-500">콘텐츠 관리</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  {isAttendancePage && (
+                    <>
+                      <span className="font-medium text-slate-500">출결 관리</span>
+                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
+                    </>
+                  )}
+                  <span className="text-slate-900 font-semibold tracking-tight">
+                    {PAGE_LABELS[activePage] || '관리자 콘솔'}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] px-3 py-1 rounded-full font-mono font-semibold hidden sm:inline-block bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
-              {currentRole === 'SUPER'
-                ? '차기대표진 (SUPER)'
-                : currentRole === 'HOST'
-                  ? `HOST (${loggedHostTeam || 'A팀'})`
-                  : currentRole === 'CONTENT_ADMIN'
-                    ? '서비스운영팀'
-                    : '운영지원팀'}
-            </span>
-            <button
-              onClick={() => setLoginModalOpen(true)}
-              className="text-xs px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80 flex items-center gap-1.5 cursor-pointer shadow-2xs font-semibold transition-colors"
-            >
-              <LogIn size={12} className="text-slate-500" />
-              <span>계정 전환</span>
-            </button>
-            <button className="relative p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 cursor-pointer transition-colors">
-              <Bell size={16} />
-              {exceptions.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 ring-2 ring-white" />
-              )}
-            </button>
+
+          {/* Right User Auth Area (media_1789198942116 style) */}
+          <div className="flex items-center">
+            {isLoggedIn ? (
+              <div className="flex items-center gap-4 text-sm select-none">
+                <button
+                  type="button"
+                  onClick={() => setShowMyProfileModal(true)}
+                  className="flex items-center gap-1.5 font-semibold text-slate-900 hover:text-slate-700 transition-colors cursor-pointer group"
+                  title="내 프로필 정보 확인"
+                >
+                  <User
+                    size={14}
+                    className="text-slate-800 fill-slate-800 group-hover:text-slate-950 group-hover:fill-slate-950 transition-colors"
+                  />
+                  <span>{displayName}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-sm text-slate-500 hover:text-slate-900 font-normal transition-colors cursor-pointer"
+                >
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setLoginModalOpen(true)}
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                <User size={14} className="text-slate-700 fill-slate-700" />
+                <span>로그인</span>
+              </button>
+            )}
           </div>
         </header>
 
         {/* Content Main Body */}
-        <main className="flex-1 overflow-y-auto px-8 py-7" style={{ scrollbarWidth: 'none' }}>
+        <main
+          className="flex-1 overflow-y-auto overscroll-y-none px-8 py-7"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {(teamDbError || hostDbError) && isAttendancePage && (
+            <DataLoadFailedNotice onRetry={() => window.location.reload()} />
+          )}
           {/* 1. Recruiting Management */}
           {isRecruiting && (
             <RecruitmentManagePage
@@ -445,66 +611,97 @@ export default function App() {
           {activePage === 'content-reviews' && <ReviewsSection />}
 
           {/* 4. Attendance Management */}
-          {activePage === 'att-session' && (
-            <InternalCategoryAttendancePage
-              category="SESSION"
-              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
-            />
-          )}
-          {activePage === 'att-adv' && (
-            <InternalCategoryAttendancePage
-              category="ADV"
-              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
-            />
-          )}
-          {activePage === 'att-study' && (
-            <InternalCategoryAttendancePage
-              category="STUDY"
-              activeScoreRule={scoreRules.find((r) => r.status === 'ACTIVE')}
-            />
-          )}
-          {activePage === 'att-events' && <EventAttendanceManagePage />}
-          {activePage === 'att-scores' && (
-            <ScoresPage attendance={attendance} studyTeams={studyTeams} membersMap={membersMap} />
-          )}
+          {activePage === 'att-session' &&
+            (currentCohort === null ? (
+              semesterNotice
+            ) : (
+              <InternalCategoryAttendanceContainer
+                category="SESSION"
+                semesters={semesters}
+                weeks={weeks}
+                cohorts={baseCohorts}
+                currentCohort={currentCohort}
+                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
+                onAdvanceSemester={handleAdvanceSemester}
+                cohortLabels={cohortLabels}
+                tracks={tracks}
+                onDataChanged={refreshTeamState}
+              />
+            ))}
+          {activePage === 'att-adv' &&
+            (advCurrentCohort === null ? (
+              semesterNotice
+            ) : (
+              <InternalCategoryAttendanceContainer
+                category="ADV"
+                semesters={semesters}
+                weeks={weeks}
+                cohorts={advCohorts}
+                currentCohort={advCurrentCohort}
+                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
+                onAdvanceSemester={handleAdvanceSemester}
+                cohortLabels={advCohortLabels}
+                tracks={tracks}
+                onDataChanged={refreshTeamState}
+              />
+            ))}
+          {activePage === 'att-study' &&
+            (currentCohort === null ? (
+              semesterNotice
+            ) : (
+              <InternalCategoryAttendanceContainer
+                category="STUDY"
+                semesters={semesters}
+                weeks={weeks}
+                cohorts={studyCohorts}
+                currentCohort={currentCohort}
+                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
+                onAdvanceSemester={handleAdvanceSemester}
+                cohortLabels={cohortLabels}
+                tracks={tracks}
+                onDataChanged={refreshTeamState}
+              />
+            ))}
+          {activePage === 'att-events' &&
+            (currentCohort === null ? (
+              semesterNotice
+            ) : (
+              <EventAttendanceContainer
+                cohorts={eventCohorts}
+                currentCohort={currentCohort}
+                cohortLabels={cohortLabels}
+                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
+                onAdvanceSemester={handleAdvanceSemester}
+                listRequest={eventListRequest}
+              />
+            ))}
+          {activePage === 'att-scores' && <ScoresPage />}
           {(activePage === 'att-input' ||
             activePage === 'att-input-adv' ||
             activePage === 'att-input-study') && (
-            <InputPage
-              attendance={attendance}
-              setAttendance={setAttendance}
-              onRequestException={handleRequestException}
-              currentHostTeam={loggedHostTeam}
-              studyTeams={studyTeams}
-              membersMap={membersMap}
-              setMembersMap={setMembersMap}
+            <InputPageContainer
+              key={activePage}
+              pageTitle={
+                activePage === 'att-input-study' ? '스터디 출결 입력' : 'ADV Term 출결 입력'
+              }
+              currentHostTeam={resolveHostTeamFor(activePage !== 'att-input-study')}
               currentRole={currentRole}
-              onOpenAddStudy={() => setActivePage('att-hosts')}
+              weeks={weeks}
+              currentWeekNum={currentSemester?.currentWeekNum ?? null}
+              currentPeriod={currentSemester?.currentPeriod ?? null}
+              onDataChanged={refreshTeamState}
             />
           )}
           {activePage === 'att-hosts' && (
             <HostsPage
-              hosts={hosts}
-              setHosts={setHosts}
-              studyTeams={studyTeams}
-              onRegisterStudyTeam={handleRegisterStudyTeam}
+              onDataChanged={() => {
+                reloadHosts();
+                refreshTeamState();
+              }}
             />
           )}
           {activePage === 'att-rules' && (
-            <RulesPage rules={scoreRules} onUpdateRules={handleUpdateScoreRules} />
-          )}
-          {activePage === 'att-dashboard' && (
-            <DashboardPage
-              attendance={attendance}
-              exceptions={exceptions}
-              studyTeams={studyTeams}
-              membersMap={membersMap}
-              onApprove={approveException}
-              onReject={rejectException}
-              onDirectEdit={handleDirectEdit}
-              onConfirmAdmin={handleConfirmAdmin}
-              onOpenAddStudy={() => setActivePage('att-hosts')}
-            />
+            <RulesPage rules={scoreRules} onRulesChanged={reloadScoreRules} />
           )}
 
           {/* 5. System Section */}
@@ -636,6 +833,7 @@ export default function App() {
           onLoginSuccess={handleLoginSuccess}
           hosts={hosts}
           studyTeams={studyTeams}
+          advTeams={advTeams}
         />
       )}
     </div>

@@ -34,7 +34,7 @@ react-router를 쓰지 않습니다. `src/app/App.tsx`가 `ActivePage` 문자열
 
 출결(`attendance`), 스터디팀, HOST 계정, 예외 요청, 점수 규칙, 로그인 역할이 모두 `App.tsx`의 `useState`에 있고 props로 내려갑니다. 상태 관리 라이브러리는 없습니다. 여러 페이지가 공유하는 상태를 추가할 때도 이 패턴을 따르는 것이 일관성 측면에서 유리합니다.
 
-localStorage 키는 `boaz_score_rules`, `boaz_delivery_template`, `boaz_custom_notify_template`입니다. 점수 규칙이 `InternalCategoryAttendancePage`에 전달되는 **실제 경로는 `App.tsx`가 내려주는 `activeScoreRule` prop 하나**입니다. `App.tsx:55`의 `window.dispatchEvent(new Event("storage"))`는 듣는 리스너가 없고, `InternalCategoryAttendancePage.tsx:1402`의 `boaz_score_rules_changed` 리스너는 발행하는 곳이 없습니다. 이 두 이벤트는 이름이 어긋난 죽은 코드 한 쌍이므로 동기화 수단으로 의존하면 안 되며, 정리 대상입니다.
+localStorage 키는 `boaz_score_rules`, `boaz_delivery_template`, `boaz_custom_notify_template`입니다. 출결 점수는 화면에서 계산하지 않습니다. 점수 API(`/api/v1/attendance/scores`, `/api/v1/attendance/score-sheet`)가 적용 중인 점수 규칙(DB)으로 계산하고(`src/entities/score-rule/model/attendanceScore.ts`, `studyScore.ts`), `InternalCategoryAttendancePage`와 점수 집계 화면은 그 결과를 보여 주기만 합니다. `App.tsx:55`의 `window.dispatchEvent(new Event("storage"))`는 듣는 리스너가 없고, `InternalCategoryAttendancePage.tsx:1402`의 `boaz_score_rules_changed` 리스너는 발행하는 곳이 없습니다. 이 두 이벤트는 이름이 어긋난 죽은 코드 한 쌍이므로 동기화 수단으로 의존하면 안 되며, 정리 대상입니다.
 
 ### 역할(Role) 처리
 
@@ -62,6 +62,8 @@ localStorage 키는 `boaz_score_rules`, `boaz_delivery_template`, `boaz_custom_n
 Tailwind CSS v4를 `@tailwindcss/vite` 플러그인으로 사용합니다. `postcss.config.mjs`는 의도적으로 빈 설정입니다.
 
 `src/app/styles/index.css`가 `fonts.css` → `tailwind.css` → `theme.css` 순서로 임포트하는 구조이며, `tailwind.css`는 `source(none)`으로 자동 탐색을 끄고 `@source '../../**/*.{js,ts,jsx,tsx}'`로 스캔 범위를 명시합니다. 클래스가 적용되지 않는다면 이 `@source` 범위를 먼저 확인해야 합니다.
+
+모서리는 종류마다 하나로 맞춥니다: 입력칸·버튼·드롭다운은 `rounded-sm`(4px), 표·카드·목록 상자는 `rounded-md`(6px), 팝업 창은 `rounded-lg`(8px)입니다. 완전히 둥근 `rounded-full`은 배지·프로필 사진에만 쓰고, 12px 이상(`rounded-xl`, `rounded-2xl`)은 쓰지 않습니다. 출결 화면(`src/pages/attendance-*`)과 `src/shared/ui`는 이 기준으로 맞춰져 있습니다.
 
 `theme.css`에 `:root` CSS 변수(shadcn 계열 토큰과 `--sidebar-*`)가 정의되어 있고 `.dark` 블록도 있지만, 다크 모드 토글은 구현되어 있지 않습니다. 실제 화면은 대부분 Tailwind의 slate 계열 클래스를 직접 쓰며, 폰트는 Pretendard(`index.html`과 `fonts.css`에서 CDN으로 이중 로드)입니다.
 

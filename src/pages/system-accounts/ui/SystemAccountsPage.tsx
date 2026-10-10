@@ -16,6 +16,8 @@ import {
   X,
 } from 'lucide-react';
 
+import { DUAL_ROLE_ADMIN_ACCOUNT } from '@/pages/system-accounts/model/initialAccounts';
+
 export type AdminRole = 'MASTER' | 'SUPER' | 'TEAM';
 export type AdminTrack = 'ANALYSIS' | 'VISUALIZATION' | 'ENGINEERING';
 export type AdminTeamName =
@@ -31,6 +33,8 @@ export type AdminTeamName =
 // 5. 전체 계정 조회 DTO (AdminAccountResponse)
 export interface AdminAccountDto {
   id: number;
+  /** 같은 사람의 users.id. 운영진·그룹리더 겸직을 한 사용자로 연결할 때 사용한다. */
+  user_id?: string;
   username: string;
   role: AdminRole;
   name: string;
@@ -151,6 +155,7 @@ const INITIAL_ACCOUNTS: AdminAccountDto[] = [
     created_at: '2026-07-18T13:00:00',
     updated_at: '2026-07-18T13:00:00',
   },
+  DUAL_ROLE_ADMIN_ACCOUNT,
 ];
 
 const INITIAL_AUDIT_LOGS: SecurityAuditLog[] = [
@@ -765,7 +770,8 @@ export function SystemAccountsPage({ initialSubTab = 'accounts' }: SystemAccount
                       <input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="아이디, 이름, 부서 검색..."
+                        placeholder="검색"
+                        aria-label="아이디, 이름, 부서 검색"
                         className="pl-8 pr-3 py-1 text-xs rounded-xl bg-slate-100 border border-slate-200 text-foreground placeholder:text-muted-foreground/60 outline-none w-44 font-mono"
                       />
                       <Search

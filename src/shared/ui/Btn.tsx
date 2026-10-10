@@ -14,7 +14,7 @@ export function Btn({
   className?: string;
 }) {
   const base =
-    'inline-flex items-center gap-1.5 font-semibold rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer';
+    'inline-flex items-center gap-1.5 font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer';
   const sz =
     size === 'xs'
       ? 'text-xs px-2.5 py-1'
