@@ -557,6 +557,8 @@ export function EventAttendanceManagePage({
 
   // Quick Add Drawer
   const [showQuickAddDrawer, setShowQuickAddDrawer] = useState(false);
+  // 추가를 한 번 눌렀는지. 이름을 비워 둔 안내는 그 뒤부터 보여 준다(형식 오류는 입력하는 대로 보여 준다).
+  const [hasTriedQuickAdd, setHasTriedQuickAdd] = useState(false);
   const [quickAdd, setQuickAdd] = useState({
     isExternal: false,
     name: '',
@@ -1683,18 +1685,30 @@ export function EventAttendanceManagePage({
       answers['이메일'] = quickAdd.email.trim();
     }
 
+    // 기수 칸에 적은 숫자를 참가자 기수로도 적는다(기수 필터가 이 값을 쓴다). 표의 기수 칸에는 'N기'로 적는다.
+    const termEntries = Object.entries(answers).filter(([key]) => isTermLabel(key));
+    const termDigits = termEntries.map(([, value]) => value.trim()).find(Boolean);
+    const term = termDigits ? Number.parseInt(termDigits, 10) : undefined;
+    for (const [key] of termEntries) {
+      answers[key] = term === undefined ? '' : `${term}기`;
+    }
+
     const newRec: AttendeeRecord = {
       id: `att_quick_${Date.now()}`,
       eventId: selectedEvent.id,
-      isExternal: quickAdd.isExternal,
+      isExternal: isQuickAddExternal,
       name: quickAdd.name.trim(),
-      affiliation:
-        answers['소속'] ||
-        quickAdd.affiliation.trim() ||
-        (quickAdd.isExternal ? '외부 게스트' : 'BOAZ 28기'),
-      email: answers['이메일'] || quickAdd.email.trim(),
-      phone: answers['연락처'] || quickAdd.phone.trim(),
+      ...(term === undefined ? {} : { term }),
+      affiliation: isQuickAddExternal
+        ? '외부 게스트'
+        : answers['소속'] || quickAdd.affiliation.trim() || 'BOAZ 28기',
+      email: isQuickAddExternal ? '' : answers['이메일'] || quickAdd.email.trim(),
+      phone: isQuickAddExternal ? '' : answers['연락처'] || quickAdd.phone.trim(),
       status: quickAdd.status,
+      // 컨퍼런스 내부 참가자는 2차 출결도 받는다(외부 참석자는 1차·2차를 나누지 않는다).
+      ...(selectedEvent.attendanceFormat === 'CONFERENCE' && !isQuickAddExternal
+        ? { secondStatus: 'unmarked' as AttendStatus }
+        : {}),
       checkedInAt:
         quickAdd.status === 'present' || quickAdd.status === 'late'
           ? new Date().toTimeString().slice(0, 5)
@@ -1703,7 +1717,8 @@ export function EventAttendanceManagePage({
       customAnswers: answers,
     };
 
-    setAttendees((prev) => [newRec, ...prev]);
+    // 명단 전체를 다시 보내지 않고 한 명 추가(POST)로 저장한다.
+    createAttendee(newRec);
     setQuickAdd({
       isExternal: false,
       name: '',
@@ -1714,26 +1729,24 @@ export function EventAttendanceManagePage({
       status: 'unmarked',
       customAnswers: {},
     });
+    setHasTriedQuickAdd(false);
     setShowQuickAddDrawer(false);
   }
 
   // Simple comma-separated column input state (for extra columns)
   function handleAddCustomColumn(name: string) {
     const trimmed = name.trim();
-    if (!trimmed || !editingEvent) {
+    if (!trimmed) {
       return;
     }
-    if (
-      trimmed === '이름' ||
-      trimmed === '출결' ||
-      trimmed === '비고' ||
-      trimmed === '출석 상태' ||
-      trimmed === '출석상태'
-    ) {
+    // 출결·비고 이름으로 추가하면 지운 기본 열을 되살린다(출결은 버튼 열로 다시 나온다).
+    const baseColumn = baseColumnOfName(trimmed);
+    if (baseColumn) {
+      setEditingEvent((prev) => (prev ? withBaseColumnHidden(prev, baseColumn, false) : prev));
+      setNewColInputText('');
       return;
     }
-    const exists = (editingEvent.customFields || []).some((f) => f.label === trimmed);
-    if (exists) {
+    if (trimmed === NAME_COLUMN_NAME) {
       return;
     }
     const newField: CustomFormField = {
@@ -3343,211 +3356,227 @@ export function EventAttendanceManagePage({
         </div>
       )}
 
-      {/* ─── TAB 4: 출석 통계 & 리포트 ─── */}
-      {subTab === 'stats' && (
-        <div className="space-y-5">
-          <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-5">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">{selectedEvent.title} 통계</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {selectedEvent.date} · 총 {totalRosterCount}명 등록
-                </p>
-              </div>
-              <button
-                onClick={handleExportCsv}
-                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-[0.98]"
-              >
-                <Download size={13} />
-                <span>출석부 CSV 다운로드</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-              <div className="p-5 rounded-xl bg-slate-50/80 border border-slate-200">
-                <p className="text-slate-500 text-xs font-medium">전체 출석률</p>
-                <p className="text-3xl font-bold font-mono text-emerald-600 mt-1">
-                  {attendanceRate}%
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  {presentCount + lateCount}명 참석 / {totalRosterCount}명
-                </p>
-              </div>
-
-              <div className="p-5 rounded-xl bg-slate-50/80 border border-slate-200">
-                <p className="text-slate-500 text-xs font-medium">정상 출석 / 지각 / 결석</p>
-                <p className="text-2xl font-bold font-mono text-slate-900 mt-1">
-                  <span className="text-emerald-600">{presentCount}</span> /{' '}
-                  <span className="text-amber-600">{lateCount}</span> /{' '}
-                  <span className="text-red-600">{absentCount}</span>
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">미정 {unmarkedCount}명</p>
-              </div>
-
-              <div className="p-5 rounded-xl bg-slate-50/80 border border-slate-200">
-                <p className="text-slate-500 text-xs font-medium">외부인 참석자 수</p>
-                <p className="text-3xl font-bold font-mono text-purple-600 mt-1">
-                  {externalPresent}명
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">게스트 체크인 완료</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ─── Drawer: + 1명 현장 빠른 추가 ─── */}
       {showQuickAddDrawer && (
-        <div className="fixed inset-0 bg-slate-900/40 z-60 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className={`w-full max-w-md rounded-2xl p-6 space-y-4 ${MODAL_SURFACE}`}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <UserPlus size={15} className="text-slate-700" />
-                <span>현장 1명 추가</span>
-                <span className="text-xs font-normal text-slate-400 font-sans">
-                  ({selectedEvent.title})
-                </span>
-              </h3>
+        // 창 위쪽을 고정한다. BOAZ·외부인을 바꿔 입력 칸 수가 달라져도 창이 위아래로 튀지 않고 아래쪽만 늘고 준다.
+        <div className="fixed inset-0 bg-slate-900/40 z-60 flex items-start justify-center p-4 pt-[12vh] backdrop-blur-xs">
+          <div
+            // 일반 행사형의 출석 상태 버튼 8개가 한 줄에 들어가는 너비다.
+            className={`w-full max-w-[640px] rounded-lg p-6 space-y-4 animate-in fade-in duration-150 ${MODAL_SURFACE}`}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">참가자 추가</h3>
               <button
+                type="button"
                 onClick={() => setShowQuickAddDrawer(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+                className={MODAL_CLOSE_BTN}
+                aria-label="참가자 추가 창 닫기"
               >
-                <X size={15} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs max-h-[60vh] overflow-y-auto pr-1">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-slate-700 font-semibold text-xs">이름 *</label>
-                  <label className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-600 hover:text-slate-900 select-none">
-                    <input
-                      type="checkbox"
-                      checked={quickAdd.isExternal}
-                      onChange={(e) =>
-                        setQuickAdd((prev) => ({ ...prev, isExternal: e.target.checked }))
-                      }
-                      className="w-3.5 h-3.5 rounded text-slate-900 border-slate-300 focus:ring-slate-900 accent-slate-900 cursor-pointer"
-                    />
-                    <span>외부인 (게스트)</span>
-                  </label>
+            <div className="space-y-5 text-xs max-h-[60vh] overflow-y-auto [scrollbar-gutter:stable] pr-1">
+              {/* 이름과 활동 TERM을 한 줄에 둔다(활동 TERM 열이 없으면 이름이 한 줄을 다 쓴다). */}
+              <div className={quickAddActivityTermField ? 'grid grid-cols-2 gap-x-3' : ''}>
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[11px] font-semibold text-slate-500">이름 *</label>
+                    {/* 외부 참석자는 컨퍼런스 1/2차형만 받는다. 외부인을 고르면 외부 참석자 양식(이름·출석·비고)으로 바뀐다. */}
+                    {isConferenceEvent && (
+                      <div
+                        role="radiogroup"
+                        aria-label="참가자 구분"
+                        className="flex items-center gap-3"
+                      >
+                        {[
+                          { isExternal: false, label: 'BOAZ' },
+                          { isExternal: true, label: '외부인' },
+                        ].map((item) => (
+                          <label
+                            key={item.label}
+                            className="flex items-center gap-1.5 cursor-pointer text-xs text-slate-600 hover:text-slate-900 select-none"
+                          >
+                            <input
+                              type="radio"
+                              name="quick-add-attendee-kind"
+                              checked={quickAdd.isExternal === item.isExternal}
+                              onChange={() => changeQuickAddExternal(item.isExternal)}
+                              className="w-3.5 h-3.5 cursor-pointer accent-slate-900"
+                            />
+                            {/* 고른 쪽은 색만 진하게 한다(굵기를 바꾸면 글자 폭이 달라져 옆 버튼이 움직인다). */}
+                            <span
+                              className={
+                                quickAdd.isExternal === item.isExternal ? 'text-slate-900' : ''
+                              }
+                            >
+                              {item.label}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    value={quickAdd.name}
+                    onChange={(e) => setQuickAdd((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="예: 홍길동"
+                    aria-invalid={Boolean(quickAddNameError)}
+                    className={quickAddNameError ? FIELD_INPUT_ERROR : FIELD_INPUT}
+                  />
+                  {quickAddNameError && <p className={FIELD_ERROR}>{quickAddNameError}</p>}
                 </div>
-                <input
-                  value={quickAdd.name}
-                  onChange={(e) => setQuickAdd((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="예: 홍길동"
-                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 font-semibold outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10 placeholder:text-slate-400 shadow-2xs"
-                />
+                {quickAddActivityTermField && (
+                  <div>
+                    <label className={FIELD_LABEL}>{quickAddActivityTermField.label}</label>
+                    {/* 활동 TERM은 BASE·ADV 중에서 고른다(부문과 같은 드롭다운). */}
+                    <FilterDropdown
+                      ariaLabel={quickAddActivityTermField.label}
+                      title="선택"
+                      value={quickAddValueOf(quickAddActivityTermField)}
+                      options={ACTIVITY_TERM_DROPDOWN_OPTIONS}
+                      onChange={(val) => changeQuickAddValue(quickAddActivityTermField, val)}
+                      isFullWidth
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* 현재 표에 설정된 추가 컬럼들에 맞춰 동적으로 입력창 표시 (설정된 컬럼만 정확히 노출) */}
-              {(selectedEvent.customFields || [])
-                .filter(
-                  (f) =>
-                    f.label !== '이름' &&
-                    f.label !== '비고' &&
-                    f.label !== '출석 상태' &&
-                    f.label !== '출석상태',
-                )
-                .map((cf) => {
-                  const currentVal =
-                    quickAdd.customAnswers[cf.label] ??
-                    quickAdd.customAnswers[cf.id] ??
-                    (cf.label.includes('소속')
-                      ? quickAdd.affiliation
-                      : cf.label.includes('전화') || cf.label.includes('연락처')
-                        ? quickAdd.phone
-                        : cf.label.includes('메일')
-                          ? quickAdd.email
-                          : '');
-
-                  return (
-                    <div key={cf.id}>
-                      <label className="text-slate-700 block mb-1.5 font-semibold">
-                        {cf.label}
-                      </label>
-                      <input
-                        value={currentVal}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setQuickAdd((prev) => ({
-                            ...prev,
-                            affiliation: cf.label.includes('소속') ? val : prev.affiliation,
-                            phone:
-                              cf.label.includes('전화') || cf.label.includes('연락처')
-                                ? val
-                                : prev.phone,
-                            email: cf.label.includes('메일') ? val : prev.email,
-                            customAnswers: { ...prev.customAnswers, [cf.label]: val, [cf.id]: val },
-                          }));
-                        }}
-                        placeholder={`${cf.label} 입력`}
-                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10 placeholder:text-slate-400 shadow-2xs"
-                      />
-                    </div>
-                  );
-                })}
-
-              {/* 출석 상태 선택 (일체형 세그먼트 컨트롤 - 흔들림 방지) */}
-              <div>
-                <label className="text-slate-700 block mb-1.5 font-semibold">출석 상태</label>
-                <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/60">
-                  {(
-                    [
-                      'present',
-                      'late',
-                      'earlyLeave',
-                      'absent',
-                      'excusedAbsent',
-                      'unexcusedLate',
-                      'unexcusedAbsent',
-                      'unmarked',
-                    ] as AttendStatus[]
-                  ).map((st) => {
-                    const cfg = ATTEND_STATUS_CFG[st];
-                    const isSelected = quickAdd.status === st;
-                    const styleCfg = ATTEND_STATUS_STYLES[st];
+              {/* 현재 표에 설정된 추가 컬럼들에 맞춰 동적으로 입력창 표시 (설정된 컬럼만 정확히 노출). 기수·부문은 한 줄에 나란히.
+                  선택 컬럼(뒤풀이 비용 O/X 등)은 아래 출석 상태와 같은 줄에 둔다. */}
+              {quickAddGridFields.length > 0 && (
+                <div className="grid grid-cols-2 gap-x-3 gap-y-5">
+                  {quickAddGridFields.map((cf) => {
+                    const currentVal = quickAddValueOf(cf);
+                    const fieldError = quickAddFieldErrors[cf.id];
+                    const changeValue = (val: string) => changeQuickAddValue(cf, val);
 
                     return (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => setQuickAdd((prev) => ({ ...prev, status: st }))}
-                        className={`h-7.5 w-full flex items-center justify-center rounded-md text-xs transition-all cursor-pointer ${
-                          isSelected ? styleCfg.active : styleCfg.inactive
-                        }`}
-                      >
-                        <span>{cfg.label}</span>
-                      </button>
+                      <div key={cf.id} className={halfWidthIds.includes(cf.id) ? '' : 'col-span-2'}>
+                        <label className={FIELD_LABEL}>{cf.label}</label>
+                        {isTermLabel(cf.label) ? (
+                          // 기수는 직접 입력하거나, 표 위 기수 필터와 같은 선택지(행사 DB의 참가자 기수)에서 고른다.
+                          // 숫자가 아닌 글자가 있으면 칸 아래에 빨갛게 안내하고 추가하지 않는다.
+                          <ComboInput
+                            ariaLabel={cf.label}
+                            value={currentVal}
+                            options={quickAddTermOptions}
+                            onChange={changeValue}
+                            placeholder="예: 28"
+                            hasError={Boolean(fieldError)}
+                          />
+                        ) : isTrackLabel(cf.label) ? (
+                          // 부문은 분석·시각화·엔지니어링 중에서 고른다(반기·필터 드롭다운과 같은 모양).
+                          <FilterDropdown
+                            ariaLabel={cf.label}
+                            title="선택"
+                            value={currentVal}
+                            options={TRACK_DROPDOWN_OPTIONS}
+                            onChange={changeValue}
+                            isFullWidth
+                          />
+                        ) : (
+                          <input
+                            value={currentVal}
+                            onChange={(e) => changeValue(e.target.value)}
+                            placeholder={`${cf.label} 입력`}
+                            aria-invalid={Boolean(fieldError)}
+                            className={fieldError ? FIELD_INPUT_ERROR : FIELD_INPUT}
+                          />
+                        )}
+                        {fieldError && <p className={FIELD_ERROR}>{fieldError}</p>}
+                      </div>
                     );
                   })}
                 </div>
-              </div>
+              )}
 
-              {/* 비고 입력 */}
-              <div>
-                <label className="text-slate-700 block mb-1.5 font-semibold">비고 (선택)</label>
-                <input
-                  value={quickAdd.memo}
-                  onChange={(e) => setQuickAdd((prev) => ({ ...prev, memo: e.target.value }))}
-                  placeholder="예: 사전 불참 통보, 추가 메모 등"
-                  className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10 placeholder:text-slate-400 shadow-2xs"
-                />
-              </div>
+              {/* 출석 상태와 선택 컬럼(뒤풀이 비용 O/X 등)을 한 줄에 둔다. 한 줄에 다 들어가지 않으면 다음 줄로 내려간다. */}
+              {(hasStatusColumns || quickAddSelectFields.length > 0) && (
+                <div className="flex flex-wrap items-start gap-x-6 gap-y-5">
+                  {/* 출석 상태 선택. 출결 열이 없는 기타 방식에는 없다. */}
+                  {hasStatusColumns && (
+                    <div>
+                      <label className={FIELD_LABEL}>출석 상태</label>
+                      <div role="radiogroup" aria-label="출석 상태" className={STATUS_BTN_GROUP}>
+                        {quickAddStatusOptions.map((option) => {
+                          const st = option.value;
+                          const isSelected = quickAdd.status === st;
+                          const styleCfg = ATTEND_STATUS_STYLES[st];
+
+                          return (
+                            <button
+                              key={st}
+                              type="button"
+                              role="radio"
+                              aria-checked={isSelected}
+                              onClick={() => setQuickAdd((prev) => ({ ...prev, status: st }))}
+                              className={`${STATUS_BTN} ${
+                                isSelected ? styleCfg.active : styleCfg.inactive
+                              }`}
+                            >
+                              <span>{option.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {/* 선택 컬럼은 출석 표와 같은 버튼으로 고른다. 고른 값을 다시 누르면 비운다. */}
+                  {quickAddSelectFields.map((cf) => {
+                    const currentVal = quickAddValueOf(cf);
+                    return (
+                      <div key={cf.id}>
+                        <label className={FIELD_LABEL}>{cf.label}</label>
+                        <div role="radiogroup" aria-label={cf.label} className={STATUS_BTN_GROUP}>
+                          {(cf.options ?? []).map((option) => {
+                            const isCurrent = currentVal === option;
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                role="radio"
+                                aria-checked={isCurrent}
+                                onClick={() => changeQuickAddValue(cf, isCurrent ? '' : option)}
+                                className={`${STATUS_BTN} ${
+                                  isCurrent ? OPTION_BTN_ACTIVE : OPTION_BTN_INACTIVE
+                                }`}
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 비고 입력. 컬럼 설정에서 비고를 지웠으면 없다. */}
+              {!isMemoHidden && (
+                <div>
+                  <label className={FIELD_LABEL}>비고</label>
+                  <input
+                    value={quickAdd.memo}
+                    onChange={(e) => setQuickAdd((prev) => ({ ...prev, memo: e.target.value }))}
+                    placeholder="예: 사전 불참 통보, 추가 메모 등"
+                    className={FIELD_INPUT}
+                  />
+                </div>
+              )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-3.5 border-t border-slate-100">
               <button
+                type="button"
                 onClick={() => setShowQuickAddDrawer(false)}
-                className="px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                className={MODAL_CANCEL_BTN}
               >
                 취소
               </button>
-              <button
-                onClick={handleQuickAddSubmit}
-                className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all active:scale-[0.98] ${MODAL_PRIMARY_BTN}`}
-              >
-                추가 및 출석 처리
+              <button type="button" onClick={handleQuickAddSubmit} className={MODAL_CONFIRM_BTN}>
+                추가
               </button>
             </div>
           </div>
