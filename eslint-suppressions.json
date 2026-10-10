@@ -1,14 +1,4 @@
 {
-  "src/app/App.tsx": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    }
-  },
-  "src/pages/attendance-events/ui/EventAttendanceManagePage.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/pages/attendance-internal-category/ui/InternalCategoryAttendancePage.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 12
@@ -17,11 +7,6 @@
       "count": 5
     },
     "react-refresh/only-export-components": {
-      "count": 2
-    }
-  },
-  "src/pages/attendance-internal-legacy/ui/InternalAttendanceManagePage.tsx": {
-    "@typescript-eslint/no-explicit-any": {
       "count": 2
     }
   },

@@ -26,7 +26,6 @@ export const PAGE_LABELS: Record<ActivePage, string> = {
   'att-hosts': '그룹 계정 관리',
   'att-scores': '출결 점수 집계',
   'att-rules': '출결 규정 관리',
-  'att-dashboard': '출결 대시보드 & 인증 검토',
   'att-internal': '정규 출결 관리',
   system: '시스템·계정',
   'system-accounts': '운영진 계정 관리 (CRUD)',
