@@ -33,7 +33,6 @@ import type {
 import {
   MENTORING_TYPE_LABELS,
   studyDisplayName,
-  studyLeaderLabel,
   type MentoringTypeLabel,
 } from '@/entities/study-team/model/db';
 import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
@@ -45,9 +44,10 @@ import {
   MAX_IMAGE_SIZE_BYTES,
   MAX_PDF_SIZE_BYTES,
 } from '@/shared/lib/file';
-import { Btn } from '@/shared/ui/Btn';
 import { PdfPreviewModal } from '@/shared/ui/PdfPreviewModal';
-import { BRAND_SELECTED, MODAL_SURFACE } from '@/shared/ui/modalStyles';
+import { alertApiError } from '@/shared/lib/alertApiError';
+import { BRAND_SELECTED } from '@/shared/ui/modalStyles';
+import { Tooltip } from '@/shared/ui/Tooltip';
 
 // ─── Page: 출결 입력 (HOST 스터디장 전용 페이지) ───────────────────────────────
 
@@ -263,10 +263,11 @@ export function InputPage({
     () => visibleWeeks.filter((w) => !(isAdv && w.weekNum <= ADV_DIRECT_SELECT_LAST_WEEK)),
     [visibleWeeks, isAdv],
   );
+  // 처음 여는 주차: 반기 API의 지금 주차. 이 탭에서 다룰 수 없는 주차면 보이는 주차 중 기본 주차.
   const [weekNum, setWeekNum] = useState(() =>
-    defaultWeekNum(
-      weeks.filter((w) => w.weekNum <= 8 && !(isAdv && w.weekNum <= ADV_DIRECT_SELECT_LAST_WEEK)),
-    ),
+    currentWeekNum !== null && accessibleWeeks.some((w) => w.weekNum === currentWeekNum)
+      ? currentWeekNum
+      : defaultWeekNum(accessibleWeeks),
   );
   const weekStatus = weekStatusOf(weeks, weekNum);
   const isPastWeek = weekStatus === 'CLOSED';
@@ -377,10 +378,6 @@ export function InputPage({
 
   const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [reqMember, setReqMember] = useState('');
-  const [reqToStatus, setReqToStatus] = useState<AttendanceStatus>('present');
-  const [reqReason, setReqReason] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -621,9 +618,7 @@ export function InputPage({
               {studyDisplayName(team)}
             </h4>
             {team.leaderName && (
-              <p className="text-[11px] text-slate-500 font-medium">
-                스터디장: {studyLeaderLabel(team, membersMap[team.id] ?? [])}
-              </p>
+              <p className="text-[11px] text-slate-500 font-medium">스터디장: {team.leaderName}</p>
             )}
           </div>
           <ChevronRight
@@ -973,83 +968,41 @@ export function InputPage({
       }
     });
 
-    setAttendance((prev) => ({
-      ...prev,
-      [key]: {
-        statuses: currentStatuses,
-        memos: currentMemos,
-        submitted: true,
-        photo: currentPhotoName || `스터디_${selectedTeamName}_${weekNum}주차.jpg`,
-        photoUrl: currentPhotoUrl,
-        photoName: currentPhotoName || `스터디_${selectedTeamName}_${weekNum}주차.jpg`,
-        photoSize: currentPhotoSize || '2.1 MB',
-        // PDF는 멘멘 스터디만 첨부한다.
-        pdfUrl: isMentoringTeam ? currentPdfUrl : null,
-        pdfName: isMentoringTeam ? currentPdfName : null,
-        pdfSize: isMentoringTeam ? currentPdfSize : null,
-        submittedAt: toLocalDateTimeValue(new Date()),
-        confirmedByAdmin: false,
-      },
-    }));
+    const nextRecord: SessionRecord = {
+      statuses: currentStatuses,
+      memos: currentMemos,
+      submitted: true,
+      photo: currentPhotoName || `스터디_${selectedTeamName}_${weekNum}주차.jpg`,
+      photoUrl: currentPhotoUrl,
+      photoName: currentPhotoName || `스터디_${selectedTeamName}_${weekNum}주차.jpg`,
+      photoSize: currentPhotoSize || '2.1 MB',
+      // PDF는 멘멘 스터디만 첨부한다.
+      pdfUrl: isMentoringTeam ? currentPdfUrl : null,
+      pdfName: isMentoringTeam ? currentPdfName : null,
+      pdfSize: isMentoringTeam ? currentPdfSize : null,
+      submittedAt: toLocalDateTimeValue(new Date()),
+    };
+    // 화면에 먼저 반영하고 제출 API로 보낸다. 실패하면 사유를 알리고, 다시 읽은 값으로 돌아간다.
+    setAttendance((prev) => ({ ...prev, [key]: nextRecord }));
+    onSubmitWeek(selectedTeam, weekNum, nextRecord).catch(alertApiError);
     setPdfDraft(null);
     setIsEditing(false);
   }
 
-  function handleSendRequest() {
-    if (!reqMember || !reqReason.trim()) {
-      alert('부원과 수정 사유를 입력해 주세요.');
-      return;
-    }
-    const mem = members.find((m) => m.id === reqMember);
-    if (!mem) {
-      return;
-    }
-    const fromStatus = getStatus(reqMember);
-    onRequestException(
-      selectedTeam,
-      `${weekNum}주차`,
-      mem.name,
-      fromStatus,
-      reqToStatus,
-      reqReason,
-    );
-    setShowRequestModal(false);
-    setReqReason('');
-    alert('운영지원팀에 출결 수정 요청이 전송되었습니다.');
-  }
-
-  const effectiveColWidths = useMemo(() => {
-    if (canEdit) {
-      return colWidths;
-    }
-    // 텍스트만 보일 때: 이름/기수/부문/출결은 컴팩트하게 맞추고, 남는 공간은 비고가 길게 채움
-    return {
-      name: 110,
-      year: 70,
-      track: 90,
-      type: 64,
-      status: 85,
-      memo: 0,
-      actions: 0,
-    };
-  }, [canEdit, colWidths]);
+  // 보기·수정 모드가 같은 열 너비를 쓴다. 모드를 바꿀 때 열이 다시 배치되며 흔들리지 않게 한다.
+  // 비고 열만 남는 폭을 채우고, 수정 모드에서 관리 열이 생기면 비고 열이 그만큼 줄어든다.
+  const effectiveColWidths = colWidths;
 
   const tableMinWidth = useMemo(() => {
-    if (!canEdit) {
-      return 0; // 텍스트만 보일 때는 불필요한 가로 스크롤 제거 및 컴팩트 맞춤
-    }
-    let total =
+    const total =
       (colWidths.name || 110) +
       (colWidths.year || 75) +
       (colWidths.track || 85) +
       (isMentoringTeam ? colWidths.type || 64 : 0) +
       (colWidths.status || statusColWidth) +
       (colWidths.memo || 280);
-    if (canEdit) {
-      total += colWidths.actions || 45;
-    }
     return total;
-  }, [colWidths, canEdit, isMentoringTeam]);
+  }, [colWidths, isMentoringTeam]);
 
   return (
     <div
@@ -1248,9 +1201,7 @@ export function InputPage({
                                         : 'text-slate-900 group-hover:text-slate-950'
                                     }`}
                                   >
-                                    {team.studyName && team.studyName !== team.teamName
-                                      ? `${team.teamName} (${team.studyName})`
-                                      : team.teamName}
+                                    {studyDisplayName(team)}
                                   </h4>
                                   {team.leaderName && (
                                     <p className="text-[11px] text-slate-500 font-medium">
@@ -1392,14 +1343,10 @@ export function InputPage({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <h3 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight leading-snug truncate">
-                      {currentStudy
-                        ? currentStudy.studyName && currentStudy.studyName !== currentStudy.teamName
-                          ? `${currentStudy.teamName} (${currentStudy.studyName})`
-                          : currentStudy.teamName
-                        : selectedTeamName}
+                      {currentStudy ? studyDisplayName(currentStudy) : selectedTeamName}
                     </h3>
                     {isHost && (
-                      <span className="shrink-0 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
+                      <span className="shrink-0 px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
                         HOST 담당 팀
                       </span>
                     )}
@@ -2071,85 +2018,10 @@ export function InputPage({
         </div>
       )}
 
-      {/* Exception Request Modal */}
-      {showRequestModal && (
-        <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div
-            className={`w-full max-w-md rounded-2xl overflow-hidden p-5 space-y-4 ${MODAL_SURFACE}`}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-foreground">운영지원팀에 출결 수정 요청</h3>
-              <button
-                onClick={() => setShowRequestModal(false)}
-                className="text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="text-muted-foreground block mb-1">대상 부원</label>
-                <select
-                  value={reqMember}
-                  onChange={(e) => setReqMember(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg outline-none bg-slate-100 border border-slate-200 text-foreground"
-                >
-                  <option value="">부원을 선택하세요</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id} className="bg-white">
-                      {m.name} ({m.year}기)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-muted-foreground block mb-1">변경 희망 상태</label>
-                <div className="flex gap-2">
-                  {(['present', 'absent'] as AttendanceStatus[]).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setReqToStatus(s)}
-                      className="flex-1 py-1.5 text-xs font-medium rounded transition-all cursor-pointer"
-                      style={
-                        reqToStatus === s
-                          ? { background: STATUS_CFG[s].color, color: '#000', fontWeight: 'bold' }
-                          : { background: '#f1f5f9', color: '#64748b' }
-                      }
-                    >
-                      {STATUS_CFG[s].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-muted-foreground block mb-1">수정 요청 사유 (필수)</label>
-                <textarea
-                  value={reqReason}
-                  onChange={(e) => setReqReason(e.target.value)}
-                  placeholder="구체적인 사유를 작성하세요 (예: 출결 체크 오기재, 지각 사유 서류 제출 완료)"
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-lg outline-none bg-slate-100 border border-slate-200 text-foreground resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Btn variant="ghost" onClick={() => setShowRequestModal(false)}>
-                취소
-              </Btn>
-              <Btn onClick={handleSendRequest}>요청 보내기</Btn>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isPdfToastOpen && (
         <div
           role="status"
-          className="fixed right-6 top-20 z-70 flex max-w-sm items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-medium text-white shadow-xl"
+          className="fixed right-6 top-20 z-70 flex max-w-sm items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-medium text-white shadow-xl"
         >
           <Check
             size={15}
