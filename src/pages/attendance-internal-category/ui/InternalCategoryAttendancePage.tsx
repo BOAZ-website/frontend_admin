@@ -68,8 +68,31 @@ import { CohortSelect } from './CohortSelect';
 import { StudyMemberPicker } from './StudyMemberPicker';
 
 export type InternalCategory = 'SESSION' | 'STUDY' | 'ADV';
-export type EventStatus = 'UPCOMING' | 'IN_PROGRESS' | 'FINISHED';
-export type CheckinMethod = 'QR_CODE' | 'CODE' | 'MANUAL';
+
+/** 낱말 뒤에 붙는 '로'·'으로'. 받침이 있으면(ㄹ 받침 제외) '으로'다. */
+function withRoParticle(word: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  const hasFinal = code >= 0 && code <= 11171 && code % 28 !== 0;
+  const isRieul = code % 28 === 8;
+  return `${word}${hasFinal && !isRieul ? '으로' : '로'}`;
+}
+
+/**
+ * 수정 모드에서 출결을 바꾸기 전에 무엇을 무엇으로 바꾸는지 한 번 더 묻는다.
+ * 같은 값을 다시 고르면 묻지 않고 바꾸지도 않는다.
+ */
+function confirmStatusEdit(target: string, from: AttendStatus, to: AttendStatus): boolean {
+  if (from === to) return false;
+  const labelOf = (status: AttendStatus) => ATTEND_STATUS_CFG[status]?.label || status;
+  return window.confirm(
+    `${target} 출결을 '${labelOf(from)}'에서 '${withRoParticle(labelOf(to))}' 수정할까요?`,
+  );
+}
+
+/** 점수 API 결과를 찾는 키: 팀 · 팀원 · 멘멘 스터디 줄 구분(일반 팀은 빈 문자열). */
+function memberScoreKey(teamId: string, memberId: string, subType: string): string {
+  return `${teamId}|${memberId}|${subType}`;
+}
 export type AttendStatus =
   | 'present'
   | 'late'
@@ -670,22 +693,72 @@ export function InternalCategoryAttendancePage({
   const [attendeeSearch] = useState('');
   const [attendStatusFilter] = useState<'ALL' | AttendStatus>('ALL');
   const [isTableEditMode, setIsTableEditMode] = useState(false);
+  // 단일 팀 표의 관리(삭제) 열. 수정 모드가 아니어도 자리를 잡아 둔다(ADV는 삭제가 없다).
+  const showsManageColumn = category !== 'ADV' && !isArchivedView;
   const [activeStudyEditCell, setActiveStudyEditCell] = useState<{
     rowId: string;
     weekNum: number;
   } | null>(null);
 
   // Modals
-  const [showNewEventModal, setShowNewEventModal] = useState(false);
-  const [showImageZoom, setShowImageZoom] = useState(false);
+  /** 크게 보기 창에 띄울 사진. 썸네일과 같은 사진(그 팀·주차의 DB 사진)과 그 주차 이름을 담는다. */
+  const [zoomPhoto, setZoomPhoto] = useState<{ url: string; weekLabel: string } | null>(null);
   const [pdfPreview, setPdfPreview] = useState<{ url: string; name: string } | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showCreateStudyModal, setShowCreateStudyModal] = useState(Boolean(openCreateStudyOnMount));
+  const [teamSettingsTeamId, setTeamSettingsTeamId] = useState<string | null>(null);
+  const [teamNameDraft, setTeamNameDraft] = useState('');
+  // 팀 설정 변경 창의 팀장은 API가 돌려준 팀 정보(leaderId)를 그대로 쓴다. 바꾸면 바로 저장하고 다시 읽는다.
+  const teamSettingsLeaderId =
+    (studyTeams ?? []).find((info) => info.id === teamSettingsTeamId)?.leaderId ?? null;
+  // 팀 이름 칸은 저장 버튼(또는 Enter)으로 저장한다. ADV는 화면 제목인 study_name을, 스터디는 team_name을 고친다.
+  const teamSettingsNameKey = category === 'ADV' ? 'studyName' : 'teamName';
+  const teamSettingsSavedName =
+    (studyTeams ?? []).find((info) => info.id === teamSettingsTeamId)?.[teamSettingsNameKey] ?? '';
+  const isTeamNameChanged =
+    teamNameDraft.trim() !== '' && teamNameDraft.trim() !== teamSettingsSavedName;
+  const saveTeamName = () => {
+    if (!teamSettingsTeamId || !isTeamNameChanged) return;
+    if (!window.confirm('팀 이름을 바꾸시겠습니까?')) return;
+    void onUpdateStudyTeam?.(teamSettingsTeamId, {
+      [teamSettingsNameKey]: teamNameDraft.trim(),
+    });
+  };
+  // 팀장 지정. 이미 팀장이 있으면(팀장 변경) 예전 팀장은 팀원으로 남고, 예전 팀장 계정의 이 팀 출결 권한은
+  // 회수되어 이 팀에 연결된 계정이 없어진다. 새 팀장 계정은 그룹 계정 관리에서 발급한다(BASE는 HOST 계정이 없다).
+  const handleChangeLeader = async (teamId: string, userId: string, name: string) => {
+    const isLeaderChange = category !== 'SESSION' && teamSettingsLeaderId !== null;
+    const confirmMessage = isLeaderChange
+      ? `${name}님을 팀장으로 바꿀까요?\n예전 팀장은 팀원으로 바뀌고, 예전 팀장 계정의 이 팀 출결 권한은 회수됩니다.\n${name}님의 계정은 그룹 계정 관리에서 발급해 주세요.`
+      : `${name}님을 팀장으로 바꿀까요?`;
+    if (!window.confirm(confirmMessage)) return;
+    await onUpdateStudyTeam?.(teamId, { leaderId: userId });
+  };
+  // 팀장 해제. 팀장은 팀원으로 남고, 팀장 변경과 같이 그 계정의 이 팀 출결 권한은 회수된다(BASE는 HOST 계정이 없다).
+  const handleReleaseLeader = async (teamId: string, name: string) => {
+    const confirmMessage =
+      category === 'SESSION'
+        ? `${name}님의 팀장 지정을 해제할까요?`
+        : `${name}님의 팀장 지정을 해제할까요?\n${name}님은 팀원으로 바뀌고, ${name}님 계정의 이 팀 출결 권한은 회수됩니다.`;
+    if (!window.confirm(confirmMessage)) return;
+    await onUpdateStudyTeam?.(teamId, { leaderId: null });
+  };
+  const [newMemberName, setNewMemberName] = useState('');
+  const [teamSettingsMessage, setTeamSettingsMessage] = useState('');
+
   useEffect(() => {
-    if (openCreateStudyOnMount) onCreateStudyOpenConsumed?.();
-  }, [openCreateStudyOnMount, onCreateStudyOpenConsumed]);
+    if (!teamSettingsMessage) return;
+    const timer = window.setTimeout(() => setTeamSettingsMessage(''), 2500);
+    return () => window.clearTimeout(timer);
+  }, [teamSettingsMessage]);
+  const [showCreateStudyModal, setShowCreateStudyModal] = useState(false);
   const [showCreateAttendanceModal, setShowCreateAttendanceModal] = useState(false);
   const [showCreateAdvModal, setShowCreateAdvModal] = useState(false);
+  const notifyCreated = (cohort: number, what: string) => {
+    setSubmitToast({
+      message: `${cohortLabelOf(cohortLabels, cohort)} 반기에 ${what}을 만들었습니다.`,
+      isError: false,
+    });
+  };
 
   // 현재(진행 중) 주차 제출: 그 팀·주차의 상태값을 서버로 보내고, 성공하면 제출 완료로 바꾼다.
   const handleSubmitWeek = async () => {
@@ -1423,11 +1496,9 @@ export function InternalCategoryAttendancePage({
 
     displayedMatrixWeeks.forEach((w) => {
       const isEditable = isWeekDirectEditable(w.weekNum) && selectedWeek !== 0;
-      const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
-      const hasDate = Boolean(rawDate && rawDate !== '-');
       const colKey = `matrix_w_${w.weekNum}`;
-      const minColWidth = isEditable ? 435 : hasDate ? 92 : 55;
-      const defaultColWidth = isEditable ? 445 : hasDate ? 92 : 72;
+      const minColWidth = isEditable ? 435 : 92;
+      const defaultColWidth = isEditable ? 445 : 92;
       const effectiveWidth = Math.max(colWidths[colKey] || defaultColWidth, minColWidth);
       sum += effectiveWidth;
     });
@@ -1459,12 +1530,13 @@ export function InternalCategoryAttendancePage({
       (category === 'SESSION' &&
         (selectedWeek === 0 || weekStatusOf(weeks, selectedWeek) !== 'CLOSED')) ||
       (category === 'ADV' && isWeekDirectEditable(selectedWeek) && selectedWeek !== 0);
-    const statusMinWidth = isSingleTeamEditable ? 435 : 70;
-    const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
+    // 좁은 출결 열도 수정 모드의 드롭다운(76px)이 들어가는 폭이다(보기·수정 모드 너비가 같다).
+    const statusMinWidth = isSingleTeamEditable ? 435 : 92;
+    const statusDefaultWidth = isSingleTeamEditable ? 445 : 92;
     const statusEffectiveWidth = isSingleTeamEditable
       ? Math.max(colWidths.status || statusDefaultWidth, statusMinWidth)
       : colWidths.status && colWidths.status < 200
-        ? colWidths.status
+        ? Math.max(colWidths.status, statusMinWidth)
         : statusDefaultWidth;
 
     let sum =
@@ -1484,7 +1556,8 @@ export function InternalCategoryAttendancePage({
     if (category !== 'SESSION' && !isAllSelected) {
       sum += colWidths.track || 60;
     }
-    if (isTableEditMode && category !== 'ADV') {
+    // 관리 열은 수정 모드가 아니어도 자리를 잡아 둔다(수정을 눌러도 열이 다시 배치되지 않게).
+    if (showsManageColumn) {
       sum += 40;
     }
     return Math.max(sum, 690);
@@ -1492,7 +1565,7 @@ export function InternalCategoryAttendancePage({
     category,
     selectedWeek,
     isAllSelected,
-    isTableEditMode,
+    showsManageColumn,
     colWidths,
     termPeriod,
     isWeekDirectEditable,
@@ -3689,17 +3762,25 @@ export function InternalCategoryAttendancePage({
                                                     />
                                                     {/* Modern Compact Popover Dropdown (Right-aligned) */}
                                                     <div
-                                                      className={`absolute ${isRightEdge ? 'right-full mr-1' : 'left-full ml-1'} ${vAlignClass} w-[78px] bg-white rounded-lg shadow-lg border border-slate-200 p-0.5 z-50 animate-in fade-in zoom-in-95 duration-100 font-sans`}
+                                                      className={`absolute ${isRightEdge ? 'right-full mr-1' : 'left-full ml-1'} ${vAlignClass} w-[78px] bg-white rounded-md shadow-lg border border-slate-200 p-0.5 z-50 animate-in fade-in zoom-in-95 duration-100 font-sans`}
                                                     >
                                                       <div className="space-y-0.5">
                                                         <button
                                                           type="button"
                                                           onClick={() => {
-                                                            handleStatusChange(
-                                                              row.id,
-                                                              'present',
-                                                              w.weekNum,
-                                                            );
+                                                            if (
+                                                              confirmStatusEdit(
+                                                                `${row.name} ${w.label}`,
+                                                                st,
+                                                                'present',
+                                                              )
+                                                            ) {
+                                                              handleStatusChange(
+                                                                row.id,
+                                                                'present',
+                                                                w.weekNum,
+                                                              );
+                                                            }
                                                             setActiveStudyEditCell(null);
                                                           }}
                                                           className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-[11px] transition-colors cursor-pointer ${
@@ -3720,11 +3801,19 @@ export function InternalCategoryAttendancePage({
                                                         <button
                                                           type="button"
                                                           onClick={() => {
-                                                            handleStatusChange(
-                                                              row.id,
-                                                              'absent',
-                                                              w.weekNum,
-                                                            );
+                                                            if (
+                                                              confirmStatusEdit(
+                                                                `${row.name} ${w.label}`,
+                                                                st,
+                                                                'absent',
+                                                              )
+                                                            ) {
+                                                              handleStatusChange(
+                                                                row.id,
+                                                                'absent',
+                                                                w.weekNum,
+                                                              );
+                                                            }
                                                             setActiveStudyEditCell(null);
                                                           }}
                                                           className={`w-full flex items-center justify-between px-2 py-1 rounded-md text-[11px] transition-colors cursor-pointer ${
@@ -3964,8 +4053,8 @@ export function InternalCategoryAttendancePage({
                             const rawDate = savedWeekDateMapping[w.weekNum]?.trim();
                             const hasDate = Boolean(rawDate && rawDate !== '-');
                             const colKey = `matrix_w_${w.weekNum}`;
-                            const minColWidth = isEditable ? 435 : hasDate ? 92 : 55;
-                            const defaultColWidth = isEditable ? 445 : hasDate ? 92 : 72;
+                            const minColWidth = isEditable ? 435 : 92;
+                            const defaultColWidth = isEditable ? 445 : 92;
                             const effectiveColWidth = Math.max(
                               colWidths[colKey] || defaultColWidth,
                               minColWidth,
@@ -4270,31 +4359,24 @@ export function InternalCategoryAttendancePage({
                                   >
                                     <div className="h-8 flex items-center justify-center w-full">
                                       {isTableEditMode ? (
-                                        <div className="relative w-[66px] h-[30px] flex items-center justify-center">
-                                          <select
+                                        // 행사 출결의 기수 드롭다운과 같은 모양의 선택 드롭다운
+                                        <div className="w-[76px]">
+                                          <SelectDropdown
+                                            ariaLabel={`${row.name} ${w.label} 출결`}
                                             value={st}
-                                            onChange={(e) =>
-                                              handleStatusChange(
-                                                row.id,
-                                                e.target.value as AttendStatus,
-                                                w.weekNum,
-                                              )
-                                            }
-                                            className="w-full h-full appearance-none text-center text-xs font-semibold text-slate-900 bg-white border border-slate-300 hover:border-slate-500 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 rounded-lg outline-none cursor-pointer px-1.5 shadow-2xs transition-colors"
-                                          >
-                                            {editDropdownStatuses.map((s) => (
-                                              <option
-                                                key={s}
-                                                value={s}
-                                                className="text-slate-900 font-medium"
-                                              >
-                                                {ATTEND_STATUS_CFG[s]?.label || s}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <ChevronDown
-                                            size={11}
-                                            className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
+                                            options={editStatusOptions}
+                                            onChange={(next) => {
+                                              if (
+                                                confirmStatusEdit(
+                                                  `${row.name} ${w.label}`,
+                                                  st,
+                                                  next,
+                                                )
+                                              ) {
+                                                handleStatusChange(row.id, next, w.weekNum);
+                                              }
+                                            }}
+                                            buttonClassName="h-[30px] w-full text-left"
                                           />
                                         </div>
                                       ) : (
@@ -4576,12 +4658,12 @@ export function InternalCategoryAttendancePage({
                             )}
                           {(() => {
                             const isSingleTeamEditable = isBaseStatusColumnWide;
-                            const statusMinWidth = isSingleTeamEditable ? 435 : 70;
-                            const statusDefaultWidth = isSingleTeamEditable ? 445 : 75;
+                            const statusMinWidth = isSingleTeamEditable ? 435 : 92;
+                            const statusDefaultWidth = isSingleTeamEditable ? 445 : 92;
                             const effectiveStatusWidth = isSingleTeamEditable
                               ? Math.max(colWidths.status || statusDefaultWidth, statusMinWidth)
                               : colWidths.status && colWidths.status < 200
-                                ? colWidths.status
+                                ? Math.max(colWidths.status, statusMinWidth)
                                 : statusDefaultWidth;
 
                             return (
@@ -4681,12 +4763,14 @@ export function InternalCategoryAttendancePage({
                                 );
                               })()}
                           </th>
-                          {isTableEditMode && category !== 'ADV' && (
+                          {showsManageColumn && (
                             <th
                               style={{ width: '40px' }}
                               className="text-center px-1 py-1 text-slate-400 font-semibold w-10"
                             >
-                              <div className="h-9 flex items-center justify-center">관리</div>
+                              <div className="h-9 flex items-center justify-center">
+                                {isTableEditMode ? '관리' : ''}
+                              </div>
                             </th>
                           )}
                         </tr>
@@ -4727,6 +4811,10 @@ export function InternalCategoryAttendancePage({
                                   'unexcusedAbsent',
                                   'unmarked',
                                 ];
+                          const editStatusOptions = editDropdownStatuses.map((status) => ({
+                            value: status,
+                            label: ATTEND_STATUS_CFG[status]?.label || status,
+                          }));
 
                           const isDirectEditable = isBaseWeekSelectable(att.weekNum, att.teamId);
 
@@ -4801,31 +4889,31 @@ export function InternalCategoryAttendancePage({
                               ) : isTableEditMode ? (
                                 <td className="relative px-2 py-1.5 text-center whitespace-nowrap bg-slate-100/50">
                                   <div className="flex items-center justify-center w-full">
-                                    <div className="relative w-[70px] h-[30px] flex items-center justify-center">
-                                      <select
+                                    {/* 행사 출결의 기수 드롭다운과 같은 모양의 선택 드롭다운 */}
+                                    <div className="w-[76px]">
+                                      <SelectDropdown
+                                        ariaLabel={`${att.name} 출결`}
                                         value={att.status || 'unmarked'}
-                                        onChange={(e) =>
-                                          handleStatusChange(
-                                            att.originalId || att.id,
-                                            e.target.value as AttendStatus,
-                                            att.weekNum,
-                                          )
-                                        }
-                                        className="w-full h-full appearance-none text-center text-xs font-semibold text-slate-900 bg-white border border-slate-300 hover:border-slate-500 focus:border-slate-900 focus:ring-1 focus:ring-slate-900 rounded-lg outline-none cursor-pointer px-1.5 shadow-2xs transition-colors"
-                                      >
-                                        {editDropdownStatuses.map((s) => (
-                                          <option
-                                            key={s}
-                                            value={s}
-                                            className="text-slate-900 font-medium"
-                                          >
-                                            {ATTEND_STATUS_CFG[s]?.label || s}
-                                          </option>
-                                        ))}
-                                      </select>
-                                      <ChevronDown
-                                        size={11}
-                                        className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
+                                        options={editStatusOptions}
+                                        onChange={(next) => {
+                                          const weekLabel =
+                                            weekList.find((week) => week.weekNum === att.weekNum)
+                                              ?.label ?? '';
+                                          if (
+                                            confirmStatusEdit(
+                                              `${att.name} ${weekLabel}`.trim(),
+                                              att.status || 'unmarked',
+                                              next,
+                                            )
+                                          ) {
+                                            handleStatusChange(
+                                              att.originalId || att.id,
+                                              next,
+                                              att.weekNum,
+                                            );
+                                          }
+                                        }}
+                                        buttonClassName="h-[30px] w-full text-left"
                                       />
                                     </div>
                                   </div>
@@ -4893,15 +4981,17 @@ export function InternalCategoryAttendancePage({
                                   </div>
                                 </td>
                               )}
-                              {isTableEditMode && category !== 'ADV' && (
+                              {showsManageColumn && (
                                 <td className="px-2 py-1.5 text-center">
-                                  <button
-                                    onClick={() => handleDeleteAttendee(att.id)}
-                                    className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
-                                    title="명단에서 삭제"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
+                                  {isTableEditMode && (
+                                    <button
+                                      onClick={() => handleDeleteAttendee(att.id)}
+                                      className="p-1 text-slate-400 hover:text-slate-800 rounded hover:bg-slate-100 transition-colors cursor-pointer"
+                                      title="명단에서 삭제"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )}
                                 </td>
                               )}
                             </tr>

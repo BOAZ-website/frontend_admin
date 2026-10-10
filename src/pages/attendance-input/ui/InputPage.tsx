@@ -632,22 +632,6 @@ export function InputPage({
     );
   };
 
-  function handleDeleteMember(memberId: string) {
-    if (!canEdit) {
-      return;
-    }
-    if (window.confirm('해당 부원을 스터디 명단에서 삭제하시겠습니까?')) {
-      if (setMembersMap) {
-        setMembersMap((prev) => {
-          const existing = prev[selectedTeam] || [];
-          return {
-            ...prev,
-            [selectedTeam]: existing.filter((m) => m.id !== memberId),
-          };
-        });
-      }
-    }
-  }
   const currentStudy =
     effectiveTeams.find((s) => s.id === selectedTeam) ||
     studyTeams.find((s) => s.id === selectedTeam);
@@ -1130,26 +1114,26 @@ export function InputPage({
               width: `${splitRatio}%`,
               minWidth: '200px',
             }}
-            className="space-y-2.5 shrink-0 h-full overflow-y-auto pr-1.5"
+            className="space-y-2.5 shrink-0 h-full overflow-y-auto [scrollbar-gutter:stable] pr-1.5"
           >
-            {/* 사이드바 상단: 헤더 */}
-            <div className="flex items-center justify-between px-1 pb-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  {isHost ? '내 담당 팀' : isAdv ? null : '스터디 팀'}
-                </span>
-                {isHost && (
+            {/* 사이드바 상단: HOST 계정에만 담당 팀 머리말을 둔다. 스터디는 아래 멘멘 스터디·일반 스터디 구분만 쓴다. */}
+            {isHost && (
+              <div className="flex items-center justify-between px-1 pb-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    내 담당 팀
+                  </span>
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                     HOST 전용
                   </span>
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 등록된 팀이 없을 때 (Empty State) */}
             {displayedTeams.length === 0 ? (
-              <div className="p-6 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 space-y-3 my-2">
-                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 mx-auto shadow-2xs">
+              <div className="p-6 text-center rounded-md border border-dashed border-slate-200 bg-slate-50/50 space-y-3 my-2">
+                <div className="w-10 h-10 rounded-md bg-white border border-slate-200 flex items-center justify-center text-slate-500 mx-auto shadow-2xs">
                   <FolderPlus size={18} />
                 </div>
                 <div>
@@ -1736,7 +1720,7 @@ export function InputPage({
                           <th
                             style={{
                               width: `${effectiveColWidths.status}px`,
-                              minWidth: canEdit ? `${MIN_COL_WIDTHS.status}px` : undefined,
+                              minWidth: `${MIN_COL_WIDTHS.status}px`,
                             }}
                             className="relative text-center px-2 py-1 text-slate-900 font-bold bg-slate-50/80"
                           >
@@ -1763,33 +1747,56 @@ export function InputPage({
                           {/* 비고 */}
                           <th
                             style={{
-                              width: canEdit ? `${effectiveColWidths.memo}px` : undefined,
-                              minWidth: canEdit ? `${MIN_COL_WIDTHS.memo}px` : undefined,
+                              // 비고는 남는 폭을 채운다(너비를 정하지 않음).
+                              minWidth: `${MIN_COL_WIDTHS.memo}px`,
                             }}
                             className="relative text-center px-3 py-1 text-slate-700 font-semibold"
                           >
                             <div className="h-9 flex items-center justify-center">비고</div>
                             {isSubmitted && !isEditing && isInputWeek && (
-                              <button
-                                type="button"
-                                onClick={() => setIsEditing(true)}
-                                className={EDIT_ICON_BUTTON_CLASS}
-                                title="출결 수정"
-                                aria-label="출결 수정"
-                              >
-                                <Pencil size={14} aria-hidden="true" />
-                              </button>
+                              <span className={EDIT_ICON_SLOT_CLASS}>
+                                <Tooltip label="출결 수정" align="end">
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsEditing(true)}
+                                    className={EDIT_ICON_BUTTON_CLASS}
+                                    aria-label="출결 수정"
+                                  >
+                                    <Pencil size={14} aria-hidden="true" />
+                                  </button>
+                                </Tooltip>
+                              </span>
                             )}
+                            {/* 수정 중에는 연필 자리에 저장(체크) 버튼을 둔다. */}
+                            {isEditing && (
+                              <span className={EDIT_ICON_SLOT_CLASS}>
+                                <Tooltip label="수정 사항 저장" align="end">
+                                  <button
+                                    type="button"
+                                    onClick={submit}
+                                    className={EDIT_ICON_BUTTON_CLASS}
+                                    aria-label="수정 사항 저장"
+                                  >
+                                    <Check size={15} strokeWidth={2} aria-hidden="true" />
+                                  </button>
+                                </Tooltip>
+                              </span>
+                            )}
+                            {/* 마감된 주차: 수정할 수 없으므로 연필을 흐리게 두고, 마우스를 올리면 금지 표시와 이유가 뜬다. */}
                             {isPastWeek && (
-                              <button
-                                type="button"
-                                onClick={(e) => showClosedNotice(e.currentTarget)}
-                                className={EDIT_ICON_BUTTON_CLASS}
-                                title="출결 수정"
-                                aria-label="출결 수정"
-                              >
-                                <Pencil size={14} aria-hidden="true" />
-                              </button>
+                              <span className={EDIT_ICON_SLOT_CLASS}>
+                                <Tooltip label={CLOSED_WEEK_REASON} align="end" isBlocked>
+                                  <button
+                                    type="button"
+                                    disabled
+                                    aria-label={`출결 수정 (${CLOSED_WEEK_REASON})`}
+                                    // 쓸 수 없는 버튼은 마우스 동작을 감싼 칸(말풍선)에 넘긴다.
+                                    className="pointer-events-none inline-flex size-8 items-center justify-center rounded-sm border border-slate-200 bg-slate-50 text-slate-300"
+                                  >
+                                    <Pencil size={14} aria-hidden="true" />
+                                  </button>
+                                </Tooltip>
+                              </span>
                             )}
                             {canEdit && (
                               <div
@@ -1809,30 +1816,6 @@ export function InputPage({
                               </div>
                             )}
                           </th>
-
-                          {/* 관리 */}
-                          {canEdit && (
-                            <th
-                              style={{ width: `${effectiveColWidths.actions}px` }}
-                              className="text-center px-1 py-1 text-slate-400 font-semibold w-10"
-                            >
-                              <div className="h-9 flex items-center justify-center">
-                                {isEditing ? (
-                                  <button
-                                    type="button"
-                                    onClick={submit}
-                                    className="relative inline-flex size-8 items-center justify-center rounded-md text-slate-500 transition-[background-color,color,transform] duration-150 after:absolute after:-inset-1 hover:bg-slate-200/70 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 active:scale-95 cursor-pointer"
-                                    title="수정 사항 저장"
-                                    aria-label="수정 사항 저장"
-                                  >
-                                    <Check size={15} strokeWidth={2} aria-hidden="true" />
-                                  </button>
-                                ) : (
-                                  '관리'
-                                )}
-                              </div>
-                            </th>
-                          )}
                         </tr>
                       </thead>
                       {members.map((m) => {
@@ -1935,21 +1918,6 @@ export function InputPage({
                                       )}
                                     </div>
                                   )}
-                                </td>
-                              )}
-                              {isFirstRow && canEdit && (
-                                <td
-                                  rowSpan={rowSpan}
-                                  className="border-l border-slate-200 px-2 py-1.5 text-center w-10"
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteMember(m.id)}
-                                    className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition-colors cursor-pointer"
-                                    title="명단에서 삭제"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
                                 </td>
                               )}
                             </tr>
