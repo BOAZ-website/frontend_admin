@@ -50,6 +50,8 @@ export const addPermissionToHost = (
           {
             type: account.groupType || (account.accountType === 'ADV' ? 'ADV' : '스터디'),
             teamName: account.team,
+            // 담당 팀 id를 함께 남겨야 저장할 때 기존 팀이 맡은 그룹에서 빠지지 않는다.
+            ...(account.teamId ? { teamId: account.teamId } : {}),
           },
         ]
       : [];

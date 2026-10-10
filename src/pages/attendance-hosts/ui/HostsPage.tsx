@@ -1,21 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Check,
-  CheckCheck,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Eye,
-  EyeOff,
-  MessageSquare,
-  Plus,
-  Trash2,
-  UserCheck,
-  X,
-} from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, KeyRound, Plus, X } from 'lucide-react';
 
 import type { AssignedGroup, GroupType, HostAccount } from '@/entities/host-account/model/types';
-import type { Member, StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
+import { studyDisplayName } from '@/entities/study-team/model/db';
+import type { StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
 import type { UserProfile } from '@/entities/user/model/types';
 import {
   addPermissionToHost,
@@ -24,7 +12,11 @@ import {
   type HostPermission,
 } from '@/pages/attendance-hosts/model/accountLookup';
 import { resolveConfiguredTeam } from '@/pages/attendance-hosts/model/teamSelection';
-import { MODAL_PRIMARY_BTN, MODAL_SURFACE } from '@/shared/ui/modalStyles';
+import { useHostsPageData } from '@/pages/attendance-hosts/model/useHostsPageData';
+import { alertApiError } from '@/shared/lib/alertApiError';
+import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
+import { Tooltip } from '@/shared/ui/Tooltip';
+import { CreateButton } from '@/shared/ui/CreateButton';
 
 export type HostCategory = 'ADV' | 'STUDY' | string;
 
@@ -66,8 +58,44 @@ const studyKindLabel = (kind: StudyTeamInfo['studyKind']): string =>
   kind === 'MENTORING' ? '멘멘 스터디' : kind === 'GENERAL' ? '일반 스터디' : '-';
 
 /** 표의 "팀 이름": 행이 가리키는 팀 이름을 쓰고, 팀이 아직 없으면 계정에 저장된 담당 팀(없으면 '팀 개설 대기')을 쓴다. */
-const teamNameOf = (account: HostAccount, rowTeamName?: string): string =>
-  rowTeamName?.trim() || account.team?.trim() || '팀 개설 대기';
+const teamNameOf = (account: HostAccount | undefined, rowTeamName?: string): string =>
+  rowTeamName?.trim() || account?.team?.trim() || '팀 개설 대기';
+
+/** 표의 이름·기수·부문 칸에 보여 줄 사람. */
+interface RowPerson {
+  name: string;
+  generation: string;
+  track: string;
+}
+
+/**
+ * 팀이 있는 행은 팀 API의 현재 팀장을 보여 준다.
+ * 팀이 없는 계정 행(팀 개설 대기·겸직)은 계정 주인을 보여 준다. 아직 계정이 없는 팀이면 account가 없다.
+ */
+const rowPersonOf = (
+  team: { id: string; leaderId?: string; defaultLeader?: string },
+  account: HostAccount | undefined,
+  users: readonly UserProfile[],
+): RowPerson => {
+  const isTeamRow = !team.id.startsWith('extra_');
+  const owner: RowPerson = {
+    name: account?.hostName || '—',
+    generation: account ? generationLabel(account.generation) : '-',
+    track: account?.track || '-',
+  };
+  if (!isTeamRow) return owner;
+  const leader = users.find((user) => user.id === team.leaderId);
+  if (!leader) {
+    return { ...owner, name: team.leaderId ? team.defaultLeader || '팀장 미정' : '팀장 미정' };
+  }
+  return { name: leader.name, generation: `${leader.term}기`, track: leader.track };
+};
+
+/** 계정이 가진 권한 이름. 예: 'ADV', 'ADV·스터디' */
+const permissionLabelsOf = (account: HostAccount): string =>
+  getHostPermissions(account)
+    .map((permission) => (permission === 'ADV' ? 'ADV' : '스터디'))
+    .join('·');
 
 const generationLabel = (year?: string): string => {
   const value = year?.trim();
@@ -76,45 +104,36 @@ const generationLabel = (year?: string): string => {
 };
 
 export function HostsPage({
-  hosts,
-  setHosts,
-  advTeams,
-  studyTeams,
-  membersMap,
-  users,
-  onSaveHostWithLeader,
+  onDataChanged,
 }: {
-  hosts: HostAccount[];
-  setHosts: React.Dispatch<React.SetStateAction<HostAccount[]>>;
-  advTeams?: StudyTeamInfo[];
-  studyTeams: StudyTeamInfo[];
-  membersMap: Readonly<Record<string, readonly Member[]>>;
-  users: readonly UserProfile[];
-  onSaveHostWithLeader: (
-    account: HostAccount,
-    teamId: string | undefined,
-    leaderName: string,
-  ) => void;
+  /** 계정을 저장·삭제한 뒤 다른 화면(로그인·팀 데이터)도 다시 읽게 한다. */
+  onDataChanged?: () => void;
 }) {
+  // HOST 계정·팀·회원은 이 화면을 열 때 API로 읽고, 저장·삭제도 API로 한다.
+  const {
+    status: dataStatus,
+    error: dataError,
+    hosts,
+    advTeams,
+    studyTeams,
+    users,
+    saveHost,
+    resetPassword,
+  } = useHostsPageData(onDataChanged);
   // 1. 좌측 2개 네비게이션: 'ADV' 또는 'STUDY'
   const [activeCategory, setActiveCategory] = useState<HostCategory>('ADV');
 
   // 2. ADV 우측 본문 부문 필터
   const [trackFilter, setTrackFilter] = useState<'ALL' | '분석' | '시각화' | '엔지니어링'>('ALL');
 
-  // 비밀번호 가시성 토글
-  const [visiblePwId, setVisiblePwId] = useState<string | null>(null);
-
-  // 표 삭제 모드 (휴지통 버튼 → 전체 삭제 / 행별 삭제 버튼)
-  const [isDeleteMode, setIsDeleteMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
   // 복사 알림 토글
   const [copiedNotice, setCopiedNotice] = useState(false);
+  const [passwordResetTarget, setPasswordResetTarget] = useState<HostAccount | null>(null);
+  const [newPassword, setNewPassword] = useState('');
 
   // 계정 발급 폼 오픈 여부
   const [showIssueCard, setShowIssueCard] = useState(false);
-  const issueTeamRef = useRef<HTMLSelectElement>(null);
+  const issueTeamRef = useRef<HTMLButtonElement>(null);
   const deliveryTextRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (showIssueCard) issueTeamRef.current?.focus();
@@ -123,6 +142,7 @@ export function HostsPage({
   // 발급 폼 상태 (이름, 기수, 부문 기반 계정 발급)
   const [formGroupType, setFormGroupType] = useState<GroupType>('ADV');
   const [formTeamId, setFormTeamId] = useState<string>('');
+  const [isTeamMenuOpen, setIsTeamMenuOpen] = useState(false);
   const [formLeaderName, setFormLeaderName] = useState<string>('');
   const [formGeneration, setFormGeneration] = useState<string>('27기');
   const [formTrack, setFormTrack] = useState<string>('분석');
@@ -135,6 +155,12 @@ export function HostsPage({
   const lookupPermissions =
     accountLookup.status === 'found' ? getHostPermissions(accountLookup.account) : [];
   const hasTargetPermission = lookupPermissions.includes(targetPermission);
+  // 찾은 계정이 고른 팀을 이미 맡고 있는지. 권한이 있어도 이 팀을 맡지 않으면 이 팀을 더해야 한다.
+  const managesFormTeam =
+    accountLookup.status === 'found' &&
+    (accountLookup.account.teamId === formTeamId ||
+      (accountLookup.account.assignedGroups ?? []).some((group) => group.teamId === formTeamId));
+  const isAccountReady = hasTargetPermission && managesFormTeam;
 
   // 모달 상태
   const [deliveryModal, setDeliveryModal] = useState<{
@@ -153,6 +179,7 @@ export function HostsPage({
       leaderId: t.leaderId,
       track: t.category || '분석',
       teamName: t.teamName,
+      title: studyDisplayName(t),
       topic: t.studyName || t.description || '정규 ADV 프로젝트',
       defaultLeader: t.leaderName || '팀장 미정',
     }));
@@ -164,6 +191,7 @@ export function HostsPage({
       id: t.id || `study_${idx}`,
       leaderId: t.leaderId,
       teamName: t.teamName,
+      title: studyDisplayName(t),
       studyName: t.studyName || t.teamName,
       defaultLeader: t.leaderName || '팀장 미정',
       studyType: (t.studyType || '방학 스터디') as StudyPeriodType,
@@ -172,29 +200,25 @@ export function HostsPage({
     }));
   }, [studyTeams]);
 
-  const configuredTeams = formGroupType === 'ADV' ? effectiveAdvTeams : effectiveStudyTeams;
-  const selectedTeamMembers = formTeamId ? (membersMap[formTeamId] ?? []) : [];
-
-  // ADV 팀별 계정 매핑 (팀당 1개 원칙, 동일 인물인 경우 스터디 계정과 자동 연동)
+  const configuredTeams = useMemo(
+    () =>
+      formGroupType === 'ADV'
+        ? effectiveAdvTeams
+        : [...effectiveStudyTeams].sort(
+            (a, b) => Number(b.studyKind === 'MENTORING') - Number(a.studyKind === 'MENTORING'),
+          ),
+    [effectiveAdvTeams, effectiveStudyTeams, formGroupType],
+  );
+  // 팀 API가 내려준 현재 반기 ADV 팀에 teamId로 연결된 계정만 붙인다.
   const advTeamRows = useMemo(() => {
-    const baseRows = effectiveAdvTeams.map((team, idx) => {
+    return effectiveAdvTeams.map((team, idx) => {
       const leaderName = team.defaultLeader;
-      const cleanLeader = (leaderName || '').replace(/\s*\(.*\)/, '').trim();
 
-      // 계정 매핑:
-      // (1) 해당 팀 직접 매핑
-      // (2) assignedGroups 내 해당 팀 매핑
-      // (3) 동일 인물(팀장 성명) 매핑 -> 스터디에서 먼저 발급된 경우에도 자동으로 연동되어 발급 완료로 노출!
-      const account = hosts.find((h) => {
-        const hasTeam =
-          h.teamId === team.id ||
-          h.assignedGroups?.some((g) => g.teamId === team.id) ||
-          h.team === team.teamName ||
-          h.assignedGroups?.some((g) => g.teamName === team.teamName);
-        const hasLeader =
-          cleanLeader && h.hostName && h.hostName.replace(/\s*\(.*\)/, '').trim() === cleanLeader;
-        return hasTeam || hasLeader;
-      });
+      // 계정 매핑: 계정의 담당 팀(teamId) 또는 담당 그룹에 이 팀이 있는 계정.
+      // 팀장 이름이 같다는 이유로 다른 팀의 계정을 잇지 않는다(팀장이 바뀌면 엉뚱한 계정이 붙는다).
+      const account = hosts.find(
+        (h) => h.teamId === team.id || h.assignedGroups?.some((g) => g.teamId === team.id),
+      );
 
       const effectiveLeader = account?.hostName || leaderName;
       const concurrent =
@@ -208,73 +232,18 @@ export function HostsPage({
         isIssued: !!account,
       };
     });
-
-    const extraRows = hosts
-      .filter((h) => {
-        const hasAdv =
-          h.permissions?.includes('ADV') ||
-          h.assignedGroups?.some((g) => g.type === 'ADV') ||
-          h.groupType === 'ADV' ||
-          h.accountType === 'ADV';
-        if (!hasAdv) return false;
-        const alreadyInBase = baseRows.some(
-          (r) =>
-            r.account?.id === h.id ||
-            (h.teamId && r.team.id === h.teamId) ||
-            (h.team && h.team !== '팀 개설 대기' && r.team.teamName === h.team) ||
-            r.account?.assignedGroups?.some((g) => g.teamName === r.team.teamName),
-        );
-        return !alreadyInBase;
-      })
-      .map((h, i) => {
-        const leaderName = h.hostName || '';
-        const concurrent = h.concurrentRoles || detectConcurrentRoles(leaderName, h.team, hosts);
-        const isWaiting = !h.team || h.team === '팀 개설 대기';
-        return {
-          idx: baseRows.length + i + 1,
-          team: {
-            id: `extra_adv_${h.id}`,
-            track: h.track || '분석',
-            teamName: isWaiting
-              ? '팀 개설 대기'
-              : h.team.includes('겸직')
-                ? h.team
-                : `${h.team} (ADV 겸직)`,
-            topic: isWaiting ? '계정 발급 완료 (팀 미개설)' : 'ADV & 스터디 복수 권한 연동',
-            defaultLeader: leaderName,
-          },
-          account: h,
-          concurrent,
-          isIssued: true,
-        };
-      });
-
-    return [...baseRows, ...extraRows];
   }, [effectiveAdvTeams, hosts]);
 
-  // 스터디 팀별 계정 매핑 (팀당 1개 원칙, 동일 인물인 경우 ADV 계정과 자동 연동)
+  // 팀 API가 내려준 현재 반기 스터디 팀에 teamId로 연결된 계정만 붙인다.
   const studyTeamRows = useMemo(() => {
-    const baseRows = effectiveStudyTeams.map((team, idx) => {
+    return effectiveStudyTeams.map((team, idx) => {
       const leaderName = team.defaultLeader;
-      const cleanLeader = (leaderName || '').replace(/\s*\(.*\)/, '').trim();
 
-      // 계정 매핑:
-      // (1) 해당 팀 직접 매핑
-      // (2) assignedGroups 내 해당 팀 매핑
-      // (3) 동일 인물(팀장 성명) 매핑 -> ADV에서 먼저 발급된 경우에도 자동으로 연동되어 발급 완료로 노출!
-      const account = hosts.find((h) => {
-        const hasTeam =
-          h.teamId === team.id ||
-          h.assignedGroups?.some((g) => g.teamId === team.id) ||
-          h.team === team.teamName ||
-          h.team.includes(team.teamName) ||
-          h.assignedGroups?.some(
-            (g) => g.teamName === team.teamName || team.teamName.includes(g.teamName),
-          );
-        const hasLeader =
-          cleanLeader && h.hostName && h.hostName.replace(/\s*\(.*\)/, '').trim() === cleanLeader;
-        return hasTeam || hasLeader;
-      });
+      // 계정 매핑: 계정의 담당 팀(teamId) 또는 담당 그룹에 이 팀이 있는 계정.
+      // 팀장 이름이 같다는 이유로 다른 팀의 계정을 잇지 않는다(팀장이 바뀌면 엉뚱한 계정이 붙는다).
+      const account = hosts.find(
+        (h) => h.teamId === team.id || h.assignedGroups?.some((g) => g.teamId === team.id),
+      );
 
       const effectiveLeader = account?.hostName || leaderName;
       const concurrent =
@@ -288,132 +257,64 @@ export function HostsPage({
         isIssued: !!account,
       };
     });
-
-    const extraRows = hosts
-      .filter((h) => {
-        const hasStudy =
-          h.permissions?.includes('STUDY') ||
-          h.assignedGroups?.some((g) => g.type === '스터디') ||
-          h.groupType === '스터디' ||
-          h.accountType === 'STUDY';
-        if (!hasStudy) return false;
-        const alreadyInBase = baseRows.some(
-          (r) =>
-            r.account?.id === h.id ||
-            (h.teamId && r.team.id === h.teamId) ||
-            (h.team &&
-              h.team !== '팀 개설 대기' &&
-              (r.team.teamName === h.team || h.team.includes(r.team.teamName))) ||
-            r.account?.assignedGroups?.some((g) => g.teamName === r.team.teamName),
-        );
-        return !alreadyInBase;
-      })
-      .map((h, i) => {
-        const leaderName = h.hostName || '';
-        const concurrent = h.concurrentRoles || detectConcurrentRoles(leaderName, h.team, hosts);
-        const isWaiting = !h.team || h.team === '팀 개설 대기';
-        return {
-          idx: baseRows.length + i + 1,
-          team: {
-            id: `extra_study_${h.id}`,
-            teamName: isWaiting
-              ? '팀 개설 대기'
-              : h.team.includes('겸직')
-                ? h.team
-                : `${h.team} (스터디 겸직)`,
-            studyName: isWaiting ? '계정 발급 완료 (팀 미개설)' : 'ADV & 스터디 복수 권한 연동',
-            defaultLeader: leaderName,
-            studyType: '방학 스터디' as StudyPeriodType,
-            studyKind: undefined as StudyTeamInfo['studyKind'],
-            track: h.track || '분석',
-          },
-          account: h,
-          concurrent,
-          isIssued: true,
-        };
-      });
-
-    return [...baseRows, ...extraRows];
   }, [effectiveStudyTeams, hosts]);
 
   // 우측 필터링된 행 목록
   const filteredAdvRows = useMemo(() => {
+    // 팀이 있으면 계정이 아직 없어도 보여 준다(아이디 칸이 비어 있어 계정이 없음을 알 수 있다).
     return advTeamRows.filter((row) => {
-      if (!row.account) return false;
-
-      const effectiveTrack = row.account.track || row.team.track;
+      const effectiveTrack = row.account?.track || row.team.track;
       if (trackFilter !== 'ALL' && effectiveTrack !== trackFilter && row.team.track !== '겸직 연동')
         return false;
       return true;
     });
   }, [advTeamRows, trackFilter]);
 
-  const filteredStudyRows = useMemo(() => {
-    return studyTeamRows.filter((row) => {
-      if (!row.account) return false;
-      return true;
-    });
-  }, [studyTeamRows]);
+  // 팀이 있으면 계정이 아직 없어도 보여 준다. 순서(멘멘 스터디 → 일반 스터디)는 API가 정한다.
+  const filteredStudyRows = studyTeamRows;
 
-  const deletableAccounts = useMemo(() => {
-    const rows = activeCategory === 'ADV' ? filteredAdvRows : filteredStudyRows;
-    const accounts = new Map<string, HostAccount>();
-
-    rows.forEach((row) => {
-      if (row.account) accounts.set(row.account.id, row.account);
-    });
-
-    return Array.from(accounts.values());
-  }, [activeCategory, filteredAdvRows, filteredStudyRows]);
-
-  const removeAccounts = (ids: string[]) => {
-    const idSet = new Set(ids);
-    setHosts((prev) => prev.filter((account) => !idSet.has(account.id)));
-    setVisiblePwId((current) => (current && idSet.has(current) ? null : current));
+  const openPasswordReset = (account: HostAccount) => {
+    setPasswordResetTarget(account);
+    setNewPassword('');
   };
 
-  // 현재 탭/필터에 보이는 계정 중 선택된 것만 대상으로 삼는다
-  const selectedAccounts = deletableAccounts.filter((account) => selectedIds.includes(account.id));
-  const isAllSelected =
-    deletableAccounts.length > 0 && selectedAccounts.length === deletableAccounts.length;
+  const handleResetPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!passwordResetTarget || !newPassword.trim()) return;
+    const owner = passwordResetTarget.hostName || passwordResetTarget.username;
+    if (!window.confirm(`${owner}님 계정의 비밀번호를 정말 재설정할까요?`)) return;
+    try {
+      await resetPassword(passwordResetTarget.id, newPassword);
+      setDeliveryModal({
+        host: { ...passwordResetTarget, initialPassword: newPassword },
+        title: `${passwordResetTarget.hostName || passwordResetTarget.username} 비밀번호 재설정`,
+        text: `[BOAZ 그룹리더 계정 비밀번호 재설정 안내]
 
-  const exitDeleteMode = () => {
-    setIsDeleteMode(false);
-    setSelectedIds([]);
+• 로그인 아이디: ${passwordResetTarget.username}
+• 새 비밀번호: ${newPassword}
+
+로그인 후 새 비밀번호로 접속해 주세요.`,
+      });
+      setPasswordResetTarget(null);
+      setNewPassword('');
+    } catch (error) {
+      alertApiError(error);
+    }
   };
 
-  const toggleSelected = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id],
-    );
-  };
-
-  const toggleSelectAll = () => {
-    setSelectedIds(isAllSelected ? [] : deletableAccounts.map((account) => account.id));
-  };
-
-  const handleDeleteSelected = () => {
-    if (selectedAccounts.length === 0) return;
-    const message =
-      selectedAccounts.length === 1
-        ? `${selectedAccounts[0].hostName || selectedAccounts[0].username} 계정을 삭제할까요? 연결된 모든 그룹에서 함께 제거됩니다.`
-        : `선택한 계정 ${selectedAccounts.length}개를 삭제할까요? 연결된 모든 그룹에서 함께 제거됩니다.`;
-    if (!window.confirm(message)) return;
-    removeAccounts(selectedAccounts.map((account) => account.id));
-    exitDeleteMode();
-  };
-
-  const renderSelectCell = (account: HostAccount) => (
+  const renderResetCell = (account: HostAccount) => (
     <td className="px-2 py-2 text-center whitespace-nowrap">
-      {isDeleteMode && (
-        <input
-          type="checkbox"
-          checked={selectedIds.includes(account.id)}
-          onChange={() => toggleSelected(account.id)}
-          aria-label={`${account.hostName || account.username} 선택`}
-          className="size-4 rounded border-slate-300 accent-rose-600 cursor-pointer"
-        />
-      )}
+      {/* 다른 아이콘 버튼과 같은 모양: 평소에는 연한 회색, 마우스를 올리면 진해지고 연한 배경이 깔린다. */}
+      <Tooltip label="비밀번호 재설정">
+        <button
+          type="button"
+          onClick={() => openPasswordReset(account)}
+          aria-label={`${account.hostName || account.username} 비밀번호 재설정`}
+          className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
+        >
+          <KeyRound size={14} aria-hidden="true" />
+        </button>
+      </Tooltip>
     </td>
   );
 
@@ -452,6 +353,7 @@ export function HostsPage({
     setFormLeaderName(leaderName);
     setFormGeneration(generationLabel(selectedLeader?.term.toString()));
     setFormTrack(selectedLeader?.track || selectedTeam?.track || '부문 미정');
+    setIsTeamMenuOpen(false);
   };
 
   const resolveTargetTeamInfo = (): { teamName: string; teamId?: string } => {
@@ -467,11 +369,14 @@ export function HostsPage({
   };
 
   const handleLookupAccount = () => {
-    const matchedAccount = findHostAccountByIdentity(hosts, {
-      name: formLeaderName,
-      generation: formGeneration,
-      track: formTrack,
-    });
+    const leaderId = configuredTeams.find((team) => team.id === formTeamId)?.leaderId;
+    const matchedAccount =
+      (leaderId ? hosts.find((host) => host.userId === leaderId) : undefined) ??
+      findHostAccountByIdentity(hosts, {
+        name: formLeaderName,
+        generation: formGeneration,
+        track: formTrack,
+      });
 
     setAccountLookup(
       matchedAccount ? { status: 'found', account: matchedAccount } : { status: 'not-found' },
@@ -507,11 +412,14 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
 • 겸직 중인 다른 그룹(ADV/스터디)이 있으신 경우 본 단일 계정으로 통합 관리됩니다.`;
   };
 
-  const handleAddPermission = () => {
-    if (accountLookup.status !== 'found') return;
+  const handleAddPermission = async () => {
+    if (accountLookup.status !== 'found' || isAccountReady) return;
 
     const existingAccount = accountLookup.account;
-    if (getHostPermissions(existingAccount).includes(targetPermission)) return;
+    const confirmMessage = hasTargetPermission
+      ? `이미 ${permissionLabelsOf(existingAccount)} 권한이 있습니다.\n이 계정에 고른 팀 담당을 추가할까요?`
+      : `이미 ${permissionLabelsOf(existingAccount)} 권한이 있습니다.\n${targetPermissionLabel} 권한도 추가할까요?`;
+    if (!window.confirm(confirmMessage)) return;
 
     const { teamName: finalTeam, teamId: finalTeamId } = resolveTargetTeamInfo();
     const assignedGroup =
@@ -521,7 +429,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
     const updatedAccount = addPermissionToHost(existingAccount, targetPermission, assignedGroup);
 
     try {
-      onSaveHostWithLeader(updatedAccount, finalTeamId, formLeaderName.trim());
+      await saveHost(updatedAccount);
     } catch (error) {
       window.alert(
         `권한을 추가하지 못했습니다. (${error instanceof Error ? error.message : String(error)})`,
@@ -529,51 +437,30 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
       return;
     }
 
+    // 권한을 더하면 바로 안내할 수 있게 전달문을 만들어 보여 준다(아이디·비밀번호는 그대로).
+    const leaderName = formLeaderName.trim();
+    const teamTitle = configuredTeams.find((team) => team.id === formTeamId)?.title ?? finalTeam;
     setDeliveryModal({
       host: updatedAccount,
-      title: `${formLeaderName.trim()} 권한 추가`,
+      title: `${formGeneration} ${formTrack} ${leaderName} ${targetPermissionLabel} 권한 추가`,
       text: `[BOAZ 그룹리더 계정 권한 추가 안내]
 
-안녕하세요, ${formLeaderName.trim()}님!
-기존 HOST 계정에 ${targetPermissionLabel} 권한이 추가되었습니다.
+안녕하세요, ${leaderName}님!
+지금 쓰고 계신 계정에 ${targetPermissionLabel} 출결 접근 권한을 추가해 두었습니다.
+새 계정을 따로 만들 필요 없이, 이전에 받으신 아이디와 비밀번호로 그대로 로그인하시면 됩니다.
 
-• 기수/부문: ${formGeneration} [${formTrack}]
-• 추가 권한: ${targetPermissionLabel}
+• 담당 팀: [${targetPermissionLabel}] ${teamTitle}
 • 로그인 아이디: ${existingAccount.username}
-• 비밀번호: (기존 비밀번호 유지)`,
+• 비밀번호: 이전에 받으신 비밀번호 그대로
+• 접속 URL: https://attendance.boaz.org/host
+
+로그인한 뒤 ${targetPermissionLabel === 'ADV' ? 'ADV Term 출결 입력' : '스터디 출결 입력'} 메뉴에서 담당 팀의 출결을 입력해 주세요.`,
     });
     setShowIssueCard(false);
   };
 
-  const handleShowPermissionDelivery = () => {
-    if (accountLookup.status !== 'found' || !hasTargetPermission) return;
-
-    const existingAccount = accountLookup.account;
-    const permissionLabels = lookupPermissions
-      .map((permission) => (permission === 'ADV' ? 'ADV' : '스터디'))
-      .join(', ');
-
-    setDeliveryModal({
-      host: existingAccount,
-      title: `${formLeaderName.trim()} ${targetPermissionLabel} 권한 안내`,
-      text: `[BOAZ 그룹리더 계정 권한 안내]
-
-안녕하세요, ${formLeaderName.trim()}님!
-기존 HOST 계정으로 ${targetPermissionLabel} 출결 관리가 가능합니다.
-
-• 기수/부문: ${formGeneration} [${formTrack}]
-• 현재 보유 권한: ${permissionLabels}
-• 로그인 아이디: ${existingAccount.username}
-• 비밀번호: (기존 비밀번호 유지)
-• 접속 URL: https://attendance.boaz.org/host
-
-[안내 사항]
-• 기존 계정으로 로그인한 뒤 ${targetPermissionLabel} 출결 관리 메뉴를 확인해 주세요.`,
-    });
-  };
-
   // 조회 결과가 없을 때 신규 계정 발급
-  const handleSaveAccount = (e: React.FormEvent) => {
+  const handleSaveAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (accountLookup.status !== 'not-found') return;
 
@@ -617,7 +504,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
     };
 
     try {
-      onSaveHostWithLeader(newHostAccount, finalTeamId, leaderClean);
+      await saveHost(newHostAccount);
     } catch (error) {
       window.alert(
         `계정을 만들지 못했습니다. (${error instanceof Error ? error.message : String(error)})`,
@@ -637,7 +524,7 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
 
     setDeliveryModal({
       host: newHostAccount,
-      title: `${leaderClean} (${formGeneration} ${formTrack})`,
+      title: `${formGeneration} ${formTrack} ${leaderClean}`,
       text: delivery,
     });
 
@@ -657,6 +544,20 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
 
   return (
     <div className="space-y-6">
+      {dataStatus !== 'ready' && (
+        <p
+          role="status"
+          className={`rounded-md border px-4 py-3 text-xs ${
+            dataStatus === 'error'
+              ? 'border-red-200 bg-red-50 text-red-600'
+              : 'border-slate-200 bg-white text-slate-500'
+          }`}
+        >
+          {dataStatus === 'error'
+            ? `HOST 계정 정보를 불러오지 못했습니다. (${dataError?.message ?? '알 수 없는 오류'})`
+            : 'HOST 계정 정보를 불러오는 중입니다.'}
+        </p>
+      )}
       {/* 1. 상단 타이틀 영역 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
