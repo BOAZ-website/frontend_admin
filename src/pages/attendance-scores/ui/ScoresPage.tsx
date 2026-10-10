@@ -670,10 +670,10 @@ export function ScoresPage({
             />
             <input
               type="text"
-              placeholder="부원 이름 검색..."
+              placeholder="이름 검색"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-44"
+              className="pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-44"
             />
           </div>
 

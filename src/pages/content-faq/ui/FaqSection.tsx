@@ -344,7 +344,8 @@ export function FaqSection() {
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="질문 또는 답변 검색"
+              placeholder="검색"
+              aria-label="질문 또는 답변 검색"
               className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-9 text-xs outline-none focus:border-red-300 focus:ring-2 focus:ring-red-50"
             />
             {searchQuery && (

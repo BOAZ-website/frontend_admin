@@ -1675,7 +1675,8 @@ export function RecruitmentManagePage({
                   <input
                     value={leadSearchQuery}
                     onChange={(e) => setLeadSearchQuery(e.target.value)}
-                    placeholder="이름, 연락처, 이메일 검색..."
+                    placeholder="검색"
+                    aria-label="이름, 연락처, 이메일 검색"
                     className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-500 shadow-2xs transition-all"
                   />
                   {leadSearchQuery && (

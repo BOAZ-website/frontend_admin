@@ -770,7 +770,8 @@ export function SystemAccountsPage({ initialSubTab = 'accounts' }: SystemAccount
                       <input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="아이디, 이름, 부서 검색..."
+                        placeholder="검색"
+                        aria-label="아이디, 이름, 부서 검색"
                         className="pl-8 pr-3 py-1 text-xs rounded-xl bg-slate-100 border border-slate-200 text-foreground placeholder:text-muted-foreground/60 outline-none w-44 font-mono"
                       />
                       <Search
