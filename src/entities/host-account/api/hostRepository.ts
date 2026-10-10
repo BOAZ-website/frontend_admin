@@ -14,7 +14,6 @@ interface HostRow extends Record<string, unknown> {
   id: string;
   user_id: string | null;
   username: string;
-  initial_password: string | null;
   host_name: string | null;
   generation: string | null;
   track: string | null;
@@ -67,7 +66,9 @@ export function loadHosts(db: Database): HostAccount[] {
 
   return queryAll<HostRow>(
     db,
-    `SELECT h.*, t.team_name, u.name AS user_name, u.term AS user_term, u.track AS user_track
+    `SELECT h.id, h.user_id, h.username, h.host_name, h.generation, h.track, h.role,
+            h.team_id, h.group_type, h.account_type, h.created_at, h.active, h.last_login,
+            t.team_name, u.name AS user_name, u.term AS user_term, u.track AS user_track
        FROM host_accounts h
        LEFT JOIN teams t ON t.id = h.team_id
        LEFT JOIN users u ON u.id = h.user_id
@@ -90,7 +91,6 @@ export function loadHosts(db: Database): HostAccount[] {
       ...(row.user_id === null ? {} : { userId: row.user_id }),
       ...(row.team_id === null ? {} : { teamId: row.team_id }),
       active: row.active === 1,
-      ...(row.initial_password === null ? {} : { initialPassword: row.initial_password }),
       ...(row.user_name === null && row.host_name === null
         ? {}
         : { hostName: row.user_name ?? row.host_name ?? undefined }),
@@ -230,7 +230,7 @@ export function persistHosts(
                                       group_type, account_type, created_at, active, last_login)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
-             username = excluded.username, initial_password = excluded.initial_password,
+             username = excluded.username,
              user_id = excluded.user_id, host_name = excluded.host_name,
              generation = excluded.generation, track = excluded.track,
              role = excluded.role, team_id = excluded.team_id, group_type = excluded.group_type,
