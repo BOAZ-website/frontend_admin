@@ -1,12 +1,5 @@
 import type { AttendanceStatus } from './types';
 
-export const WEEKS = [
-  { id: 'w1', label: '1주차', date: '03.04' },
-  { id: 'w2', label: '2주차', date: '03.11' },
-  { id: 'w3', label: '3주차', date: '03.18' },
-  { id: 'w4', label: '4주차', date: '03.25' },
-];
-
 // 샘플 인증 사진 이미지
 export const STATUS_CFG: Record<
   AttendanceStatus,

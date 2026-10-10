@@ -14,11 +14,6 @@ export function formatFileSize(bytes: number): string {
     : `${Math.round(bytes / BYTES_PER_KB)} KB`;
 }
 
-/** 확장자나 MIME 타입이 PDF인 파일인지. 브라우저가 type을 비워 보내는 경우가 있어 확장자도 본다. */
-export function isPdfFile(file: Pick<File, 'name' | 'type'>): boolean {
-  return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-}
-
 /** 확장자와 MIME, 파일 헤더가 모두 PDF인 경우에만 미리보기를 허용한다. */
 export async function hasPdfSignature(file: File): Promise<boolean> {
   if (file.type !== 'application/pdf' || !file.name.toLowerCase().endsWith('.pdf')) return false;
@@ -41,12 +36,6 @@ export async function uploadFile(blob: Blob): Promise<{ path: string; url: strin
   const url = await readBlobAsDataUrl(blob);
   return { path: url, url };
 }
-
-/**
- * 목 데이터용 샘플 PDF. 사진처럼 public 아래(public/files/study)에 두고 DB에는 상대 경로만 저장한다.
- * 파일을 URL(CDN 등)로 옮기면 화면 코드는 그대로 두고 이 경로 처리만 바꾸면 된다.
- */
-export const SAMPLE_MENTORING_PDF_PATH = 'files/study/sample-mentoring-report.pdf';
 
 /** DB에 저장된 파일 경로를 화면에서 열 수 있는 주소로 바꾼다(업로드한 blob 주소는 그대로 둔다). */
 export function resolveFileUrl(path: string): string {

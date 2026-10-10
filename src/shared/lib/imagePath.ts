@@ -27,6 +27,3 @@ export function toImagePath(url: string): string {
   const base = baseUrl();
   return url.startsWith(base) ? url.slice(base.length) : url.replace(/^\/+/, '');
 }
-
-/** 목 데이터용 샘플 사진. 모든 이미지는 public/images 아래 한 폴더에 모아 두고 경로명으로 접근한다. */
-export const SAMPLE_STUDY_PHOTO_PATH = 'images/study/sample-study-photo.jpg';

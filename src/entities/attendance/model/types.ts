@@ -22,7 +22,6 @@ export interface SessionRecord {
   pdfSize?: string | null;
   submitted: boolean;
   submittedAt: string | null;
-  confirmedByAdmin?: boolean;
 }
 
 export type AttendanceState = Record<string, SessionRecord>;
