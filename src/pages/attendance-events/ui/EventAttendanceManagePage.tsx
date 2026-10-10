@@ -587,19 +587,56 @@ export function EventAttendanceManagePage({
   const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null);
   const [dropIndicatorIdx, setDropIndicatorIdx] = useState<number | null>(null);
 
-  // Modal: Template Create / Edit
-  const [editingTemplate, setEditingTemplate] = useState<FormTemplate | null>(null);
-  const [isNewTemplate, setIsNewTemplate] = useState(false);
-
   // Table Edit Mode State (switch between clean text view & inline input edit mode)
-  const [isTableEditMode, setIsTableEditMode] = useState(false);
+  // 일괄 수정 중인 탭(행사 id:시트). 컨퍼런스는 시트마다, 다른 방식은 행사마다 따로 켜고 끈다.
+  const [editModeKeys, setEditModeKeys] = useState<readonly string[]>([]);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  // 수정 중에 고친 참가자(아직 저장 전). 그 탭의 일괄 저장이나 행의 수정 완료를 누르면 저장한다.
+  const [drafts, setDrafts] = useState<Readonly<Record<string, AttendeeRecord>>>({});
+  const hasUnsavedEdits = Object.keys(drafts).length > 0;
+
+  /**
+   * 행사 화면을 떠나도 되는지(목록으로·다른 행사로·다른 메뉴로·뒤로 가기).
+   * 저장하지 않은 수정 내용이 있으면 브라우저 확인 창으로 묻는다. 확인: 모두 저장하고 나간다. 취소: 머문다.
+   */
+  function confirmLeaveEvent(): boolean {
+    if (Object.keys(drafts).length === 0) {
+      return true;
+    }
+    const shouldSave = window.confirm('저장하지 않은 수정 내용이 있습니다.\n저장하고 나갈까요?');
+    if (!shouldSave) {
+      return false;
+    }
+    commitDrafts(Object.keys(drafts));
+    setEditModeKeys([]);
+    setEditingRowId(null);
+    return true;
+  }
+  // 이벤트 처리기(뒤로 가기)와 다른 화면(사이드바)이 늘 최신 확인 함수를 부르도록 ref에 둔다.
+  const leaveGuardRef = useRef(confirmLeaveEvent);
+  leaveGuardRef.current = confirmLeaveEvent;
+  const latestEventIdRef = useRef(selectedEventId);
+  latestEventIdRef.current = selectedEventId;
+
+  useEffect(() => registerLeaveGuard(() => leaveGuardRef.current()), []);
+
+  // 새로고침·탭 닫기: 브라우저가 직접 '사이트에서 나가시겠습니까?'를 묻는다(문구는 바꿀 수 없고 저장되지 않는다).
+  useEffect(() => {
+    if (!hasUnsavedEdits) {
+      return;
+    }
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedEdits]);
 
   // Table Column Resizing State
   const [colWidths, setColWidths] = useState<Record<string, number>>({
     index: 50,
     name: 120,
-    status: 450,
     memo: 200,
   });
 
@@ -1756,20 +1793,69 @@ export function EventAttendanceManagePage({
       isRequired: false,
       target: 'ALL',
     };
-    setEditingEvent({
-      ...editingEvent,
-      customFields: [...(editingEvent.customFields || []), newField],
+    setEditingEvent((prev) => {
+      if (!prev || (prev.customFields || []).some((field) => field.label === trimmed)) {
+        return prev;
+      }
+      return { ...prev, customFields: [...(prev.customFields || []), newField] };
     });
     setNewColInputText('');
   }
 
+  /** 컬럼 삭제 확인. 저장하면 그 열에 입력한 값도 함께 지워진다. */
+  function confirmColumnRemoval(label: string, note = ''): boolean {
+    return window.confirm(
+      `'${label}' 컬럼을 정말 삭제할까요?${note}\n저장하면 이 컬럼에 입력한 값도 함께 지워지며, 더 이상 되돌릴 수 없습니다.`,
+    );
+  }
+
+  /**
+   * 컬럼 설정 창에서 출결 열(1차·2차·행사별 열)이나 비고를 지운다.
+   * 같은 이름(출결·2차 출결·비고)으로 컬럼을 추가하면 빈 열로 되살아난다.
+   */
+  function handleRemoveTableColumn(column: TableColumn) {
+    if (!editingEvent || column.kind === 'name' || column.kind === 'field') {
+      return;
+    }
+    const note = column.kind === 'status' ? statusColumnRemovalNote(column.status) : '';
+    if (!confirmColumnRemoval(column.label, note)) {
+      return;
+    }
+    setEditingEvent(
+      column.kind === 'memo'
+        ? withBaseColumnHidden(editingEvent, 'MEMO', true)
+        : withStatusColumnRemoved(editingEvent, column.status),
+    );
+  }
+
   function handleRemoveCustomColumn(label: string) {
-    if (!editingEvent) {
+    if (!editingEvent || !confirmColumnRemoval(label)) {
       return;
     }
     setEditingEvent({
       ...editingEvent,
       customFields: (editingEvent.customFields || []).filter((f) => f.label !== label),
+    });
+  }
+
+  function handleRenameCustomColumn(id: string, name: string) {
+    const trimmed = name.trim();
+    if (!editingEvent || !trimmed || isReservedColumnName(trimmed)) {
+      return;
+    }
+    setEditingEvent((prev) => {
+      if (
+        !prev ||
+        (prev.customFields || []).some((field) => field.id !== id && field.label === trimmed)
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        customFields: (prev.customFields || []).map((field) =>
+          field.id === id ? { ...field, label: trimmed } : field,
+        ),
+      };
     });
   }
 
@@ -1799,30 +1885,11 @@ export function EventAttendanceManagePage({
       return;
     }
 
-    const validFields = (editingEvent.customFields || []).filter(
-      (f) =>
-        f.label !== '이름' &&
-        f.label !== '비고' &&
-        f.label !== '출석 상태' &&
-        f.label !== '출석상태',
-    );
-
-    // If dropped at same relative position, no-op
-    if (draggedColIdx === targetSlot || draggedColIdx + 1 === targetSlot) {
-      setDraggedColIdx(null);
-      setDropIndicatorIdx(null);
-      return;
+    // 비고를 뺀 표 컬럼 순서 기준으로 옮긴다. 이름·출결 앞뒤를 넘으면 출결 열 자리(statusColumnIndex)도 바뀐다.
+    const moved = movedTableColumn(editingEvent, draggedColIdx, targetSlot);
+    if (moved) {
+      setEditingEvent({ ...editingEvent, ...moved });
     }
-
-    const reordered = [...validFields];
-    const [moved] = reordered.splice(draggedColIdx, 1);
-    const insertAt = targetSlot > draggedColIdx ? targetSlot - 1 : targetSlot;
-    reordered.splice(insertAt, 0, moved);
-
-    setEditingEvent({
-      ...editingEvent,
-      customFields: reordered,
-    });
     setDraggedColIdx(null);
     setDropIndicatorIdx(null);
   }
@@ -1861,8 +1928,18 @@ export function EventAttendanceManagePage({
     });
   }
 
-  // 1. 출석 체크 화면 톱니바퀴 -> 출석 컬럼 설정만 오픈
-  function handleOpenColumnSettings(e: AttendanceEvent) {
+  // 1. 출석 체크 화면 톱니바퀴 -> 출석 컬럼 설정만 오픈.
+  // 화면에 들고 있는 값이 아니라 서버의 지금 컬럼 구성을 읽어서 연다(다른 사람이 바꾼 컬럼도 보이게).
+  const columnSettingsBaseRef = useRef<AttendanceEvent | null>(null);
+  async function handleOpenColumnSettings(eventId: string) {
+    let e: AttendanceEvent;
+    try {
+      e = await loadEvent(eventId);
+    } catch (error) {
+      alertApiError(error);
+      return;
+    }
+    columnSettingsBaseRef.current = e;
     setIsNewEvent(false);
     setEventModalType('COLUMNS_ONLY');
     setNewColInputText('');
@@ -3688,34 +3765,56 @@ export function EventAttendanceManagePage({
                           }
                         }}
                         placeholder="추가할 컬럼명을 입력하세요"
-                        className="flex-1 px-3.5 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 outline-none focus:bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-200 transition-all"
+                        className={`min-w-0 flex-1 ${FIELD_INPUT}`}
                       />
                       <button
                         type="button"
                         onClick={() => handleAddCustomColumn(newColInputText)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${MODAL_PRIMARY_BTN}`}
+                        className={`h-10 shrink-0 ${MODAL_CONFIRM_BTN}`}
                       >
-                        + 추가
+                        추가
                       </button>
                     </div>
 
-                    {/* 현재 추가된 컬럼 태그 목록 (드래그하여 순서 변경 가능) */}
+                    {/* 지금 표의 컬럼을 표와 같은 순서로 보여 준다(창을 열 때 서버에서 읽은 행사 기준, 고치는 대로 바뀐다).
+                        추가 컬럼은 끌어서 옮기고, 이름은 지울 수 없다. 출결·2차 출결·비고는 지운 뒤 같은 이름으로 추가하면 되살아난다. */}
                     {(() => {
-                      const validFields = (editingEvent.customFields || []).filter(
-                        (f) =>
-                          f.label !== '이름' &&
-                          f.label !== '비고' &&
-                          f.label !== '출석 상태' &&
-                          f.label !== '출석상태',
+                      const columns = tableColumnsOf(editingEvent, false);
+                      // 끌어 옮기는 자리는 비고를 뺀 목록 기준이다(비고는 늘 맨 끝).
+                      const movable: TableColumn[] = columns.filter(
+                        (column) => column.kind !== 'memo',
                       );
-                      if (validFields.length === 0) {
-                        return null;
-                      }
+                      const indicator = (
+                        <div className="flex flex-col items-center justify-center -mx-1 px-1 pointer-events-none transition-all z-20">
+                          <div className="w-1 h-1 rounded-full bg-slate-900 shadow-xs" />
+                          <div className="w-[2.5px] h-6 bg-slate-900 rounded-full shadow-xs" />
+                          <div className="w-1 h-1 rounded-full bg-slate-900 shadow-xs" />
+                        </div>
+                      );
+                      const removeButton = (column: TableColumn) => (
+                        <Tooltip label="삭제" align="end">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (column.kind === 'field') {
+                                handleRemoveCustomColumn(column.label);
+                              } else {
+                                handleRemoveTableColumn(column);
+                              }
+                            }}
+                            className="text-slate-400 hover:text-slate-800 cursor-pointer transition-colors p-0.5 rounded-md hover:bg-slate-100"
+                            aria-label={`${column.label} 컬럼 삭제`}
+                          >
+                            <X size={12} />
+                          </button>
+                        </Tooltip>
+                      );
 
                       return (
                         <div className="space-y-1.5 pt-2.5">
                           <div
-                            className="flex flex-wrap items-center gap-1.5 min-h-[38px] p-2 rounded-xl bg-slate-50 border border-slate-200/80"
+                            className="flex flex-wrap items-center gap-1.5 min-h-[38px] p-2 rounded-md bg-slate-50 border border-slate-200"
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={(e) => {
                               if (dropIndicatorIdx !== null) {
@@ -3723,130 +3822,147 @@ export function EventAttendanceManagePage({
                               }
                             }}
                           >
-                            {validFields.map((f, idx) => {
-                              const isDragging = draggedColIdx === idx;
+                            {columns.map((column) => {
+                              const idx = movable.indexOf(column);
                               const showBeforeIndicator =
-                                draggedColIdx !== null && dropIndicatorIdx === idx;
+                                draggedColIdx !== null && idx >= 0 && dropIndicatorIdx === idx;
                               const showAfterIndicator =
                                 draggedColIdx !== null &&
-                                idx === validFields.length - 1 &&
-                                dropIndicatorIdx === validFields.length;
+                                idx === movable.length - 1 &&
+                                dropIndicatorIdx === movable.length;
+                              const dropHandlers =
+                                idx >= 0
+                                  ? {
+                                      onDragOver: (e: React.DragEvent) => handleColDragOver(e, idx),
+                                      onDrop: (e: React.DragEvent) => {
+                                        e.stopPropagation();
+                                        if (dropIndicatorIdx !== null) {
+                                          handleColDrop(e, dropIndicatorIdx);
+                                        }
+                                      },
+                                    }
+                                  : {};
 
                               return (
-                                <div key={f.id} className="flex items-center">
-                                  {/* Vertical Insertion Bar Indicator Before Item */}
-                                  {showBeforeIndicator && (
-                                    <div className="flex flex-col items-center justify-center -mx-1 px-1 pointer-events-none transition-all z-20">
-                                      <div className="w-1 h-1 rounded-full bg-slate-900 shadow-xs" />
-                                      <div className="w-[2.5px] h-6 bg-slate-900 rounded-full shadow-xs" />
-                                      <div className="w-1 h-1 rounded-full bg-slate-900 shadow-xs" />
-                                    </div>
-                                  )}
-
-                                  <div
-                                    draggable
-                                    onDragStart={(e) => handleColDragStart(e, idx)}
-                                    onDragOver={(e) => handleColDragOver(e, idx)}
-                                    onDrop={(e) => {
-                                      e.stopPropagation();
-                                      if (dropIndicatorIdx !== null) {
-                                        handleColDrop(e, dropIndicatorIdx);
-                                      }
-                                    }}
-                                    onDragEnd={handleColDragEnd}
-                                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-grab active:cursor-grabbing ${
-                                      isDragging
-                                        ? 'opacity-25 border-dashed border-slate-400 bg-slate-200'
-                                        : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-2xs hover:shadow-xs'
-                                    }`}
-                                    title="드래그하여 순서를 변경할 수 있습니다"
-                                  >
-                                    <GripVertical
-                                      size={13}
-                                      className="text-slate-400 -ml-0.5 shrink-0"
-                                    />
-                                    <span>{f.label}</span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRemoveCustomColumn(f.label);
-                                      }}
-                                      className="text-slate-400 hover:text-red-600 cursor-pointer transition-colors p-0.5 rounded-md hover:bg-slate-100"
-                                      title="삭제"
+                                <div key={column.key} className="flex items-center">
+                                  {showBeforeIndicator && indicator}
+                                  {column.kind === 'field' ? (
+                                    <div
+                                      draggable
+                                      onDragStart={(e) => handleColDragStart(e, idx)}
+                                      onDragEnd={handleColDragEnd}
+                                      {...dropHandlers}
+                                      className={`px-3 py-1.5 rounded-md border text-xs font-semibold flex items-center gap-1.5 transition-all select-none cursor-grab active:cursor-grabbing ${
+                                        draggedColIdx === idx
+                                          ? 'opacity-25 border-dashed border-slate-400 bg-slate-200'
+                                          : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-2xs hover:shadow-xs'
+                                      }`}
+                                      title="드래그하여 순서를 변경할 수 있습니다"
                                     >
-                                      <X size={12} />
-                                    </button>
-                                  </div>
-
-                                  {/* Vertical Insertion Bar Indicator After Last Item */}
-                                  {showAfterIndicator && (
-                                    <div className="flex flex-col items-center justify-center -mx-1 px-1 pointer-events-none transition-all z-20">
-                                      <div className="w-1 h-1 rounded-full bg-slate-900 shadow-xs" />
-                                      <div className="w-[2.5px] h-6 bg-slate-900 rounded-full shadow-xs" />
-                                      <div className="w-1 h-1 rounded-full bg-slate-900 shadow-xs" />
+                                      <GripVertical
+                                        size={13}
+                                        className="text-slate-400 -ml-0.5 shrink-0"
+                                      />
+                                      {/* 글자 길이만큼만 넓어져 이름·출결 칸과 크기가 맞는다. */}
+                                      <AutoWidthInput
+                                        value={column.field.label}
+                                        onChange={(e) =>
+                                          handleRenameCustomColumn(column.field.id, e.target.value)
+                                        }
+                                        onClick={(e) => e.stopPropagation()}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                        className="text-xs font-semibold text-slate-800"
+                                        aria-label={`${column.label} 컬럼명 수정`}
+                                      />
+                                      {removeButton(column)}
+                                    </div>
+                                  ) : (
+                                    // 이름·출결·비고는 제자리에 있다(끌어 옮기지 않는다). 이름은 지울 수 없다.
+                                    <div
+                                      {...dropHandlers}
+                                      className={`px-3 py-1.5 rounded-md border text-xs font-semibold flex items-center gap-1.5 select-none ${
+                                        column.kind === 'name'
+                                          ? 'border-slate-200 bg-slate-100 text-slate-500'
+                                          : 'border-slate-200 bg-white text-slate-800 shadow-2xs'
+                                      }`}
+                                      title={
+                                        column.kind === 'name'
+                                          ? '이름 열은 지울 수 없습니다'
+                                          : undefined
+                                      }
+                                    >
+                                      {column.label}
+                                      {column.kind !== 'name' && removeButton(column)}
                                     </div>
                                   )}
+                                  {showAfterIndicator && indicator}
                                 </div>
                               );
                             })}
                           </div>
-                          <p className="text-[11px] text-slate-400 flex items-center gap-1">
-                            <GripVertical size={11} className="text-slate-400 shrink-0" />
-                            <span>항목을 드래그하여 표에서의 표시 순서를 변경할 수 있습니다.</span>
-                          </p>
                         </div>
                       );
                     })()}
                   </div>
 
                   {/* 실시간 표 헤더 미리보기 */}
-                  <div className="space-y-1.5 pt-2 border-t border-slate-100">
-                    <label className="text-[11px] font-semibold text-slate-500 block">
-                      표 구성 미리보기
-                    </label>
-                    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                      <table className="w-full text-xs text-left">
+                  <div className="pt-4 border-t border-slate-100">
+                    <label className={FIELD_LABEL}>표 구성 미리보기</label>
+                    {/* 컬럼 이름은 줄바꿈하지 않는다. 컬럼이 아주 많으면 미리보기 안에서 가로로 스크롤한다. */}
+                    <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+                      <table className="min-w-full w-max text-xs text-left whitespace-nowrap">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-[11px] font-semibold">
+                          <tr className="bg-slate-100/90 border-b border-slate-200 text-slate-700 text-[11px] font-bold">
                             <th className="px-3 py-2 text-center w-10"></th>
-                            <th className="px-3 py-2 font-bold text-slate-900">이름</th>
-                            {(editingEvent.customFields || [])
-                              .filter(
-                                (f) =>
-                                  f.label !== '이름' &&
-                                  f.label !== '비고' &&
-                                  f.label !== '출석 상태' &&
-                                  f.label !== '출석상태',
-                              )
-                              .map((cf) => (
-                                <th key={cf.id} className="px-3 py-2 text-slate-800 font-bold">
-                                  {cf.label}
+                            {tableColumnsOf(editingEvent, false).map((column) =>
+                              column.kind === 'field' ? (
+                                <th
+                                  key={column.key}
+                                  className="px-3 py-2 whitespace-nowrap text-slate-800 font-bold"
+                                >
+                                  <AutoWidthInput
+                                    value={column.field.label}
+                                    onChange={(e) =>
+                                      handleRenameCustomColumn(column.field.id, e.target.value)
+                                    }
+                                    className="text-xs font-bold text-slate-800"
+                                    aria-label={`${column.label} 컬럼명 수정`}
+                                  />
                                 </th>
-                              ))}
-                            <th className="px-3 py-2 text-center font-bold text-slate-900">출결</th>
-                            <th className="px-3 py-2 font-medium text-slate-500">비고</th>
+                              ) : (
+                                <th
+                                  key={column.key}
+                                  className={`px-3 py-2 whitespace-nowrap ${
+                                    column.kind === 'memo'
+                                      ? 'font-medium text-slate-500'
+                                      : column.kind === 'status'
+                                        ? 'text-center font-bold text-slate-900'
+                                        : 'font-bold text-slate-900'
+                                  }`}
+                                >
+                                  {column.label}
+                                </th>
+                              ),
+                            )}
                           </tr>
                         </thead>
                         <tbody>
-                          <tr className="text-slate-400 font-sans">
+                          <tr className="text-slate-400">
                             <td className="px-3 py-2 text-center text-[11px]">1</td>
-                            <td className="px-3 py-2 font-bold text-slate-800">홍길동</td>
-                            {(editingEvent.customFields || [])
-                              .filter(
-                                (f) =>
-                                  f.label !== '이름' &&
-                                  f.label !== '비고' &&
-                                  f.label !== '출석 상태' &&
-                                  f.label !== '출석상태',
-                              )
-                              .map((cf) => (
-                                <td key={cf.id} className="px-3 py-2 text-slate-400">
-                                  -
-                                </td>
-                              ))}
-                            <td className="px-3 py-2 text-center text-slate-400">-</td>
-                            <td className="px-3 py-2 text-slate-400">-</td>
+                            {tableColumnsOf(editingEvent, false).map((column) => (
+                              <td
+                                key={column.key}
+                                className={`px-3 py-2 ${
+                                  column.kind === 'name'
+                                    ? 'font-bold text-slate-800'
+                                    : column.kind === 'status'
+                                      ? 'text-center text-slate-400'
+                                      : 'text-slate-400'
+                                }`}
+                              >
+                                {column.kind === 'name' ? '홍길동' : '-'}
+                              </td>
+                            ))}
                           </tr>
                         </tbody>
                       </table>
@@ -3856,21 +3972,19 @@ export function EventAttendanceManagePage({
               )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-3.5 border-t border-slate-100">
               <button
+                type="button"
                 onClick={() => setEditingEvent(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 cursor-pointer transition-all"
+                className={MODAL_CANCEL_BTN}
               >
                 취소
               </button>
-              <button
-                onClick={handleSaveEvent}
-                className={`px-4 py-2 rounded-sm text-xs transition-colors hover:bg-[#dde5ee] active:bg-[#d1dae5] cursor-pointer ${ATTEND_STATUS_STYLES.unmarked.active}`}
-              >
+              <button type="button" onClick={handleSaveEvent} className={MODAL_CONFIRM_BTN}>
                 {isNewEvent
                   ? '행사 생성하기'
                   : eventModalType === 'COLUMNS_ONLY'
-                    ? '컬럼 설정 저장'
+                    ? '저장'
                     : '행사 정보 저장'}
               </button>
             </div>
