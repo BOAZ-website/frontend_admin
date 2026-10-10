@@ -3,7 +3,6 @@ import {
   BookOpen,
   Calendar,
   Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsRight,
@@ -33,14 +32,13 @@ import {
 } from '@/entities/attendance/model/week';
 import {
   getStudyCell,
+  studyDisplayName,
   type AttendanceChange,
   type CreateAdvTeamInput,
   type CreateBaseAttendanceInput,
   type CreateStudyInput,
 } from '@/entities/study-team/model/db';
 import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
-import { SAMPLE_STUDY_PHOTO_PATH, resolveImageUrl } from '@/shared/lib/imagePath';
-import type { ScoreRule } from '@/entities/score-rule/model/types';
 import { isConcurrentBaseMember } from '@/entities/attendance/model/concurrent';
 
 import {
@@ -59,13 +57,10 @@ import {
 } from '@/entities/user/model/lib';
 import type { UserProfile, UserTrack } from '@/entities/user/model/types';
 import { submitWeekAttendance } from '@/entities/attendance/api/submitWeekApi';
-import { baseTeamId } from '@/entities/study-team/model/db';
-import {
-  cohortsOf,
-  currentCohortOf,
-  DEFAULT_CURRENT_COHORT,
-  isPastCohort,
-} from '@/entities/cohort/model/lib';
+import { fetchAttendanceScores } from '@/entities/attendance/api/attendanceApi';
+import type { MemberScoreDto } from '@/entities/attendance/model/dto';
+import { cohortLabelOf, cohortsOf, isPastCohort } from '@/entities/cohort/model/lib';
+import type { SemesterDto } from '@/entities/cohort/model/dto';
 import { buildStudyView } from '../model/studyView';
 import { buildBaseTrackTeams } from '../model/baseAttendanceCreate';
 import { BaseAttendanceCreateModal } from './BaseAttendanceCreateModal';
@@ -94,27 +89,9 @@ export interface TeamMeta {
   memberCount: number;
   track?: '분석' | '시각화' | '엔지니어링' | string;
   studyKind?: 'MENTORING' | 'GENERAL';
-  leaderLabel?: string;
   termPeriod?: 'VACATION' | 'SEMESTER';
   /** 활동 기수. 없으면 기본(현재) 기수의 목 데이터로 본다. */
   cohort?: number;
-}
-
-export interface InternalEvent {
-  id: string;
-  category: InternalCategory;
-  teamId?: string;
-  title: string;
-  status: EventStatus;
-  date: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  description: string;
-  checkinMethod: CheckinMethod;
-  checkinCode: string;
-  createdAt: string;
-  imageUrl?: string;
 }
 
 export interface InternalAttendee {
@@ -139,8 +116,6 @@ const NO_WEEKS: readonly WeekInfo[] = [];
 const SUBMIT_TOAST_DURATION_MS = 3000;
 const NO_WEEK_DATES: Readonly<Record<number, string>> = {};
 
-const SAMPLE_STUDY_PHOTO_URL = resolveImageUrl({ path: SAMPLE_STUDY_PHOTO_PATH });
-
 const CATEGORY_CONFIG: Record<
   InternalCategory,
   {
@@ -152,7 +127,6 @@ const CATEGORY_CONFIG: Record<
     badgeBorder: string;
     teamLabel: string;
     teams: TeamMeta[];
-    initialEvents: InternalEvent[];
     initialAttendees: InternalAttendee[];
   }
 > = {
@@ -166,50 +140,6 @@ const CATEGORY_CONFIG: Record<
     teamLabel: '트랙',
     // 트랙과 트랙원·출결은 DB(teams/team_members/attendance_*)에서 온다.
     teams: [],
-    initialEvents: [
-      {
-        id: 'evt_sess_03',
-        category: 'SESSION',
-        title: '제28기 3주차 BASE 세션',
-        status: 'IN_PROGRESS',
-        date: '2026-08-15',
-        startTime: '14:00',
-        endTime: '18:00',
-        location: '연세대학교 백양관 101호',
-        description: '28기 BASE 전체 출결 및 트랙별 과제 발표',
-        checkinMethod: 'CODE',
-        checkinCode: '9055',
-        createdAt: '2026-08-15',
-      },
-      {
-        id: 'evt_sess_02',
-        category: 'SESSION',
-        title: '제28기 2주차 BASE 세션',
-        status: 'FINISHED',
-        date: '2026-08-08',
-        startTime: '14:00',
-        endTime: '18:00',
-        location: '연세대학교 백양관 101호',
-        description: '트랙별 기초 과제 발표 및 피드백 세션',
-        checkinMethod: 'CODE',
-        checkinCode: '4312',
-        createdAt: '2026-08-08',
-      },
-      {
-        id: 'evt_sess_01',
-        category: 'SESSION',
-        title: '제28기 1주차 BASE 세션 (OT & 킥오프)',
-        status: 'FINISHED',
-        date: '2026-08-01',
-        startTime: '13:00',
-        endTime: '17:00',
-        location: '서울대학교 글로벌공학관',
-        description: '신입 기수 오리엔테이션 및 활동 로드맵 안내',
-        checkinMethod: 'QR_CODE',
-        checkinCode: '1024',
-        createdAt: '2026-08-01',
-      },
-    ],
     initialAttendees: [],
   },
   STUDY: {
@@ -222,65 +152,6 @@ const CATEGORY_CONFIG: Record<
     teamLabel: '스터디 팀',
     // 스터디 팀·명단은 임시 DB(db/seed.sql)에서 내려받은 값으로 채운다.
     teams: [],
-    initialEvents: [
-      {
-        id: 'evt_std_03',
-        category: 'STUDY',
-        title: '2026 하계 스터디 3주차 통합 세션',
-        status: 'IN_PROGRESS',
-        date: '2026-08-18',
-        startTime: '19:00',
-        endTime: '22:00',
-        location: '강남 드림플러스 & 온라인 Zoom',
-        description: '각 스터디 팀별 3주차 발표 및 실습 결과 공유',
-        checkinMethod: 'CODE',
-        checkinCode: '3319',
-        imageUrl: SAMPLE_STUDY_PHOTO_URL,
-        createdAt: '2026-08-18',
-      },
-      {
-        id: 'evt_std_02',
-        category: 'STUDY',
-        title: '2026 하계 스터디 2주차 통합 세션',
-        status: 'FINISHED',
-        date: '2026-08-11',
-        startTime: '19:00',
-        endTime: '22:00',
-        location: '강남 드림플러스 & 온라인 Zoom',
-        description: '각 스터디 팀별 2주차 진도 발표 및 코드 리뷰',
-        checkinMethod: 'CODE',
-        checkinCode: '2201',
-        createdAt: '2026-08-11',
-      },
-      {
-        id: 'evt_std_01',
-        category: 'STUDY',
-        title: '2026 하계 스터디 1주차 통합 킥오프',
-        status: 'FINISHED',
-        date: '2026-08-04',
-        startTime: '19:00',
-        endTime: '21:30',
-        location: '강남 드림플러스',
-        description: '스터디 커리큘럼 확정 및 1회차 리딩 발표',
-        checkinMethod: 'CODE',
-        checkinCode: '1190',
-        createdAt: '2026-08-04',
-      },
-      {
-        id: 'evt_std_04',
-        category: 'STUDY',
-        title: '2026 하계 스터디 4주차 통합 세션',
-        status: 'UPCOMING',
-        date: '2026-08-25',
-        startTime: '19:00',
-        endTime: '22:00',
-        location: '강남 드림플러스 & 온라인 Zoom',
-        description: '스터디 최종 산출물 정리 및 발표',
-        checkinMethod: 'CODE',
-        checkinCode: '4412',
-        createdAt: '2026-08-19',
-      },
-    ],
     initialAttendees: [],
   },
   ADV: {
@@ -293,65 +164,6 @@ const CATEGORY_CONFIG: Record<
     teamLabel: '프로젝트 팀',
     // 팀·팀원·출결은 DB(teams/team_members/attendance_*)에서 온다.
     teams: [],
-    initialEvents: [
-      {
-        id: 'evt_adv_03',
-        category: 'ADV',
-        title: '2026 하계 어드브 3주차 심화 개발 및 중간 세션',
-        status: 'IN_PROGRESS',
-        date: '2026-08-20',
-        startTime: '13:30',
-        endTime: '17:30',
-        location: '서울대학교 글로벌공학센터 다목적홀',
-        description: '프로젝트 중간 아키텍처 다이어그램 발표 및 현직 멘토 피드백',
-        checkinMethod: 'QR_CODE',
-        checkinCode: '8220',
-        imageUrl: SAMPLE_STUDY_PHOTO_URL,
-        createdAt: '2026-08-15',
-      },
-      {
-        id: 'evt_adv_02',
-        category: 'ADV',
-        title: '2026 하계 어드브 2주차 중간 점검 & 현직 멘토링',
-        status: 'FINISHED',
-        date: '2026-08-15',
-        startTime: '13:30',
-        endTime: '17:30',
-        location: '서울대학교 글로벌공학센터 다목적홀',
-        description: '프로젝트 2차 중간 점검 및 멘토링 세션',
-        checkinMethod: 'QR_CODE',
-        checkinCode: '7110',
-        createdAt: '2026-08-12',
-      },
-      {
-        id: 'evt_adv_01',
-        category: 'ADV',
-        title: '2026 하계 어드브 1주차 기획 및 아키텍처 발표회',
-        status: 'FINISHED',
-        date: '2026-08-10',
-        startTime: '14:00',
-        endTime: '18:00',
-        location: '강남 드림플러스 메인홀',
-        description: '팀별 프로젝트 주제 선정 및 데이터 파이프라인 기획 발표',
-        checkinMethod: 'CODE',
-        checkinCode: '9102',
-        createdAt: '2026-08-10',
-      },
-      {
-        id: 'evt_adv_04',
-        category: 'ADV',
-        title: '2026 하계 어드브 4주차 최종 성과 공유회 (데모데이)',
-        status: 'UPCOMING',
-        date: '2026-08-29',
-        startTime: '13:00',
-        endTime: '18:30',
-        location: '서울대학교 글로벌공학센터 대강당',
-        description: '어드밴스드 프로젝트 최종 배포 결과 시연 및 우수팀 시상',
-        checkinMethod: 'QR_CODE',
-        checkinCode: '9981',
-        createdAt: '2026-08-18',
-      },
-    ],
     initialAttendees: [],
   },
 };
@@ -500,80 +312,90 @@ const DEFAULT_EXPORT_COLUMNS: ExportColumnConfig[] = [
   { id: 'totalScore', label: '총점', enabled: true },
 ];
 
-const DEFAULT_WEEK_DATE_MAPPING: Record<number, string> = {
-  1: '2026-01-26',
-  2: '2026-07-13',
-  3: '2026-07-20',
-  4: '2026-07-27',
-  5: '2026-08-03',
-  6: '2026-08-10',
-  7: '2026-08-17',
-  8: '2026-08-24',
-  9: '2026-09-07',
-  10: '2026-09-14',
-  11: '2026-09-21',
-  12: '2026-09-28',
-  13: '2026-10-05',
-  14: '2026-10-12',
-  15: '2026-10-19',
-  16: '2026-10-26',
-};
+/** 팀 생성 결과: 서버가 만든 팀 id, 또는 사용자에게 보여줄 실패 사유. */
+export type CreateTeamResult = { teamId: string } | { error: string };
 
 export interface InternalCategoryAttendancePageProps {
   category: InternalCategory;
-  activeScoreRule?: ScoreRule;
   attendance?: AttendanceState;
   /** 공용 저장소(DB)의 팀·팀원(스터디 화면은 스터디 팀, BASE 화면은 BASE 트랙). 이 화면은 이 값에서 파생해 조회한다. */
   studyTeams?: readonly StudyTeamInfo[];
   studyMembers?: Readonly<Record<string, readonly Member[]>>;
+  users?: readonly UserProfile[];
   membershipBaseTeams?: readonly StudyTeamInfo[];
   membershipOtherTeams?: readonly StudyTeamInfo[];
   /** 주차와 활성 상태(DB의 weeks). 진행 예정 주차는 미정으로 보이고, 종료·진행 중 주차만 기록을 보여준다. */
   weeks?: readonly WeekInfo[];
-  /** DB에 있는 활동 기수들과 그중 현재 기수. 가장 큰 기수가 현재이고, 더 작은 기수는 지난 기수로 조회만 할 수 있다. */
+  /** 반기 API의 기수 목록과 현재 기수. 현재보다 작은 기수는 지난 기수로 조회만 할 수 있다. ADV 화면은 ADV 기수다. */
   cohorts?: readonly number[];
-  currentCohort?: number;
-  /** 만들 수 없으면 사용자에게 보여줄 사유를, 만들었으면 null을 돌려준다. */
-  onCreateStudy?: (input: CreateStudyInput) => string | null;
-  openCreateStudyOnMount?: boolean;
-  onCreateStudyOpenConsumed?: () => void;
+  currentCohort: number;
+  canCreateNextSemester: boolean;
+  onAdvanceSemester: () => Promise<void>;
+  /** 기수 → 반기 표기(반기 API 응답). */
+  cohortLabels: Readonly<Record<number, string>>;
+  /** 부문 목록(반기 API 응답). */
+  tracks: readonly UserTrack[];
+  /** 서버가 만든 팀 id 또는 사용자에게 보여줄 실패 사유를 돌려준다. */
+  onCreateStudy?: (input: CreateStudyInput) => Promise<CreateTeamResult>;
   onStudyAttendanceChange?: (change: AttendanceChange) => void;
   /** 기수별 주차 날짜 매핑(DB). 출결 생성 창에서 정한 날짜를 BASE 표 머리와 CSV가 읽어서 쓴다. */
   weekDates?: Readonly<Record<number, Readonly<Record<number, string>>>>;
-  /** ADV 팀 개설: 그 기수·부문의 다음 번호 팀과 팀원, 주차별 미정 출결을 DB에 만든다. 만들 수 없으면 사유를, 만들었으면 null을 돌려준다. */
-  onCreateAdvTeam?: (input: CreateAdvTeamInput) => string | null;
-  /** BASE 출결 생성: 그 기수·트랙 팀과 트랙원, 1~8주차 미정 출결을 DB에 만든다. 만들 수 없으면 사유를, 만들었으면 null을 돌려준다. */
-  onCreateBaseAttendance?: (input: CreateBaseAttendanceInput) => string | null;
+  /** 기수별 주차 진행 상태(반기 주차 API). 고른 기수의 반기 상태로 입력 가능 주차를 정한다. 없으면 weeks를 쓴다. */
+  weeksByCohort?: Readonly<Record<number, readonly WeekInfo[]>>;
+  /** 기수별 반기(반기 API). 지금 주차와 기간(방학·학기)을 이 값에서 읽는다. */
+  semesterByCohort?: Readonly<Record<number, SemesterDto>>;
+  /** ADV 팀 개설: 그 기수·부문의 다음 번호 팀과 팀원, 주차별 미정 출결을 만든다. */
+  onCreateAdvTeam?: (input: CreateAdvTeamInput) => Promise<CreateTeamResult>;
+  /** BASE 출결 생성: 그 기수·트랙 팀과 트랙원, 주차별 미정 출결을 만든다. */
+  onCreateBaseAttendance?: (input: CreateBaseAttendanceInput) => Promise<CreateTeamResult>;
   /** BASE·ADV 주차 제출이 서버에서 성공하면 그 팀·주차를 DB에 제출 완료로 저장한다. */
   onSubmitWeek?: (teamId: string, weekNum: number, submittedAt: string) => void;
   /** 스터디 명단에서 팀원을 빼면 DB의 팀 소속과 그 팀원의 출결 기록도 함께 지운다. */
   onRemoveStudyMember?: (teamId: string, memberId: string) => void;
+  /** 팀 삭제(팀 카드의 휴지통 아이콘). 성공하면 true. */
+  onDeleteTeam?: (teamId: string) => Promise<boolean>;
+  /** 팀 설정 변경 창의 팀명·팀장 변경. 누르는 즉시 API로 저장한다. 성공하면 true. */
+  onUpdateStudyTeam?: (teamId: string, changes: TeamInfoChanges) => Promise<boolean>;
+  onAddStudyMember?: (teamId: string, userId: string) => void | Promise<void>;
+}
+
+/** 팀 설정 창에서 저장하는 값. 바뀐 항목만 보낸다. leaderId는 팀원의 users.id이며 null이면 팀장 해제. */
+export interface TeamInfoChanges {
+  teamName?: string;
+  /** ADV 프로젝트 이름. ADV는 팀 이름(분석 1팀)이 번호로 정해져 있어 이 값을 바꾼다. */
+  studyName?: string;
+  leaderId?: string | null;
 }
 
 export function InternalCategoryAttendancePage({
   category,
-  activeScoreRule,
   attendance,
   studyTeams,
   studyMembers,
+  users = [],
   membershipBaseTeams = [],
   membershipOtherTeams = [],
   weeks: weeksProp = NO_WEEKS,
   cohorts,
-  currentCohort: currentCohortProp,
+  currentCohort,
+  canCreateNextSemester,
+  onAdvanceSemester,
+  cohortLabels,
+  tracks,
   onCreateStudy,
-  openCreateStudyOnMount,
-  onCreateStudyOpenConsumed,
   onStudyAttendanceChange,
   onRemoveStudyMember,
+  onDeleteTeam,
+  onUpdateStudyTeam,
+  onAddStudyMember,
   weekDates: weekDatesProp,
+  weeksByCohort,
+  semesterByCohort,
   onCreateAdvTeam,
   onCreateBaseAttendance,
   onSubmitWeek,
 }: InternalCategoryAttendancePageProps) {
-  // 활동 기수: 가장 큰 기수가 현재이고 더 작은 기수는 지난 기수(아카이브)다.
-  // BASE에서 다음 기수의 출결을 만들면(DB에 그 기수 팀이 생기면) 그 기수가 가장 커져서 이전 기수는 자동으로 지난 기수가 된다.
-  const currentCohort = currentCohortProp ?? currentCohortOf(cohorts ?? []);
+  // 현재 기수는 반기 API가 정한다(DB의 현재 반기). 더 작은 기수는 지난 기수(아카이브)다.
   const cohortOptions = useMemo(
     () => cohortsOf([...(cohorts ?? []), currentCohort]),
     [cohorts, currentCohort],
@@ -613,13 +435,16 @@ export function InternalCategoryAttendancePage({
     return () => window.clearTimeout(timer);
   }, [submitToast]);
 
-  // 지난 기수는 모든 주차가 끝난 상태로 보여 주고 수정할 수 없다.
+  // 주차 진행 상태는 고른 기수의 반기 값(DB)을 따른다. 지난 기수는 모든 주차가 끝난 상태로 보여 주고 수정할 수 없다.
+  const viewWeeks = weeksByCohort?.[viewCohort] ?? weeksProp;
+  // 지금 주차와 기간(방학·학기)은 반기 API가 정한다.
+  const viewSemester = semesterByCohort?.[viewCohort] ?? null;
   const weeks = useMemo<readonly WeekInfo[]>(
     () =>
       isArchivedView
-        ? weeksProp.map((week) => ({ ...week, status: 'CLOSED' as const }))
-        : weeksProp,
-    [weeksProp, isArchivedView],
+        ? viewWeeks.map((week) => ({ ...week, status: 'CLOSED' as const }))
+        : viewWeeks,
+    [viewWeeks, isArchivedView],
   );
 
   // 스터디·BASE·ADV는 화면 안 목 데이터가 아니라 DB(공용 저장소)에서 팀·명단·출결을 읽고 쓴다.
@@ -627,9 +452,9 @@ export function InternalCategoryAttendancePage({
   const studyView = useMemo(
     () =>
       buildStudyView(
-        (studyTeams ?? []).filter((team) => (team.cohort ?? DEFAULT_CURRENT_COHORT) === viewCohort),
+        (studyTeams ?? []).filter((team) => team.cohort === viewCohort),
         studyMembers ?? {},
-        CATEGORY_CONFIG.STUDY.initialEvents[0]?.id ?? '',
+        '',
       ),
     [studyTeams, studyMembers, viewCohort],
   );
@@ -726,7 +551,6 @@ export function InternalCategoryAttendancePage({
     } catch {}
     return category === 'ADV' || category === 'STUDY' ? 'ALL' : config.teams[0]?.id || '';
   });
-  const [selectedEventId, setSelectedEventId] = useState<string>(config.initialEvents[0]?.id || '');
 
   // 방학과 학기 주차 선택을 완전히 분리하여 독립 관리 (기본값: 전체 주차 0)
   const [selectedWeekVacation, setSelectedWeekVacation] = useState<number>(() => {
@@ -864,7 +688,6 @@ export function InternalCategoryAttendancePage({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Events and Attendees
-  const [events, setEvents] = useState<InternalEvent[]>(config.initialEvents);
   // 명단은 DB에서 기수별로 이미 걸러진 값을 그대로 쓴다.
   const attendees = studyView.attendees;
   const availableTeams = useMemo(
@@ -873,8 +696,8 @@ export function InternalCategoryAttendancePage({
         ? config.teams.filter((team) => team.termPeriod === termPeriod)
         : category === 'ADV'
           ? config.teams
-          : buildBaseTrackTeams(config.teams, viewCohort),
-    [category, config.teams, termPeriod, viewCohort],
+          : buildBaseTrackTeams(config.teams, viewCohort, tracks),
+    [category, config.teams, termPeriod, viewCohort, tracks],
   );
   const studyTeamGroups = [
     {
@@ -955,14 +778,12 @@ export function InternalCategoryAttendancePage({
     setIsSubmittingWeek(true);
     try {
       const result = await submitWeekAttendance(submission);
-      if (!result.simulated) onSubmitWeek?.(selectedTeam.id, selectedWeek, result.submittedAt);
+      onSubmitWeek?.(selectedTeam.id, selectedWeek, result.submittedAt);
       setEditingWeekKey(null);
       setSubmitToast({
-        message: result.simulated
-          ? `${selectedWeek}주차 출결을 로컬에만 저장했습니다. 서버 제출은 되지 않았습니다.`
-          : wasEditing
-            ? `${selectedWeek}주차 수정 내용이 제출되었습니다.`
-            : `${selectedWeek}주차 출결이 제출되었습니다.`,
+        message: wasEditing
+          ? `${selectedWeek}주차 수정 내용이 제출되었습니다.`
+          : `${selectedWeek}주차 출결이 제출되었습니다.`,
         isError: false,
       });
     } catch {
@@ -975,31 +796,32 @@ export function InternalCategoryAttendancePage({
     }
   };
 
-  // ADV 팀 개설: 다음 기수(예: 26기까지 있으면 27기)의 팀을 DB에 만든다.
-  const handleCreateAdvTeam = (
+  // ADV 팀 개설: 현재 반기에 등록된 명단으로 팀을 만든다.
+  const handleCreateAdvTeam = async (
     cohort: number,
     track: UserTrack,
     picked: UserProfile[],
     dates: Record<number, string>,
     leaderId: string | null,
+    teamName: string | null,
   ) => {
     const leaderName = picked.find((user) => user.id === leaderId)?.name ?? null;
-    const failure = onCreateAdvTeam?.({
+    const result = await onCreateAdvTeam?.({
       cohort,
       track,
       members: picked,
       weekDates: dates,
       weekNums: weekList.map((week) => week.weekNum),
       leaderName,
+      teamName,
     });
-    if (failure) {
-      alert(failure);
+    if (!result) return;
+    if ('error' in result) {
+      alert(result.error);
       return;
     }
-    setChosenCohort(cohort);
-    setSelectedTeamId('ALL');
-    setIsPeekOpen(true);
     setShowCreateAdvModal(false);
+    notifyCreated(cohort, teamName ?? `${track} ADV 팀`);
   };
 
   // 기수를 바꾸면 그 기수의 출결 화면으로 이동한다(선택 팀은 초기화).
@@ -1011,28 +833,26 @@ export function InternalCategoryAttendancePage({
     setIsPeekOpen(false);
   };
 
-  const handleCreateBaseAttendance = (
+  const handleCreateBaseAttendance = async (
     cohort: number,
     track: UserTrack,
     picked: UserProfile[],
     dates: Record<number, string>,
   ) => {
-    const failure = onCreateBaseAttendance?.({
+    const result = await onCreateBaseAttendance?.({
       cohort,
       track,
       members: picked,
       weekDates: dates,
       weekNums: weekList.map((week) => week.weekNum),
     });
-    if (failure) {
-      alert(failure);
+    if (!result) return;
+    if ('error' in result) {
+      alert(result.error);
       return;
     }
-    // 다음 기수로 만들면 그 기수가 가장 커져서 이전 기수는 자동으로 지난 기수가 된다.
-    setChosenCohort(cohort);
-    setSelectedTeamId(baseTeamId(cohort, track));
-    setIsPeekOpen(true);
     setShowCreateAttendanceModal(false);
+    notifyCreated(cohort, `${track} BASE 출결`);
   };
   const [newStudyName, setNewStudyName] = useState('');
   const [newStudySelection, setNewStudySelection] =
@@ -1051,7 +871,7 @@ export function InternalCategoryAttendancePage({
     setShowCreateStudyModal(true);
   };
 
-  const handleCreateStudy = () => {
+  const handleCreateStudy = async () => {
     const name = newStudyName.trim();
     if (!name) {
       alert('스터디명을 입력해 주세요.');
@@ -1062,7 +882,7 @@ export function InternalCategoryAttendancePage({
     const id = `study_${Date.now()}`;
     const isVacation = termPeriod === 'VACATION';
 
-    const failure = onCreateStudy?.({
+    const result = await onCreateStudy?.({
       id,
       name,
       studyKind: isVacation ? newStudyKind : 'GENERAL',
@@ -1071,15 +891,17 @@ export function InternalCategoryAttendancePage({
       cohort: currentCohort,
       leaderName: leader?.name ?? null,
       members: newStudySelection.members,
-      weekDates: isVacation
+      // 주차별 날짜는 멘멘스터디에서만 입력받는다. 일반 스터디는 날짜를 보내지 않는다.
+      weekDates: canSelectStudyTrack
         ? Object.fromEntries(Object.entries(newStudyWeekDates).filter(([, date]) => date))
         : undefined,
     });
-    if (failure) {
-      alert(failure);
+    if (!result) return;
+    if ('error' in result) {
+      alert(result.error);
       return;
     }
-    setSelectedTeamId(id);
+    setSelectedTeamId(result.teamId);
     setIsPeekOpen(true);
     setShowCreateStudyModal(false);
   };
@@ -1096,8 +918,8 @@ export function InternalCategoryAttendancePage({
   const [sortOption] = useState<'DEFAULT' | 'TERM_ASC' | 'TERM_DESC' | 'NAME_ASC'>('TERM_ASC');
 
   // Settings: Committed/Saved State vs Modal Draft State
-  const [savedWeekDateMapping, setSavedWeekDateMapping] =
-    useState<Record<number, string>>(DEFAULT_WEEK_DATE_MAPPING);
+  // 주차 날짜는 DB 값(weekDates)으로 채운다. 아래 효과가 기수별 DB 매핑을 넣기 전까지는 비어 있다.
+  const [savedWeekDateMapping, setSavedWeekDateMapping] = useState<Record<number, string>>({});
   const [savedExportColumns, setSavedExportColumns] =
     useState<ExportColumnConfig[]>(DEFAULT_EXPORT_COLUMNS);
   const [savedCustomColOrder, setSavedCustomColOrder] = useState<string[] | null>(null);
@@ -1186,7 +1008,7 @@ export function InternalCategoryAttendancePage({
       ...prev,
       status: category === 'SESSION' ? 360 : 110,
     }));
-  }, [category, config.initialEvents, config.teams]);
+  }, [category, config.teams]);
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const resizingCol = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
@@ -1307,23 +1129,11 @@ export function InternalCategoryAttendancePage({
     setDropTarget(null);
   };
 
-  // New Event Form
-  const [newEventTitle, setNewEventTitle] = useState('');
-  const [newEventDate, setNewEventDate] = useState(new Date().toISOString().slice(0, 10));
-  const [newEventStart] = useState('14:00');
-  const [newEventEnd] = useState('18:00');
-  const [newEventLoc, setNewEventLoc] = useState('연세대학교 백양관 101호');
-  const [newEventDesc] = useState('');
-  const [newEventMethod, setNewEventMethod] = useState<CheckinMethod>('CODE');
-  const [newEventCode, setNewEventCode] = useState(String(Math.floor(1000 + Math.random() * 9000)));
-
   // Keep state synced when switching category prop
   useEffect(() => {
-    setEvents(config.initialEvents);
     setSelectedTeamId(
       category === 'ADV' || category === 'STUDY' ? 'ALL' : config.teams[0]?.id || '',
     );
-    setSelectedEventId(config.initialEvents[0]?.id || '');
     setIsPeekOpen(true);
     setIsFullScreen(false);
   }, [category]);
@@ -1373,21 +1183,6 @@ export function InternalCategoryAttendancePage({
     setIsDragging(true);
   }
 
-  const selectedEvent = events.find((e) => e.id === selectedEventId) ||
-    events[0] || {
-      id: 'evt_fallback',
-      category,
-      title: `${config.title} 세션`,
-      status: 'IN_PROGRESS' as EventStatus,
-      date: '2026-08-20',
-      startTime: '14:00',
-      endTime: '18:00',
-      location: '-',
-      description: '',
-      checkinMethod: 'CODE' as CheckinMethod,
-      checkinCode: '1234',
-      createdAt: '2026-08-20',
-    };
   const isAllSelected = selectedTeamId === 'ALL';
   const shouldApplyTrackFilter = category !== 'ADV' || isAllSelected;
   const effectiveTrackFilter = shouldApplyTrackFilter ? selectedTrackFilter : 'ALL';
@@ -1411,7 +1206,7 @@ export function InternalCategoryAttendancePage({
             name: '전체 통합 출결 현황',
             leader: '',
             description: '전체 트랙 및 소속 팀 통합 명단',
-            memberCount: attendees.filter((a) => a.eventId === (selectedEvent?.id || '')).length,
+            memberCount: attendees.length,
           }
         : availableTeams.find((t) => t.id === selectedTeamId) ||
           availableTeams[0] || {
@@ -1421,7 +1216,7 @@ export function InternalCategoryAttendancePage({
             description: '',
             memberCount: 0,
           },
-    [attendees, availableTeams, isAllSelected, selectedEvent?.id, selectedTeamId],
+    [attendees, availableTeams, isAllSelected, selectedTeamId],
   );
   const isMentoringStudy =
     category === 'STUDY' && termPeriod === 'VACATION' && selectedTeam.studyKind === 'MENTORING';
@@ -2052,33 +1847,6 @@ export function InternalCategoryAttendancePage({
     if (teamId) onRemoveStudyMember?.(teamId, memberId);
   }
 
-  function handleCreateNewEvent() {
-    if (!newEventTitle.trim()) {
-      alert('세션/활동 명칭을 입력해 주세요.');
-      return;
-    }
-    const newId = `evt_${category.toLowerCase()}_${Date.now()}`;
-    const created: InternalEvent = {
-      id: newId,
-      category,
-      title: newEventTitle.trim(),
-      status: 'IN_PROGRESS',
-      date: newEventDate,
-      startTime: newEventStart,
-      endTime: newEventEnd,
-      location: newEventLoc.trim(),
-      description: newEventDesc.trim(),
-      checkinMethod: newEventMethod,
-      checkinCode: newEventCode,
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-
-    setEvents((prev) => [created, ...prev]);
-    setSelectedEventId(newId);
-    setShowNewEventModal(false);
-    alert(`새 세션 "${created.title}"이(가) 등록되었습니다.`);
-  }
-
   const { defaultModalCols, previewRows, defaultExportFilename } = useMemo(() => {
     const periodLabel = termPeriod === 'VACATION' ? '방학' : '학기';
 
@@ -2615,19 +2383,10 @@ export function InternalCategoryAttendancePage({
               {team.name}
             </h4>
             {team.leader && (
-              <p className="text-[11px] text-slate-500 font-medium">
-                스터디장: {team.leaderLabel || team.leader}
-              </p>
+              <p className="text-[11px] text-slate-500 font-medium">스터디장: {team.leader}</p>
             )}
           </div>
-          <ChevronRight
-            size={16}
-            className={`shrink-0 transition-transform ${
-              isSelected
-                ? 'text-slate-500 translate-x-0.5'
-                : 'text-slate-300 group-hover:text-slate-500'
-            }`}
-          />
+          {category === 'STUDY' && !isArchivedView && teamSettingsButton(team)}
         </div>
       </div>
     );
@@ -3103,7 +2862,7 @@ export function InternalCategoryAttendancePage({
               width: isFullScreen ? '100%' : `${100 - splitRatio}%`,
               minWidth: isFullScreen ? undefined : '340px',
             }}
-            className="rounded-2xl border border-slate-200/90 bg-white p-6 lg:p-7 shadow-sm space-y-4 animate-in slide-in-from-right duration-150 min-w-0 flex-1 h-full overflow-y-auto"
+            className="rounded-md border border-slate-200/90 bg-white p-6 lg:p-7 shadow-sm space-y-4 animate-in slide-in-from-right duration-150 min-w-0 flex-1 h-full overflow-y-auto [scrollbar-gutter:stable]"
           >
             {/* Peek Detail Header */}
             <div className="flex items-center justify-between gap-4 pb-3 border-b border-slate-100">
@@ -3164,8 +2923,10 @@ export function InternalCategoryAttendancePage({
               return (
                 <div className="flex justify-center w-full py-1">
                   <div
-                    onClick={() => setShowImageZoom(true)}
-                    className="relative group w-fit max-w-[480px] sm:max-w-[540px] rounded-xl overflow-hidden border border-slate-200/90 bg-white shadow-2xs hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-zoom-in select-none"
+                    onClick={() =>
+                      setZoomPhoto({ url: currentDisplayPhoto, weekLabel: `${currentWeekKey}주차` })
+                    }
+                    className="relative group w-fit max-w-[480px] sm:max-w-[540px] rounded-md overflow-hidden border border-slate-200/90 bg-white shadow-2xs hover:shadow-md hover:border-slate-300 transition-all duration-300 cursor-zoom-in select-none"
                     title="클릭하여 원본 사진 크게 보기"
                   >
                     <img
@@ -5253,7 +5014,9 @@ export function InternalCategoryAttendancePage({
         <BaseAttendanceCreateModal
           titleLabel="출결 생성"
           submitLabel="출결 생성"
-          currentCohort={currentCohort}
+          cohort={currentCohort}
+          cohortLabel={cohortLabelOf(cohortLabels, currentCohort)}
+          tracks={tracks}
           weekNums={weekList.map((week) => week.weekNum)}
           onClose={() => setShowCreateAttendanceModal(false)}
           onCreate={handleCreateBaseAttendance}
@@ -5265,9 +5028,12 @@ export function InternalCategoryAttendancePage({
         <BaseAttendanceCreateModal
           titleLabel="ADV 팀 개설"
           submitLabel="팀 개설"
-          currentCohort={currentCohort}
+          cohort={currentCohort}
+          cohortLabel={cohortLabelOf(cohortLabels, currentCohort)}
+          tracks={tracks}
           weekNums={weekList.map((week) => week.weekNum)}
           withLeader
+          withTeamName
           onClose={() => setShowCreateAdvModal(false)}
           onCreate={handleCreateAdvTeam}
         />
@@ -5277,11 +5043,10 @@ export function InternalCategoryAttendancePage({
       {showCreateStudyModal && category === 'STUDY' && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 pb-4 pt-[15vh] backdrop-blur-xs">
           <div
-            className={`w-full ${termPeriod === 'VACATION' ? 'max-w-5xl' : 'max-w-lg'} space-y-5 overflow-hidden rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+            className={`w-full ${canSelectStudyTrack ? 'max-w-5xl' : 'max-w-lg'} space-y-5 overflow-hidden rounded-lg p-6 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <Plus size={16} className="text-slate-800" />
                 <h3 className="text-base font-bold text-slate-900">
                   {termPeriod === 'VACATION' ? '방학' : '학기'} 스터디 생성
                 </h3>
@@ -5297,7 +5062,7 @@ export function InternalCategoryAttendancePage({
             </div>
 
             <div
-              className={`grid gap-5 text-xs ${termPeriod === 'VACATION' ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]' : ''}`}
+              className={`grid gap-5 text-xs ${canSelectStudyTrack ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]' : ''}`}
             >
               <div className="space-y-4">
                 <div>
@@ -5340,41 +5105,41 @@ export function InternalCategoryAttendancePage({
                   />
                 </div>
 
-                <div
-                  aria-hidden={!canSelectStudyTrack}
-                  className={canSelectStudyTrack ? '' : 'invisible pointer-events-none'}
-                >
-                  <span className="mb-1.5 block text-sm font-semibold text-slate-700">부문</span>
-                  <div
-                    role="radiogroup"
-                    aria-label="멘멘스터디 배치 부문"
-                    className="grid grid-cols-3 overflow-hidden rounded-sm bg-slate-100"
-                  >
-                    {(['분석', '시각화', '엔지니어링'] as const).map((track) => (
-                      <button
-                        key={track}
-                        type="button"
-                        role="radio"
-                        aria-checked={newStudyTrack === track}
-                        disabled={!canSelectStudyTrack}
-                        onClick={() => setNewStudyTrack(track)}
-                        className={`px-2 py-2.5 text-xs font-semibold transition-colors ${
-                          newStudyTrack === track
-                            ? 'bg-[#1E6F94] text-white'
-                            : 'cursor-pointer text-slate-700 hover:bg-slate-200'
-                        }`}
-                      >
-                        {track}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <StudyMemberPicker value={newStudySelection} onChange={setNewStudySelection} />
+                <StudyMemberPicker
+                  value={newStudySelection}
+                  onChange={setNewStudySelection}
+                  trackOptions={tracks}
+                />
               </div>
 
-              {termPeriod === 'VACATION' && (
+              {/* 부문과 주차별 날짜는 멘멘스터디일 때만 보인다(일반 스터디는 둘 다 받지 않는다) */}
+              {canSelectStudyTrack && (
                 <div className="flex min-w-0 flex-col">
+                  <div className="mb-4">
+                    <span className="mb-1.5 block text-sm font-semibold text-slate-700">부문</span>
+                    <div
+                      role="radiogroup"
+                      aria-label="멘멘스터디 배치 부문"
+                      className="grid grid-cols-3 overflow-hidden rounded-sm bg-slate-100"
+                    >
+                      {(['분석', '시각화', '엔지니어링'] as const).map((track) => (
+                        <button
+                          key={track}
+                          type="button"
+                          role="radio"
+                          aria-checked={newStudyTrack === track}
+                          onClick={() => setNewStudyTrack(track)}
+                          className={`px-2 py-2.5 text-xs font-semibold transition-colors ${
+                            newStudyTrack === track
+                              ? 'bg-[#1E6F94] text-white'
+                              : 'cursor-pointer text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          {track}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <span className="mb-1.5 block text-sm font-semibold text-slate-700">
                     주차별 날짜
                   </span>
@@ -5427,107 +5192,11 @@ export function InternalCategoryAttendancePage({
       )}
 
       {/* ─── Modal: 새 회차 생성 ─── */}
-      {showNewEventModal && (
-        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div
-            className={`w-full max-w-lg rounded-2xl overflow-hidden p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Plus size={16} className="text-slate-800" />
-                <h3 className="text-sm font-bold text-slate-900">
-                  새 {config.title.split(' ')[0]} 회차 생성
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowNewEventModal(false)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-3.5 text-xs">
-              <div>
-                <label className="text-slate-600 font-bold block mb-1.5">회차 명칭</label>
-                <input
-                  value={newEventTitle}
-                  onChange={(e) => setNewEventTitle(e.target.value)}
-                  placeholder={`예: 2026 하계 ${config.title.split(' ')[0]} 4주차`}
-                  className="w-full px-3.5 py-2.5 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 font-semibold focus:border-slate-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-600 font-bold block mb-1.5">진행 일자</label>
-                  <input
-                    type="date"
-                    value={newEventDate}
-                    onChange={(e) => setNewEventDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-600 font-bold block mb-1.5">진행 장소</label>
-                  <input
-                    value={newEventLoc}
-                    onChange={(e) => setNewEventLoc(e.target.value)}
-                    placeholder="예: 연세대 백양관, 드림플러스"
-                    className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-600 font-bold block mb-1.5">체크인 방식</label>
-                  <select
-                    value={newEventMethod}
-                    onChange={(e) => setNewEventMethod(e.target.value as CheckinMethod)}
-                    className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 font-medium"
-                  >
-                    <option value="CODE">4자리 출석 코드 인증</option>
-                    <option value="QR_CODE">현장 QR 코드 스캔</option>
-                    <option value="MANUAL">관리자 수기 체크</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-slate-600 font-bold block mb-1.5">출석 인증 코드</label>
-                  <input
-                    value={newEventCode}
-                    onChange={(e) => setNewEventCode(e.target.value)}
-                    maxLength={4}
-                    className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold tracking-widest text-center"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setShowNewEventModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleCreateNewEvent}
-                className={`px-4 py-2 rounded-xl text-xs font-bold cursor-pointer ${MODAL_PRIMARY_BTN}`}
-              >
-                회차 생성
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ─── Modal: 활동/스터디 사진 크게 보기 (Zoom Modal) ─── */}
-      {showImageZoom && (
+      {zoomPhoto && (
         <div
-          onClick={() => setShowImageZoom(false)}
+          onClick={() => setZoomPhoto(null)}
           className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm cursor-zoom-out"
         >
           <div
@@ -5535,38 +5204,244 @@ export function InternalCategoryAttendancePage({
             className="relative max-w-3xl w-full bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-white/10 p-2"
           >
             <button
-              onClick={() => setShowImageZoom(false)}
+              onClick={() => setZoomPhoto(null)}
               className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black transition-colors cursor-pointer"
             >
               <X size={18} />
             </button>
             <img
-              src={
-                selectedEvent.imageUrl ||
-                (category === 'STUDY'
-                  ? SAMPLE_STUDY_PHOTO_URL
-                  : category === 'ADV'
-                    ? SAMPLE_STUDY_PHOTO_URL
-                    : SAMPLE_STUDY_PHOTO_URL)
-              }
+              src={zoomPhoto.url}
               alt={selectedTeam.name}
-              className="w-full h-auto max-h-[80vh] object-contain rounded-2xl"
+              className="w-full h-auto max-h-[80vh] object-contain rounded-md"
             />
             <div className="p-3 text-white flex items-center justify-between text-xs font-medium">
               <span className="font-bold">{selectedTeam.name}</span>
-              <span className="text-slate-400">
-                {selectedEvent.title} ({selectedEvent.date})
-              </span>
+              <span className="text-slate-400">{zoomPhoto.weekLabel}</span>
             </div>
           </div>
         </div>
       )}
 
       {/* ─── Modal: 주차 매핑 및 CSV 열 순서 드래그 설정 (Settings Modal) ─── */}
+      {teamSettingsTeamId && (category === 'STUDY' || category === 'ADV') && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setTeamSettingsTeamId(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="팀 설정 변경"
+            className={`relative w-full max-w-md rounded-lg p-6 space-y-5 ${MODAL_SURFACE}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">팀 설정 변경</h3>
+              <button
+                type="button"
+                onClick={() => setTeamSettingsTeamId(null)}
+                aria-label="팀 설정 변경 닫기"
+                className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="team-settings-name"
+                  className="text-[11px] font-semibold text-slate-500"
+                >
+                  팀 이름
+                </label>
+              </div>
+              <div className="mt-1.5 flex gap-2">
+                <input
+                  id="team-settings-name"
+                  value={teamNameDraft}
+                  onChange={(e) => setTeamNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveTeamName();
+                  }}
+                  className="h-10 min-w-0 flex-1 rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
+                />
+                <button
+                  type="button"
+                  onClick={saveTeamName}
+                  disabled={!isTeamNameChanged}
+                  className="h-10 shrink-0 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:cursor-default disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-white cursor-pointer"
+                >
+                  저장
+                </button>
+              </div>
+            </div>
+
+            <section aria-label="팀원">
+              <p className="mb-1.5 text-[11px] font-semibold text-slate-500">
+                팀원{' '}
+                <span className="font-medium text-slate-400">
+                  {(studyMembers?.[teamSettingsTeamId] ?? []).length}명
+                </span>
+              </p>
+              <div className="overflow-hidden rounded-md border border-slate-200">
+                <form
+                  className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-3"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    const name = newMemberName.trim();
+                    if (!name || !onAddStudyMember) return;
+                    const user = users.find((candidate) => candidate.name === name);
+                    if (!user) {
+                      setTeamSettingsMessage('명단에 없는 이름입니다.');
+                      return;
+                    }
+                    if (
+                      !window.confirm(
+                        `${user.name}님(${user.term}기 ${user.track})을 팀원으로 추가할까요?`,
+                      )
+                    ) {
+                      return;
+                    }
+                    await onAddStudyMember(teamSettingsTeamId, user.id);
+                    setNewMemberName('');
+                    setTeamSettingsMessage('');
+                  }}
+                >
+                  <Plus size={14} className="shrink-0 text-slate-400" aria-hidden />
+                  <input
+                    value={newMemberName}
+                    onChange={(e) => setNewMemberName(e.target.value)}
+                    placeholder="이름을 입력해 팀원 추가"
+                    aria-label="추가할 팀원 이름"
+                    className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMemberName.trim()}
+                    className="rounded-md px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-200/70 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent cursor-pointer"
+                  >
+                    추가
+                  </button>
+                </form>
+                {teamSettingsMessage && (
+                  <p
+                    role="alert"
+                    className="border-b border-slate-100 px-3 py-1.5 text-[11px] text-rose-600"
+                  >
+                    {teamSettingsMessage}
+                  </p>
+                )}
+                <ul className="max-h-56 divide-y divide-slate-100 overflow-y-auto">
+                  {(studyMembers?.[teamSettingsTeamId] ?? []).length === 0 && (
+                    <li className="px-3 py-6 text-center text-xs text-slate-400">
+                      팀원이 없습니다.
+                    </li>
+                  )}
+                  {/* 팀장은 맨 위에 두고 글자를 진하게 한다. 창 안에서 팀장을 바꾸면 바로 올라간다. */}
+                  {[...(studyMembers?.[teamSettingsTeamId] ?? [])]
+                    .sort(
+                      (a, b) =>
+                        Number(b.userId === teamSettingsLeaderId) -
+                        Number(a.userId === teamSettingsLeaderId),
+                    )
+                    .map((member) => {
+                      const isLeader =
+                        member.userId !== undefined && member.userId === teamSettingsLeaderId;
+                      return (
+                        <li
+                          key={member.id}
+                          className="group flex items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-slate-50"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span
+                              className={`truncate text-sm ${isLeader ? 'font-bold text-slate-900' : 'font-normal text-slate-800'}`}
+                            >
+                              {member.name}
+                            </span>
+                            <span
+                              className={`shrink-0 text-[11px] ${isLeader ? 'text-slate-600' : 'text-slate-400'}`}
+                            >
+                              {member.year}기 {member.track ?? ''}
+                            </span>
+                            {isLeader && <span className="sr-only">팀장</span>}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                            {/* 팀장 줄에는 팀장 해제, 다른 팀원 줄에는 팀장 지정 버튼을 둔다. */}
+                            {isLeader && (
+                              <button
+                                type="button"
+                                aria-label={`${member.name} 팀장 해제`}
+                                onClick={() =>
+                                  void handleReleaseLeader(teamSettingsTeamId, member.name)
+                                }
+                                className="rounded-md px-2 py-1 text-[11px] font-semibold text-slate-500 transition-colors hover:text-black cursor-pointer"
+                              >
+                                팀장 해제
+                              </button>
+                            )}
+                            {member.userId && !isLeader && (
+                              <button
+                                type="button"
+                                aria-label={`${member.name} 팀장 지정`}
+                                onClick={() => {
+                                  if (member.userId) {
+                                    void handleChangeLeader(
+                                      teamSettingsTeamId,
+                                      member.userId,
+                                      member.name,
+                                    );
+                                  }
+                                }}
+                                className="rounded-md px-2 py-1 text-[11px] font-semibold text-slate-500 transition-colors hover:text-black cursor-pointer"
+                              >
+                                팀장 지정
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={async (event) => {
+                                event.stopPropagation();
+                                if (
+                                  !window.confirm(
+                                    `${member.name}님을 팀에서 정말 삭제할까요?\n이 팀원의 출결 기록도 함께 삭제되며 되돌릴 수 없습니다.`,
+                                  )
+                                ) {
+                                  return;
+                                }
+                                await onRemoveStudyMember?.(teamSettingsTeamId, member.id);
+                              }}
+                              aria-label={`${member.name} 삭제`}
+                              className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                </ul>
+              </div>
+            </section>
+
+            {/* 팀장 지정·팀원 추가·삭제·이름 변경은 그때그때 저장되므로 완료는 창만 닫는다. */}
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setTeamSettingsTeamId(null)}
+                className="h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
+              >
+                완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSettingsModal && (
         <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
           <div
-            className={`w-full max-w-6xl max-h-[92vh] flex flex-col rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+            className={`w-full max-w-6xl max-h-[92vh] flex flex-col rounded-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
@@ -5731,14 +5606,15 @@ export function InternalCategoryAttendancePage({
                 <button
                   type="button"
                   onClick={handleSaveSettings}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-sm text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors cursor-pointer"
                 >
                   {isSavedFeedback ? '저장 완료 ✓' : '설정 저장'}
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveAndExportCsv}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 ${MODAL_PRIMARY_BTN}`}
+                  // 검정 채움 대신, 옆 설정 저장 버튼과 같은 흰 바탕에 테두리만 조금 진하게 해 주 버튼임을 보인다.
+                  className="px-4 py-2 rounded-sm text-xs font-semibold text-slate-800 bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 shadow-2xs transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   <Download size={13} />
                   <span>CSV 다운로드</span>

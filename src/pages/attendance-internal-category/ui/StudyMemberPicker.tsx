@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 
 import { fetchUsers } from '@/entities/user/api/usersApi';
-import { USER_TRACKS } from '@/entities/user/model/constants';
 import {
   addMembers,
   filterUsers,
@@ -17,6 +16,8 @@ import { TermSelect } from './TermSelect';
 interface StudyMemberPickerProps {
   value: MemberSelection;
   onChange: (next: MemberSelection) => void;
+  /** 거를 때 쓰는 부문 목록(반기 API 응답). */
+  trackOptions: readonly UserTrack[];
 }
 
 const TAG_BASE =
@@ -34,7 +35,7 @@ function toggle<T>(list: readonly T[], item: T): T[] {
  * 기수·부문 태그로 회원을 걸러 스터디원을 고르고, 선택된 스터디원 중 1명을 스터디장으로 표시한다.
  * 스터디원 선택과 스터디장 지정을 한 목록에서 처리한다.
  */
-export function StudyMemberPicker({ value, onChange }: StudyMemberPickerProps) {
+export function StudyMemberPicker({ value, onChange, trackOptions }: StudyMemberPickerProps) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [term, setTerm] = useState<number | null>(null);
@@ -95,7 +96,7 @@ export function StudyMemberPicker({ value, onChange }: StudyMemberPickerProps) {
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] font-semibold text-slate-500">부문</span>
-            {USER_TRACKS.map((track) => (
+            {trackOptions.map((track) => (
               <button
                 key={track}
                 type="button"

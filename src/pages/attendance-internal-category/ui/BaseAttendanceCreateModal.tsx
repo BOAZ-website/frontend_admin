@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, X } from 'lucide-react';
-import { formatCohortLabel } from '@/entities/cohort/model/lib';
+import { X } from 'lucide-react';
 
 import { fetchUsers } from '@/entities/user/api/usersApi';
 import { filterUsers } from '@/entities/user/model/lib';
@@ -8,7 +7,6 @@ import type { UserProfile, UserTrack } from '@/entities/user/model/types';
 import { DateTextInput } from '@/shared/ui/DateTextInput';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 
-import { BASE_CREATE_TRACKS } from '../model/baseAttendanceCreate';
 import { TermSelect } from './TermSelect';
 
 interface BaseAttendanceCreateModalProps {
@@ -17,8 +15,12 @@ interface BaseAttendanceCreateModalProps {
   titleLabel: string;
   /** 아래쪽 확인 버튼 이름. */
   submitLabel: string;
-  /** 현재(만들어져 있는 가장 큰) 기수. 출결은 그 다음 기수로 만들어진다. */
-  currentCohort: number;
+  /** 출결을 만들 기수(반기 API의 다음 반기 기수, ADV는 다음 반기의 ADV 기수). */
+  cohort: number;
+  /** 화면에 보일 반기 표기(예: '27-1'). */
+  cohortLabel: string;
+  /** 고를 수 있는 부문(반기 API 응답). */
+  tracks: readonly UserTrack[];
   /**
    * 지금 탭(방학/학기)에 보이는 주차 번호. 서버가 내려준 주차 목록 그대로라서 건너뛴 주차는 들어 있지 않고,
    * 주차별 날짜 입력도 이 주차들만 나온다.
@@ -26,13 +28,19 @@ interface BaseAttendanceCreateModalProps {
   weekNums: readonly number[];
   /** true면 출결 대상 목록에서 팀장을 지정할 수 있다(ADV 팀 개설에서 사용, BASE 출결 생성에는 없다). */
   withLeader?: boolean;
-  /** 고른 기수·트랙과 그 트랙에서 선택한 회원들로 출결을 만든다. leaderId는 withLeader일 때만 의미가 있다. */
+  /** true면 팀 이름을 입력받는다(ADV 팀 개설에서 사용). 비워 두면 '부문 N팀'으로 정해진다. */
+  withTeamName?: boolean;
+  /**
+   * 고른 기수·트랙과 그 트랙에서 선택한 회원들로 출결을 만든다. leaderId는 withLeader일 때만,
+   * teamName은 withTeamName일 때만 의미가 있다(입력하지 않았으면 null).
+   */
   onCreate: (
     cohort: number,
     track: UserTrack,
     users: UserProfile[],
     weekDates: Record<number, string>,
     leaderId: string | null,
+    teamName: string | null,
   ) => void;
 }
 
@@ -53,14 +61,16 @@ export function BaseAttendanceCreateModal({
   onClose,
   titleLabel,
   submitLabel,
-  currentCohort,
+  cohort,
+  cohortLabel,
+  tracks,
   weekNums,
   withLeader = false,
+  withTeamName = false,
   onCreate,
 }: BaseAttendanceCreateModalProps) {
-  // 출결은 항상 만들어져 있는 기수의 다음 기수로 만든다(예: 27기까지 있으면 28기).
-  const cohort = currentCohort + 1;
-  const [track, setTrack] = useState<UserTrack>(BASE_CREATE_TRACKS[0]);
+  const [track, setTrack] = useState<UserTrack>(tracks[0]);
+  const [teamName, setTeamName] = useState('');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
@@ -168,7 +178,7 @@ export function BaseAttendanceCreateModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`${formatCohortLabel(cohort)} 반기 ${titleLabel}`}
+      aria-label={`${cohortLabel} 반기 ${titleLabel}`}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 px-4 pb-4 pt-[8vh] backdrop-blur-xs"
       // 창 바깥(어두운 배경)을 누르면 닫힌다. 창 안에서 시작한 클릭·드래그는 닫지 않는다.
       onMouseDown={(event) => {
@@ -176,13 +186,12 @@ export function BaseAttendanceCreateModal({
       }}
     >
       <div
-        className={`w-full max-w-5xl space-y-4 overflow-hidden rounded-2xl p-6 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
+        className={`w-full max-w-5xl space-y-4 overflow-hidden rounded-lg p-6 animate-in fade-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <Plus size={16} className="text-slate-800" />
             <h3 className="text-base font-bold text-slate-900">
-              {formatCohortLabel(cohort)} 반기 {titleLabel}
+              {cohortLabel} 반기 {titleLabel}
             </h3>
           </div>
           <button
@@ -198,29 +207,43 @@ export function BaseAttendanceCreateModal({
         {/* 왼쪽: 어느 부문에, 누구의 출결을 만들지 / 오른쪽: 주차별 날짜(선택) */}
         <div className="grid gap-5 text-xs lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <div className="min-w-0 space-y-3">
-            <div>
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">부문</span>
-              <div
-                role="radiogroup"
-                aria-label="출결 생성 부문"
-                className="grid grid-cols-3 overflow-hidden rounded-sm bg-slate-100"
-              >
-                {BASE_CREATE_TRACKS.map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    role="radio"
-                    aria-checked={track === name}
-                    onClick={() => setTrack(name)}
-                    className={`cursor-pointer px-2 py-2.5 text-xs font-semibold transition-colors ${
-                      track === name
-                        ? 'bg-[#1E6F94] text-white'
-                        : 'text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    {name}
-                  </button>
-                ))}
+            {/* 팀 이름을 받을 때는 팀 이름과 부문을 한 줄에 나란히 둔다 */}
+            <div className={withTeamName ? 'grid grid-cols-2 gap-3' : undefined}>
+              {withTeamName && (
+                <label className="block min-w-0">
+                  <span className="mb-1.5 block text-sm font-semibold text-slate-700">팀 이름</span>
+                  <input
+                    value={teamName}
+                    onChange={(event) => setTeamName(event.target.value)}
+                    maxLength={50}
+                    className="w-full rounded-sm border border-slate-200 bg-white px-2.5 py-[9px] text-xs font-medium text-slate-900 outline-none transition-colors focus:border-slate-400"
+                  />
+                </label>
+              )}
+              <div className="min-w-0">
+                <span className="mb-1.5 block text-sm font-semibold text-slate-700">부문</span>
+                <div
+                  role="radiogroup"
+                  aria-label="출결 생성 부문"
+                  className="grid grid-cols-3 overflow-hidden rounded-sm bg-slate-100"
+                >
+                  {tracks.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      role="radio"
+                      aria-checked={track === name}
+                      onClick={() => setTrack(name)}
+                      className={`cursor-pointer px-2 py-2.5 text-xs font-semibold transition-colors ${
+                        track === name
+                          ? 'bg-[#1E6F94] text-white'
+                          : 'text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -249,7 +272,7 @@ export function BaseAttendanceCreateModal({
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[11px] font-semibold text-slate-500">부문</span>
-                    {BASE_CREATE_TRACKS.map((name) => (
+                    {tracks.map((name) => (
                       <button
                         key={name}
                         type="button"
@@ -422,7 +445,7 @@ export function BaseAttendanceCreateModal({
               {weekNums.map((weekNum) => (
                 <div
                   key={weekNum}
-                  className="flex flex-col gap-1 rounded-lg border border-slate-200/90 bg-white px-2 pb-2 pt-3"
+                  className="flex flex-col gap-1 rounded-md border border-slate-200/90 bg-white px-2 pb-2 pt-3"
                 >
                   <span className="px-0.5 text-[11px] font-bold text-slate-700">{weekNum}주차</span>
                   {/* 제목은 카드 위쪽에 붙이고, 남는 높이는 입력칸 주변에 나눠서 위아래 공백이 한쪽으로 몰리지 않게 한다 */}
@@ -459,6 +482,7 @@ export function BaseAttendanceCreateModal({
                 selectedUsers,
                 Object.fromEntries(Object.entries(weekDates).filter(([, date]) => date)),
                 withLeader ? leaderId : null,
+                withTeamName ? teamName.trim() || null : null,
               )
             }
             className="cursor-pointer rounded-sm border border-slate-300 bg-transparent px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-transparent"

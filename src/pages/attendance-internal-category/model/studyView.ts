@@ -1,4 +1,4 @@
-import { studyDisplayName, studyLeaderLabel } from '@/entities/study-team/model/db';
+import { studyDisplayName } from '@/entities/study-team/model/db';
 import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
 
 import type { InternalAttendee, TeamMeta } from '../ui/InternalCategoryAttendancePage';
@@ -24,7 +24,6 @@ export function buildStudyView(
       id: team.id,
       name: studyDisplayName(team),
       leader: team.leaderName,
-      leaderLabel: studyLeaderLabel(team, members),
       description: team.description ?? '',
       memberCount: members.length,
       studyKind: team.studyKind ?? 'GENERAL',
