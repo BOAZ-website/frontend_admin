@@ -55,11 +55,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
                 일시적인 오류가 발생했습니다
               </h2>
               <p className="text-xs text-slate-500 font-normal leading-relaxed">
-                페이지를 새로고침하거나 잠시 후 다시 시도해 주세요.
-                <br />
-                문제가 지속될 경우{' '}
-                <span className="font-semibold text-slate-700">관리자(서비스운영팀)</span>에게
-                문의해 주세요.
+                여기서 문제가 지속될 경우 서비스운영팀에 문의해주세요.
               </p>
             </div>
 
@@ -67,31 +63,27 @@ class GlobalErrorBoundary extends Component<Props, State> {
             <div className="space-y-2 pt-1">
               <button
                 type="button"
-                onClick={() => {
-                  this.setState({ hasError: false, error: null, errorInfo: null });
-                  window.location.reload();
-                }}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-sky-500 hover:bg-sky-600 active:scale-[0.99] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
-              >
-                <RotateCcw size={13} />
-                <span>페이지 새로고침</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
+                onClick={async () => {
                   try {
                     localStorage.removeItem('boaz_sidebar_open_v2');
                     localStorage.removeItem('boaz_sidebar_open');
                     localStorage.removeItem('boaz_sidebar_expanded_sections');
                     localStorage.removeItem('boaz_active_page');
-                  } catch {}
-                  this.setState({ hasError: false, error: null, errorInfo: null });
-                  window.location.assign(`${window.location.pathname}${window.location.search}`);
+                    await Promise.all(
+                      'caches' in window
+                        ? (await window.caches.keys()).map((cacheName) =>
+                            window.caches.delete(cacheName),
+                          )
+                        : [],
+                    );
+                  } finally {
+                    window.location.reload();
+                  }
                 }}
-                className="w-full py-2 px-3 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-sky-500 hover:bg-sky-600 active:scale-[0.99] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
               >
-                캐시 정리 후 새로고침
+                <RotateCcw size={13} />
+                <span>페이지 새로고침</span>
               </button>
             </div>
           </div>
