@@ -4,114 +4,290 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
+  Info,
+  Lock,
+  Plus,
   Download,
   Edit3,
-  Folder,
   GripVertical,
-  Plus,
   Search,
   Settings,
   Trash2,
-  UserPlus,
   X,
 } from 'lucide-react';
 import type {
   AttendanceEvent,
   AttendeeRecord,
   AttendStatus,
-  CheckinMethod,
   CustomFormField,
-  FormTemplate,
 } from '@/entities/event/model/types';
-import { formatCohortLabel } from '@/entities/cohort/model/lib';
+import { cohortLabelOf } from '@/entities/cohort/model/lib';
+import {
+  isLinkedMember,
+  MEMBER_IDENTITY_LABELS,
+  withMemberIdentity,
+} from '@/entities/event/model/memberIdentity';
 import { CohortSelect } from '@/pages/attendance-internal-category/ui/CohortSelect';
-import { MODAL_PRIMARY_BTN, MODAL_SURFACE } from '@/shared/ui/modalStyles';
+import { alertApiError } from '@/shared/lib/alertApiError';
+import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
+import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
+import { CreateButton } from '@/shared/ui/CreateButton';
+import { Tooltip } from '@/shared/ui/Tooltip';
 
-const ATTEND_STATUS_CFG: Record<
-  AttendStatus,
-  {
-    label: string;
-    code: string;
-    color: string;
-    bg: string;
-    border: string;
-    activeBg: string;
-    activeText: string;
+import {
+  CONFERENCE_SHEETS,
+  conferenceSheetOf,
+  DEFAULT_EVENT_FORMAT,
+  eventFormatOptionOf,
+  importedStatusesOf,
+  MEMO_LABELS,
+  OX_COLUMN_LABELS,
+  sessionLabelsFromHeader,
+  STATUS_HEADERS_BY_FORMAT,
+  OX_OPTIONS,
+  usesFreeformColumns,
+  type ConferenceSheet,
+  statusCodeOf,
+  statusLabelOf,
+  statusOfKey,
+  statusOptionsOf,
+  type EventAttendanceFormat,
+  type RosterSlot,
+  type RosterSlotId,
+} from '../model/eventFormat';
+import {
+  customStatusIn,
+  statusColumnsOf,
+  statusesOfAttendee,
+  statusIn,
+  withCustomStatus,
+  withStatusIn,
+  type StatusColumn,
+} from '../model/statusColumns';
+import {
+  lookupMembers,
+  memberCheckOf,
+  type MemberCheck,
+  type MemberMatch,
+} from '../model/memberLookup';
+import { useSemesterMemberTerms } from '../model/termFilter';
+import {
+  baseColumnOfName,
+  isBaseColumnHidden,
+  isReservedColumnName,
+  NAME_COLUMN_NAME,
+  statusColumnRemovalNote,
+  withBaseColumnHidden,
+  withRemovedColumnValuesCleared,
+  withStatusColumnRemoved,
+} from '../model/baseColumns';
+import {
+  extraFieldsOf,
+  movedTableColumn,
+  statusColumnAtOf,
+  tableColumnsOf,
+  type TableColumn,
+} from '../model/tableColumns';
+import { NAME_REQUIRED_ERROR, quickAddFieldErrorOf } from '../model/quickAddValidation';
+import { AutoWidthInput } from './AutoWidthInput';
+import { ComboInput, type ComboInputOption } from './ComboInput';
+import { FilterDropdown, type FilterDropdownOption } from './FilterDropdown';
+import { InlineEditableCell } from './InlineEditableCell';
+import { NewEventRosterSection } from './NewEventRosterSection';
+import { withoutKeys } from '@/shared/lib/object';
+
+// ─── 그룹 계정 관리 화면(HostsPage)과 같은 버튼·입력칸·표 스타일 ───
+/** 도구 줄의 선택 상자·검색칸. */
+const TOOLBAR_FIELD =
+  'h-9 rounded-sm border border-slate-200 bg-white text-xs font-semibold text-slate-800 shadow-2xs outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
+/** 부문 필터처럼 여러 값 중 하나를 고르는 묶음 버튼. */
+const SEGMENT_WRAP =
+  'flex items-center gap-1.5 p-1 rounded-sm bg-slate-100 border border-slate-200/80';
+const segmentItemClass = (isActive: boolean) =>
+  `px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+    isActive ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+  }`;
+/** 팝업 제목 옆 닫기 버튼. */
+const MODAL_CLOSE_BTN =
+  'p-1.5 rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer';
+/** 팝업 아래쪽 취소·확인 버튼. */
+const MODAL_CANCEL_BTN =
+  'h-9 rounded-sm px-4 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer';
+const MODAL_CONFIRM_BTN =
+  'h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer';
+/** 팝업 입력 항목의 이름과 입력칸. */
+const FIELD_LABEL = 'mb-1.5 block text-[11px] font-semibold text-slate-500';
+const FIELD_INPUT =
+  'h-10 w-full rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400';
+/** 형식이 틀린 입력칸(빨간 테두리)과 그 아래 고치는 방법 안내. */
+const FIELD_INPUT_ERROR =
+  'h-10 w-full rounded-sm border border-red-400 bg-white px-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-red-500';
+const FIELD_ERROR = 'mt-1 text-[11px] font-medium text-red-500';
+
+/** 출결 버튼 하나의 너비(px). 모든 출결 버튼은 값과 상관없이 같은 크기다. */
+const STATUS_BTN_WIDTH = 64;
+/** 출결 버튼 묶음과 버튼. 출석 표와 빠른 추가 창이 같은 모양을 쓴다. */
+const STATUS_BTN_GROUP =
+  'inline-flex shrink-0 gap-0.5 p-0.5 rounded-md bg-slate-100/90 border border-slate-200/60 shadow-2xs select-none';
+const STATUS_BTN =
+  'inline-flex h-[28px] w-[64px] shrink-0 items-center justify-center gap-1 rounded-md px-1 text-[11px] leading-none whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300';
+
+/**
+ * 회원 정보(이름·기수·부문)처럼 고칠 수 없는 칸. 수정 중에 누르면 안내를 띄운다.
+ * 잠기지 않았으면 그냥 글자로 보인다.
+ */
+function LockedOrPlainCell({
+  isLocked,
+  onLockedClick,
+  className,
+  children,
+}: {
+  isLocked: boolean;
+  onLockedClick: () => void;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const base = `w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs truncate ${className}`;
+  if (!isLocked) {
+    return <div className={base}>{children}</div>;
   }
-> = {
-  present: {
-    label: '출석',
-    code: '0',
-    color: '#0f5132',
-    bg: '#def2e6',
-    border: '#b6e3c9',
-    activeBg: '#def2e6',
-    activeText: '#0f5132',
-  },
-  late: {
-    label: '지각',
-    code: '1',
-    color: '#7c4a03',
-    bg: '#fceed2',
-    border: '#f5d5a4',
-    activeBg: '#fceed2',
-    activeText: '#7c4a03',
-  },
-  earlyLeave: {
-    label: '조퇴',
-    code: '1E',
-    color: '#7c4a03',
-    bg: '#fef3c7',
-    border: '#fde68a',
-    activeBg: '#fef3c7',
-    activeText: '#7c4a03',
-  },
-  absent: {
-    label: '결석',
-    code: '2',
-    color: '#8a1c32',
-    bg: '#fce4e6',
-    border: '#f8b4bc',
-    activeBg: '#fce4e6',
-    activeText: '#8a1c32',
-  },
-  excusedAbsent: {
-    label: '인정결석',
-    code: '3',
-    color: '#1e40af',
-    bg: '#eff6ff',
-    border: '#bfdbfe',
-    activeBg: '#eff6ff',
-    activeText: '#1e40af',
-  },
-  unexcusedLate: {
-    label: '무단지각',
-    code: '4',
-    color: '#c2410c',
-    bg: '#fff7ed',
-    border: '#fed7aa',
-    activeBg: '#fff7ed',
-    activeText: '#c2410c',
-  },
-  unexcusedAbsent: {
-    label: '무단결석',
-    code: '5',
-    color: '#991b1b',
-    bg: '#fee2e2',
-    border: '#fca5a5',
-    activeBg: '#fee2e2',
-    activeText: '#991b1b',
-  },
-  unmarked: {
-    label: '미정',
-    code: '-',
-    color: '#334155',
-    bg: '#e9eef4',
-    border: '#cbd5e1',
-    activeBg: '#e9eef4',
-    activeText: '#334155',
-  },
-};
+  return (
+    <button
+      type="button"
+      onClick={onLockedClick}
+      title={MEMBER_LOCK_HINT}
+      className={`${base} cursor-not-allowed rounded-md focus-visible:outline-none focus-visible:border-slate-300`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** 수정본의 글자 항목(이름·비고·추가 컬럼·소속·연락처·이메일·구분)만 참가자에 얹는다. 출결은 건드리지 않는다. */
+function withDraftText(attendee: AttendeeRecord, draft: AttendeeRecord): AttendeeRecord {
+  return {
+    ...attendee,
+    name: draft.name,
+    memo: draft.memo,
+    affiliation: draft.affiliation,
+    phone: draft.phone,
+    email: draft.email,
+    isExternal: draft.isExternal,
+    customAnswers: draft.customAnswers,
+  };
+}
+
+/** 행사 정렬 기준 시각. 일자를 넣지 않은 행사는 만든 날로 정렬한다. */
+function eventSortTime(event: AttendanceEvent): number {
+  return new Date(event.date || event.createdAt || 0).getTime();
+}
+
+/** 화면에 보이는 일자 형식(2026-10-03 → 2026.10.03). */
+function formatEventDate(date: string): string {
+  return date.replaceAll('-', '.');
+}
+
+/**
+ * 행사 목록에 작게 보이는 일자·장소. 입력한 것만 보이고, 둘 다 있으면 얇은 세로선으로 나눈다.
+ * 둘 다 없으면 '-'를 보여, 모든 카드의 높이와 제목 위치를 같게 한다.
+ */
+function EventMeta({ event }: { event: AttendanceEvent }) {
+  const parts = [event.date ? formatEventDate(event.date) : '', event.location].filter(Boolean);
+  if (parts.length === 0) {
+    return <p className="flex h-4 items-center text-xs text-slate-300">-</p>;
+  }
+  return (
+    <p className="flex h-4 min-w-0 items-center gap-2.5 text-xs text-slate-500">
+      {parts.map((part, idx) => (
+        <span key={part} className="flex min-w-0 items-center gap-2.5">
+          {idx > 0 && <span className="h-3 w-px shrink-0 bg-slate-300" aria-hidden="true" />}
+          <span className={idx === 0 && event.date ? 'shrink-0 tabular-nums' : 'truncate'}>
+            {part}
+          </span>
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** 닫힌 출결 열의 글자 색. 참석(출석)은 초록, 불참(결석)은 빨강, 미정은 연한 회색, 나머지는 진한 회색이다. */
+function collapsedStatusTextClass(status: AttendStatus): string {
+  if (status === 'present') return 'text-emerald-600';
+  if (status === 'absent') return 'text-rose-600';
+  if (status === 'unmarked') return 'text-slate-400 font-medium';
+  return 'text-slate-800';
+}
+
+/** 버튼으로 고르는 선택 컬럼인지(뒤풀이 비용 O/X 등). */
+function isSelectColumn(cf: CustomFormField): boolean {
+  return cf.type === 'SELECT' && Boolean(cf.options?.length);
+}
+
+/** 활동 TERM 열인지(BASE·ADV). 참가자 추가 창에서 활동 TERM은 드롭다운으로 고른다. */
+function isActivityTermLabel(label: string): boolean {
+  return /term/i.test(label);
+}
+
+/** 참가자 추가 창의 활동 TERM 선택지. 첫 칸(빈 값)은 고르지 않은 상태다. */
+const ACTIVITY_TERM_DROPDOWN_OPTIONS: readonly FilterDropdownOption<string>[] = [
+  { value: '', label: '선택 안 함' },
+  { value: 'BASE', label: 'BASE' },
+  { value: 'ADV', label: 'ADV' },
+];
+
+/** 기수 열인지. 참가자 추가 창에서 기수는 숫자로 입력하거나 목록에서 고른다. */
+function isTermLabel(label: string): boolean {
+  return label.includes('기수');
+}
+
+/** 부문 열인지(부문·트랙·분야). 참가자 추가 창에서 부문은 드롭다운으로 고른다. */
+function isTrackLabel(label: string): boolean {
+  return ['부문', '트랙', '분야'].some((word) => label.includes(word));
+}
+
+/** 참가자 추가 창의 부문 선택지. 첫 칸(빈 값)은 고르지 않은 상태다. */
+const TRACK_DROPDOWN_OPTIONS: readonly FilterDropdownOption<string>[] = [
+  { value: '', label: '선택 안 함' },
+  ...['분석', '시각화', '엔지니어링'].map((track) => ({ value: track, label: track })),
+];
+
+/** 닫아 둔 열(출결 열·선택 컬럼)의 너비(px). 고른 값을 글자로만 보여 준다. */
+const COLLAPSED_STATUS_WIDTH = 110;
+
+interface ColumnToggleButtonProps {
+  label: string;
+  isCollapsed: boolean;
+  onToggle: () => void;
+}
+
+/** 열 머리글의 열고 닫기 버튼. 닫힌 열은 버튼 대신 고른 값을 글자로 보여 준다. */
+function ColumnToggleButton({ label, isCollapsed, onToggle }: ColumnToggleButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={!isCollapsed}
+      title={isCollapsed ? `${label} 입력 열기` : `${label} 입력 닫기`}
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold transition-colors cursor-pointer hover:bg-slate-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+    >
+      {isCollapsed ? (
+        <ChevronRight size={13} aria-hidden="true" />
+      ) : (
+        <ChevronDown size={13} aria-hidden="true" />
+      )}
+      {label}
+    </button>
+  );
+}
+
+/** 수정 모드에서 동아리 회원의 이름·기수·부문 칸에 보여 주는 안내. */
+const MEMBER_LOCK_HINT = '회원 정보는 수정할 수 없습니다.';
+
+/** 출결이 아닌 선택 컬럼(뒤풀이 비용 O/X 등)의 버튼 상태. 출결 버튼과 크기는 같고 색만 중립이다. */
+const OPTION_BTN_ACTIVE = 'bg-white text-slate-900 font-bold border border-slate-300 shadow-2xs';
+const OPTION_BTN_INACTIVE =
+  'text-slate-400 hover:text-slate-700 hover:bg-white/60 border border-transparent font-medium';
 
 const ATTEND_STATUS_STYLES: Record<AttendStatus, { active: string; inactive: string }> = {
   present: {
@@ -156,7 +332,10 @@ const ATTEND_STATUS_STYLES: Record<AttendStatus, { active: string; inactive: str
   },
 };
 
-// Smart resolver for attendee values based on dynamic column labels
+/**
+ * 추가 컬럼 칸에 보여 줄 값. 명단에 적힌 값(customAnswers)을 먼저 쓰고,
+ * 없으면 참가자 정보(소속·기수·부문·연락처·이메일·구분)에서 찾는다. 모르는 값은 지어내지 않고 빈칸으로 둔다.
+ */
 function getAttendeeFieldValue(att: AttendeeRecord, label: string, id: string): string {
   if (att.customAnswers?.[label] !== undefined && att.customAnswers[label] !== '') {
     return att.customAnswers[label];
@@ -167,81 +346,23 @@ function getAttendeeFieldValue(att: AttendeeRecord, label: string, id: string): 
 
   const clean = label.trim().toLowerCase();
 
-  // 학교 / 대학교 / 출신학교
-  if (clean.includes('학교') || clean.includes('대학')) {
-    if (att.email.includes('yonsei')) {
-      return '연세대학교';
-    }
-    if (att.email.includes('snu')) {
-      return '서울대학교';
-    }
-    if (att.email.includes('ewha')) {
-      return '이화여자대학교';
-    }
-    if (att.email.includes('hanyang')) {
-      return '한양대학교';
-    }
-    if (att.email.includes('sogang')) {
-      return '서강대학교';
-    }
-    if (att.email.includes('korea')) {
-      return '고려대학교';
-    }
-    if (att.email.includes('skku')) {
-      return '성균관대학교';
-    }
-    if (att.affiliation.includes('대')) {
-      return att.affiliation.split(' ')[0];
-    }
-    return '서울대학교';
+  // 소속 / 회사 / 직장 / 기업 / 학교
+  if (['소속', '회사', '직장', '기업', '학교', '대학'].some((word) => clean.includes(word))) {
+    return att.affiliation;
   }
 
-  // 소속 / 회사 / 직장 / 기업
-  if (
-    clean.includes('소속') ||
-    clean.includes('회사') ||
-    clean.includes('직장') ||
-    clean.includes('기업')
-  ) {
-    return att.affiliation || (att.isExternal ? '외부 게스트' : 'BOAZ 28기');
+  // 기수
+  if (clean.includes('기수')) {
+    return att.term ? `${att.term}기` : '';
   }
 
-  // 기수 / 기
-  if (clean === '기수' || clean === '기' || clean.includes('기수')) {
-    return att.term ? `${att.term}기` : att.affiliation.match(/\d+기/)?.[0] || '28기';
-  }
-
-  // 부문 / 트랙 / 분야 / 세부트랙
+  // 부문 / 트랙 / 분야: 소속에 적힌 부문만 쓴다
   if (clean.includes('부문') || clean.includes('트랙') || clean.includes('분야')) {
-    if (att.affiliation.includes('분석')) {
-      return '분석 트랙';
-    }
-    if (att.affiliation.includes('엔지니어링') || att.affiliation.includes('엔지니어')) {
-      return '엔지니어링 트랙';
-    }
-    if (att.affiliation.includes('시각화')) {
-      return '시각화 트랙';
-    }
-    return '분석 트랙';
-  }
-
-  // 팀 / 팀명 / 배정팀 / 배정 팀명 / 조
-  if (clean.includes('팀') || clean.includes('조') || clean.includes('배정')) {
-    return (
-      att.customAnswers?.['배정 팀명'] ||
-      att.customAnswers?.['팀명'] ||
-      (att.id.includes('1') || att.id.includes('2') ? '1조' : '2조')
-    );
+    return ['분석', '엔지니어링', '시각화'].find((track) => att.affiliation.includes(track)) ?? '';
   }
 
   // 전화번호 / 연락처 / 핸드폰 / 휴대폰
-  if (
-    clean.includes('전화') ||
-    clean.includes('연락') ||
-    clean.includes('핸드폰') ||
-    clean.includes('휴대폰') ||
-    clean.includes('phone')
-  ) {
+  if (['전화', '연락', '핸드폰', '휴대폰', 'phone'].some((word) => clean.includes(word))) {
     return att.phone;
   }
 
@@ -253,16 +374,6 @@ function getAttendeeFieldValue(att: AttendeeRecord, label: string, id: string): 
   // 구분 / 참가구분 / 신분
   if (clean.includes('구분') || clean.includes('신분')) {
     return att.isExternal ? '외부인' : '정회원';
-  }
-
-  // 기념품 / 수령
-  if (clean.includes('기념품') || clean.includes('수령')) {
-    return att.customAnswers?.['기념품 수령'] || '수령 완료';
-  }
-
-  // 과제 / 제출
-  if (clean.includes('과제') || clean.includes('제출')) {
-    return att.customAnswers?.['과제 제출'] || '제출 완료';
   }
 
   return '';
@@ -333,34 +444,29 @@ export function EventAttendanceManagePage({
 
   // ─── Browser History: 뒤로가기 시 행사 세부 탭 -> 행사 전체 목록 이동 연동 ───
   useEffect(() => {
-    // 마운트 시 초기 history state 동기화
-    if (subTab !== 'events') {
-      if (!window.history.state || window.history.state.subTab !== 'detail') {
-        window.history.replaceState(
-          { page: 'att-events', subTab: 'events' },
-          '',
-          window.location.href,
-        );
-        window.history.pushState(
-          { page: 'att-events', subTab: 'detail', eventId: selectedEventId, tab: subTab },
-          '',
-          window.location.href,
-        );
-      }
-    } else {
-      if (!window.history.state || window.history.state.subTab !== 'events') {
-        window.history.replaceState(
-          { page: 'att-events', subTab: 'events' },
-          '',
-          window.location.href,
-        );
-      }
+    // 마운트 시 초기 history state 동기화 (항상 목록에서 시작)
+    if (!window.history.state || window.history.state.subTab !== 'events') {
+      window.history.replaceState(
+        { page: 'att-events', subTab: 'events' },
+        '',
+        window.location.href,
+      );
     }
 
     const handlePopState = (e: PopStateEvent) => {
       const state = e.state;
+      const isLeavingDetail = !(state && state.subTab === 'detail');
+      if (isLeavingDetail && !leaveGuardRef.current()) {
+        // 머물기로 했으면 방금 뒤로 간 기록을 다시 쌓아 행사 화면에 남는다.
+        window.history.pushState(
+          { page: 'att-events', subTab: 'detail', eventId: latestEventIdRef.current, tab: 'live' },
+          '',
+          window.location.href,
+        );
+        return;
+      }
       if (state && state.subTab === 'detail') {
-        setSubTab(state.tab || 'live');
+        setSubTab('live');
         if (state.eventId) {
           setSelectedEventId(state.eventId);
         }
@@ -412,6 +518,22 @@ export function EventAttendanceManagePage({
     'ALL' | 'ANALYSIS' | 'VISUALIZATION' | 'ENGINEERING' | 'EXTERNAL'
   >('ALL');
   const [attendStatusFilter, setAttendStatusFilter] = useState<'ALL' | AttendStatus>('ALL');
+  // 컨퍼런스 행사에서 보고 있는 명단 시트
+  const [conferenceSheet, setConferenceSheet] = useState<ConferenceSheet>('CURRENT');
+  // 화면 아래에 잠깐 보이는 안내(예: 회원 정보는 고칠 수 없음)
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+  // 반기별 활동 회원 기수(반기 API). 명단을 올릴 때 '현재 기수인데 회원 DB에 없는 사람'을 가리는 데 쓴다.
+  const semesterMemberTerms = useSemesterMemberTerms();
+  // 보고 있는 행사 참가자의 기수 목록(백엔드, 행사 DB 기준). 기수 필터 선택지다.
+  const [eventTerms, setEventTerms] = useState<number[] | null>(null);
+  // 처음 상태에서 열고 닫기를 바꾼 열(행사 id → 열 key). 출결 열과 선택 컬럼(뒤풀이 비용 O/X 등)이 대상이다.
+  // 닫힌 열은 고른 값만 글자로 보여 준다.
+  const [toggledColumnsByEvent, setToggledColumnsByEvent] = useState<Record<string, string[]>>({});
 
   // Fast Keyboard Check-in Mode State
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
@@ -483,6 +605,18 @@ export function EventAttendanceManagePage({
     setGuidelineX(x);
   };
 
+  /**
+   * 스크롤하는 동안에는 열 너비 안내선을 숨긴다. 안내선은 마우스를 올린 순간의 자리에 그려지므로,
+   * 스크롤로 열 경계가 커서 아래를 지나가면 엉뚱한 자리에 선이 깜빡여 표가 흔들려 보인다.
+   */
+  const handleTableScroll = () => {
+    if (resizingCol.current || (activeHoverCol === null && guidelineX === null)) {
+      return;
+    }
+    setActiveHoverCol(null);
+    setGuidelineX(null);
+  };
+
   const handleResizeStart = (e: React.MouseEvent<HTMLElement>, key: string, minWidth = 50) => {
     e.preventDefault();
     e.stopPropagation();
@@ -527,10 +661,10 @@ export function EventAttendanceManagePage({
     window.addEventListener('mouseup', handleMouseUp);
   };
 
-  // 최신 활동일자순 (날짜 내림차순 -> 생성일 내림차순) 정렬
+  // 최신 활동일자순 (날짜 내림차순 -> 생성일 내림차순) 정렬. 일자를 넣지 않은 행사는 만든 날 기준이다.
   const cohortEvents = events.filter((event) => event.targetTerms.includes(selectedCohort));
   const sortedEvents = [...cohortEvents].sort((a, b) => {
-    const diff = new Date(b.date).getTime() - new Date(a.date).getTime();
+    const diff = eventSortTime(b) - eventSortTime(a);
     if (diff !== 0) {
       return diff;
     }
@@ -562,6 +696,75 @@ export function EventAttendanceManagePage({
     cohortEvents.find((e) => e.id === selectedEventId) || sortedEvents[0] || fallbackEvent;
   const currentEventAttendees = attendees.filter((a) => a.eventId === (selectedEvent?.id || ''));
 
+  // 기수 필터 선택지: 행사를 바꾸거나 참가자 구성·기수가 바뀌면 백엔드에서 다시 읽는다(저장이 끝난 뒤 읽는다).
+  // 출결만 바뀐 경우에는 다시 읽지 않는다.
+  const viewedEventId = selectedEvent?.id;
+  const rosterTermsKey = currentEventAttendees.map((a) => `${a.id}:${a.term ?? ''}`).join('|');
+  useEffect(() => {
+    if (!viewedEventId) {
+      setEventTerms(null);
+      return;
+    }
+    let isCancelled = false;
+    loadEventTerms(viewedEventId)
+      .then((terms) => {
+        if (!isCancelled) setEventTerms(terms);
+      })
+      .catch(() => {
+        if (!isCancelled) setEventTerms(null);
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [viewedEventId, rosterTermsKey, loadEventTerms]);
+
+  // 행사 출결 방식. 출결 값과 코드, 컨퍼런스의 1차·2차 구분이 방식에 따라 다르다.
+  const eventFormat = selectedEvent.attendanceFormat;
+  const isConferenceEvent = eventFormat === 'CONFERENCE';
+  // 컨퍼런스는 명단을 시트(현재 활동기수 · 활동기수 외 회원 · 외부 참석자)로 나눠 관리한다.
+  const sheetOf = (a: AttendeeRecord) => conferenceSheetOf(a, selectedEvent.targetTerms);
+  const isExternalSheet = isConferenceEvent && conferenceSheet === 'EXTERNAL';
+  // 지금 보고 있는 탭(컨퍼런스는 시트)의 일괄 수정 여부
+  const editModeKey = `${selectedEvent.id}:${isConferenceEvent ? conferenceSheet : 'ALL'}`;
+  const isTableEditMode = editModeKeys.includes(editModeKey);
+
+  // 출석 탭의 컨퍼런스 행사는 엑셀처럼 화면 맨 아래에 시트 탭을 둔다.
+  const hasSheetTabs = subTab === 'live' && isConferenceEvent;
+
+  /**
+   * 다른 시트로 넘어간다. 지금 시트에 저장하지 않은 수정 내용이 있으면 브라우저 확인 창으로 묻는다.
+   * 확인: 저장하고 넘어간다. 취소: 넘어가지 않고 이 시트에 머문다(입력한 내용은 그대로).
+   */
+  function handleChangeConferenceSheet(sheet: ConferenceSheet) {
+    if (sheet === conferenceSheet) {
+      return;
+    }
+    if (currentTabAttendeeIds().some((id) => drafts[id])) {
+      const tabLabel =
+        CONFERENCE_SHEETS.find((item) => item.value === conferenceSheet)?.label ?? '';
+      const shouldSave = window.confirm(
+        `${tabLabel} 시트에 저장하지 않은 수정 내용이 있습니다.\n저장하고 넘어갈까요?`,
+      );
+      if (!shouldSave) {
+        return;
+      }
+      finishTabEditing();
+    }
+    switchConferenceSheet(sheet);
+  }
+
+  function switchConferenceSheet(sheet: ConferenceSheet) {
+    setConferenceSheet(sheet);
+    setFocusedIndex(0);
+  }
+
+  /** 지금 탭의 수정을 끝낸다: 수정본을 저장하고 수정 모드를 끈다. */
+  function finishTabEditing() {
+    commitDrafts(currentTabAttendeeIds());
+    setEditingRowId(null);
+    setEditModeKeys((prev) => prev.filter((key) => key !== editModeKey));
+  }
+
   // Close dropdown when clicked outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -579,7 +782,38 @@ export function EventAttendanceManagePage({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  /**
+   * 표 위 기수 필터. 첫 값은 거르지 않는 '전체'이고, 나머지는 백엔드가 행사 DB에서 내려 준 이 행사 참가자의 기수다.
+   * 불러오지 못하면 '전체'만 둔다(프론트에서 기수를 계산하지 않는다).
+   */
+  const termFilterOptions: readonly FilterDropdownOption<string>[] = [
+    { value: 'ALL', label: '전체' },
+    ...(eventTerms ?? []).map((term) => ({ value: String(term), label: `${term}기` })),
+  ];
+
+  // 화면에서 숨긴 필터는 적용하지 않는다(외부 참석자 시트의 기수·부문, 컨퍼런스의 '외부').
+  // 선택지에 없는 기수(다른 반기에서 고른 값)도 거르지 않는다.
+  const activeTermFilter =
+    isExternalSheet || !termFilterOptions.some((option) => option.value === termFilter)
+      ? 'ALL'
+      : termFilter;
+  const activeCategoryFilter =
+    isExternalSheet || (isConferenceEvent && attendeeCategoryFilter === 'EXTERNAL')
+      ? 'ALL'
+      : attendeeCategoryFilter;
+  // 이 행사(시트)에 없는 출결 값이 골라져 있으면(다른 행사에서 고른 값) 거르지 않는다.
+  const availableStatuses = statusOptionsOf(eventFormat)
+    .map((option) => option.value)
+    .filter((status) => !isExternalSheet || status === 'present' || status === 'unmarked');
+  const activeStatusFilter =
+    attendStatusFilter !== 'ALL' && availableStatuses.includes(attendStatusFilter)
+      ? attendStatusFilter
+      : 'ALL';
+
   const filteredAttendees = currentEventAttendees.filter((a) => {
+    if (isConferenceEvent && sheetOf(a) !== conferenceSheet) {
+      return false;
+    }
     const rawText = [
       a.affiliation || '',
       a.isExternal ? '외부인 외부' : '부원 기수',
@@ -589,30 +823,30 @@ export function EventAttendanceManagePage({
       .toLowerCase();
 
     // 1. 기수 필터 (Term filter)
-    if (termFilter !== 'ALL') {
+    if (activeTermFilter !== 'ALL') {
       const termMatch =
-        (a.term && String(a.term) === termFilter) ||
-        (a.affiliation && a.affiliation.includes(`${termFilter}기`)) ||
-        rawText.includes(`${termFilter}기`);
+        (a.term && String(a.term) === activeTermFilter) ||
+        (a.affiliation && a.affiliation.includes(`${activeTermFilter}기`)) ||
+        rawText.includes(`${activeTermFilter}기`);
       if (!termMatch) {
         return false;
       }
     }
 
     // 2. 트랙 및 구분 필터
-    if (attendeeCategoryFilter === 'ANALYSIS') {
+    if (activeCategoryFilter === 'ANALYSIS') {
       if (!rawText.includes('분석')) {
         return false;
       }
-    } else if (attendeeCategoryFilter === 'VISUALIZATION') {
+    } else if (activeCategoryFilter === 'VISUALIZATION') {
       if (!rawText.includes('시각화') && !rawText.includes('시각')) {
         return false;
       }
-    } else if (attendeeCategoryFilter === 'ENGINEERING') {
+    } else if (activeCategoryFilter === 'ENGINEERING') {
       if (!rawText.includes('엔지') && !rawText.includes('개발')) {
         return false;
       }
-    } else if (attendeeCategoryFilter === 'EXTERNAL') {
+    } else if (activeCategoryFilter === 'EXTERNAL') {
       if (
         !a.isExternal &&
         !rawText.includes('외') &&
