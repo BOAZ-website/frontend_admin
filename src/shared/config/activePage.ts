@@ -1,5 +1,4 @@
 export type ActivePage =
-  | 'att-dashboard'
   | 'att-events'
   | 'att-hosts'
   | 'att-scores'

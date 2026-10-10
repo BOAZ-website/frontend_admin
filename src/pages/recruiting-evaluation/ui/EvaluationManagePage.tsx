@@ -1007,7 +1007,8 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="지원자명, 대학교, 전공 검색..."
+                    placeholder="검색"
+                    aria-label="지원자명, 대학교, 전공 검색"
                     className="pl-8 pr-3 py-1 text-xs rounded-xl bg-slate-100 border border-slate-200 text-foreground placeholder:text-muted-foreground/60 outline-none w-52 font-mono"
                   />
                   <Search

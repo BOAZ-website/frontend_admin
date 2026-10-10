@@ -1,3 +1,9 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+/* HOST 권한 모달은 상단 사용자명과 같은 14px Pretendard 텍스트로 통일한다. */
+.host-issue-modal :is(label, input, select, p, span, code, button) {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}

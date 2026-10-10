@@ -34,7 +34,7 @@ react-router를 쓰지 않습니다. `src/app/App.tsx`가 `ActivePage` 문자열
 
 출결(`attendance`), 스터디팀, HOST 계정, 예외 요청, 점수 규칙, 로그인 역할이 모두 `App.tsx`의 `useState`에 있고 props로 내려갑니다. 상태 관리 라이브러리는 없습니다. 여러 페이지가 공유하는 상태를 추가할 때도 이 패턴을 따르는 것이 일관성 측면에서 유리합니다.
 
-localStorage 키는 `boaz_score_rules`, `boaz_delivery_template`, `boaz_custom_notify_template`입니다. 점수 규칙이 `InternalCategoryAttendancePage`에 전달되는 **실제 경로는 `App.tsx`가 내려주는 `activeScoreRule` prop 하나**입니다. `App.tsx:55`의 `window.dispatchEvent(new Event("storage"))`는 듣는 리스너가 없고, `InternalCategoryAttendancePage.tsx:1402`의 `boaz_score_rules_changed` 리스너는 발행하는 곳이 없습니다. 이 두 이벤트는 이름이 어긋난 죽은 코드 한 쌍이므로 동기화 수단으로 의존하면 안 되며, 정리 대상입니다.
+localStorage 키는 `boaz_score_rules`, `boaz_delivery_template`, `boaz_custom_notify_template`입니다. 출결 점수는 화면에서 계산하지 않습니다. 점수 API(`/api/v1/attendance/scores`, `/api/v1/attendance/score-sheet`)가 적용 중인 점수 규칙(DB)으로 계산하고(`src/entities/score-rule/model/attendanceScore.ts`, `studyScore.ts`), `InternalCategoryAttendancePage`와 점수 집계 화면은 그 결과를 보여 주기만 합니다. `App.tsx:55`의 `window.dispatchEvent(new Event("storage"))`는 듣는 리스너가 없고, `InternalCategoryAttendancePage.tsx:1402`의 `boaz_score_rules_changed` 리스너는 발행하는 곳이 없습니다. 이 두 이벤트는 이름이 어긋난 죽은 코드 한 쌍이므로 동기화 수단으로 의존하면 안 되며, 정리 대상입니다.
 
 ### 역할(Role) 처리
 
@@ -63,6 +63,8 @@ Tailwind CSS v4를 `@tailwindcss/vite` 플러그인으로 사용합니다. `post
 
 `src/app/styles/index.css`가 `fonts.css` → `tailwind.css` → `theme.css` 순서로 임포트하는 구조이며, `tailwind.css`는 `source(none)`으로 자동 탐색을 끄고 `@source '../../**/*.{js,ts,jsx,tsx}'`로 스캔 범위를 명시합니다. 클래스가 적용되지 않는다면 이 `@source` 범위를 먼저 확인해야 합니다.
 
+모서리는 종류마다 하나로 맞춥니다: 입력칸·버튼·드롭다운은 `rounded-sm`(4px), 표·카드·목록 상자는 `rounded-md`(6px), 팝업 창은 `rounded-lg`(8px)입니다. 완전히 둥근 `rounded-full`은 배지·프로필 사진에만 쓰고, 12px 이상(`rounded-xl`, `rounded-2xl`)은 쓰지 않습니다. 출결 화면(`src/pages/attendance-*`)과 `src/shared/ui`는 이 기준으로 맞춰져 있습니다.
+
 `theme.css`에 `:root` CSS 변수(shadcn 계열 토큰과 `--sidebar-*`)가 정의되어 있고 `.dark` 블록도 있지만, 다크 모드 토글은 구현되어 있지 않습니다. 실제 화면은 대부분 Tailwind의 slate 계열 클래스를 직접 쓰며, 폰트는 Pretendard(`index.html`과 `fonts.css`에서 CDN으로 이중 로드)입니다.
 
 ## 참고 문서
@@ -74,3 +76,19 @@ Tailwind CSS v4를 `@tailwindcss/vite` 플러그인으로 사용합니다. `post
 - UI 문구와 커밋 메시지는 한국어를 사용하고, 식별자와 타입 이름은 영어를 사용합니다.
 - 커밋 메시지는 `feat:`, `refactor:` 접두사를 사용하는 Conventional Commits 형식입니다.
 - `tsconfig.app.json`에 `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`, `erasableSyntaxOnly`가 켜져 있습니다. 사용하지 않는 매개변수는 기존 코드처럼 `_onToggleRole`, `_sIdx`와 같이 밑줄 접두사를 붙여 처리하고, 타입 임포트는 반드시 `import type`으로 작성해야 합니다.
+
+## 문서 작성 규칙
+
+Notion 문서, PR·이슈 본문, 저장소 안 문서를 쓰거나 고칠 때 적용합니다. AI 도구에 문서 작성을 맡길 때도 이 절을 따르게 합니다.
+
+- 문서만 읽고 이해할 수 있게 씁니다. 작성 당시 맥락(회의, 대화)을 모르는 팀원이 처음 읽어도 뜻이 통해야 합니다.
+- 비유 표현을 쓰지 않습니다. 뜻 그대로의 말로 씁니다.
+- 팀에서 만들어 붙인 말은 쓰지 않습니다. 써야 하면 무엇인지 풀어 씁니다. BOAZ 도메인 용어(기수, 트랙, BASE·ADV·스터디, HOST 계정 등)와 WBS 티켓 ID는 그대로 씁니다.
+- 업계 표준 기술 용어는 그대로 씁니다(API, 스키마, 토큰, PR 등). 과하게 풀어 써서 산출물 이름이 사라지게 하지 않습니다.
+- 작성자만 뜻을 아는 식별자를 쓰지 않습니다: 커밋 해시, 워크플로 실행 번호, 개인 GitHub 계정명. 팀원이 찾아갈 수 있는 대상(저장소·브랜치 이름, 파일 경로, PR·이슈 번호와 링크)은 써도 됩니다. 단, CI 장애·검증 기록처럼 추적이 목적인 기록에는 커밋 해시와 워크플로 실행 URL을 적을 수 있습니다.
+- 담당은 실명 대신 역할로 씁니다. 예: 프론트엔드 담당, 운영진
+- 날짜는 `2026-09-30` 형식의 절대 날짜로 씁니다. "다음 주", "금일" 같은 상대 표현을 쓰지 않습니다.
+- 영어 설정 이름은 무엇을 하는 설정인지 한국어로 풀고, 필요하면 괄호에 원래 이름을 적습니다. 예: 관리자에게도 규칙 적용(enforce admins)
+- PR·이슈 본문은 저장소 템플릿(`.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/`)의 섹션 이름과 순서를 그대로 지킵니다. 템플릿이 내용이 없으면 삭제하라고 안내한 섹션만 지울 수 있습니다. 템플릿에 없는 섹션을 만들지 않고, 문서 작업 중에 템플릿 파일 자체를 고치지 않습니다.
+- 연결된 Notion 티켓이 있으면 템플릿의 첫 섹션(개요·목적 등) 안에 링크를 적습니다.
+- 고치지 않는 것: 회의 발언 기록 원문, 외부 자료 인용, 코드 블록, 다른 문서가 링크하는 파일·폴더 이름

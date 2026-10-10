@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+.tmp/
 
 # production build
 build/
@@ -31,3 +32,4 @@ yarn-error.log*
 
 # local docs
 /docs
+/references
