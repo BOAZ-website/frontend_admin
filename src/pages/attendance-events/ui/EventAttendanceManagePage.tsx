@@ -494,21 +494,34 @@ export function EventAttendanceManagePage({
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-    // The listener intentionally captures the initial detail state; later navigation is handled by popstate.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleSelectEvent(eventId: string, tab: 'live' | 'forms' | 'stats' = 'live') {
+  function handleSelectEvent(eventId: string) {
+    if (eventId !== selectedEventId && !leaveGuardRef.current()) {
+      return;
+    }
     setSelectedEventId(eventId);
-    setSubTab(tab);
+    setSubTab('live');
+    setConferenceSheet('CURRENT');
     window.history.pushState(
-      { page: 'att-events', subTab: 'detail', eventId, tab },
+      { page: 'att-events', subTab: 'detail', eventId, tab: 'live' },
       '',
       window.location.href,
     );
   }
 
+  // 사이드바의 행사 출결 메뉴를 다시 누르면 행사 목록으로 돌아간다(처음 열 때는 이미 목록이다).
+  const handledListRequestRef = useRef(listRequest);
+  useEffect(() => {
+    if (listRequest === handledListRequestRef.current) return;
+    handledListRequestRef.current = listRequest;
+    if (subTab !== 'events') handleGoBackToList();
+  });
+
   function handleGoBackToList() {
+    if (!leaveGuardRef.current()) {
+      return;
+    }
     if (window.history.state && window.history.state.subTab === 'detail') {
       window.history.back();
     } else {
@@ -2143,107 +2156,38 @@ export function EventAttendanceManagePage({
     handleExportEventCsv(selectedEvent);
   }
 
-  // ─── Template Management Functions (Create, Edit, Delete, Instantiate) ───
-  function handleOpenCreateTemplate() {
-    setIsNewTemplate(true);
-    setEditingTemplate({
-      id: 'tmpl_' + Date.now(),
-      title: '새 출석 양식 템플릿',
-      description: '운영 목적에 맞춘 출석 체크 및 추가 확인 항목 양식',
-      allowExternal: false,
-      defaultCheckinMethod: 'QR_CODE',
-      createdAt: new Date().toISOString().slice(0, 10),
-      customFields: [
-        {
-          id: 'f_' + Date.now(),
-          label: '과제 제출 여부',
-          type: 'SELECT',
-          options: ['제출 완료', '미제출'],
-          isRequired: true,
-          target: 'ALL',
-        },
-      ],
-    });
-  }
-
-  function handleSaveTemplate() {
-    if (!editingTemplate) {
-      return;
-    }
-    if (!editingTemplate.title.trim()) {
-      alert('양식명을 입력하세요.');
-      return;
-    }
-
-    if (isNewTemplate) {
-      setTemplates((prev) => [...prev, editingTemplate]);
-    } else {
-      setTemplates((prev) => prev.map((t) => (t.id === editingTemplate.id ? editingTemplate : t)));
-    }
-    setEditingTemplate(null);
-  }
-
-  function handleDeleteTemplate(tmplId: string, title: string) {
-    if (confirm(`'${title}' 양식 템플릿을 삭제하시겠습니까?`)) {
-      setTemplates((prev) => prev.filter((t) => t.id !== tmplId));
-    }
-  }
-
-  function handleCreateEventFromTemplate(tmpl: FormTemplate) {
-    setIsNewEvent(true);
-    clearNewEventCsv();
-    setEditingEvent({
-      id: 'evt_' + Date.now(),
-      title: `${tmpl.title.replace(' 템플릿', '').replace(' 양식', '')} (${new Date().toISOString().slice(5, 10)})`,
-      status: 'UPCOMING',
-      date: new Date().toISOString().slice(0, 10),
-      startTime: '14:00',
-      endTime: '18:00',
-      location: '동아리 지정 세미나실',
-      description: tmpl.description,
-      allowExternal: tmpl.allowExternal,
-      checkinMethod: tmpl.defaultCheckinMethod,
-      checkinCode: String(Math.floor(1000 + Math.random() * 9000)),
-      targetTerms: [selectedCohort],
-      targetTracks: ['ANALYSIS', 'ENGINEERING', 'VISUALIZATION'],
-      totalTargetCount: 50,
-      internalAttendedCount: 0,
-      externalAttendedCount: 0,
-      createdAt: new Date().toISOString().slice(0, 10),
-      customFields: [...tmpl.customFields],
-    });
-  }
-
   return (
     <div
-      className="space-y-5 w-full"
+      // 시트 탭이 있으면 화면 높이를 채우고 아래 여백을 없애, 시트 탭 막대가 화면 맨 아래까지 닿게 한다
+      // (헤더 3.5rem + 본문 위 여백 1.75rem을 뺀 높이).
+      className={`space-y-6 w-full ${hasSheetTabs ? '-mb-7 flex min-h-[calc(100dvh-5.25rem)] flex-col' : ''}`}
       style={{
         fontFamily:
           "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
       }}
     >
       {/* ─── 1. Top Breadcrumb & Navigation Bar ─── */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
         {/* Breadcrumb Hierarchy - Standardized matching all pages */}
         <div className="flex items-center gap-2.5">
           {subTab === 'events' ? (
-            <h2 className="text-slate-950 font-black text-lg sm:text-xl tracking-tight">
-              행사 전체 목록
-            </h2>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">행사 전체 목록</h1>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={handleGoBackToList}
-                className="text-slate-500 hover:text-slate-900 font-bold transition-colors cursor-pointer text-lg sm:text-xl tracking-tight flex items-center gap-1 group"
-                title="행사 전체 목록으로 돌아가기"
-              >
-                <ChevronLeft
-                  size={20}
-                  className="text-slate-400 group-hover:text-slate-900 transition-colors stroke-[2.5]"
-                />
-                <span>행사 전체 목록</span>
-              </button>
+              <Tooltip label="행사 전체 목록으로 돌아가기">
+                <button
+                  aria-label="행사 전체 목록으로 돌아가기"
+                  type="button"
+                  onClick={handleGoBackToList}
+                  className="text-slate-500 hover:text-slate-900 font-bold transition-colors cursor-pointer text-xl tracking-tight flex items-center gap-1 group"
+                >
+                  <ChevronLeft
+                    size={20}
+                    className="text-slate-400 group-hover:text-slate-900 transition-colors stroke-[2.5]"
+                  />
+                  <span>행사 전체 목록</span>
+                </button>
+              </Tooltip>
 
               <span className="text-slate-300 font-bold text-base">/</span>
 
@@ -3992,285 +3936,19 @@ export function EventAttendanceManagePage({
         </div>
       )}
 
-      {/* ─── Modal: 양식 템플릿 생성 / 수정 ─── */}
-      {editingTemplate && (
-        <div className="fixed inset-0 bg-slate-900/40 z-60 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div
-            className={`w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl p-6 space-y-4 ${MODAL_SURFACE}`}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  {isNewTemplate ? '새 출석 양식 템플릿 생성' : '출석 양식 템플릿 수정'}
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  행사 특성에 맞추어 외부인 허용 여부와 수집할 추가 질문 항목을 정의합니다.
-                </p>
-              </div>
-              <button
-                onClick={() => setEditingTemplate(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-slate-700 block mb-1 font-semibold">양식명 *</label>
-                  <input
-                    value={editingTemplate.title}
-                    onChange={(e) =>
-                      setEditingTemplate((prev) =>
-                        prev ? { ...prev, title: e.target.value } : null,
-                      )
-                    }
-                    placeholder="예: 28기 빅콘 출석 양식"
-                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 font-bold"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-slate-700 block mb-1 font-semibold">양식 설명</label>
-                <textarea
-                  rows={2}
-                  value={editingTemplate.description}
-                  onChange={(e) =>
-                    setEditingTemplate((prev) =>
-                      prev ? { ...prev, description: e.target.value } : null,
-                    )
-                  }
-                  placeholder="양식의 사용 목적 및 출결 체크 기준을 입력하세요..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900"
-                />
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editingTemplate.allowExternal}
-                    onChange={(e) =>
-                      setEditingTemplate((prev) =>
-                        prev ? { ...prev, allowExternal: e.target.checked } : null,
-                      )
-                    }
-                    className="rounded accent-slate-900 w-4 h-4"
-                  />
-                  <span className="font-semibold text-slate-900">
-                    외부인 (게스트/참관객) 출석 허용
-                  </span>
-                </label>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-600">기본 인증 방식:</span>
-                  <select
-                    value={editingTemplate.defaultCheckinMethod}
-                    onChange={(e) =>
-                      setEditingTemplate((prev) =>
-                        prev
-                          ? { ...prev, defaultCheckinMethod: e.target.value as CheckinMethod }
-                          : null,
-                      )
-                    }
-                    className="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-900 font-semibold"
-                  >
-                    <option value="QR_CODE">QR 코드</option>
-                    <option value="CODE">4자리 번호 코드</option>
-                    <option value="MANUAL">수동 체크</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Dynamic Custom Form Fields List */}
-              <div className="space-y-2 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
-                    <span>추가 입력 필드 설정 ({editingTemplate.customFields.length}개)</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newField: CustomFormField = {
-                        id: 'f_' + Date.now(),
-                        label: '새 입력 항목',
-                        type: 'TEXT',
-                        isRequired: false,
-                        target: 'ALL',
-                      };
-                      setEditingTemplate((prev) =>
-                        prev ? { ...prev, customFields: [...prev.customFields, newField] } : null,
-                      );
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus size={12} />
-                    <span>+ 필드 추가</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {editingTemplate.customFields.map((field, idx) => (
-                    <div
-                      key={field.id}
-                      className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-1">
-                          <span className="text-[11px] font-mono text-slate-400 font-bold">
-                            #{idx + 1}
-                          </span>
-                          <input
-                            value={field.label}
-                            onChange={(e) => {
-                              const updated = editingTemplate.customFields.map((f, i) =>
-                                i === idx ? { ...f, label: e.target.value } : f,
-                              );
-                              setEditingTemplate((prev) =>
-                                prev ? { ...prev, customFields: updated } : null,
-                              );
-                            }}
-                            placeholder="항목 라벨 (예: 소속 대학, 기념품 수령)"
-                            className="flex-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-900"
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = editingTemplate.customFields.filter(
-                              (_, i) => i !== idx,
-                            );
-                            setEditingTemplate((prev) =>
-                              prev ? { ...prev, customFields: updated } : null,
-                            );
-                          }}
-                          className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
-                          title="필드 삭제"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2 text-[11px]">
-                        <div>
-                          <label className="text-slate-500 block mb-0.5">입력 형태</label>
-                          <select
-                            value={field.type}
-                            onChange={(e) => {
-                              const newType = e.target.value as any;
-                              const updated = editingTemplate.customFields.map((f, i) =>
-                                i === idx
-                                  ? {
-                                      ...f,
-                                      type: newType,
-                                      options:
-                                        newType === 'SELECT'
-                                          ? f.options || ['옵션1', '옵션2']
-                                          : undefined,
-                                    }
-                                  : f,
-                              );
-                              setEditingTemplate((prev) =>
-                                prev ? { ...prev, customFields: updated } : null,
-                              );
-                            }}
-                            className="w-full px-2 py-1 rounded bg-white border border-slate-200 text-slate-800"
-                          >
-                            <option value="TEXT">텍스트 입력</option>
-                            <option value="SELECT">선택형 (드롭다운)</option>
-                            <option value="PHONE">연락처</option>
-                            <option value="EMAIL">이메일</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="text-slate-500 block mb-0.5">대상자</label>
-                          <select
-                            value={field.target}
-                            onChange={(e) => {
-                              const updated = editingTemplate.customFields.map((f, i) =>
-                                i === idx ? { ...f, target: e.target.value as any } : f,
-                              );
-                              setEditingTemplate((prev) =>
-                                prev ? { ...prev, customFields: updated } : null,
-                              );
-                            }}
-                            className="w-full px-2 py-1 rounded bg-white border border-slate-200 text-slate-800"
-                          >
-                            <option value="ALL">전체 대상</option>
-                            <option value="EXTERNAL_ONLY">외부인 전용</option>
-                            <option value="INTERNAL_ONLY">부원 전용</option>
-                          </select>
-                        </div>
-
-                        <div className="flex items-end pb-1">
-                          <label className="flex items-center gap-1.5 cursor-pointer text-slate-800 font-semibold">
-                            <input
-                              type="checkbox"
-                              checked={field.isRequired}
-                              onChange={(e) => {
-                                const updated = editingTemplate.customFields.map((f, i) =>
-                                  i === idx ? { ...f, isRequired: e.target.checked } : f,
-                                );
-                                setEditingTemplate((prev) =>
-                                  prev ? { ...prev, customFields: updated } : null,
-                                );
-                              }}
-                              className="rounded accent-slate-900"
-                            />
-                            <span>필수 입력</span>
-                          </label>
-                        </div>
-                      </div>
-
-                      {field.type === 'SELECT' && (
-                        <div className="pt-1">
-                          <label className="text-slate-500 block text-[10px] mb-0.5">
-                            선택지 (쉼표로 구분):
-                          </label>
-                          <input
-                            value={field.options?.join(', ') || ''}
-                            onChange={(e) => {
-                              const opts = e.target.value
-                                .split(',')
-                                .map((s) => s.trim())
-                                .filter(Boolean);
-                              const updated = editingTemplate.customFields.map((f, i) =>
-                                i === idx ? { ...f, options: opts } : f,
-                              );
-                              setEditingTemplate((prev) =>
-                                prev ? { ...prev, customFields: updated } : null,
-                              );
-                            }}
-                            placeholder="예: 수령 완료, 미수령"
-                            className="w-full px-2 py-1 rounded bg-white border border-slate-200 text-slate-800 text-xs font-mono"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                onClick={() => setEditingTemplate(null)}
-                className="px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:text-slate-900 bg-slate-100 cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleSaveTemplate}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${MODAL_PRIMARY_BTN}`}
-              >
-                양식 템플릿 저장
-              </button>
-            </div>
-          </div>
+      {/* 안내 토스트: 잘 보이도록 화면 오른쪽 위(머리글 바로 아래)에 띄운다 */}
+      {notice && (
+        <div
+          role="status"
+          className="fixed top-20 right-6 z-[70] flex max-w-sm items-center gap-2 rounded-md bg-slate-900 px-4 py-3 text-xs font-semibold text-white shadow-xl animate-in fade-in slide-in-from-top-2 duration-150"
+        >
+          {/* 잠긴 칸 안내에만 자물쇠를 붙인다. */}
+          {notice === MEMBER_LOCK_HINT ? (
+            <Lock size={13} className="shrink-0 text-slate-300" aria-hidden="true" />
+          ) : (
+            <Info size={13} className="shrink-0 text-slate-300" aria-hidden="true" />
+          )}
+          {notice}
         </div>
       )}
     </div>
