@@ -213,12 +213,8 @@ export function InputPage({
     }
   }, [effectiveTeams, currentRole, currentHostTeam, selectedTeam]);
 
-  // 지금이 방학인데 학기 탭으로 넘어가면 한 번 확인받는다(학기 주차는 아직 시작 전).
-  const [isSemesterWarningOpen, setIsSemesterWarningOpen] = useState(false);
-
   const applyPeriodChange = (period: '방학' | '학기') => {
     setTermPeriod(period);
-    setIsSemesterWarningOpen(false);
     if (!isAdv) {
       const periodTarget = period === '방학' ? '방학 스터디' : '학기 스터디';
       const available = (studyTeams || []).filter((s) => s.studyType === periodTarget);
@@ -244,9 +240,15 @@ export function InputPage({
 
   const handlePeriodChange = (period: '방학' | '학기') => {
     if (period === termPeriod) return;
-    // 스터디는 학기에도 1~8주차를 쓰므로 학기 시작 전 경고 대상이 아니다(ADV만 9~16주차).
-    if (isAdv && period === '학기' && currentPeriodOf(weeks) === '방학') {
-      setIsSemesterWarningOpen(true);
+    // 지금이 방학이면 브라우저 확인 창으로 한 번 묻는다(학기 주차는 아직 시작 전).
+    // 스터디도 방학 동안에는 학기 출결 데이터가 없으므로 ADV와 같이 묻는다.
+    if (
+      period === '학기' &&
+      currentPeriod !== '학기' &&
+      !window.confirm(
+        '학기는 아직 시작 전입니다\n아직 방학 기간이라 학기 출결 데이터가 없습니다. 학기로 이동할까요?',
+      )
+    ) {
       return;
     }
     applyPeriodChange(period);
@@ -332,24 +334,20 @@ export function InputPage({
     }
   }, [accessibleWeeks, weekNum]);
 
-  // 미래 주차(진행 예정) 이동 전 확인 경고 팝업 상태 및 핸들러
-  const [futureWeekWarning, setFutureWeekWarning] = useState<number | null>(null);
+  // 미래 주차(진행 예정)로 옮기기 전에 브라우저 확인 창으로 한 번 묻는다.
+  const confirmFutureWeek = (targetWeek: number) =>
+    window.confirm(
+      `${targetWeek}주차 세션 미오픈\n아직 진행되지 않은 주차입니다. 해당 주차 화면으로 이동하시겠습니까?`,
+    );
 
   const handleSelectWeek = (targetWeek: number) => {
     if (targetWeek === weekNum || isBlockedWeek(targetWeek)) return;
     if (weekStatusOf(weeks, targetWeek) === 'UPCOMING') {
-      setFutureWeekWarning(targetWeek);
-      return;
+      if (!confirmFutureWeek(targetWeek)) return;
     }
     setWeekNum(targetWeek);
   };
 
-  const confirmMoveToFutureWeek = () => {
-    if (futureWeekWarning !== null) {
-      setWeekNum(futureWeekWarning);
-      setFutureWeekWarning(null);
-    }
-  };
   const [memos, setMemos] = useState<Record<string, string>>({});
   const [extStatuses, setExtStatuses] = useState<Record<string, Record<string, AttendanceStatus>>>(
     {},
@@ -2039,84 +2037,6 @@ export function InputPage({
           name={pdfPreview.name}
           onClose={() => setPdfPreview(null)}
         />
-      )}
-
-      {/* 방학 중 학기 탭 이동 확인 경고 모달 */}
-      {isSemesterWarningOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
-          onClick={() => setIsSemesterWarningOpen(false)}
-        >
-          <div
-            className={`w-full max-w-sm rounded-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="space-y-1.5">
-              <h3 className="text-base font-bold text-slate-900 tracking-tight">
-                학기는 아직 시작 전입니다
-              </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                아직 방학 기간이라 학기 출결 데이터가 없습니다. 학기로 이동할까요?
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setIsSemesterWarningOpen(false)}
-                className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPeriodChange('학기')}
-                className="px-4 py-2 text-xs font-semibold rounded-sm border border-slate-300 bg-transparent text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer"
-              >
-                이동
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 미래 주차(세션 미오픈) 이동 확인 경고 모달 */}
-      {futureWeekWarning !== null && (
-        <div
-          className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
-          onClick={() => setFutureWeekWarning(null)}
-        >
-          <div
-            className={`w-full max-w-sm rounded-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150 ${MODAL_SURFACE}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="space-y-1.5">
-              <h3 className="text-base font-bold text-slate-900 tracking-tight">
-                {futureWeekWarning}주차 세션 미오픈
-              </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                아직 진행되지 않은 주차입니다. 해당 주차 화면으로 이동하시겠습니까?
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setFutureWeekWarning(null)}
-                className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-sm transition-colors cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={confirmMoveToFutureWeek}
-                className="px-4 py-2 text-xs font-semibold rounded-sm border border-slate-300 bg-transparent text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100 cursor-pointer"
-              >
-                이동
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
