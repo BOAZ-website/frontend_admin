@@ -470,80 +470,21 @@ export function InternalCategoryAttendancePage({
     [category, isDbCategory, studyView],
   );
 
-  const [syncedScoreRule, setSyncedScoreRule] = useState<ScoreRule | undefined>(activeScoreRule);
-
-  useEffect(() => {
-    if (activeScoreRule) {
-      setSyncedScoreRule(activeScoreRule);
-    }
-  }, [activeScoreRule]);
-
-  useEffect(() => {
-    const handleRulesChange = () => {
-      try {
-        const saved = localStorage.getItem('boaz_score_rules');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const active = parsed.find((r: ScoreRule) => r.status === 'ACTIVE');
-            if (active) {
-              setSyncedScoreRule(active);
-            }
-          }
-        }
-      } catch {
-        // ignore malformed localStorage data, fall back to defaults
-      }
-    };
-    window.addEventListener('boaz_score_rules_changed', handleRulesChange);
-    return () => window.removeEventListener('boaz_score_rules_changed', handleRulesChange);
-  }, []);
-
-  const currentScoreRule: ScoreRule =
-    syncedScoreRule ||
-    activeScoreRule ||
-    (() => {
-      try {
-        const saved = localStorage.getItem('boaz_score_rules');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const active = parsed.find((r: ScoreRule) => r.status === 'ACTIVE');
-            if (active) {
-              return active;
-            }
-          }
-        }
-      } catch {
-        // ignore malformed localStorage data, fall back to defaults
-      }
-      return {
-        version: 3,
-        status: 'ACTIVE' as const,
-        activatedAt: '2026-08-01',
-        createdBy: '차기대표진',
-        absentPenalty: -3,
-        unexcusedAbsentPenalty: -4,
-        latePenalty: -1,
-        unexcusedLatePenalty: -2,
-        presentScore: 0,
-      };
-    })();
-
-  // 스터디는 방학/학기 모두 1~8주차, 그 외 카테고리는 학기에 9~16주차를 사용
-  const [termPeriod, setTermPeriod] = useState<'VACATION' | 'SEMESTER'>(() => {
-    try {
-      const saved = localStorage.getItem(`boaz_${category}_term_period`);
-      if (saved === 'VACATION' || saved === 'SEMESTER') return saved;
-    } catch {}
-    return 'VACATION';
-  });
-  const usesOneToEightWeeks = category === 'STUDY' || termPeriod === 'VACATION';
+  // 스터디는 방학/학기 모두 1~8주차, 그 외 카테고리는 학기에 9~16주차를 사용.
+  // 처음 여는 탭은 반기 API가 알려 주는 지금 기간이다.
+  const [termPeriod, setTermPeriod] = useState<'VACATION' | 'SEMESTER'>(() =>
+    viewSemester?.currentPeriod === '학기' ? 'SEMESTER' : 'VACATION',
+  );
+  const usesOneToEightWeeks = termPeriod === 'VACATION';
   const vacationWeeks = useMemo(() => weeks.filter((w) => w.weekNum <= 8), [weeks]);
   const semesterWeeks = useMemo(() => weeks.filter((w) => w.weekNum > 8), [weeks]);
   const weekList = usesOneToEightWeeks ? vacationWeeks : semesterWeeks;
-  /** 처음·기본으로 다루는 주차: 진행 중인 주차(없으면 마지막 종료 주차) */
-  const latestWeekNum = defaultWeekNum(weekList);
+  /** 처음·기본으로 다루는 주차: 반기 API의 지금 주차. 보고 있는 기간 밖이면 그 기간의 기본 주차. */
+  const apiCurrentWeekNum = viewSemester?.currentWeekNum ?? null;
+  const latestWeekNum =
+    apiCurrentWeekNum !== null && weekList.some((w) => w.weekNum === apiCurrentWeekNum)
+      ? apiCurrentWeekNum
+      : defaultWeekNum(weekList);
   const [selectedTeamId, setSelectedTeamId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem(`boaz_${category}_selected_team`);
@@ -1228,6 +1169,49 @@ export function InternalCategoryAttendancePage({
 
   const activeSubmittedWeeks = weekList.filter((w) => isHeldWeek(weeks, w.weekNum));
 
+  // 점수는 화면에서 계산하지 않고 점수 API에서 받는다(API가 적용 중인 점수 규칙으로 계산한다).
+  // 출결 기록(attendance)이 바뀌면 다시 읽어, 저장한 출결이 점수에 바로 반영된다.
+  const scoreGroup = category === 'STUDY' ? 'STUDY' : category === 'ADV' ? 'ADV' : 'BASE';
+  const scorePeriod = usesOneToEightWeeks ? '방학' : '학기';
+  const [memberScores, setMemberScores] = useState<ReadonlyMap<string, MemberScoreDto>>(
+    () => new Map(),
+  );
+  useEffect(() => {
+    if (!isDbCategory) return;
+    let isCancelled = false;
+    fetchAttendanceScores({
+      semester: viewSemester?.semester,
+      group: scoreGroup,
+      period: scorePeriod,
+    })
+      .then((response) => {
+        if (isCancelled) return;
+        setMemberScores(
+          new Map(
+            response.teams.flatMap((team) =>
+              team.members.map((row) => [
+                memberScoreKey(team.teamId, row.memberId, row.subType),
+                row,
+              ]),
+            ),
+          ),
+        );
+      })
+      .catch(() => {
+        if (!isCancelled) setMemberScores(new Map());
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [attendance, isDbCategory, scoreGroup, scorePeriod, viewSemester?.semester]);
+  /** 회원 한 줄의 API 점수. 멘멘 스터디는 줄 구분(멘멘·친바)이 있고, 구분을 모르면 멘멘 줄을 쓴다. */
+  const apiScoreOf = useCallback(
+    (teamId: string, memberId: string, subType?: '멘멘' | '친바' | null) =>
+      memberScores.get(memberScoreKey(teamId, memberId, subType ?? '')) ??
+      (subType ? undefined : memberScores.get(memberScoreKey(teamId, memberId, '멘멘'))),
+    [memberScores],
+  );
+
   // 주차별 상태·비고는 화면에서 만들지 않고 DB의 출결 기록(주차별 세션)에서 그대로 읽는다.
   // 그래서 ADV 출결 입력 탭이나 이 화면에서 바꾼 값이 그대로 보인다.
   const resolveStudyCell = useCallback(
@@ -1602,36 +1586,8 @@ export function InternalCategoryAttendancePage({
         }
       });
 
-      let totalScore = 0;
-      let attendedCount = 0;
-
-      if (category === 'STUDY') {
-        currentTermWeeks.forEach((w) => {
-          if (weekData[w.weekNum]?.status === 'present') {
-            attendedCount++;
-          }
-        });
-        const isLeader = config.teams.some(
-          (t) => t.id === member.teamId && t.leader === member.name,
-        );
-        const failPenalty = currentScoreRule.studyFailPenalty ?? -5;
-        const passBonus = currentScoreRule.studyPassBonus ?? 1;
-        const perfectBonus = currentScoreRule.studyPerfectBonus ?? 3;
-        const leaderBonus = currentScoreRule.studyLeaderBonus ?? 1;
-
-        // 70% 미만 (4회 이하) -> -5, 70%~100%미만 (5~6회) -> +1, 100% (7회 이상) -> +3
-        const baseScore =
-          attendedCount <= 4 ? failPenalty : attendedCount < 7 ? passBonus : perfectBonus;
-        totalScore = baseScore + (isLeader ? leaderBonus : 0);
-      } else {
-        const absentPenalty = currentScoreRule.absentPenalty ?? -3;
-        const unexcusedAbsentPenalty = currentScoreRule.unexcusedAbsentPenalty ?? -4;
-        const latePenalty = currentScoreRule.latePenalty ?? -1;
-        totalScore =
-          absenceCount * absentPenalty +
-          unexcusedAbsenceCount * unexcusedAbsentPenalty +
-          lateEarlyLeaveCount * latePenalty;
-      }
+      // 총점은 점수 API가 계산한 값이다(스터디: 개근·수료·감점 + 팀장 가점, BASE·ADV: 감점 + 무단지각 3회 환산).
+      const totalScore = apiScoreOf(member.teamId, member.id)?.totalScore ?? 0;
 
       return {
         id: member.id,
@@ -1667,11 +1623,10 @@ export function InternalCategoryAttendancePage({
     studyMembers,
     viewCohort,
     currentTermWeeks,
-    currentScoreRule,
-    config.teams,
     attendance,
     studyTeams,
     resolveStudyCell,
+    apiScoreOf,
   ]);
 
   const filteredMatrixRows = useMemo(() => {
@@ -1795,6 +1750,7 @@ export function InternalCategoryAttendancePage({
           weekData,
           studyTypeLabel,
           studyTypeIndex,
+          totalScore: apiScoreOf(row.teamId, row.id, studyTypeLabel)?.totalScore ?? row.totalScore,
         };
       }),
     );
@@ -1807,6 +1763,7 @@ export function InternalCategoryAttendancePage({
     attendance,
     studyTeams,
     resolveStudyCell,
+    apiScoreOf,
   ]);
 
   /** 이 화면에서 바꾼 상태·비고를 공용 저장소(DB)에 저장한다. rawId는 멤버ID 또는 "멤버ID:멘멘"/"멤버ID:친바". */
@@ -3606,26 +3563,16 @@ export function InternalCategoryAttendancePage({
                             const attendedCount = currentTermWeeks.filter(
                               (w) => row.weekData[w.weekNum]?.status === 'present',
                             ).length;
-                            const effectiveScore = (() => {
-                              if (selectedWeek === 0) {
-                                return row.totalScore;
-                              }
-                              const currentStatus = row.weekData[selectedWeek]?.status;
-                              if (currentStatus === 'absent') {
-                                return currentScoreRule.absentPenalty ?? -3;
-                              }
-                              if (currentStatus === 'unexcusedAbsent') {
-                                return currentScoreRule.unexcusedAbsentPenalty ?? -4;
-                              }
-                              if (
-                                currentStatus === 'late' ||
-                                currentStatus === 'earlyLeave' ||
-                                currentStatus === 'unexcusedLate'
-                              ) {
-                                return currentScoreRule.latePenalty ?? -1;
-                              }
-                              return 0;
-                            })();
+                            // 주차를 고르면 그 주차의 점수(점수 API의 주차별 점수)를 보여 준다.
+                            const effectiveScore =
+                              selectedWeek === 0
+                                ? row.totalScore
+                                : (apiScoreOf(
+                                    row.teamId,
+                                    row.id.split(':')[0],
+                                    row.studyTypeLabel,
+                                  )?.weeks.find((week) => week.weekNum === selectedWeek)?.points ??
+                                  0);
 
                             const isFirstTypeRow = !isMentoringStudy || row.studyTypeIndex === 0;
                             const isLastTypeRow = isMentoringStudy && row.studyTypeIndex === 1;
@@ -4232,27 +4179,18 @@ export function InternalCategoryAttendancePage({
                                   'unexcusedAbsent',
                                   'unmarked',
                                 ];
+                          const editStatusOptions = editDropdownStatuses.map((status) => ({
+                            value: status,
+                            label: ATTEND_STATUS_CFG[status]?.label || status,
+                          }));
 
-                          const effectiveScore = (() => {
-                            if (selectedWeek === 0) {
-                              return row.totalScore;
-                            }
-                            const currentStatus = row.weekData[selectedWeek]?.status;
-                            if (currentStatus === 'absent') {
-                              return currentScoreRule.absentPenalty ?? -3;
-                            }
-                            if (currentStatus === 'unexcusedAbsent') {
-                              return currentScoreRule.unexcusedAbsentPenalty ?? -4;
-                            }
-                            if (
-                              currentStatus === 'late' ||
-                              currentStatus === 'earlyLeave' ||
-                              currentStatus === 'unexcusedLate'
-                            ) {
-                              return currentScoreRule.latePenalty ?? -1;
-                            }
-                            return 0;
-                          })();
+                          // 주차를 고르면 그 주차의 점수(점수 API의 주차별 점수)를 보여 준다.
+                          const effectiveScore =
+                            selectedWeek === 0
+                              ? row.totalScore
+                              : (apiScoreOf(row.teamId, row.id)?.weeks.find(
+                                  (week) => week.weekNum === selectedWeek,
+                                )?.points ?? 0);
 
                           return (
                             <tr
