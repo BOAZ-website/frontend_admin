@@ -1,13 +1,17 @@
 /**
- * 회원(User) 목록 조회. 임시 DB의 users 테이블을 읽는다.
- * 백엔드가 붙으면 GET /api/v1/admin/users 호출로 바꾸면 되고, 반환 형태(UserProfile[])는 그대로 둔다.
+ * 회원 API 호출. 화면은 경로를 직접 쓰지 않고 이 함수들을 부른다.
  */
-import { getDatabase } from '@/shared/db/database';
+import { api, withQuery } from '@/shared/api/client';
 
+import type { UserListQuery, UserVerifyResponse } from '../model/dto';
 import type { UserProfile } from '../model/types';
 
-import { listUsers } from './usersRepository';
+/** 회원 목록·검색(팀장·팀원·트랙원 선택). */
+export function fetchUsers(query: UserListQuery = {}): Promise<UserProfile[]> {
+  return api.get(withQuery('/api/v1/users', { ...query }));
+}
 
-export async function fetchUsers(): Promise<UserProfile[]> {
-  return listUsers(await getDatabase());
+/** 등록된 회원인지 이름으로 확인한다. 동명이인이면 후보를 모두 돌려준다. */
+export function verifyUserName(name: string): Promise<UserVerifyResponse> {
+  return api.get(withQuery('/api/v1/users/verify', { name }));
 }

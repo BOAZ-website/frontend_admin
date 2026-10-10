@@ -21,11 +21,6 @@ export function filterUsers(users: readonly UserProfile[], filter: UserFilter): 
     );
 }
 
-/** 예: "26기 분석 남민서" */
-export function formatUserLabel(user: UserProfile): string {
-  return `${user.term}기 ${user.track} ${user.name}`;
-}
-
 /** 스터디 생성 시 고른 스터디원 목록과 그중 스터디장 1명. 스터디장은 항상 스터디원에 포함된다. */
 export interface MemberSelection {
   members: readonly UserProfile[];
@@ -68,9 +63,4 @@ export function addMembers(
 
 export function findLeader(selection: MemberSelection): UserProfile | null {
   return selection.members.find((m) => m.id === selection.leaderId) ?? null;
-}
-
-/** 주어진 기수에 속한 회원 id 목록. */
-export function userIdsOfTerm(users: readonly UserProfile[], term: number): string[] {
-  return users.filter((user) => user.term === term).map((user) => user.id);
 }

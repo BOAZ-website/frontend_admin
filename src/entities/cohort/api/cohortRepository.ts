@@ -2,16 +2,6 @@ import type { Database } from 'sql.js';
 
 import { execute, inTransaction, queryAll } from '@/shared/db/createDatabase';
 
-/**
- * 임시 DB의 cohorts 테이블에서 활동 기수 목록을 큰 기수부터 읽는다.
- * 백엔드가 붙으면 이 함수만 기수 목록 API 호출로 바꾸면 되고, 반환 형태(number[])는 그대로 둔다.
- */
-export function loadCohorts(db: Database): number[] {
-  return queryAll<{ cohort: number }>(db, 'SELECT cohort FROM cohorts ORDER BY cohort DESC').map(
-    (row) => row.cohort,
-  );
-}
-
 /** 기수 → (주차 번호 → YYYY-MM-DD). 날짜를 정하지 않은 주차는 없다. */
 export type CohortWeekDates = Record<number, Record<number, string>>;
 

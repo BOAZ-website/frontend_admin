@@ -1,5 +1,5 @@
 /**
- * 주차의 활성 상태는 코드가 아니라 DB(weeks 테이블)의 status가 정한다.
+ * 주차의 활성 상태는 코드가 아니라 DB(semester_weeks 테이블, 반기별)의 status가 정한다.
  *  - CLOSED   종료: 기록은 보이고 입력은 잠긴다
  *  - OPEN     진행 중: 출결을 입력할 수 있다
  *  - UPCOMING 진행 예정: 아직 열리지 않았다(미정, 입력 불가)
@@ -30,16 +30,9 @@ export function isHeldWeek(weeks: readonly WeekInfo[], weekNum: number): boolean
   return weekStatusOf(weeks, weekNum) !== 'UPCOMING';
 }
 
-/** 지금 진행 중인 기간. 기본 주차(진행 중 → 마지막 종료 주차)가 속한 기간이며, 주차 목록이 비어 있으면 알 수 없어 null이다. */
-export function currentPeriodOf(weeks: readonly WeekInfo[]): WeekInfo['period'] | null {
-  if (weeks.length === 0) return null;
-  const weekNum = defaultWeekNum(weeks);
-  return weeks.find((week) => week.weekNum === weekNum)?.period ?? null;
-}
-
 /**
- * 화면이 처음 보여줄 주차. 진행 중인 주차가 있으면 가장 뒤의 진행 중 주차,
- * 없으면 종료된 주차 중 가장 뒤, 그것도 없으면 첫 주차.
+ * 반기 API의 지금 주차(SemesterDto.currentWeekNum)가 보고 있는 주차 목록 밖일 때 고를 주차.
+ * 진행 중인 주차가 있으면 가장 뒤의 진행 중 주차, 없으면 종료된 주차 중 가장 뒤, 그것도 없으면 첫 주차.
  */
 export function defaultWeekNum(weeks: readonly WeekInfo[]): number {
   const sorted = [...weeks].sort((a, b) => a.weekNum - b.weekNum);
