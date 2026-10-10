@@ -386,55 +386,71 @@ interface ParsedRosterItem {
   email: string;
   phone: string;
   term?: number;
+  memo?: string;
+  /** 일반 행사형 파일의 행사 열에서 읽은 출결. */
+  sessionStatuses?: Record<string, AttendStatus>;
+  /** 신입 특칙형·컨퍼런스 파일의 출결 열에서 읽은 출결(컨퍼런스는 1차). */
+  status?: AttendStatus;
+  /** 컨퍼런스 파일의 2차 출석 확인에서 읽은 출결. */
+  secondStatus?: AttendStatus;
+  /** 올릴 때 회원 DB에서 찾은 회원(이름·기수가 같은 사람). 있으면 이름·기수·부문을 고칠 수 없다. */
+  member?: MemberMatch;
+  /** 올릴 때 회원 DB 확인 결과(현재 기수인데 없는 사람을 알리는 데 쓴다). */
+  memberCheck?: MemberCheck;
   customAnswers: Record<string, string>;
 }
 
 export interface EventAttendanceManagePageProps {
   cohorts: readonly number[];
   currentCohort: number;
+  /** 기수 → 반기 표기(반기 API 응답). */
+  cohortLabels: Readonly<Record<number, string>>;
+  canCreateNextSemester: boolean;
+  onAdvanceSemester: () => Promise<void>;
   events: AttendanceEvent[];
   setEvents: Dispatch<SetStateAction<AttendanceEvent[]>>;
   attendees: AttendeeRecord[];
   setAttendees: Dispatch<SetStateAction<AttendeeRecord[]>>;
-  templates: FormTemplate[];
-  setTemplates: Dispatch<SetStateAction<FormTemplate[]>>;
+  /** 행사 참가자의 기수 목록(백엔드, 행사 DB 기준). 기수 필터 선택지다. */
+  loadEventTerms: (eventId: string) => Promise<number[]>;
+  /** 사이드바의 행사 출결 메뉴를 다시 누른 횟수. 바뀌면 행사 목록으로 돌아간다. */
+  listRequest?: number;
+  /** 행사 한 건을 서버에서 다시 읽는다. 출석 명단 표 컬럼 설정 창을 열 때 쓴다. */
+  loadEvent: (eventId: string) => Promise<AttendanceEvent>;
+  /** 참가자 한 명을 바꾸고 바뀐 칸만 부분 저장한다(출결 버튼·뒤풀이 비용 등). */
+  patchAttendee: (attendeeId: string, update: (attendee: AttendeeRecord) => AttendeeRecord) => void;
+  /** 참가자 한 명을 명단 맨 앞에 추가하고 한 명 추가 API(POST)로 저장한다(참가자 추가 창). */
+  createAttendee: (attendee: AttendeeRecord) => void;
 }
 
-/** 행사 출결 화면. 행사·참가자·양식 템플릿은 App이 DB에서 불러와 넘겨 주고, 바꾸면 DB에 저장된다. */
+/** 행사 출결 화면. 행사·참가자는 EventAttendanceContainer가 API로 읽어 넘겨 주고, 바꾸면 API로 저장한다. */
 export function EventAttendanceManagePage({
   cohorts,
   currentCohort,
+  cohortLabels,
+  canCreateNextSemester,
+  onAdvanceSemester,
   events,
   setEvents,
   attendees,
   setAttendees,
-  templates,
-  setTemplates,
+  loadEventTerms,
+  listRequest = 0,
+  loadEvent,
+  patchAttendee,
+  createAttendee,
 }: EventAttendanceManagePageProps) {
   const [selectedCohort, setSelectedCohort] = useState(currentCohort);
-  const [subTab, setSubTab] = useState<'events' | 'live' | 'forms' | 'stats'>(() => {
-    try {
-      const saved = localStorage.getItem('boaz_event_subtab');
-      if (saved && ['events', 'live', 'forms', 'stats'].includes(saved)) {
-        return saved as 'events' | 'live' | 'forms' | 'stats';
-      }
-    } catch {}
-    return 'events';
-  });
+  // 탭에 들어올 때마다 행사 목록부터 보여 준다.
+  const [subTab, setSubTab] = useState<'events' | 'live'>('events');
 
   const [selectedEventId, setSelectedEventId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem('boaz_event_selected_id');
       if (saved) return saved;
     } catch {}
-    return 'evt_conf_28';
+    return 'evt_ex_conference';
   });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('boaz_event_subtab', subTab);
-    } catch {}
-  }, [subTab]);
 
   useEffect(() => {
     try {
@@ -857,7 +873,11 @@ export function EventAttendanceManagePage({
       }
     }
 
-    if (attendStatusFilter !== 'ALL' && a.status !== attendStatusFilter) {
+    // 출결 열이 여러 개면(1차·2차, 행사별) 어느 열이든 그 값이면 보여 준다.
+    if (
+      activeStatusFilter !== 'ALL' &&
+      !statusesOfAttendee(selectedEvent, a).includes(activeStatusFilter)
+    ) {
       return false;
     }
     if (attendeeSearch) {
@@ -874,49 +894,319 @@ export function EventAttendanceManagePage({
   });
 
   // Stats calculation
+  // 출결 열이 여러 개면(1차·2차, 행사별) 열마다 한 건으로 센다.
   const totalRosterCount = currentEventAttendees.length;
-  const presentCount = currentEventAttendees.filter((a) => a.status === 'present').length;
-  const lateCount = currentEventAttendees.filter((a) => a.status === 'late').length;
-  const earlyLeaveCount = currentEventAttendees.filter((a) => a.status === 'earlyLeave').length;
-  const absentCount = currentEventAttendees.filter((a) => a.status === 'absent').length;
-  const excusedAbsentCount = currentEventAttendees.filter(
-    (a) => a.status === 'excusedAbsent',
-  ).length;
-  const unexcusedLateCount = currentEventAttendees.filter(
-    (a) => a.status === 'unexcusedLate',
-  ).length;
-  const unexcusedAbsentCount = currentEventAttendees.filter(
-    (a) => a.status === 'unexcusedAbsent',
-  ).length;
-  const unmarkedCount = currentEventAttendees.filter((a) => a.status === 'unmarked').length;
+  const statusCells = currentEventAttendees.flatMap((a) => statusesOfAttendee(selectedEvent, a));
+  const countStatus = (status: AttendStatus) => statusCells.filter((s) => s === status).length;
+  const countUnit = statusColumnsOf(selectedEvent, false).length > 1 ? '건' : '명';
+  const presentCount = countStatus('present');
+  const lateCount = countStatus('late');
+  const earlyLeaveCount = countStatus('earlyLeave');
+  const absentCount = countStatus('absent');
+  const excusedAbsentCount = countStatus('excusedAbsent');
+  const unexcusedLateCount = countStatus('unexcusedLate');
+  const unexcusedAbsentCount = countStatus('unexcusedAbsent');
 
-  // 출석 표의 추가 컬럼과, 출결 컬럼이 놓일 자리(CSV로 만든 행사는 CSV의 출결 열 자리)
-  const eventExtraCols = (selectedEvent.customFields || []).filter(
-    (f) =>
-      f.label !== '이름' && f.label !== '비고' && f.label !== '출석 상태' && f.label !== '출석상태',
-  );
-  const statusColumnAt = Math.min(
-    Math.max(selectedEvent.statusColumnIndex ?? eventExtraCols.length, 0),
-    eventExtraCols.length,
-  );
+  // 출석 표의 추가 컬럼과, 출결 컬럼이 놓일 자리(CSV로 만든 행사는 CSV의 출결 열 자리).
+  // 컬럼 설정 창과 같은 함수(tableColumns)로 정해 두 화면의 컬럼 구성이 항상 같다.
+  // 외부 참석자 시트는 이름·출석·비고만 관리한다(기수·부문을 받지 않는다).
+  const eventExtraCols = extraFieldsOf(selectedEvent, isExternalSheet);
+  const statusColumnAt = statusColumnAtOf(selectedEvent, eventExtraCols.length);
 
   const attendanceRate =
-    totalRosterCount > 0
-      ? Math.round(((presentCount + lateCount + earlyLeaveCount) / totalRosterCount) * 100)
+    statusCells.length > 0
+      ? Math.round(((presentCount + lateCount + earlyLeaveCount) / statusCells.length) * 100)
       : 0;
-  const externalPresent = currentEventAttendees.filter(
-    (a) => a.isExternal && a.status === 'present',
-  ).length;
 
-  // ─── Keyboard Hotkeys (0: 출석, 1: 지각, 2: 조퇴, 3: 결석, 4: 인정결석, 5: 무단지각, 6: 무단결석, ↑/↓ 이동) ───
+  /** 컨퍼런스 외부 참석자는 참석 여부만 기록한다(1 또는 공란). */
+  function statusOptionsFor(att: AttendeeRecord) {
+    const options = statusOptionsOf(eventFormat);
+    return isConferenceEvent && att.isExternal
+      ? options.filter((option) => option.value === 'present' || option.value === 'unmarked')
+      : options;
+  }
+
+  /** 참가자 추가 창에서 외부 참석자로 추가하는지. 외부 참석자는 컨퍼런스만 받는다. */
+  const isQuickAddExternal = isConferenceEvent && quickAdd.isExternal;
+  /** 참가자 추가 창의 출석 상태 선택지. 외부 참석자 양식은 참석 여부만 고른다. */
+  const quickAddStatusOptions = statusOptionsOf(eventFormat).filter(
+    (option) => !isQuickAddExternal || option.value === 'present' || option.value === 'unmarked',
+  );
+
+  /**
+   * 참가자 추가 창의 추가 컬럼 입력 칸(외부 참석자 양식에는 없다).
+   * 기수와 부문이 둘 다 있으면 부문을 기수 바로 뒤로 옮겨 한 줄에 나란히 놓는다(halfWidthIds).
+   */
+  const { quickAddFields, halfWidthIds } = (() => {
+    const fields = isQuickAddExternal
+      ? []
+      : (selectedEvent.customFields || []).filter(
+          (f) =>
+            f.label !== '이름' &&
+            f.label !== '비고' &&
+            f.label !== '출석 상태' &&
+            f.label !== '출석상태',
+        );
+    const termField = fields.find((f) => isTermLabel(f.label));
+    const trackField = fields.find((f) => isTrackLabel(f.label));
+    if (!termField || !trackField) {
+      return { quickAddFields: fields, halfWidthIds: [] as string[] };
+    }
+    return {
+      quickAddFields: fields
+        .filter((f) => f !== trackField)
+        .flatMap((f) => (f === termField ? [termField, trackField] : [f])),
+      halfWidthIds: [termField.id, trackField.id],
+    };
+  })();
+
+  /**
+   * 참가자 추가 창의 기수 선택지. 표 위 기수 필터와 같이 백엔드가 행사 DB에서 내려 준 이 행사 참가자의 기수다.
+   * 칸에는 숫자만 들어가고(목록에 없는 기수는 숫자로 직접 입력한다), 목록에는 'N기'로 보인다.
+   */
+  const quickAddTermOptions: readonly ComboInputOption[] = (eventTerms ?? []).map((term) => ({
+    value: String(term),
+    label: `${term}기`,
+  }));
+
+  /** 참가자 추가 창에서 글자로 입력하는 칸과, 출석 상태 줄에 버튼으로 두는 선택 컬럼. */
+  const quickAddTextFields = quickAddFields.filter((cf) => !isSelectColumn(cf));
+  /** 활동 TERM은 이름 옆에 두고, 나머지 글자 칸은 이름 아래 묶음(quickAddGridFields)에 둔다. */
+  const quickAddActivityTermField = quickAddTextFields.find((cf) => isActivityTermLabel(cf.label));
+  const quickAddGridFields = quickAddTextFields.filter((cf) => cf !== quickAddActivityTermField);
+  const quickAddSelectFields = quickAddFields.filter(isSelectColumn);
+
+  /** 참가자 추가 창의 추가 컬럼 칸에 지금 들어 있는 값. */
+  function quickAddValueOf(cf: CustomFormField): string {
+    return (
+      quickAdd.customAnswers[cf.label] ??
+      quickAdd.customAnswers[cf.id] ??
+      (cf.label.includes('소속')
+        ? quickAdd.affiliation
+        : cf.label.includes('전화') || cf.label.includes('연락처')
+          ? quickAdd.phone
+          : cf.label.includes('메일')
+            ? quickAdd.email
+            : '')
+    );
+  }
+
+  /** 참가자 추가 창의 추가 컬럼 칸 값을 바꾼다. 소속·연락처·이메일 칸은 참가자 정보에도 함께 적는다. */
+  function changeQuickAddValue(cf: CustomFormField, val: string) {
+    setQuickAdd((prev) => ({
+      ...prev,
+      affiliation: cf.label.includes('소속') ? val : prev.affiliation,
+      phone: cf.label.includes('전화') || cf.label.includes('연락처') ? val : prev.phone,
+      email: cf.label.includes('메일') ? val : prev.email,
+      customAnswers: { ...prev.customAnswers, [cf.label]: val, [cf.id]: val },
+    }));
+  }
+
+  /** 참가자 추가 창에서 형식이 틀린 칸(열 id → 고치는 방법). 입력하는 대로 보여 준다. */
+  const quickAddFieldErrors: Record<string, string> = Object.fromEntries(
+    quickAddFields.flatMap((cf) => {
+      const error = quickAddFieldErrorOf(cf.label, quickAddValueOf(cf));
+      return error ? [[cf.id, error]] : [];
+    }),
+  );
+  /** 이름을 비워 둔 안내. 추가를 한 번 누른 뒤부터 보여 준다. */
+  const quickAddNameError =
+    hasTriedQuickAdd && !quickAdd.name.trim() ? NAME_REQUIRED_ERROR : undefined;
+
+  /** 외부인 체크를 바꾼다. 외부 참석자 양식에 없는 출석 상태를 골라 두었으면 미정으로 되돌린다. */
+  function changeQuickAddExternal(isExternal: boolean) {
+    setQuickAdd((prev) => ({
+      ...prev,
+      isExternal,
+      status:
+        isExternal && prev.status !== 'present' && prev.status !== 'unmarked'
+          ? 'unmarked'
+          : prev.status,
+    }));
+  }
+
+  /** 컬럼 설정에서 비고 열을 지웠는지. 지웠으면 표와 참가자 추가 창에 비고가 없다. */
+  const isMemoHidden = isBaseColumnHidden(selectedEvent, 'MEMO');
+
+  /** 출석 표의 출결 열(컨퍼런스 1차·2차, 일반 행사형의 행사별 열). */
+  const statusColumns = statusColumnsOf(selectedEvent, isExternalSheet);
+  /**
+   * 정해진 출결 값(출석·지각 …)을 쓰는 출결 열이 있는지. 출결 통계·출결 필터·빠른 추가의 출석 상태가 이 값을 쓴다.
+   * 기타 방식은 백엔드가 보낸 출결 값(custom 열)만 있거나 출결 열이 아예 없다.
+   */
+  const hasStatusColumns = statusColumns.some((column) => column.kind !== 'custom');
+  /** 출결 컬럼 기본 너비: 버튼 수 × (버튼 너비 + 간격) + 묶음 테두리·칸 여백. */
+  const customColumn = statusColumns.find((column) => column.kind === 'custom');
+  // 기타 방식 출결은 출결 코드 뒤에 미정 버튼이 하나 더 있다.
+  const statusButtonCount = customColumn
+    ? customColumn.options.length + 1
+    : isExternalSheet
+      ? 2
+      : statusOptionsOf(eventFormat).length;
+  const defaultStatusWidth = statusButtonCount * (STATUS_BTN_WIDTH + 2) + 24;
+
+  const toggledColumnKeys = toggledColumnsByEvent[selectedEvent.id] ?? [];
+  /** 출결 열의 열고 닫기 key. 컨퍼런스 외부 참석자 시트는 처음 상태가 달라 따로 둔다. */
+  const statusToggleKey = (column: StatusColumn) =>
+    isExternalSheet ? `external_${column.key}` : column.key;
+  /**
+   * 처음에 닫혀 있는 출결 열: 일반 행사형의 행사 열, 컨퍼런스 내부 시트의 1차·2차 출결.
+   * 나머지 출결 열은 처음에 열려 있다. 모든 출결 열은 머리글을 눌러 열고 닫는다.
+   */
+  const isCollapsedByDefault = (column: StatusColumn) =>
+    column.kind === 'session' ||
+    (isConferenceEvent && !isExternalSheet && (column.kind === 'main' || column.kind === 'second'));
+  const isColumnCollapsed = (column: StatusColumn) =>
+    isCollapsedByDefault(column) !== toggledColumnKeys.includes(statusToggleKey(column));
+  /** 선택 컬럼(뒤풀이 비용 O/X 등)은 처음에 열려 있고, 닫으면 고른 값만 글자로 보여 준다. */
+  const isExtraColumnCollapsed = (cf: CustomFormField) =>
+    isSelectColumn(cf) && toggledColumnKeys.includes(`custom_${cf.id}`);
+  /** 출결 코드를 입력할 수 있는(열려 있는) 출결 열. 단축키는 이 중 첫 열에 들어간다(기타 방식 열은 제외). */
+  const editableStatusColumns = statusColumns.filter(
+    (column) => column.kind !== 'custom' && !isColumnCollapsed(column),
+  );
+
+  /**
+   * 참가자 글자 칸을 고친다. 일괄 수정·행 수정 중이면 저장 전 수정본에 담고(그 탭의 일괄 저장 때 저장),
+   * 아니면(기타 방식의 바로 입력) 곧바로 저장한다.
+   */
+  function applyAttendeeEdit(attendeeId: string, update: (a: AttendeeRecord) => AttendeeRecord) {
+    if (isTableEditMode || editingRowId === attendeeId) {
+      setDrafts((prev) => {
+        const base = prev[attendeeId] ?? attendees.find((a) => a.id === attendeeId);
+        return base ? { ...prev, [attendeeId]: update(base) } : prev;
+      });
+      return;
+    }
+    setAttendees((prev) => prev.map((a) => (a.id === attendeeId ? update(a) : a)));
+  }
+
+  /** 추가 컬럼 값을 바꾼다. 소속·연락처·이메일·구분 컬럼은 참가자 정보에도 함께 적는다. */
+  function updateExtraField(attendeeId: string, cf: CustomFormField, newVal: string) {
+    applyAttendeeEdit(attendeeId, (a) => ({
+      ...a,
+      affiliation: cf.label.includes('소속') ? newVal : a.affiliation,
+      phone: cf.label.includes('전화') || cf.label.includes('연락처') ? newVal : a.phone,
+      email: cf.label.includes('메일') ? newVal : a.email,
+      isExternal: cf.label.includes('구분') ? newVal.includes('외') : a.isExternal,
+      customAnswers: { ...(a.customAnswers || {}), [cf.id]: newVal, [cf.label]: newVal },
+    }));
+  }
+
+  /** 참가자의 한 칸(이름·비고)을 바꾼다. */
+  function updateAttendeeText(attendeeId: string, field: 'name' | 'memo', value: string) {
+    applyAttendeeEdit(attendeeId, (a) => ({ ...a, [field]: value }));
+  }
+
+  /** 저장 전 수정본을 저장한다(그 사람들만). 출결은 수정본이 아니라 지금 값을 그대로 둔다. */
+  function commitDrafts(attendeeIds: readonly string[]) {
+    const ids = attendeeIds.filter((id) => drafts[id]);
+    if (ids.length > 0) {
+      setAttendees((prev) =>
+        prev.map((a) => (ids.includes(a.id) ? withDraftText(a, drafts[a.id]) : a)),
+      );
+    }
+    setDrafts((prev) =>
+      Object.fromEntries(Object.entries(prev).filter(([id]) => !attendeeIds.includes(id))),
+    );
+  }
+
+  /** 지금 탭(컨퍼런스는 보고 있는 시트)의 참가자 id. */
+  function currentTabAttendeeIds(): string[] {
+    return currentEventAttendees
+      .filter((a) => !isConferenceEvent || sheetOf(a) === conferenceSheet)
+      .map((a) => a.id);
+  }
+
+  /** 지금 탭의 일괄 수정을 켜고 끈다. 끌 때(일괄 저장) 이 탭 사람들의 수정본만 저장한다. */
+  function toggleTableEditMode() {
+    if (!isTableEditMode) {
+      setEditingRowId(null);
+      setEditModeKeys((prev) => [...prev, editModeKey]);
+      return;
+    }
+    finishTabEditing();
+  }
+
+  /** 기타 방식 출결을 미정(고르지 않음)으로 되돌린다. */
+  function clearCustomStatus(attendeeId: string) {
+    patchAttendee(attendeeId, (a) => {
+      if (a.customStatus === undefined) return a;
+      return withoutKeys(a, 'customStatus');
+    });
+  }
+
+  /** 기타 방식 출결을 바꾼다. 이미 고른 값을 다시 누르면 비운다(미정). */
+  function changeCustomStatus(attendeeId: string, code: string) {
+    patchAttendee(attendeeId, (a) => withCustomStatus(a, code));
+  }
+  const statusColumnWidth = (column: StatusColumn) =>
+    isColumnCollapsed(column)
+      ? COLLAPSED_STATUS_WIDTH
+      : colWidths[column.key] || defaultStatusWidth;
+
+  /** 열(출결 열은 statusToggleKey, 선택 컬럼은 custom_ id)을 열고 닫는다. */
+  function toggleColumnCollapsed(toggleKey: string) {
+    setToggledColumnsByEvent((prev) => {
+      const current = prev[selectedEvent.id] ?? [];
+      const next = current.includes(toggleKey)
+        ? current.filter((key) => key !== toggleKey)
+        : [...current, toggleKey];
+      return { ...prev, [selectedEvent.id]: next };
+    });
+  }
+
+  /** 추가 컬럼 기본 너비. 선택 컬럼(O/X 등)은 버튼이 들어가는 너비다. */
+  function defaultExtraColWidth(cf: CustomFormField) {
+    return isSelectColumn(cf)
+      ? Math.max(140, (cf.options?.length ?? 0) * (STATUS_BTN_WIDTH + 2) + 24)
+      : 140;
+  }
+
+  /** 추가 컬럼 너비. 닫힌 선택 컬럼은 고른 값만 보이므로 좁다. */
+  function extraColWidth(cf: CustomFormField) {
+    return isExtraColumnCollapsed(cf)
+      ? COLLAPSED_STATUS_WIDTH
+      : colWidths[`custom_${cf.id}`] || defaultExtraColWidth(cf);
+  }
+
+  /** 출결 필터: 이 행사(외부 참석자 시트는 그 시트)에서 고를 수 있는 출결 값만 보여 준다. */
+  const attendStatusFilterOptions: readonly FilterDropdownOption<'ALL' | AttendStatus>[] = [
+    { value: 'ALL', label: '전체' },
+    ...statusOptionsOf(eventFormat)
+      .filter((option) => availableStatuses.includes(option.value))
+      .map((option) => ({ value: option.value, label: option.label })),
+  ];
+
+  function isStatusAllowed(att: AttendeeRecord, status: AttendStatus) {
+    return statusOptionsFor(att).some((option) => option.value === status);
+  }
+
+  /** 한 출결 열의 값을 바꾼다. 체크인 시각은 첫 출결(status)에만 남긴다. */
+  function changeColumnStatus(attendeeId: string, column: StatusColumn, status: AttendStatus) {
+    const timeNow = new Date().toTimeString().slice(0, 5);
+    // 한 사람의 출결만 바꾸므로 바뀐 칸만 부분 저장(PATCH)한다.
+    patchAttendee(attendeeId, (a) => {
+      const updated = withStatusIn(a, column, status);
+      if (column.kind !== 'main') {
+        return updated;
+      }
+      const isCheckedIn = status === 'present' || status === 'late' || status === 'unexcusedLate';
+      return {
+        ...updated,
+        checkedInAt: isCheckedIn ? (a.checkedInAt === '-' ? timeNow : a.checkedInAt) : '-',
+      };
+    });
+  }
+
+  // ─── 단축키: 방식별 출결 코드 키(첫 번째 출결 열), ↑/↓ 이동 ───
   useEffect(() => {
     if (
       subTab !== 'live' ||
       !isKeyboardModeActive ||
       editingEvent ||
       showQuickAddDrawer ||
-      isDropdownOpen ||
-      editingTemplate
+      isDropdownOpen
     ) {
       return;
     }
@@ -936,30 +1226,12 @@ export function EventAttendanceManagePage({
         return;
       }
 
-      if (e.key === '0') {
+      // 출결 코드 키(방식별 코드, 컨퍼런스는 1차 출결)를 누르면 그 값으로 바꾸고 다음 사람으로 넘어간다.
+      const keyStatus =
+        e.ctrlKey || e.metaKey || e.altKey ? undefined : statusOfKey(eventFormat, e.key);
+      if (keyStatus && isStatusAllowed(currentTarget, keyStatus)) {
         e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, 'present');
-      } else if (e.key === '1') {
-        e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, 'late');
-      } else if (e.key === '2') {
-        e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, 'earlyLeave');
-      } else if (e.key === '3') {
-        e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, 'absent');
-      } else if (e.key === '4') {
-        e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, 'excusedAbsent');
-      } else if (e.key === '5') {
-        e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, 'unexcusedLate');
-      } else if (e.key === '6') {
-        e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, 'unexcusedAbsent');
-      } else if (e.key === '7') {
-        e.preventDefault();
-        changeStatusAndMoveNext(currentTarget.id, 'unmarked');
+        changeStatusAndMoveNext(currentTarget.id, keyStatus);
       } else if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault();
         setFocusedIndex((prev) => Math.min(prev + 1, filteredAttendees.length - 1));
@@ -974,6 +1246,7 @@ export function EventAttendanceManagePage({
     // changeStatusAndMoveNext only reads filteredAttendees.length, which is already tracked above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    eventFormat,
     subTab,
     isKeyboardModeActive,
     focusedIndex,
@@ -981,28 +1254,15 @@ export function EventAttendanceManagePage({
     editingEvent,
     showQuickAddDrawer,
     isDropdownOpen,
-    editingTemplate,
   ]);
 
+  /** 열려 있는 첫 출결 열을 바꾸고 다음 사람으로 넘어간다(단축키·그 열 클릭). 모두 닫혀 있으면 하지 않는다. */
   function changeStatusAndMoveNext(attendeeId: string, status: AttendStatus) {
-    const timeNow = new Date().toTimeString().slice(0, 5);
-    setAttendees((prev) =>
-      prev.map((a) =>
-        a.id === attendeeId
-          ? {
-              ...a,
-              status,
-              checkedInAt:
-                status === 'present' || status === 'late' || status === 'unexcusedLate'
-                  ? a.checkedInAt === '-'
-                    ? timeNow
-                    : a.checkedInAt
-                  : '-',
-            }
-          : a,
-      ),
-    );
-
+    const column = editableStatusColumns[0];
+    if (!column) {
+      return;
+    }
+    changeColumnStatus(attendeeId, column, status);
     setFocusedIndex((prev) => Math.min(prev + 1, filteredAttendees.length - 1));
   }
 
@@ -1488,7 +1748,53 @@ export function EventAttendanceManagePage({
           f.label !== '출석상태',
       )
       .map((f) => f.label);
-    const headers = ['번호', '이름', ...extraHeaders, '출석코드(0,1,2)', '출석상태', '비고'];
+    // 출결은 운영지원팀 명단 파일과 같은 코드로 적는다. 컨퍼런스는 1차·2차를 따로 적는다.
+    const format = evt.attendanceFormat;
+    const isConference = format === 'CONFERENCE';
+    // 일반 행사형에서 여러 행사를 함께 관리하면 행사마다 출결 코드 열을 하나씩 적는다(기록 없음은 빈칸).
+    const sessions = evt.sessionLabels ?? [];
+    const isFreeform = usesFreeformColumns(format);
+    // 기타 방식에서 백엔드가 출결 값을 보냈으면 출결 열 하나에 고른 값의 이름을 적는다.
+    const customOptions = isFreeform ? (evt.statusOptions ?? []) : [];
+    // 컬럼 설정에서 지운 출결·비고 열은 내보내지 않는다.
+    const isStatusHidden = isBaseColumnHidden(evt, 'STATUS');
+    const isMemoColumnHidden = isBaseColumnHidden(evt, 'MEMO');
+    const statusHeaders = isStatusHidden
+      ? []
+      : isFreeform
+        ? customOptions.length > 0
+          ? ['출결']
+          : []
+        : isConference
+          ? ['1차 출석 확인', '2차 출석 확인']
+          : sessions.length > 0
+            ? sessions
+            : ['출석 코드', '출석 상태'];
+    const statusValues = (a: AttendeeRecord): string[] =>
+      isStatusHidden
+        ? []
+        : isFreeform
+          ? customOptions.length > 0
+            ? [customOptions.find((option) => option.code === a.customStatus)?.label ?? '미정']
+            : []
+          : isConference
+            ? [
+                statusCodeOf(format, a.status),
+                a.secondStatus ? statusCodeOf(format, a.secondStatus) : '-',
+              ]
+            : sessions.length > 0
+              ? sessions.map((session) => {
+                  const status = a.sessionStatuses?.[session];
+                  return status ? statusCodeOf(format, status) : '';
+                })
+              : [statusCodeOf(format, a.status), statusLabelOf(format, a.status)];
+    const headers = [
+      '번호',
+      '이름',
+      ...extraHeaders,
+      ...statusHeaders,
+      ...(isMemoColumnHidden ? [] : ['비고']),
+    ];
     const rows = evtAttendees.map((a, idx) => {
       const extraVals = extraHeaders.map(
         (h) =>
@@ -1510,9 +1816,8 @@ export function EventAttendanceManagePage({
         idx + 1,
         a.name,
         ...extraVals,
-        ATTEND_STATUS_CFG[a.status]?.code || '-',
-        ATTEND_STATUS_CFG[a.status]?.label || '미정',
-        a.memo || '-',
+        ...statusValues(a),
+        ...(isMemoColumnHidden ? [] : [a.memo || '-']),
       ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(',');
@@ -1705,176 +2010,179 @@ export function EventAttendanceManagePage({
         </div>
 
         {/* Global Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {subTab === 'live' && (
+            <>
+              {/* CSV 저장 버튼: 아이콘만 있는 버튼(출결 관리의 CSV 추출 버튼과 같은 아이콘·모양) */}
+              <Tooltip label="CSV 저장">
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  aria-label="CSV 저장"
+                  className="inline-flex size-9 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                >
+                  <Download size={16} aria-hidden="true" />
+                </button>
+              </Tooltip>
+            </>
+          )}
+
+          {/* 새 행사 생성은 행사 목록 화면에서만 한다 */}
+          {subTab === 'events' && (
+            <CreateButton label="행사" aria-label="새 행사" onClick={handleOpenNewEvent} />
+          )}
+
+          {/* 반기 선택은 맨 오른쪽에 둔다 */}
           <CohortSelect
             value={selectedCohort}
             cohorts={cohorts}
+            labels={cohortLabels}
+            canCreateNextSemester={canCreateNextSemester}
+            onAdvanceSemester={onAdvanceSemester}
             onChange={(cohort) => {
               setSelectedCohort(cohort);
               const firstEvent = events
                 .filter((event) => event.targetTerms.includes(cohort))
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                .sort((a, b) => eventSortTime(b) - eventSortTime(a))[0];
               setSelectedEventId(firstEvent?.id ?? '');
               setSubTab('events');
               setIsBreadcrumbMenuOpen(false);
             }}
           />
-          {subTab === 'live' && (
-            <>
-              {/* CSV 저장 버튼 */}
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                className={`px-3.5 py-2 rounded-sm text-xs transition-colors hover:bg-[#dde5ee] active:bg-[#d1dae5] flex items-center gap-1.5 cursor-pointer ${ATTEND_STATUS_STYLES.unmarked.active}`}
-                title="현재 행사 출석부 CSV 다운로드"
-              >
-                <Download size={13} />
-                <span>CSV 저장</span>
-              </button>
-            </>
-          )}
-
-          <button
-            onClick={handleOpenNewEvent}
-            className={`px-3.5 py-2 rounded-sm text-xs transition-colors hover:bg-[#dde5ee] active:bg-[#d1dae5] flex items-center gap-1.5 cursor-pointer ${ATTEND_STATUS_STYLES.unmarked.active}`}
-          >
-            <Plus size={14} />
-            <span>새 행사 생성하기</span>
-          </button>
         </div>
       </div>
 
       {/* ─── TAB 1: 현장 출석 체크 ─── */}
       {subTab === 'live' && (
-        <div className="space-y-4">
+        <div className={`space-y-4 ${hasSheetTabs ? 'flex flex-1 flex-col' : ''}`}>
           {/* Clean Inline Stats Text */}
           <div className="flex items-center gap-2.5 sm:gap-3.5 py-1 px-1 text-xs text-slate-500 flex-wrap border-b border-slate-100 pb-3 font-medium">
             <div className="flex items-center gap-1">
               <span>총 등록</span>
-              <span className="font-bold text-slate-900 font-mono text-sm">
-                {totalRosterCount}명
-              </span>
+              <span className="font-bold text-slate-900 text-sm">{totalRosterCount}명</span>
             </div>
 
-            <span className="text-slate-200 select-none">·</span>
+            {/* 기타 방식은 출결 열이 없어 출결 통계를 보여 주지 않는다 */}
+            {hasStatusColumns && (
+              <>
+                <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1">
-              <span>출석</span>
-              <span className="font-bold text-slate-900 font-mono text-sm">{presentCount}명</span>
-            </div>
+                <div className="flex items-center gap-1">
+                  <span>출석</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {presentCount}
+                    {countUnit}
+                  </span>
+                </div>
 
-            <span className="text-slate-200 select-none">·</span>
+                <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1">
-              <span>지각</span>
-              <span className="font-bold text-slate-900 font-mono text-sm">{lateCount}명</span>
-            </div>
+                <div className="flex items-center gap-1">
+                  <span>지각</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {lateCount}
+                    {countUnit}
+                  </span>
+                </div>
 
-            <span className="text-slate-200 select-none">·</span>
+                <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1">
-              <span>조퇴</span>
-              <span className="font-bold text-slate-900 font-mono text-sm">
-                {earlyLeaveCount}명
-              </span>
-            </div>
+                <div className="flex items-center gap-1">
+                  <span>조퇴</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {earlyLeaveCount}
+                    {countUnit}
+                  </span>
+                </div>
 
-            <span className="text-slate-200 select-none">·</span>
+                <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1">
-              <span>결석</span>
-              <span className="font-bold text-slate-900 font-mono text-sm">{absentCount}명</span>
-            </div>
+                <div className="flex items-center gap-1">
+                  <span>결석</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {absentCount}
+                    {countUnit}
+                  </span>
+                </div>
 
-            <span className="text-slate-200 select-none">·</span>
+                <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1">
-              <span>인정결석</span>
-              <span className="font-bold text-slate-900 font-mono text-sm">
-                {excusedAbsentCount}명
-              </span>
-            </div>
+                <div className="flex items-center gap-1">
+                  <span>인정결석</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {excusedAbsentCount}
+                    {countUnit}
+                  </span>
+                </div>
 
-            <span className="text-slate-200 select-none">·</span>
+                <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1">
-              <span>무단지각</span>
-              <span className="font-bold text-slate-900 font-mono text-sm">
-                {unexcusedLateCount}명
-              </span>
-            </div>
+                <div className="flex items-center gap-1">
+                  <span>무단지각</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {unexcusedLateCount}
+                    {countUnit}
+                  </span>
+                </div>
 
-            <span className="text-slate-200 select-none">·</span>
+                <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1">
-              <span>무단결석</span>
-              <span className="font-bold text-slate-900 font-mono text-sm">
-                {unexcusedAbsentCount}명
-              </span>
-            </div>
+                <div className="flex items-center gap-1">
+                  <span>무단결석</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {unexcusedAbsentCount}
+                    {countUnit}
+                  </span>
+                </div>
 
-            <span className="text-slate-200 select-none">·</span>
+                <span className="text-slate-200 select-none">·</span>
 
-            <div className="flex items-center gap-1">
-              <span>출석률</span>
-              <span className="font-bold text-slate-900 font-mono text-sm">{attendanceRate}%</span>
-            </div>
+                <div className="flex items-center gap-1">
+                  <span>출석률</span>
+                  <span className="font-bold text-slate-900 text-sm">{attendanceRate}%</span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Filter Toolbar */}
           <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
             <div className="flex items-center gap-2 flex-wrap">
-              {/* 기수 드롭다운 (API 연동 드롭다운) */}
-              <div className="relative">
-                <select
-                  value={termFilter}
-                  onChange={(e) => {
-                    setTermFilter(e.target.value);
+              {/* 기수 드롭다운 (API 연동 드롭다운). 외부 참석자 시트는 기수를 받지 않는다. */}
+              {!isExternalSheet && (
+                <FilterDropdown
+                  ariaLabel="기수 필터"
+                  title="기수"
+                  value={activeTermFilter}
+                  options={termFilterOptions}
+                  onChange={(next) => {
+                    setTermFilter(next);
                     setFocusedIndex(0);
                   }}
-                  className="appearance-none pl-3 pr-7 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-800 text-xs font-semibold shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
-                >
-                  <option value="ALL">기수 (전체)</option>
-                  <option value="28">28기</option>
-                  <option value="27">27기</option>
-                  <option value="26">26기</option>
-                </select>
-                <ChevronDown
-                  size={12}
-                  className="absolute right-2.5 top-2.5 text-slate-400 pointer-events-none"
                 />
-              </div>
+              )}
 
-              {/* 출결 상태 필터 드롭다운 (기수 바로 옆 배치) */}
-              <div className="relative">
-                <select
-                  value={attendStatusFilter}
-                  onChange={(e) => {
-                    setAttendStatusFilter(e.target.value as 'ALL' | AttendStatus);
+              {/* 출결 상태 필터 드롭다운 (기수 바로 옆 배치). 출결 열이 없는 기타 방식에는 없다. */}
+              {hasStatusColumns && (
+                <FilterDropdown
+                  ariaLabel="출결 필터"
+                  title="출결"
+                  value={activeStatusFilter}
+                  options={attendStatusFilterOptions}
+                  onChange={(next) => {
+                    setAttendStatusFilter(next);
                     setFocusedIndex(0);
                   }}
-                  className="appearance-none pl-3 pr-7 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-800 text-xs font-semibold shadow-2xs outline-none focus:border-slate-400 cursor-pointer"
-                >
-                  <option value="ALL">출결 (전체)</option>
-                  <option value="present">출석</option>
-                  <option value="late">지각</option>
-                  <option value="earlyLeave">조퇴</option>
-                  <option value="absent">결석</option>
-                  <option value="excusedAbsent">인정결석</option>
-                  <option value="unexcusedLate">무단지각</option>
-                  <option value="unexcusedAbsent">무단결석</option>
-                  <option value="unmarked">미정</option>
-                </select>
-                <ChevronDown
-                  size={12}
-                  className="absolute right-2.5 top-2.5 text-slate-400 pointer-events-none"
                 />
-              </div>
+              )}
 
-              {/* 트랙 및 구분 필터 캡슐 */}
-              <div className="flex rounded-lg bg-slate-100 p-0.5 border border-slate-200/80 text-xs">
-                {(['ALL', 'ANALYSIS', 'VISUALIZATION', 'ENGINEERING', 'EXTERNAL'] as const).map(
-                  (cat) => {
+              {/* 트랙 및 구분 필터 캡슐. 컨퍼런스는 외부 참석자를 시트로 나누므로 '외부'가 없고, 외부 참석자 시트에는 부문이 없다. */}
+              {!isExternalSheet && (
+                <div className={SEGMENT_WRAP}>
+                  {(isConferenceEvent
+                    ? (['ALL', 'ANALYSIS', 'VISUALIZATION', 'ENGINEERING'] as const)
+                    : (['ALL', 'ANALYSIS', 'VISUALIZATION', 'ENGINEERING', 'EXTERNAL'] as const)
+                  ).map((cat) => {
                     const labelMap: Record<string, string> = {
                       ALL: '전체',
                       ANALYSIS: '분석',
@@ -2001,39 +2309,29 @@ export function EventAttendanceManagePage({
                         title="열 너비 조절"
                       />
                     </th>
-                    <th
-                      style={{ width: `${colWidths.name || 130}px`, minWidth: '110px' }}
-                      className="relative text-center px-2 py-2.5 text-slate-900 font-bold"
-                    >
-                      이름
-                      <div
-                        onMouseDown={(e) => handleResizeStart(e, 'name', 70)}
-                        onMouseEnter={(e) => {
-                          if (!resizingColKey) {
-                            setActiveHoverCol('name');
-                            updateGuidelinePos(e.currentTarget);
-                          }
-                        }}
-                        onMouseLeave={() => {
-                          if (!resizingColKey) {
-                            setActiveHoverCol(null);
-                            setGuidelineX(null);
-                          }
-                        }}
-                        className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                        title="열 너비 조절"
-                      />
-                    </th>
                     {(() => {
                       const renderExtraTh = (cf: CustomFormField) => {
                         const colKey = `custom_${cf.id}`;
+                        const isCollapsed = isExtraColumnCollapsed(cf);
                         return (
                           <th
                             key={cf.id}
-                            style={{ width: `${colWidths[colKey] || 140}px`, minWidth: '120px' }}
+                            style={{
+                              width: `${extraColWidth(cf)}px`,
+                              minWidth: `${isCollapsed ? COLLAPSED_STATUS_WIDTH : 120}px`,
+                            }}
                             className="relative text-center px-2 py-2.5 text-slate-800 font-bold"
                           >
-                            {cf.label}
+                            {isSelectColumn(cf) ? (
+                              // 선택 컬럼은 눌러서 열고 닫는다. 닫으면 고른 값만 글자로 보여 준다.
+                              <ColumnToggleButton
+                                label={cf.label}
+                                isCollapsed={isCollapsed}
+                                onToggle={() => toggleColumnCollapsed(colKey)}
+                              />
+                            ) : (
+                              cf.label
+                            )}
                             <div
                               onMouseDown={(e) => handleResizeStart(e, colKey, 70)}
                               onMouseEnter={(e) => {
@@ -2048,23 +2346,34 @@ export function EventAttendanceManagePage({
                                   setGuidelineX(null);
                                 }
                               }}
-                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              className={`absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 ${isCollapsed ? 'hidden' : ''}`}
                               title="열 너비 조절"
                             />
                           </th>
                         );
                       };
-                      const statusTh = (
+                      const statusTh = statusColumns.map((column) => (
                         <th
-                          style={{ width: `${colWidths.status || 450}px`, minWidth: '450px' }}
+                          key={column.key}
+                          style={{
+                            width: `${statusColumnWidth(column)}px`,
+                            minWidth: `${isColumnCollapsed(column) ? COLLAPSED_STATUS_WIDTH : defaultStatusWidth}px`,
+                          }}
                           className="relative text-center px-2 py-2.5 text-slate-900 font-bold"
                         >
-                          출결
+                          {/* 출결 열은 눌러서 열고 닫는다. 닫으면 고른 출결만 글자로 보여 준다. */}
+                          <ColumnToggleButton
+                            label={column.label}
+                            isCollapsed={isColumnCollapsed(column)}
+                            onToggle={() => toggleColumnCollapsed(statusToggleKey(column))}
+                          />
                           <div
-                            onMouseDown={(e) => handleResizeStart(e, 'status', 450)}
+                            onMouseDown={(e) =>
+                              handleResizeStart(e, column.key, defaultStatusWidth)
+                            }
                             onMouseEnter={(e) => {
                               if (!resizingColKey) {
-                                setActiveHoverCol('status');
+                                setActiveHoverCol(column.key);
                                 updateGuidelinePos(e.currentTarget);
                               }
                             }}
@@ -2074,113 +2383,177 @@ export function EventAttendanceManagePage({
                                 setGuidelineX(null);
                               }
                             }}
-                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                            className={`absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 ${isColumnCollapsed(column) ? 'hidden' : ''}`}
                             title="열 너비 조절"
                           />
                         </th>
-                      );
+                      ));
                       return (
                         <>
                           {eventExtraCols.slice(0, statusColumnAt).map(renderExtraTh)}
+                          <th
+                            style={{ width: `${colWidths.name || 130}px`, minWidth: '110px' }}
+                            className="relative text-center px-2 py-2.5 text-slate-900 font-bold"
+                          >
+                            이름
+                            <div
+                              onMouseDown={(e) => handleResizeStart(e, 'name', 70)}
+                              onMouseEnter={(e) => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol('name');
+                                  updateGuidelinePos(e.currentTarget);
+                                }
+                              }}
+                              onMouseLeave={() => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol(null);
+                                  setGuidelineX(null);
+                                }
+                              }}
+                              className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
+                              title="열 너비 조절"
+                            />
+                          </th>
                           {statusTh}
                           {eventExtraCols.slice(statusColumnAt).map(renderExtraTh)}
                         </>
                       );
                     })()}
-                    <th
-                      style={{ width: `${colWidths.memo || 240}px`, minWidth: '220px' }}
-                      className="relative text-center px-3 py-2.5 text-slate-700 font-semibold"
-                    >
-                      비고
-                    </th>
+                    {!isMemoHidden && (
+                      <th
+                        style={{ width: `${colWidths.memo || 240}px`, minWidth: '220px' }}
+                        className="relative text-center px-3 py-2.5 text-slate-700 font-bold"
+                      >
+                        비고
+                      </th>
+                    )}
                     {/* Fixed Sticky Right Action Column */}
                     <th
                       style={{ width: '80px', minWidth: '80px', maxWidth: '80px' }}
-                      className="sticky right-0 top-0 bg-slate-50 z-20 px-2 py-3 w-20 min-w-[80px] max-w-[80px] text-center select-none border-l border-slate-200 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]"
+                      className="sticky right-0 top-0 bg-slate-200 z-20 px-2 py-3 w-20 min-w-[80px] max-w-[80px] text-center select-none border-l border-slate-300 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]"
                     >
                       <div className="flex items-center justify-center mx-auto">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenColumnSettings(selectedEvent)}
-                          className="p-1 rounded-lg hover:bg-slate-200/70 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
-                          title="출석 명단 표 컬럼 설정"
-                        >
-                          <Settings size={14} />
-                        </button>
+                        <Tooltip label="컬럼 설정" align="end">
+                          <button
+                            aria-label="컬럼 설정"
+                            type="button"
+                            onClick={() => void handleOpenColumnSettings(selectedEvent.id)}
+                            className="p-1 rounded-sm hover:bg-slate-200/70 text-slate-400 hover:text-slate-800 transition-colors cursor-pointer flex items-center justify-center"
+                          >
+                            <Settings size={14} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-mono">
+                <tbody className="divide-y divide-slate-100">
                   {filteredAttendees.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5 + (selectedEvent.customFields?.length || 0)}
+                        colSpan={
+                          (isMemoHidden ? 3 : 4) + statusColumns.length + eventExtraCols.length
+                        }
                         className="py-16 text-center text-sm text-slate-400"
                       >
                         해당 조건의 참가자가 없습니다.
                       </td>
                     </tr>
                   ) : (
-                    filteredAttendees.map((att, idx) => {
-                      const extraCols = (selectedEvent.customFields || []).filter(
-                        (f) =>
-                          f.label !== '이름' &&
-                          f.label !== '비고' &&
-                          f.label !== '출석 상태' &&
-                          f.label !== '출석상태',
-                      );
+                    filteredAttendees.map((rowAttendee, idx) => {
+                      // 저장 전 수정본이 있으면 글자 칸은 수정본으로 보여 준다(출결은 지금 값).
+                      const att = drafts[rowAttendee.id]
+                        ? withDraftText(rowAttendee, drafts[rowAttendee.id])
+                        : rowAttendee;
+                      const extraCols = eventExtraCols;
                       const isRowEditing = isTableEditMode || editingRowId === att.id;
+                      // 기타 방식은 수정 모드 없이 엑셀처럼 칸을 눌러 바로 입력한다.
+                      const isInlineEditing = usesFreeformColumns(eventFormat);
+                      // 동아리 회원의 이름·기수·부문은 회원 DB 기준이라 수정 모드에서도 고칠 수 없다.
+                      const isMember = isLinkedMember(att);
 
                       const renderExtraCell = (cf: CustomFormField) => {
                         const val = getAttendeeFieldValue(att, cf.label, cf.id);
                         const colKey = `custom_${cf.id}`;
+                        const isLockedCell = isMember && MEMBER_IDENTITY_LABELS.includes(cf.label);
 
                         return (
                           <td
                             key={cf.id}
-                            className="relative text-center px-2 py-1.5 h-[50px] text-slate-700 font-sans"
+                            className="relative text-center px-2 py-1.5 h-[50px] text-slate-700"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {isRowEditing ? (
-                              <input
-                                value={val}
-                                onChange={(e) => {
-                                  const newVal = e.target.value;
-                                  setAttendees((prev) =>
-                                    prev.map((a) =>
-                                      a.id === att.id
-                                        ? {
+                            {isExtraColumnCollapsed(cf) ? (
+                              // 닫힌 선택 컬럼: 고른 값만 글자로 보여 준다. 고르지 않았으면 -.
+                              <div className="h-9 flex items-center justify-center">
+                                {val ? (
+                                  <span className="text-xs font-semibold text-slate-800">
+                                    {val}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-slate-300">-</span>
+                                )}
+                              </div>
+                            ) : isSelectColumn(cf) ? (
+                              // 선택 컬럼(예: 뒤풀이 비용 O/X)은 출결과 같은 버튼으로 고른다. 고른 값을 다시 누르면 비운다.
+                              <div className="h-9 flex items-center justify-center">
+                                <div
+                                  role="radiogroup"
+                                  aria-label={`${att.name} ${cf.label}`}
+                                  className={STATUS_BTN_GROUP}
+                                >
+                                  {(cf.options ?? []).map((option) => {
+                                    const isCurrent = val === option;
+                                    return (
+                                      <button
+                                        key={option}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={isCurrent}
+                                        onClick={() => {
+                                          const nextVal = isCurrent ? '' : option;
+                                          // 한 사람의 한 칸만 바꾸므로 바뀐 값만 부분 저장(PATCH)한다.
+                                          patchAttendee(att.id, (a) => ({
                                             ...a,
-                                            affiliation: cf.label.includes('소속')
-                                              ? newVal
-                                              : a.affiliation,
-                                            phone:
-                                              cf.label.includes('전화') ||
-                                              cf.label.includes('연락처')
-                                                ? newVal
-                                                : a.phone,
-                                            email: cf.label.includes('메일') ? newVal : a.email,
-                                            isExternal: cf.label.includes('구분')
-                                              ? newVal.includes('외')
-                                              : a.isExternal,
                                             customAnswers: {
                                               ...(a.customAnswers || {}),
-                                              [cf.id]: newVal,
-                                              [cf.label]: newVal,
+                                              [cf.id]: nextVal,
+                                              [cf.label]: nextVal,
                                             },
-                                          }
-                                        : a,
-                                    ),
-                                  );
-                                }}
+                                          }));
+                                        }}
+                                        className={`${STATUS_BTN} ${
+                                          isCurrent ? OPTION_BTN_ACTIVE : OPTION_BTN_INACTIVE
+                                        }`}
+                                      >
+                                        {option}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ) : isInlineEditing && !isLockedCell ? (
+                              // 기타 방식: 칸을 누르면 바로 입력하고, 다른 곳을 누르면 저장한다.
+                              <InlineEditableCell
+                                value={val}
+                                ariaLabel={`${att.name} ${cf.label}`}
+                                onCommit={(next) => updateExtraField(att.id, cf, next)}
+                              />
+                            ) : isRowEditing && !isLockedCell ? (
+                              <input
+                                value={val}
+                                onChange={(e) => updateExtraField(att.id, cf, e.target.value)}
                                 placeholder={`${cf.label}`}
-                                className="w-full text-center h-8 px-2.5 text-xs rounded-lg outline-none bg-white border border-slate-300 focus:border-slate-900 text-slate-800 font-sans placeholder:text-slate-400 shadow-2xs font-medium"
+                                className="w-full text-center h-8 px-2.5 text-xs rounded-sm outline-none bg-white border border-slate-300 focus:border-slate-400 text-slate-800 placeholder:text-slate-400 shadow-2xs font-medium"
                               />
                             ) : (
-                              <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs text-slate-700 font-medium truncate font-sans">
+                              <LockedOrPlainCell
+                                isLocked={isLockedCell && (isRowEditing || isInlineEditing)}
+                                onLockedClick={() => setNotice(MEMBER_LOCK_HINT)}
+                                className="text-slate-700 font-medium"
+                              >
                                 {val || <span className="text-slate-300">-</span>}
-                              </div>
+                              </LockedOrPlainCell>
                             )}
                             <div
                               onMouseDown={(e) => handleResizeStart(e, colKey, 70)}
@@ -2202,69 +2575,157 @@ export function EventAttendanceManagePage({
                           </td>
                         );
                       };
-                      const statusCell = (
-                        <td className="relative text-center px-2 py-1.5 h-[50px]">
-                          <div className="h-8 flex items-center justify-center font-sans">
-                            <div className="grid grid-cols-8 w-[445px] shrink-0 p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/60 font-sans select-none gap-0.5 shadow-2xs">
-                              {(
-                                [
-                                  'present',
-                                  'late',
-                                  'earlyLeave',
-                                  'absent',
-                                  'excusedAbsent',
-                                  'unexcusedLate',
-                                  'unexcusedAbsent',
-                                  'unmarked',
-                                ] as AttendStatus[]
-                              ).map((st) => {
-                                const isCurrent = att.status === st;
-                                const label = ATTEND_STATUS_CFG[st]?.label || '';
-                                const styleCfg = ATTEND_STATUS_STYLES[st];
-
-                                return (
+                      const statusCell = statusColumns.map((column) => {
+                        // 컨퍼런스 외부 참석자는 1차·2차를 나누지 않으므로 2차 칸이 비어 있다.
+                        const current = statusIn(att, column);
+                        const hasValue = current !== undefined;
+                        const options = statusOptionsFor(att);
+                        const isCollapsed = isColumnCollapsed(column);
+                        return (
+                          <td
+                            key={column.key}
+                            className="relative text-center px-2 py-1.5 h-[50px]"
+                          >
+                            <div className="h-9 flex items-center justify-center">
+                              {column.kind === 'custom' && isCollapsed ? (
+                                // 닫힌 기타 방식 출결 열: 고른 출결 코드의 이름만 보여 준다. 고르지 않았으면 미정.
+                                (() => {
+                                  const picked = column.options.find(
+                                    (option) => option.code === customStatusIn(att),
+                                  );
+                                  return picked ? (
+                                    <span className="text-xs font-semibold text-slate-800">
+                                      {picked.label}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-medium text-slate-400">미정</span>
+                                  );
+                                })()
+                              ) : column.kind === 'custom' ? (
+                                // 기타 방식: 행사에 저장된 출결 코드로 고른다(출결 버튼과 같은 크기, 중립 색).
+                                // 맨 끝의 미정은 아무것도 고르지 않은 상태이며 기본값이다.
+                                <div
+                                  role="radiogroup"
+                                  aria-label={`${att.name} ${column.label}`}
+                                  className={STATUS_BTN_GROUP}
+                                >
+                                  {column.options.map((option) => {
+                                    const isCurrent = customStatusIn(att) === option.code;
+                                    return (
+                                      <button
+                                        key={option.code}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={isCurrent}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          changeCustomStatus(att.id, option.code);
+                                        }}
+                                        className={`${STATUS_BTN} ${
+                                          isCurrent ? OPTION_BTN_ACTIVE : OPTION_BTN_INACTIVE
+                                        }`}
+                                      >
+                                        <span>{option.label}</span>
+                                      </button>
+                                    );
+                                  })}
                                   <button
-                                    key={st}
                                     type="button"
+                                    role="radio"
+                                    aria-checked={customStatusIn(att) === undefined}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      changeStatusAndMoveNext(att.id, st);
+                                      clearCustomStatus(att.id);
                                     }}
-                                    className={`py-1 text-[10px] rounded transition-all cursor-pointer text-center whitespace-nowrap px-0.5 ${
-                                      isCurrent ? styleCfg?.active || '' : styleCfg?.inactive || ''
+                                    className={`${STATUS_BTN} ${
+                                      customStatusIn(att) === undefined
+                                        ? OPTION_BTN_ACTIVE
+                                        : OPTION_BTN_INACTIVE
                                     }`}
                                   >
-                                    {label}
+                                    <span>미정</span>
                                   </button>
-                                );
-                              })}
+                                </div>
+                              ) : isCollapsed ? (
+                                // 닫힌 출결 열: 고른 출결만 글자로 보여 준다. 칸이 없으면(외부 참석자의 2차) -.
+                                current === undefined ? (
+                                  <span className="text-xs text-slate-300">-</span>
+                                ) : (
+                                  <span
+                                    className={`text-xs font-semibold ${collapsedStatusTextClass(current)}`}
+                                  >
+                                    {statusLabelOf(eventFormat, current)}
+                                  </span>
+                                )
+                              ) : hasValue ? (
+                                <div
+                                  role="radiogroup"
+                                  aria-label={`${att.name} ${column.label}`}
+                                  className={STATUS_BTN_GROUP}
+                                >
+                                  {options.map((option) => {
+                                    const st = option.value;
+                                    const isCurrent = current === st;
+                                    const styleCfg = ATTEND_STATUS_STYLES[st];
+
+                                    return (
+                                      <button
+                                        key={st}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={isCurrent}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // 열려 있는 첫 출결 열은 단축키처럼 다음 사람으로 넘어간다.
+                                          if (column.key === editableStatusColumns[0]?.key) {
+                                            changeStatusAndMoveNext(att.id, st);
+                                          } else {
+                                            changeColumnStatus(att.id, column, st);
+                                          }
+                                        }}
+                                        className={`${STATUS_BTN} ${
+                                          isCurrent
+                                            ? styleCfg?.active || ''
+                                            : styleCfg?.inactive || ''
+                                        }`}
+                                      >
+                                        <span>{option.label}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-300">-</span>
+                              )}
                             </div>
-                          </div>
-                          <div
-                            onMouseDown={(e) => handleResizeStart(e, 'status', 450)}
-                            onMouseEnter={(e) => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol('status');
-                                updateGuidelinePos(e.currentTarget);
+                            <div
+                              onMouseDown={(e) =>
+                                handleResizeStart(e, column.key, defaultStatusWidth)
                               }
-                            }}
-                            onMouseLeave={() => {
-                              if (!resizingColKey) {
-                                setActiveHoverCol(null);
-                                setGuidelineX(null);
-                              }
-                            }}
-                            className="absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20"
-                            title="열 너비 조절"
-                          />
-                        </td>
-                      );
+                              onMouseEnter={(e) => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol(column.key);
+                                  updateGuidelinePos(e.currentTarget);
+                                }
+                              }}
+                              onMouseLeave={() => {
+                                if (!resizingColKey) {
+                                  setActiveHoverCol(null);
+                                  setGuidelineX(null);
+                                }
+                              }}
+                              className={`absolute -right-2 top-0 bottom-0 w-4 cursor-col-resize select-none touch-none z-20 ${isCollapsed ? 'hidden' : ''}`}
+                              title="열 너비 조절"
+                            />
+                          </td>
+                        );
+                      });
 
                       return (
                         <tr
                           key={att.id}
-                          className={`transition-colors divide-x divide-slate-200/70 ${
-                            isRowEditing ? 'bg-slate-50/90' : 'hover:bg-slate-50/60'
+                          className={`transition-colors divide-x divide-slate-200 ${
+                            isRowEditing ? 'bg-slate-50/90' : 'hover:bg-slate-50/70'
                           }`}
                         >
                           <td className="relative text-center px-3 py-2 h-[50px] text-slate-400 text-xs">
@@ -2288,27 +2749,35 @@ export function EventAttendanceManagePage({
                             />
                           </td>
 
-                          {/* Default Fixed Column: 이름 */}
+                          {/* 추가 컬럼과 출결 컬럼(CSV로 만든 행사는 CSV의 출결 열 자리) */}
+                          {extraCols.slice(0, statusColumnAt).map(renderExtraCell)}
+                          {/* 이름: 운영지원팀 명단처럼 출결 열 바로 앞에 둔다 */}
                           <td
-                            className="relative text-center px-2 py-1.5 h-[50px] text-slate-900 font-sans"
+                            className="relative text-center px-2 py-1.5 h-[50px] text-slate-900"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {isRowEditing ? (
+                            {isInlineEditing && !isMember ? (
+                              <InlineEditableCell
+                                value={att.name}
+                                isBold
+                                ariaLabel={`${att.name || '참가자'} 이름`}
+                                onCommit={(next) => updateAttendeeText(att.id, 'name', next)}
+                              />
+                            ) : isRowEditing && !isMember ? (
                               <input
                                 value={att.name}
-                                onChange={(e) => {
-                                  const newVal = e.target.value;
-                                  setAttendees((prev) =>
-                                    prev.map((a) => (a.id === att.id ? { ...a, name: newVal } : a)),
-                                  );
-                                }}
+                                onChange={(e) => updateAttendeeText(att.id, 'name', e.target.value)}
                                 placeholder="이름"
-                                className="w-full text-center h-8 px-2.5 text-xs font-bold rounded-lg outline-none bg-white border border-slate-400 focus:border-slate-900 text-slate-900 font-sans placeholder:text-slate-400 shadow-2xs"
+                                className="w-full text-center h-8 px-2.5 text-xs font-bold rounded-sm outline-none bg-white border border-slate-300 focus:border-slate-400 text-slate-900 placeholder:text-slate-400 shadow-2xs"
                               />
                             ) : (
-                              <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs font-bold text-slate-900 truncate font-sans">
+                              <LockedOrPlainCell
+                                isLocked={isMember && (isRowEditing || isInlineEditing)}
+                                onLockedClick={() => setNotice(MEMBER_LOCK_HINT)}
+                                className="font-bold text-slate-900"
+                              >
                                 {att.name || '-'}
-                              </div>
+                              </LockedOrPlainCell>
                             )}
                             <div
                               onMouseDown={(e) => handleResizeStart(e, 'name', 70)}
@@ -2328,79 +2797,92 @@ export function EventAttendanceManagePage({
                               title="열 너비 조절"
                             />
                           </td>
-
-                          {/* 추가 컬럼과 출결 컬럼(CSV로 만든 행사는 CSV의 출결 열 자리) */}
-                          {extraCols.slice(0, statusColumnAt).map(renderExtraCell)}
                           {statusCell}
                           {extraCols.slice(statusColumnAt).map(renderExtraCell)}
 
-                          {/* Remarks / Memo Input */}
-                          <td
-                            className="relative text-center px-3 py-2 h-[50px]"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {isRowEditing ? (
-                              <input
-                                value={att.memo || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setAttendees((prev) =>
-                                    prev.map((a) => (a.id === att.id ? { ...a, memo: val } : a)),
-                                  );
-                                }}
-                                placeholder="비고 입력 (선택)"
-                                className="w-full text-center h-8 px-2.5 text-xs rounded-lg outline-none bg-white border border-slate-300 focus:border-slate-900 text-slate-800 font-sans placeholder:text-slate-400 shadow-2xs"
-                              />
-                            ) : (
-                              <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs text-slate-600 truncate font-sans">
-                                {att.memo ? att.memo : <span className="text-slate-300">-</span>}
-                              </div>
-                            )}
-                          </td>
+                          {/* Remarks / Memo Input. 컬럼 설정에서 비고를 지웠으면 없다. */}
+                          {!isMemoHidden && (
+                            <td
+                              className="relative text-center px-3 py-2 h-[50px]"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {isInlineEditing ? (
+                                <InlineEditableCell
+                                  value={att.memo ?? ''}
+                                  ariaLabel={`${att.name} 비고`}
+                                  onCommit={(next) => updateAttendeeText(att.id, 'memo', next)}
+                                />
+                              ) : isRowEditing ? (
+                                <input
+                                  value={att.memo || ''}
+                                  onChange={(e) =>
+                                    updateAttendeeText(att.id, 'memo', e.target.value)
+                                  }
+                                  placeholder="비고 입력"
+                                  className="w-full text-center h-8 px-2.5 text-xs rounded-sm outline-none bg-white border border-slate-300 focus:border-slate-400 text-slate-800 placeholder:text-slate-400 shadow-2xs"
+                                />
+                              ) : (
+                                <div className="w-full h-8 px-2.5 border border-transparent flex items-center justify-center text-xs text-slate-600 truncate">
+                                  {att.memo ? att.memo : <span className="text-slate-300">-</span>}
+                                </div>
+                              )}
+                            </td>
+                          )}
 
                           {/* Fixed Sticky Right Action Cell */}
                           <td
-                            className="sticky right-0 bg-white group-hover:bg-slate-50 transition-colors z-10 w-20 min-w-[80px] max-w-[80px] px-2 py-2 h-[50px] font-sans text-center border-l border-slate-200 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]"
+                            className="sticky right-0 bg-slate-50 group-hover:bg-slate-100 transition-colors z-10 w-20 min-w-[80px] max-w-[80px] px-2 py-2 h-[50px] text-center border-l border-slate-300 shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.08)]"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="h-8 flex items-center justify-center mx-auto gap-1.5">
                               {editingRowId === att.id ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingRowId(null)}
-                                  className="w-7 h-7 rounded-lg bg-slate-900 hover:bg-slate-800 text-white flex items-center justify-center shadow-2xs cursor-pointer transition-all"
-                                  title="수정 완료"
-                                >
-                                  <Check size={14} />
-                                </button>
-                              ) : (
-                                !isTableEditMode && (
+                                <Tooltip label="수정 완료" align="end">
                                   <button
                                     type="button"
-                                    onClick={() => setEditingRowId(att.id)}
-                                    className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
-                                    title="수정"
+                                    onClick={() => {
+                                      commitDrafts([att.id]);
+                                      setEditingRowId(null);
+                                    }}
+                                    className="w-7 h-7 rounded-sm border border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-50 flex items-center justify-center cursor-pointer transition-colors"
+                                    aria-label="수정 완료"
                                   >
-                                    <Edit3 size={13} />
+                                    <Check size={14} />
                                   </button>
+                                </Tooltip>
+                              ) : (
+                                // 기타 방식은 칸을 눌러 바로 입력하므로 행 수정 버튼이 없다.
+                                !isTableEditMode &&
+                                !isInlineEditing && (
+                                  <Tooltip label="수정" align="end">
+                                    <button
+                                      aria-label="수정"
+                                      type="button"
+                                      onClick={() => setEditingRowId(att.id)}
+                                      className="w-7 h-7 rounded-sm text-slate-400 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
+                                    >
+                                      <Edit3 size={13} />
+                                    </button>
+                                  </Tooltip>
                                 )
                               )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (
-                                    confirm(
-                                      `[${att.name || '참가자'}] 님을 명단에서 삭제하시겠습니까?`,
-                                    )
-                                  ) {
-                                    setAttendees((prev) => prev.filter((a) => a.id !== att.id));
-                                  }
-                                }}
-                                className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer"
-                                title="삭제"
-                              >
-                                <Trash2 size={13} />
-                              </button>
+                              <Tooltip label="삭제" align="end">
+                                <button
+                                  aria-label="삭제"
+                                  type="button"
+                                  onClick={() => {
+                                    if (
+                                      confirm(
+                                        `[${att.name || '참가자'}] 님을 명단에서 삭제하시겠습니까?`,
+                                      )
+                                    ) {
+                                      setAttendees((prev) => prev.filter((a) => a.id !== att.id));
+                                    }
+                                  }}
+                                  className="w-7 h-7 rounded-sm text-slate-400 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </Tooltip>
                             </div>
                           </td>
                         </tr>
@@ -2419,17 +2901,48 @@ export function EventAttendanceManagePage({
               )}
             </div>
           </div>
+
+          {/* 컨퍼런스 명단 시트: 엑셀처럼 화면 맨 아래에 고정된 시트 탭으로 참석자 구분마다 따로 관리한다.
+              탭을 키워(h-14) 글자가 화면 끝에서 떨어져 있게 하고, 작업 표시줄·Dock 쪽 가장자리까지 가지 않아도 누를 수 있게 한다.
+              본문(main)의 아래 여백(1.75rem) 안쪽에 멈추지 않도록 그만큼 아래로 내린다(-bottom-7). */}
+          {isConferenceEvent && (
+            <div
+              role="tablist"
+              aria-label="명단 시트"
+              className="sticky -bottom-7 z-30 -mx-8 mt-auto flex items-stretch gap-px border-t border-slate-200 bg-slate-100 px-8 shadow-[0_-4px_12px_-6px_rgba(15,23,42,0.12)]"
+            >
+              {CONFERENCE_SHEETS.map((sheet) => {
+                const isActive = conferenceSheet === sheet.value;
+                return (
+                  <button
+                    key={sheet.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => handleChangeConferenceSheet(sheet.value)}
+                    className={`-mt-px inline-flex h-14 items-center border-x px-5 text-sm whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-300 ${
+                      isActive
+                        ? 'border-slate-200 bg-white font-bold text-slate-900 shadow-[inset_0_-2px_0_0_var(--color-slate-900)]'
+                        : 'border-transparent font-medium text-slate-500 hover:bg-white/70 hover:text-slate-800'
+                    }`}
+                  >
+                    {sheet.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
       {/* ─── TAB 2: 전체 행사 목록 ─── */}
       {subTab === 'events' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3.5">
+          <div className="grid grid-cols-1 gap-3">
             {sortedEvents.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+              <div className="rounded-md border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
                 <p className="text-sm font-bold text-slate-700">
-                  {formatCohortLabel(selectedCohort)} 반기에 등록된 행사가 없습니다.
+                  {cohortLabelOf(cohortLabels, selectedCohort)} 반기에 등록된 행사가 없습니다.
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
                   새 행사를 생성하면 선택한 반기에 등록됩니다.
