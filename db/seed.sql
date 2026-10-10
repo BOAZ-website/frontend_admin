@@ -10,8 +10,24 @@ INSERT INTO tracks (name, sort_order) VALUES
   ('엔지니어링', 3);
 
 -- ── cohorts ────────────────────────────────────────────
--- 20~27기. 27기가 현재 기수이고 20~26기는 지난 기수다.
-INSERT INTO cohorts (cohort) VALUES (20), (21), (22), (23), (24), (25), (26), (27);
+-- 20~27기(23-1 ~ 26-2 반기). 27기(26-2 반기)가 현재 반기이고 나머지는 지난 반기다. 다음 반기(27-1)는 등록하지 않았고,
+-- BASE 출결 생성·ADV 팀 개설을 하면 API가 그때 등록한다.
+-- 반기마다 직전 기수가 ADV를 진행한다(예: 26-2 반기 → 26기 ADV).
+INSERT INTO cohorts (cohort, semester_label, start_date, end_date, is_current, adv_term) VALUES
+  (20, '23-1', '2023-01-01', '2023-06-30', 0, 19),
+  (21, '23-2', '2023-07-01', '2023-12-31', 0, 20),
+  (22, '24-1', '2024-01-01', '2024-06-30', 0, 21),
+  (23, '24-2', '2024-07-01', '2024-12-31', 0, 22),
+  (24, '25-1', '2025-01-01', '2025-06-30', 0, 23),
+  (25, '25-2', '2025-07-01', '2025-12-31', 0, 24),
+  (26, '26-1', '2026-01-01', '2026-06-30', 0, 25),
+  (27, '26-2', '2026-07-01', '2026-12-31', 1, 26);
+
+-- 반기별 점수 집계 대상 회원 기수: 그 반기의 기수와 직전 기수.
+INSERT INTO semester_member_terms (cohort, term)
+SELECT cohort, cohort - 1 FROM cohorts
+UNION ALL
+SELECT cohort, cohort FROM cohorts;
 
 -- ── users ──────────────────────────────────────────────
 INSERT INTO users (id, name, term, track) VALUES
@@ -71,23 +87,46 @@ UPDATE users SET affiliation = '네이버', email = 'sunghoon.p@naver.com', phon
 
 -- ── weeks ──────────────────────────────────────────────
 -- 주차별 활성 상태(CLOSED 종료 / OPEN 진행 중 / UPCOMING 진행 예정). 이 값을 바꾸면 화면의 주차 활성 여부가 바뀐다.
-INSERT INTO weeks (id, week_num, period, label, status) VALUES
-  ('w1', 1, '방학', '1주차', 'CLOSED'),
-  ('w2', 2, '방학', '2주차', 'CLOSED'),
-  ('w3', 3, '방학', '3주차', 'OPEN'),
-  ('w4', 4, '방학', '4주차', 'UPCOMING'),
-  ('w5', 5, '방학', '5주차', 'UPCOMING'),
-  ('w6', 6, '방학', '6주차', 'UPCOMING'),
-  ('w7', 7, '방학', '7주차', 'UPCOMING'),
-  ('w8', 8, '방학', '8주차', 'UPCOMING'),
-  ('w9', 9, '학기', '9주차', 'UPCOMING'),
-  ('w10', 10, '학기', '10주차', 'UPCOMING'),
-  ('w11', 11, '학기', '11주차', 'UPCOMING'),
-  ('w12', 12, '학기', '12주차', 'UPCOMING'),
-  ('w13', 13, '학기', '13주차', 'UPCOMING'),
-  ('w14', 14, '학기', '14주차', 'UPCOMING'),
-  ('w15', 15, '학기', '15주차', 'UPCOMING'),
-  ('w16', 16, '학기', '16주차', 'UPCOMING');
+INSERT INTO weeks (id, week_num, period, label) VALUES
+  ('w1', 1, '방학', '1주차'),
+  ('w2', 2, '방학', '2주차'),
+  ('w3', 3, '방학', '3주차'),
+  ('w4', 4, '방학', '4주차'),
+  ('w5', 5, '방학', '5주차'),
+  ('w6', 6, '방학', '6주차'),
+  ('w7', 7, '방학', '7주차'),
+  ('w8', 8, '방학', '8주차'),
+  ('w9', 9, '학기', '9주차'),
+  ('w10', 10, '학기', '10주차'),
+  ('w11', 11, '학기', '11주차'),
+  ('w12', 12, '학기', '12주차'),
+  ('w13', 13, '학기', '13주차'),
+  ('w14', 14, '학기', '14주차'),
+  ('w15', 15, '학기', '15주차'),
+  ('w16', 16, '학기', '16주차');
+
+-- ── semester_weeks ─────────────────────────────────────
+-- 현재 반기(27)는 1~2주차 종료, 3주차 진행 중, 4주차부터 진행 예정이다.
+-- 지난 반기는 모든 주차가 종료다. 다음 반기는 시드에 없고, BASE 출결 생성·ADV 팀 개설 때 API가 등록한다.
+INSERT INTO semester_weeks (cohort, week_id, status)
+SELECT 27, id, CASE WHEN week_num <= 2 THEN 'CLOSED' WHEN week_num = 3 THEN 'OPEN' ELSE 'UPCOMING' END FROM weeks
+UNION ALL
+SELECT c.cohort, w.id, 'CLOSED' FROM cohorts c CROSS JOIN weeks w WHERE c.cohort < 27;
+
+-- ── score_rules ────────────────────────────────────────
+INSERT INTO score_rules (id, version, term, name, start_date, end_date, status, activated_at, created_by, description,
+                         present_score, absent_penalty, unexcused_absent_penalty, late_penalty, early_leave_penalty,
+                         unexcused_late_penalty, study_fail_penalty, study_perfect_bonus, study_pass_bonus, study_leader_bonus) VALUES
+  ('rule-27', 3, 27, 'Version 3', '2026-07-01', NULL, 'ACTIVE', '2026-07-01', '27기 대표진',
+   '27기 하계 방학 세션 및 2학기 정규활동/스터디 출결 배점 규정', 0, -3, -4, -1, -1, -4, -5, 3, 1, 1),
+  ('rule-26', 2, 26, 'Version 2', '2026-01-01', '2026-06-30', 'INACTIVE', '2026-01-01', '26기 대표진',
+   '26기 동계 방학 및 1학기 출결 배점 규정 (과거 이력 보존)', 0, -3, -4, -1, -1, -4, -5, 3, 1, 1),
+  ('rule-25', 1, 25, 'Version 1', '2025-07-01', '2025-12-31', 'INACTIVE', '2025-07-01', '25기 대표진',
+   '25기 하계 방학 및 2학기 출결 배점 규정 (과거 이력 보존)', 0, -2, -3, -0.5, -0.5, -3, -4, 2, 1, 1);
+
+-- members: 로그인 계정과 분리된 기수별 동아리원 명단
+INSERT INTO members (id, user_id, term, track, name)
+SELECT 'member_' || id, id, term, track, name FROM users;
 
 -- ── teams ──────────────────────────────────────────────
 -- 멘멘 스터디: 'A조', 'B조'처럼 조 이름만 쓴다 (kind=MENTORING, 부문 track 필수, 팀원마다 멘멘/친바 두 줄 출결)
@@ -102,17 +141,17 @@ INSERT INTO teams (id, group_type, track, team_name, study_name, leader_id, sche
   ('study_d', 'STUDY', '분석', 'LLM Agent & RAG 스터디', 'LLM Agent & RAG 스터디', 'u_27_02', '매주 토요일 14:00', '학기', 'GENERAL', 'LangChain & LlamaIndex 기반 프로덕션 RAG', '2026-08-01'),
   ('study_e', 'STUDY', '엔지니어링', '쿠버네티스 스터디', '쿠버네티스 스터디', 'u_26_04', '매주 금요일 19:00', '방학', 'GENERAL', '컨테이너 오케스트레이션과 쿠버네티스 클러스터 운영 실습', '2026-08-01');
 
--- ADV 프로젝트 팀 (group_type=ADV)
+-- ADV 프로젝트 팀 (group_type=ADV). 팀장(leader_id)은 반드시 아래 team_members에 있는 그 팀의 팀원이어야 한다.
 INSERT INTO teams (id, group_type, track, team_name, study_name, leader_id, schedule, period, kind, description, created_at) VALUES
   ('adv_t1', 'ADV', '분석', '분석 1팀', 'LLM Agentic 워크플로우', 'u_27_02', '매주 화요일 19:00', '방학', 'GENERAL', 'LangGraph 기반 다중 에이전트 협업 시스템 구축', '2026-08-15'),
-  ('adv_t2', 'ADV', '분석', '분석 2팀', '시계열 예측 솔루션', 'u_28_01', '매주 수요일 19:00', '방학', 'GENERAL', '금융 및 이상탐지 시계열 파운데이션 모델링', '2026-08-15'),
+  ('adv_t2', 'ADV', '분석', '분석 2팀', '시계열 예측 솔루션', 'u_28_11', '매주 수요일 19:00', '방학', 'GENERAL', '금융 및 이상탐지 시계열 파운데이션 모델링', '2026-08-15'),
   ('adv_t3', 'ADV', '분석', '분석 3팀', '금융 FDS 이상거래 탐지 AI', 'u_27_05', '매주 목요일 19:00', '방학', 'GENERAL', '그래프 신경망 기반 금융 사기 및 이상 거래 실시간 탐지', '2026-08-15'),
   ('adv_t4', 'ADV', '시각화', '시각화 1팀', '인터랙티브 웹 시각화 대시보드', 'u_28_08', '매주 수요일 20:00', '방학', 'GENERAL', 'Next.js & D3.js 기반 엔터프라이즈 데이터 시각화', '2026-08-15'),
-  ('adv_t5', 'ADV', '시각화', '시각화 2팀', '지리공간 맵핑 & 인포그래픽', 'u_27_01', '매주 목요일 20:00', '방학', 'GENERAL', 'Mapbox & Deck.gl 기반 공간 데이터 시각화', '2026-08-15'),
-  ('adv_t6', 'ADV', '시각화', '시각화 3팀', '3D 바이오 메디컬 시각화', 'u_28_09', '매주 금요일 20:00', '방학', 'GENERAL', 'Three.js 기반 인체 장기 3D 렌더링 및 헬스케어 차트', '2026-08-15'),
+  ('adv_t5', 'ADV', '시각화', '시각화 2팀', '지리공간 맵핑 & 인포그래픽', 'u_27_06', '매주 목요일 20:00', '방학', 'GENERAL', 'Mapbox & Deck.gl 기반 공간 데이터 시각화', '2026-08-15'),
+  ('adv_t6', 'ADV', '시각화', '시각화 3팀', '3D 바이오 메디컬 시각화', 'u_28_19', '매주 금요일 20:00', '방학', 'GENERAL', 'Three.js 기반 인체 장기 3D 렌더링 및 헬스케어 차트', '2026-08-15'),
   ('adv_t7', 'ADV', '엔지니어링', '엔지 1팀', '실시간 분산 스트리밍 추천', 'u_28_04', '매주 목요일 19:30', '방학', 'GENERAL', 'Kafka & Redis 기반 초개인화 실시간 추천 엔진', '2026-08-15'),
-  ('adv_t8', 'ADV', '엔지니어링', '엔지 2팀', '멀티모달 헬스케어 AI 솔루션', 'u_28_05', '매주 금요일 19:30', '방학', 'GENERAL', '의료 영상 및 EMR 텍스트 통합 분석 솔루션', '2026-08-15'),
-  ('adv_t9', 'ADV', '엔지니어링', '엔지 3팀', '엔터프라이즈 RAG MLOps 파이프라인', 'u_28_07', '매주 토요일 14:00', '방학', 'GENERAL', 'vLLM 및 Ray 기반 고성능 분산 서빙 인프라 구축', '2026-08-15');
+  ('adv_t8', 'ADV', '엔지니어링', '엔지 2팀', '멀티모달 헬스케어 AI 솔루션', 'u_28_22', '매주 금요일 19:30', '방학', 'GENERAL', '의료 영상 및 EMR 텍스트 통합 분석 솔루션', '2026-08-15'),
+  ('adv_t9', 'ADV', '엔지니어링', '엔지 3팀', '엔터프라이즈 RAG MLOps 파이프라인', 'u_28_25', '매주 토요일 14:00', '방학', 'GENERAL', 'vLLM 및 Ray 기반 고성능 분산 서빙 인프라 구축', '2026-08-15');
 
 -- ── team_members ───────────────────────────────────────
 INSERT INTO team_members (id, team_id, user_id, sort_order) VALUES
@@ -217,127 +256,127 @@ INSERT INTO images (id, path, url, original_name, size_label) VALUES
   (68, 'images/study/sample-study-photo.jpg', NULL, '쿠버네티스 스터디_2주차_활동인증.jpg', '2.4 MB');
 
 -- ── attendance_sessions ────────────────────────────────
-INSERT INTO attendance_sessions (team_id, week_id, submitted, submitted_at, confirmed_by_admin, image_id) VALUES
-  ('study_a', 'w1', 1, '2026-08-04 21:15', 1, 1),
-  ('study_b', 'w1', 1, '2026-08-04 21:15', 1, 2),
-  ('study_c', 'w1', 1, '2026-08-04 21:15', 1, 3),
-  ('study_d', 'w1', 1, '2026-08-04 21:15', 1, 4),
-  ('adv_t1', 'w1', 1, '2026-08-04 21:15', 1, 5),
-  ('adv_t2', 'w1', 1, '2026-08-04 21:15', 1, 6),
-  ('adv_t3', 'w1', 1, '2026-08-04 21:15', 1, 7),
-  ('adv_t4', 'w1', 1, '2026-08-04 21:15', 1, 8),
-  ('adv_t5', 'w1', 1, '2026-08-04 21:15', 1, 9),
-  ('adv_t6', 'w1', 1, '2026-08-04 21:15', 1, 10),
-  ('adv_t7', 'w1', 1, '2026-08-04 21:15', 1, 11),
-  ('adv_t8', 'w1', 1, '2026-08-04 21:15', 1, 12),
-  ('adv_t9', 'w1', 1, '2026-08-04 21:15', 1, 13),
-  ('study_a', 'w2', 1, '2026-08-11 20:47', 1, 14),
-  ('study_b', 'w2', 1, '2026-08-11 20:47', 1, 15),
-  ('study_c', 'w2', 1, '2026-08-11 20:47', 1, 16),
-  ('study_d', 'w2', 1, '2026-08-11 20:47', 1, 17),
-  ('adv_t1', 'w2', 1, '2026-08-11 20:47', 1, 18),
-  ('adv_t2', 'w2', 1, '2026-08-11 20:47', 1, 19),
-  ('adv_t3', 'w2', 1, '2026-08-11 20:47', 1, 20),
-  ('adv_t4', 'w2', 1, '2026-08-11 20:47', 1, 21),
-  ('adv_t5', 'w2', 1, '2026-08-11 20:47', 1, 22),
-  ('adv_t6', 'w2', 1, '2026-08-11 20:47', 1, 23),
-  ('adv_t7', 'w2', 1, '2026-08-11 20:47', 1, 24),
-  ('adv_t8', 'w2', 1, '2026-08-11 20:47', 1, 25),
-  ('adv_t9', 'w2', 1, '2026-08-11 20:47', 1, 26),
-  ('study_a', 'w3', 1, '2026-08-18 19:32', 0, 27),
-  ('study_b', 'w3', 1, '2026-08-18 19:32', 0, 28),
-  ('study_c', 'w3', 0, NULL, 0, NULL),
-  ('study_d', 'w3', 1, '2026-08-18 19:32', 0, 29),
-  ('adv_t1', 'w3', 1, '2026-08-18 19:32', 0, 30),
-  ('adv_t2', 'w3', 0, NULL, 0, NULL),
-  ('adv_t3', 'w3', 0, NULL, 0, NULL),
-  ('adv_t4', 'w3', 1, '2026-08-18 19:32', 0, 31),
-  ('adv_t5', 'w3', 0, NULL, 0, NULL),
-  ('adv_t6', 'w3', 0, NULL, 0, NULL),
-  ('adv_t7', 'w3', 1, '2026-08-18 19:32', 0, 32),
-  ('adv_t8', 'w3', 0, NULL, 0, NULL),
-  ('adv_t9', 'w3', 0, NULL, 0, NULL),
-  ('study_a', 'w4', 0, NULL, 0, NULL),
-  ('study_b', 'w4', 0, NULL, 0, NULL),
-  ('study_c', 'w4', 0, NULL, 0, NULL),
-  ('study_d', 'w4', 0, NULL, 0, NULL),
-  ('adv_t1', 'w4', 0, NULL, 0, NULL),
-  ('adv_t2', 'w4', 0, NULL, 0, NULL),
-  ('adv_t3', 'w4', 0, NULL, 0, NULL),
-  ('adv_t4', 'w4', 0, NULL, 0, NULL),
-  ('adv_t5', 'w4', 0, NULL, 0, NULL),
-  ('adv_t6', 'w4', 0, NULL, 0, NULL),
-  ('adv_t7', 'w4', 0, NULL, 0, NULL),
-  ('adv_t8', 'w4', 0, NULL, 0, NULL),
-  ('adv_t9', 'w4', 0, NULL, 0, NULL),
-  ('study_a', 'w5', 0, NULL, 0, NULL),
-  ('study_b', 'w5', 0, NULL, 0, NULL),
-  ('study_c', 'w5', 0, NULL, 0, NULL),
-  ('study_d', 'w5', 0, NULL, 0, NULL),
-  ('adv_t1', 'w5', 0, NULL, 0, NULL),
-  ('adv_t2', 'w5', 0, NULL, 0, NULL),
-  ('adv_t3', 'w5', 0, NULL, 0, NULL),
-  ('adv_t4', 'w5', 0, NULL, 0, NULL),
-  ('adv_t5', 'w5', 0, NULL, 0, NULL),
-  ('adv_t6', 'w5', 0, NULL, 0, NULL),
-  ('adv_t7', 'w5', 0, NULL, 0, NULL),
-  ('adv_t8', 'w5', 0, NULL, 0, NULL),
-  ('adv_t9', 'w5', 0, NULL, 0, NULL),
-  ('study_a', 'w6', 0, NULL, 0, NULL),
-  ('study_b', 'w6', 0, NULL, 0, NULL),
-  ('study_c', 'w6', 0, NULL, 0, NULL),
-  ('study_d', 'w6', 0, NULL, 0, NULL),
-  ('adv_t1', 'w6', 0, NULL, 0, NULL),
-  ('adv_t2', 'w6', 0, NULL, 0, NULL),
-  ('adv_t3', 'w6', 0, NULL, 0, NULL),
-  ('adv_t4', 'w6', 0, NULL, 0, NULL),
-  ('adv_t5', 'w6', 0, NULL, 0, NULL),
-  ('adv_t6', 'w6', 0, NULL, 0, NULL),
-  ('adv_t7', 'w6', 0, NULL, 0, NULL),
-  ('adv_t8', 'w6', 0, NULL, 0, NULL),
-  ('adv_t9', 'w6', 0, NULL, 0, NULL),
-  ('study_a', 'w7', 0, NULL, 0, NULL),
-  ('study_b', 'w7', 0, NULL, 0, NULL),
-  ('study_c', 'w7', 0, NULL, 0, NULL),
-  ('study_d', 'w7', 0, NULL, 0, NULL),
-  ('adv_t1', 'w7', 0, NULL, 0, NULL),
-  ('adv_t2', 'w7', 0, NULL, 0, NULL),
-  ('adv_t3', 'w7', 0, NULL, 0, NULL),
-  ('adv_t4', 'w7', 0, NULL, 0, NULL),
-  ('adv_t5', 'w7', 0, NULL, 0, NULL),
-  ('adv_t6', 'w7', 0, NULL, 0, NULL),
-  ('adv_t7', 'w7', 0, NULL, 0, NULL),
-  ('adv_t8', 'w7', 0, NULL, 0, NULL),
-  ('adv_t9', 'w7', 0, NULL, 0, NULL),
-  ('study_a', 'w8', 0, NULL, 0, NULL),
-  ('study_b', 'w8', 0, NULL, 0, NULL),
-  ('study_c', 'w8', 0, NULL, 0, NULL),
-  ('study_d', 'w8', 0, NULL, 0, NULL),
-  ('adv_t1', 'w8', 0, NULL, 0, NULL),
-  ('adv_t2', 'w8', 0, NULL, 0, NULL),
-  ('adv_t3', 'w8', 0, NULL, 0, NULL),
-  ('adv_t4', 'w8', 0, NULL, 0, NULL),
-  ('adv_t5', 'w8', 0, NULL, 0, NULL),
-  ('adv_t6', 'w8', 0, NULL, 0, NULL),
-  ('adv_t7', 'w8', 0, NULL, 0, NULL),
-  ('adv_t8', 'w8', 0, NULL, 0, NULL),
-  ('adv_t9', 'w8', 0, NULL, 0, NULL),
-  ('study_m2', 'w1', 1, '2026-08-04 21:30', 1, 65),
-  ('study_m2', 'w2', 1, '2026-08-11 20:50', 1, 66),
-  ('study_m2', 'w3', 0, NULL, 0, NULL),
-  ('study_m2', 'w4', 0, NULL, 0, NULL),
-  ('study_m2', 'w5', 0, NULL, 0, NULL),
-  ('study_m2', 'w6', 0, NULL, 0, NULL),
-  ('study_m2', 'w7', 0, NULL, 0, NULL),
-  ('study_m2', 'w8', 0, NULL, 0, NULL),
-  ('study_e', 'w1', 1, '2026-08-07 20:10', 1, 67),
-  ('study_e', 'w2', 1, '2026-08-14 19:55', 1, 68),
-  ('study_e', 'w3', 0, NULL, 0, NULL),
-  ('study_e', 'w4', 0, NULL, 0, NULL),
-  ('study_e', 'w5', 0, NULL, 0, NULL),
-  ('study_e', 'w6', 0, NULL, 0, NULL),
-  ('study_e', 'w7', 0, NULL, 0, NULL),
-  ('study_e', 'w8', 0, NULL, 0, NULL);
+INSERT INTO attendance_sessions (team_id, week_id, submitted, submitted_at, image_id) VALUES
+  ('study_a', 'w1', 1, '2026-08-04 21:15', 1),
+  ('study_b', 'w1', 1, '2026-08-04 21:15', 2),
+  ('study_c', 'w1', 1, '2026-08-04 21:15', 3),
+  ('study_d', 'w1', 1, '2026-08-04 21:15', 4),
+  ('adv_t1', 'w1', 1, '2026-08-04 21:15', 5),
+  ('adv_t2', 'w1', 1, '2026-08-04 21:15', 6),
+  ('adv_t3', 'w1', 1, '2026-08-04 21:15', 7),
+  ('adv_t4', 'w1', 1, '2026-08-04 21:15', 8),
+  ('adv_t5', 'w1', 1, '2026-08-04 21:15', 9),
+  ('adv_t6', 'w1', 1, '2026-08-04 21:15', 10),
+  ('adv_t7', 'w1', 1, '2026-08-04 21:15', 11),
+  ('adv_t8', 'w1', 1, '2026-08-04 21:15', 12),
+  ('adv_t9', 'w1', 1, '2026-08-04 21:15', 13),
+  ('study_a', 'w2', 1, '2026-08-11 20:47', 14),
+  ('study_b', 'w2', 1, '2026-08-11 20:47', 15),
+  ('study_c', 'w2', 1, '2026-08-11 20:47', 16),
+  ('study_d', 'w2', 1, '2026-08-11 20:47', 17),
+  ('adv_t1', 'w2', 1, '2026-08-11 20:47', 18),
+  ('adv_t2', 'w2', 1, '2026-08-11 20:47', 19),
+  ('adv_t3', 'w2', 1, '2026-08-11 20:47', 20),
+  ('adv_t4', 'w2', 1, '2026-08-11 20:47', 21),
+  ('adv_t5', 'w2', 1, '2026-08-11 20:47', 22),
+  ('adv_t6', 'w2', 1, '2026-08-11 20:47', 23),
+  ('adv_t7', 'w2', 1, '2026-08-11 20:47', 24),
+  ('adv_t8', 'w2', 1, '2026-08-11 20:47', 25),
+  ('adv_t9', 'w2', 1, '2026-08-11 20:47', 26),
+  ('study_a', 'w3', 1, '2026-08-18 19:32', 27),
+  ('study_b', 'w3', 1, '2026-08-18 19:32', 28),
+  ('study_c', 'w3', 0, NULL, NULL),
+  ('study_d', 'w3', 1, '2026-08-18 19:32', 29),
+  ('adv_t1', 'w3', 1, '2026-08-18 19:32', 30),
+  ('adv_t2', 'w3', 0, NULL, NULL),
+  ('adv_t3', 'w3', 0, NULL, NULL),
+  ('adv_t4', 'w3', 1, '2026-08-18 19:32', 31),
+  ('adv_t5', 'w3', 0, NULL, NULL),
+  ('adv_t6', 'w3', 0, NULL, NULL),
+  ('adv_t7', 'w3', 1, '2026-08-18 19:32', 32),
+  ('adv_t8', 'w3', 0, NULL, NULL),
+  ('adv_t9', 'w3', 0, NULL, NULL),
+  ('study_a', 'w4', 0, NULL, NULL),
+  ('study_b', 'w4', 0, NULL, NULL),
+  ('study_c', 'w4', 0, NULL, NULL),
+  ('study_d', 'w4', 0, NULL, NULL),
+  ('adv_t1', 'w4', 0, NULL, NULL),
+  ('adv_t2', 'w4', 0, NULL, NULL),
+  ('adv_t3', 'w4', 0, NULL, NULL),
+  ('adv_t4', 'w4', 0, NULL, NULL),
+  ('adv_t5', 'w4', 0, NULL, NULL),
+  ('adv_t6', 'w4', 0, NULL, NULL),
+  ('adv_t7', 'w4', 0, NULL, NULL),
+  ('adv_t8', 'w4', 0, NULL, NULL),
+  ('adv_t9', 'w4', 0, NULL, NULL),
+  ('study_a', 'w5', 0, NULL, NULL),
+  ('study_b', 'w5', 0, NULL, NULL),
+  ('study_c', 'w5', 0, NULL, NULL),
+  ('study_d', 'w5', 0, NULL, NULL),
+  ('adv_t1', 'w5', 0, NULL, NULL),
+  ('adv_t2', 'w5', 0, NULL, NULL),
+  ('adv_t3', 'w5', 0, NULL, NULL),
+  ('adv_t4', 'w5', 0, NULL, NULL),
+  ('adv_t5', 'w5', 0, NULL, NULL),
+  ('adv_t6', 'w5', 0, NULL, NULL),
+  ('adv_t7', 'w5', 0, NULL, NULL),
+  ('adv_t8', 'w5', 0, NULL, NULL),
+  ('adv_t9', 'w5', 0, NULL, NULL),
+  ('study_a', 'w6', 0, NULL, NULL),
+  ('study_b', 'w6', 0, NULL, NULL),
+  ('study_c', 'w6', 0, NULL, NULL),
+  ('study_d', 'w6', 0, NULL, NULL),
+  ('adv_t1', 'w6', 0, NULL, NULL),
+  ('adv_t2', 'w6', 0, NULL, NULL),
+  ('adv_t3', 'w6', 0, NULL, NULL),
+  ('adv_t4', 'w6', 0, NULL, NULL),
+  ('adv_t5', 'w6', 0, NULL, NULL),
+  ('adv_t6', 'w6', 0, NULL, NULL),
+  ('adv_t7', 'w6', 0, NULL, NULL),
+  ('adv_t8', 'w6', 0, NULL, NULL),
+  ('adv_t9', 'w6', 0, NULL, NULL),
+  ('study_a', 'w7', 0, NULL, NULL),
+  ('study_b', 'w7', 0, NULL, NULL),
+  ('study_c', 'w7', 0, NULL, NULL),
+  ('study_d', 'w7', 0, NULL, NULL),
+  ('adv_t1', 'w7', 0, NULL, NULL),
+  ('adv_t2', 'w7', 0, NULL, NULL),
+  ('adv_t3', 'w7', 0, NULL, NULL),
+  ('adv_t4', 'w7', 0, NULL, NULL),
+  ('adv_t5', 'w7', 0, NULL, NULL),
+  ('adv_t6', 'w7', 0, NULL, NULL),
+  ('adv_t7', 'w7', 0, NULL, NULL),
+  ('adv_t8', 'w7', 0, NULL, NULL),
+  ('adv_t9', 'w7', 0, NULL, NULL),
+  ('study_a', 'w8', 0, NULL, NULL),
+  ('study_b', 'w8', 0, NULL, NULL),
+  ('study_c', 'w8', 0, NULL, NULL),
+  ('study_d', 'w8', 0, NULL, NULL),
+  ('adv_t1', 'w8', 0, NULL, NULL),
+  ('adv_t2', 'w8', 0, NULL, NULL),
+  ('adv_t3', 'w8', 0, NULL, NULL),
+  ('adv_t4', 'w8', 0, NULL, NULL),
+  ('adv_t5', 'w8', 0, NULL, NULL),
+  ('adv_t6', 'w8', 0, NULL, NULL),
+  ('adv_t7', 'w8', 0, NULL, NULL),
+  ('adv_t8', 'w8', 0, NULL, NULL),
+  ('adv_t9', 'w8', 0, NULL, NULL),
+  ('study_m2', 'w1', 1, '2026-08-04 21:30', 65),
+  ('study_m2', 'w2', 1, '2026-08-11 20:50', 66),
+  ('study_m2', 'w3', 0, NULL, NULL),
+  ('study_m2', 'w4', 0, NULL, NULL),
+  ('study_m2', 'w5', 0, NULL, NULL),
+  ('study_m2', 'w6', 0, NULL, NULL),
+  ('study_m2', 'w7', 0, NULL, NULL),
+  ('study_m2', 'w8', 0, NULL, NULL),
+  ('study_e', 'w1', 1, '2026-08-07 20:10', 67),
+  ('study_e', 'w2', 1, '2026-08-14 19:55', 68),
+  ('study_e', 'w3', 0, NULL, NULL),
+  ('study_e', 'w4', 0, NULL, NULL),
+  ('study_e', 'w5', 0, NULL, NULL),
+  ('study_e', 'w6', 0, NULL, NULL),
+  ('study_e', 'w7', 0, NULL, NULL),
+  ('study_e', 'w8', 0, NULL, NULL);
 
 -- ── attendance_records ─────────────────────────────────
 INSERT INTO attendance_records (team_id, week_id, member_id, sub_type, status, memo) VALUES
@@ -985,31 +1024,31 @@ INSERT INTO team_members (id, team_id, user_id, sort_order) VALUES
   ('y26c2', 'study_26c', 'u_25_03', 1),
   ('y26c3', 'study_26c', 'u_25_04', 2);
 
-INSERT INTO attendance_sessions (team_id, week_id, submitted, submitted_at, confirmed_by_admin, image_id) VALUES
-  ('study_26a', 'w1', 1, '2025-07-08 20:11', 1, NULL),
-  ('study_26a', 'w2', 1, '2025-07-15 20:12', 1, NULL),
-  ('study_26a', 'w3', 1, '2025-07-22 20:13', 1, NULL),
-  ('study_26a', 'w4', 1, '2025-07-29 20:14', 1, NULL),
-  ('study_26a', 'w5', 1, '2025-08-08 20:15', 1, NULL),
-  ('study_26a', 'w6', 1, '2025-08-15 20:16', 1, NULL),
-  ('study_26a', 'w7', 1, '2025-08-22 20:17', 1, NULL),
-  ('study_26a', 'w8', 1, '2025-08-29 20:18', 1, NULL),
-  ('study_26b', 'w1', 1, '2025-07-09 20:18', 1, NULL),
-  ('study_26b', 'w2', 1, '2025-07-16 20:19', 1, NULL),
-  ('study_26b', 'w3', 1, '2025-07-23 20:20', 1, NULL),
-  ('study_26b', 'w4', 1, '2025-07-30 20:21', 1, NULL),
-  ('study_26b', 'w5', 1, '2025-08-09 20:22', 1, NULL),
-  ('study_26b', 'w6', 1, '2025-08-16 20:23', 1, NULL),
-  ('study_26b', 'w7', 1, '2025-08-23 20:24', 1, NULL),
-  ('study_26b', 'w8', 1, '2025-08-30 20:25', 1, NULL),
-  ('study_26c', 'w1', 1, '2025-07-10 20:25', 1, NULL),
-  ('study_26c', 'w2', 1, '2025-07-17 20:26', 1, NULL),
-  ('study_26c', 'w3', 1, '2025-07-24 20:27', 1, NULL),
-  ('study_26c', 'w4', 1, '2025-07-31 20:28', 1, NULL),
-  ('study_26c', 'w5', 1, '2025-08-10 20:29', 1, NULL),
-  ('study_26c', 'w6', 1, '2025-08-17 20:30', 1, NULL),
-  ('study_26c', 'w7', 1, '2025-08-24 20:31', 1, NULL),
-  ('study_26c', 'w8', 1, '2025-08-31 20:32', 1, NULL);
+INSERT INTO attendance_sessions (team_id, week_id, submitted, submitted_at, image_id) VALUES
+  ('study_26a', 'w1', 1, '2025-07-08 20:11', NULL),
+  ('study_26a', 'w2', 1, '2025-07-15 20:12', NULL),
+  ('study_26a', 'w3', 1, '2025-07-22 20:13', NULL),
+  ('study_26a', 'w4', 1, '2025-07-29 20:14', NULL),
+  ('study_26a', 'w5', 1, '2025-08-08 20:15', NULL),
+  ('study_26a', 'w6', 1, '2025-08-15 20:16', NULL),
+  ('study_26a', 'w7', 1, '2025-08-22 20:17', NULL),
+  ('study_26a', 'w8', 1, '2025-08-29 20:18', NULL),
+  ('study_26b', 'w1', 1, '2025-07-09 20:18', NULL),
+  ('study_26b', 'w2', 1, '2025-07-16 20:19', NULL),
+  ('study_26b', 'w3', 1, '2025-07-23 20:20', NULL),
+  ('study_26b', 'w4', 1, '2025-07-30 20:21', NULL),
+  ('study_26b', 'w5', 1, '2025-08-09 20:22', NULL),
+  ('study_26b', 'w6', 1, '2025-08-16 20:23', NULL),
+  ('study_26b', 'w7', 1, '2025-08-23 20:24', NULL),
+  ('study_26b', 'w8', 1, '2025-08-30 20:25', NULL),
+  ('study_26c', 'w1', 1, '2025-07-10 20:25', NULL),
+  ('study_26c', 'w2', 1, '2025-07-17 20:26', NULL),
+  ('study_26c', 'w3', 1, '2025-07-24 20:27', NULL),
+  ('study_26c', 'w4', 1, '2025-07-31 20:28', NULL),
+  ('study_26c', 'w5', 1, '2025-08-10 20:29', NULL),
+  ('study_26c', 'w6', 1, '2025-08-17 20:30', NULL),
+  ('study_26c', 'w7', 1, '2025-08-24 20:31', NULL),
+  ('study_26c', 'w8', 1, '2025-08-31 20:32', NULL);
 
 INSERT INTO attendance_records (team_id, week_id, member_id, sub_type, status, memo) VALUES
   ('study_26a', 'w1', 'y26a1', '멘멘', 'present', NULL),
@@ -1170,55 +1209,55 @@ INSERT INTO team_members (id, team_id, user_id, sort_order) VALUES
   ('base_26_eng_u_25_05', 'base_26_eng', 'u_25_05', 1),
   ('base_26_eng_u_25_06', 'base_26_eng', 'u_25_06', 2);
 
-INSERT INTO attendance_sessions (team_id, week_id, submitted, submitted_at, confirmed_by_admin, image_id) VALUES
-  ('base_27_analysis', 'w1', 1, '2026-07-08 19:30', 1, NULL),
-  ('base_27_analysis', 'w2', 1, '2026-07-15 19:30', 1, NULL),
-  ('base_27_analysis', 'w3', 0, NULL, 0, NULL),
-  ('base_27_analysis', 'w4', 0, NULL, 0, NULL),
-  ('base_27_analysis', 'w5', 0, NULL, 0, NULL),
-  ('base_27_analysis', 'w6', 0, NULL, 0, NULL),
-  ('base_27_analysis', 'w7', 0, NULL, 0, NULL),
-  ('base_27_analysis', 'w8', 0, NULL, 0, NULL),
-  ('base_27_vis', 'w1', 1, '2026-07-08 19:30', 1, NULL),
-  ('base_27_vis', 'w2', 1, '2026-07-15 19:30', 1, NULL),
-  ('base_27_vis', 'w3', 0, NULL, 0, NULL),
-  ('base_27_vis', 'w4', 0, NULL, 0, NULL),
-  ('base_27_vis', 'w5', 0, NULL, 0, NULL),
-  ('base_27_vis', 'w6', 0, NULL, 0, NULL),
-  ('base_27_vis', 'w7', 0, NULL, 0, NULL),
-  ('base_27_vis', 'w8', 0, NULL, 0, NULL),
-  ('base_27_eng', 'w1', 1, '2026-07-08 19:30', 1, NULL),
-  ('base_27_eng', 'w2', 1, '2026-07-15 19:30', 1, NULL),
-  ('base_27_eng', 'w3', 0, NULL, 0, NULL),
-  ('base_27_eng', 'w4', 0, NULL, 0, NULL),
-  ('base_27_eng', 'w5', 0, NULL, 0, NULL),
-  ('base_27_eng', 'w6', 0, NULL, 0, NULL),
-  ('base_27_eng', 'w7', 0, NULL, 0, NULL),
-  ('base_27_eng', 'w8', 0, NULL, 0, NULL),
-  ('base_26_analysis', 'w1', 1, '2025-07-08 19:30', 1, NULL),
-  ('base_26_analysis', 'w2', 1, '2025-07-15 19:30', 1, NULL),
-  ('base_26_analysis', 'w3', 1, '2025-07-22 19:30', 1, NULL),
-  ('base_26_analysis', 'w4', 1, '2025-07-29 19:30', 1, NULL),
-  ('base_26_analysis', 'w5', 1, '2025-08-08 19:30', 1, NULL),
-  ('base_26_analysis', 'w6', 1, '2025-08-15 19:30', 1, NULL),
-  ('base_26_analysis', 'w7', 1, '2025-08-22 19:30', 1, NULL),
-  ('base_26_analysis', 'w8', 1, '2025-08-29 19:30', 1, NULL),
-  ('base_26_vis', 'w1', 1, '2025-07-08 19:30', 1, NULL),
-  ('base_26_vis', 'w2', 1, '2025-07-15 19:30', 1, NULL),
-  ('base_26_vis', 'w3', 1, '2025-07-22 19:30', 1, NULL),
-  ('base_26_vis', 'w4', 1, '2025-07-29 19:30', 1, NULL),
-  ('base_26_vis', 'w5', 1, '2025-08-08 19:30', 1, NULL),
-  ('base_26_vis', 'w6', 1, '2025-08-15 19:30', 1, NULL),
-  ('base_26_vis', 'w7', 1, '2025-08-22 19:30', 1, NULL),
-  ('base_26_vis', 'w8', 1, '2025-08-29 19:30', 1, NULL),
-  ('base_26_eng', 'w1', 1, '2025-07-08 19:30', 1, NULL),
-  ('base_26_eng', 'w2', 1, '2025-07-15 19:30', 1, NULL),
-  ('base_26_eng', 'w3', 1, '2025-07-22 19:30', 1, NULL),
-  ('base_26_eng', 'w4', 1, '2025-07-29 19:30', 1, NULL),
-  ('base_26_eng', 'w5', 1, '2025-08-08 19:30', 1, NULL),
-  ('base_26_eng', 'w6', 1, '2025-08-15 19:30', 1, NULL),
-  ('base_26_eng', 'w7', 1, '2025-08-22 19:30', 1, NULL),
-  ('base_26_eng', 'w8', 1, '2025-08-29 19:30', 1, NULL);
+INSERT INTO attendance_sessions (team_id, week_id, submitted, submitted_at, image_id) VALUES
+  ('base_27_analysis', 'w1', 1, '2026-07-08 19:30', NULL),
+  ('base_27_analysis', 'w2', 1, '2026-07-15 19:30', NULL),
+  ('base_27_analysis', 'w3', 0, NULL, NULL),
+  ('base_27_analysis', 'w4', 0, NULL, NULL),
+  ('base_27_analysis', 'w5', 0, NULL, NULL),
+  ('base_27_analysis', 'w6', 0, NULL, NULL),
+  ('base_27_analysis', 'w7', 0, NULL, NULL),
+  ('base_27_analysis', 'w8', 0, NULL, NULL),
+  ('base_27_vis', 'w1', 1, '2026-07-08 19:30', NULL),
+  ('base_27_vis', 'w2', 1, '2026-07-15 19:30', NULL),
+  ('base_27_vis', 'w3', 0, NULL, NULL),
+  ('base_27_vis', 'w4', 0, NULL, NULL),
+  ('base_27_vis', 'w5', 0, NULL, NULL),
+  ('base_27_vis', 'w6', 0, NULL, NULL),
+  ('base_27_vis', 'w7', 0, NULL, NULL),
+  ('base_27_vis', 'w8', 0, NULL, NULL),
+  ('base_27_eng', 'w1', 1, '2026-07-08 19:30', NULL),
+  ('base_27_eng', 'w2', 1, '2026-07-15 19:30', NULL),
+  ('base_27_eng', 'w3', 0, NULL, NULL),
+  ('base_27_eng', 'w4', 0, NULL, NULL),
+  ('base_27_eng', 'w5', 0, NULL, NULL),
+  ('base_27_eng', 'w6', 0, NULL, NULL),
+  ('base_27_eng', 'w7', 0, NULL, NULL),
+  ('base_27_eng', 'w8', 0, NULL, NULL),
+  ('base_26_analysis', 'w1', 1, '2025-07-08 19:30', NULL),
+  ('base_26_analysis', 'w2', 1, '2025-07-15 19:30', NULL),
+  ('base_26_analysis', 'w3', 1, '2025-07-22 19:30', NULL),
+  ('base_26_analysis', 'w4', 1, '2025-07-29 19:30', NULL),
+  ('base_26_analysis', 'w5', 1, '2025-08-08 19:30', NULL),
+  ('base_26_analysis', 'w6', 1, '2025-08-15 19:30', NULL),
+  ('base_26_analysis', 'w7', 1, '2025-08-22 19:30', NULL),
+  ('base_26_analysis', 'w8', 1, '2025-08-29 19:30', NULL),
+  ('base_26_vis', 'w1', 1, '2025-07-08 19:30', NULL),
+  ('base_26_vis', 'w2', 1, '2025-07-15 19:30', NULL),
+  ('base_26_vis', 'w3', 1, '2025-07-22 19:30', NULL),
+  ('base_26_vis', 'w4', 1, '2025-07-29 19:30', NULL),
+  ('base_26_vis', 'w5', 1, '2025-08-08 19:30', NULL),
+  ('base_26_vis', 'w6', 1, '2025-08-15 19:30', NULL),
+  ('base_26_vis', 'w7', 1, '2025-08-22 19:30', NULL),
+  ('base_26_vis', 'w8', 1, '2025-08-29 19:30', NULL),
+  ('base_26_eng', 'w1', 1, '2025-07-08 19:30', NULL),
+  ('base_26_eng', 'w2', 1, '2025-07-15 19:30', NULL),
+  ('base_26_eng', 'w3', 1, '2025-07-22 19:30', NULL),
+  ('base_26_eng', 'w4', 1, '2025-07-29 19:30', NULL),
+  ('base_26_eng', 'w5', 1, '2025-08-08 19:30', NULL),
+  ('base_26_eng', 'w6', 1, '2025-08-15 19:30', NULL),
+  ('base_26_eng', 'w7', 1, '2025-08-22 19:30', NULL),
+  ('base_26_eng', 'w8', 1, '2025-08-29 19:30', NULL);
 
 INSERT INTO attendance_records (team_id, week_id, member_id, sub_type, status, memo) VALUES
   ('base_27_analysis', 'w1', 'base_27_analysis_u_28_01', '', 'present', NULL),
@@ -1455,68 +1494,36 @@ UPDATE teams SET cohort = 26 WHERE group_type = 'ADV';
 -- ── ADV 3주차(진행 중)는 아직 제출 전이다 ─────────────────────────
 -- 1~3주차 출결은 ADV 출결 관리 탭에서 입력·제출한다. 3주차는 입력만 해 두었고 제출은 아직이다.
 UPDATE attendance_sessions
-   SET submitted = 0, submitted_at = NULL, confirmed_by_admin = 0
+   SET submitted = 0, submitted_at = NULL
  WHERE week_id = 'w3' AND team_id IN (SELECT id FROM teams WHERE group_type = 'ADV');
 
--- ─────────────────────────── 행사 출결 (mock 데이터) ───────────────────────────
+-- ─────────────────────────── 반기별 출결 회원 명단 ───────────────────────────
+-- 기존 시드 팀도 반기를 직접 가리키게 정규화한다. ADV의 cohort는 회원 기수라 adv_term으로 변환한다.
+UPDATE teams
+   SET semester_cohort = CASE
+     WHEN group_type = 'ADV' THEN COALESCE(
+       (SELECT c.cohort FROM cohorts c WHERE c.adv_term = teams.cohort),
+       (SELECT cohort FROM cohorts WHERE is_current = 1)
+     )
+     ELSE cohort
+   END;
 
-INSERT INTO event_templates (id, title, description, allow_external, default_checkin_method, created_at) VALUES
-  ('tmpl_conf', '빅데이터 컨퍼런스 (빅콘) 표준 양식', '외부 참가자 대규모 출석 확인 및 소속/기념품 수령 여부 체크 양식', 1, 'QR_CODE', '2026-08-01'),
-  ('tmpl_hack', '무박 해커톤 / 데이터톤 전용 양식', '팀별 배정 현황 확인 및 체크인 코드 인증 양식', 0, 'CODE', '2026-08-05'),
-  ('tmpl_session', '정기 세션 & 특강 출석 양식', '정규 부원 과제 제출 여부 확인 및 출결 집계 양식', 0, 'QR_CODE', '2026-08-10');
-
-INSERT INTO events (id, title, status, event_date, start_time, end_time, location, description, allow_external,
-                    checkin_method, checkin_code, status_column_index, target_terms, target_tracks,
-                    total_target_count, internal_attended_count, external_attended_count, created_at) VALUES
-  ('evt_hack_01', '2026 하계 LLM & Agentic AI 해커톤', 'IN_PROGRESS', '2026-08-15', '09:00', '21:00', '강남 드림플러스 메인홀', '28기 정회원 및 산학 연계 협력사 멘토와 함께하는 무박 해커톤', 0,
-   'CODE', '9055', NULL, '[27,28]', '["ANALYSIS","ENGINEERING","VISUALIZATION"]',
-   52, 6, 0, '2026-08-15'),
-  ('evt_conf_28', 'BOAZ 제28기 Big Data Conference (빅콘)', 'IN_PROGRESS', '2026-08-08', '13:00', '18:30', '서울대학교 글로벌공학센터 다목적홀 / YouTube Live', 'BOAZ 28기 부원들의 프로젝트 성과 발표 및 외부 IT 기업 데이터 현직자 초청 컨퍼런스', 1,
-   'QR_CODE', '8220', NULL, '[27,28]', '["ANALYSIS","ENGINEERING","VISUALIZATION"]',
-   75, 5, 4, '2026-08-08'),
-  ('evt_session_03', '제28기 3주차 정기 세션 (MLOps 특강)', 'FINISHED', '2026-08-01', '14:00', '17:00', '연세대학교 백양관 101호', '현업 MLOps 아키텍처 실무 강의 및 트랙별 진행 상황 공유', 0,
-   'QR_CODE', '8150', NULL, '[27,28]', '["ANALYSIS","ENGINEERING","VISUALIZATION"]',
-   52, 6, 0, '2026-08-01');
-
-INSERT INTO event_attendees (id, event_id, position, is_external, name, affiliation, term, email, phone, status,
-                             checked_in_at, memo, custom_answers) VALUES
-  ('att_h1', 'evt_hack_01', 0, 0, '김서하', '28기 분석', 28, 'seoha.k@yonsei.ac.kr', '010-5519-8821', 'present', '08:45', NULL, '{"배정 팀명":"1조 RAG마스터","f4":"1조 RAG마스터"}'),
-  ('att_h2', 'evt_hack_01', 1, 0, '이민준', '28기 분석', 28, 'minjun.l@snu.ac.kr', '010-3811-9021', 'present', '08:50', NULL, '{"배정 팀명":"1조 RAG마스터","f4":"1조 RAG마스터"}'),
-  ('att_h3', 'evt_hack_01', 2, 0, '이도현', '28기 엔지니어링', 28, 'dohyun.l@snu.ac.kr', '010-3819-2910', 'present', '08:40', NULL, '{"배정 팀명":"2조 에이전트","f4":"2조 에이전트"}'),
-  ('att_h4', 'evt_hack_01', 3, 0, '박성훈', '28기 엔지니어링', 28, 'sunghoon.p@naver.com', '010-9182-4122', 'late', '09:15', NULL, '{"배정 팀명":"2조 에이전트","f4":"2조 에이전트"}'),
-  ('att_h5', 'evt_hack_01', 4, 0, '최민혁', '28기 시각화', 28, 'minhyuk.c@yonsei.ac.kr', '010-5512-7019', 'present', '08:55', NULL, '{"배정 팀명":"3조 대시보드","f4":"3조 대시보드"}'),
-  ('att_h6', 'evt_hack_01', 5, 0, '한예린', '28기 시각화', 28, 'yerin.h@ewha.ac.kr', '010-6629-3810', 'present', '08:35', NULL, '{"배정 팀명":"3조 대시보드","f4":"3조 대시보드"}'),
-  ('att_h7', 'evt_hack_01', 6, 0, '정채원', '28기 분석', 28, 'chaewon.j@hanyang.ac.kr', '010-9920-1182', 'unmarked', '-', NULL, '{"배정 팀명":"4조 파이프라인","f4":"4조 파이프라인"}'),
-  ('att_h8', 'evt_hack_01', 7, 0, '오승현', '28기 분석', 28, 'seunghyun.o@sogang.ac.kr', '010-3378-4912', 'absent', '-', '사전 불참 통보', '{"배정 팀명":"4조 파이프라인","f4":"4조 파이프라인"}'),
-  ('att_1', 'evt_conf_28', 8, 0, '김서하', '28기 분석', 28, 'seoha@yonsei.ac.kr', '010-5519-8821', 'present', '12:50', NULL, '{"기념품 수령":"수령 완료","f4":"수령 완료"}'),
-  ('att_2', 'evt_conf_28', 9, 0, '이도현', '28기 엔지니어링', 28, 'dohyun@snu.ac.kr', '010-3819-2910', 'present', '12:45', NULL, '{"기념품 수령":"수령 완료","f4":"수령 완료"}'),
-  ('att_3', 'evt_conf_28', 10, 0, '최민혁', '28기 시각화', 28, 'minhyuk.c@yonsei.ac.kr', '010-5512-7019', 'late', '13:18', '지하철 연착', '{"기념품 수령":"수령 완료","f4":"수령 완료"}'),
-  ('att_4', 'evt_conf_28', 11, 0, '박성훈', '28기 엔지니어링', 28, 'sunghoon.p@naver.com', '010-9182-4122', 'unmarked', '-', NULL, '{"기념품 수령":"미수령","f4":"미수령"}'),
-  ('att_5', 'evt_conf_28', 12, 0, '강태양', '28기 엔지니어링', 28, 'taeyang.k@snu.ac.kr', '010-1829-4720', 'present', '12:58', NULL, '{"기념품 수령":"수령 완료","f4":"수령 완료"}'),
-  ('att_6', 'evt_conf_28', 13, 0, '임수진', '28기 엔지니어링', 28, 'sujin.l@yonsei.ac.kr', '010-8831-2940', 'absent', '-', '개인 사유', '{"기념품 수령":"미수령","f4":"미수령"}'),
-  ('att_7', 'evt_conf_28', 14, 0, '한예린', '28기 시각화', 28, 'yerin.h@ewha.ac.kr', '010-6629-3810', 'present', '12:40', NULL, '{"기념품 수령":"수령 완료","f4":"수령 완료"}'),
-  ('att_8', 'evt_conf_28', 15, 0, '윤재혁', '28기 시각화', 28, 'jaehyuk.y@skku.edu', '010-4490-1822', 'unmarked', '-', NULL, '{"기념품 수령":"미수령","f4":"미수령"}'),
-  ('att_ext_1', 'evt_conf_28', 16, 1, '박지민 (게스트)', '카카오 데이터팀', NULL, 'jimin.park@kakao.com', '010-7721-9943', 'present', '12:40', NULL, '{"기념품 수령":"수령 완료","f4":"수령 완료"}'),
-  ('att_ext_2', 'evt_conf_28', 17, 1, '정우성 (게스트)', '고려대 산경과', NULL, 'ws.jung@korea.ac.kr', '010-4491-1120', 'present', '12:55', NULL, '{"기념품 수령":"수령 완료","f4":"수령 완료"}'),
-  ('att_ext_3', 'evt_conf_28', 18, 1, '한소희 (게스트)', '네이버 AI Lab', NULL, 'sohee.h@navercorp.com', '010-3388-1290', 'present', '13:05', NULL, '{"기념품 수령":"수령 완료","f4":"수령 완료"}'),
-  ('att_ext_4', 'evt_conf_28', 19, 1, '강동원 (게스트)', '성균관대 소프트', NULL, 'dw.kang@skku.edu', '010-8812-4411', 'unmarked', '-', NULL, '{"기념품 수령":"미수령","f4":"미수령"}'),
-  ('att_s1', 'evt_session_03', 20, 0, '김서하', '28기 분석', 28, 'seoha.k@yonsei.ac.kr', '010-5519-8821', 'present', '13:55', NULL, '{"과제 제출":"제출 완료","f4":"제출 완료"}'),
-  ('att_s2', 'evt_session_03', 21, 0, '이도현', '28기 엔지니어링', 28, 'dohyun.l@snu.ac.kr', '010-3819-2910', 'present', '13:50', NULL, '{"과제 제출":"제출 완료","f4":"제출 완료"}'),
-  ('att_s3', 'evt_session_03', 22, 0, '최민혁', '28기 시각화', 28, 'minhyuk.c@yonsei.ac.kr', '010-5512-7019', 'present', '13:58', NULL, '{"과제 제출":"제출 완료","f4":"제출 완료"}'),
-  ('att_s4', 'evt_session_03', 23, 0, '박성훈', '28기 엔지니어링', 28, 'sunghoon.p@naver.com', '010-9182-4122', 'absent', '-', '개인 사정', '{"과제 제출":"미제출","f4":"미제출"}'),
-  ('att_s5', 'evt_session_03', 24, 0, '강태양', '28기 엔지니어링', 28, 'taeyang.k@snu.ac.kr', '010-1829-4720', 'present', '13:52', NULL, '{"과제 제출":"제출 완료","f4":"제출 완료"}'),
-  ('att_s6', 'evt_session_03', 25, 0, '한예린', '28기 시각화', 28, 'yerin.h@ewha.ac.kr', '010-6629-3810', 'late', '14:12', '12분 지각', '{"과제 제출":"제출 완료","f4":"제출 완료"}');
-
--- 내부 행사 참가자는 이름 복사본이 아니라 users의 사람을 FK로 가리킨다.
-UPDATE event_attendees
-   SET user_id = (
-     SELECT u.id FROM users u
-      WHERE u.name = event_attendees.name AND u.term = event_attendees.term
-      LIMIT 1
-   )
- WHERE is_external = 0;
+-- 과거 반기는 실제 팀 소속 이력으로 복원하고, 현재 반기는 초기 화면에서 쓰던 전체 회원을 등록한다.
+-- 이후 생성되는 반기는 이 INSERT 대상이 아니므로 빈 명단으로 시작한다.
+INSERT OR IGNORE INTO semester_members (cohort, user_id, name, term, track)
+SELECT ts.semester_cohort, tm.user_id, u.name, u.term, u.track
+  FROM team_members tm
+  JOIN team_semesters ts ON ts.team_id = tm.team_id
+  JOIN users u ON u.id = tm.user_id
+ WHERE ts.semester_cohort IS NOT NULL;
+INSERT OR IGNORE INTO semester_members (cohort, user_id, name, term, track)
+SELECT (SELECT cohort FROM cohorts WHERE is_current = 1), id, name, term, track FROM users;
 
 -- ─────────────────────────── HOST 계정 (mock 데이터) ───────────────────────────
+-- ADV·스터디 팀장을 겸하는 경우:
+--   · 고준서: ADV 분석 1팀 + LLM Agent & RAG 스터디. 계정(host_adv_ana1)이 두 권한을 모두 가진다.
+--   · 강태양: ADV 엔지 1팀 + 테라폼 스터디. 계정(host_adv_eng1)은 ADV 권한만 있다(스터디 권한 추가 흐름 확인용).
+--   · 송하늘: B조 스터디 + ADV 지리공간 맵핑. 계정(host_b)은 스터디 권한만 있다(ADV 권한 추가 흐름 확인용).
 
 INSERT INTO host_accounts (id, username, initial_password, user_id, host_name, generation, track, role, team_id,
                            group_type, account_type, created_at, active, last_login) VALUES
@@ -1540,17 +1547,14 @@ INSERT INTO host_permissions (host_id, position, permission) VALUES
   ('h_adv1', 1, 'STUDY'),
   ('h_adv2', 0, 'ADV'),
   ('h_adv3', 0, 'ADV'),
-  ('h_adv3', 1, 'STUDY'),
   ('h_m2', 0, 'STUDY');
 
 INSERT INTO host_assigned_groups (host_id, position, team_id) VALUES
   ('h_adv1', 0, 'adv_t1'),
   ('h_adv1', 1, 'study_d'),
-  ('h_adv3', 0, 'adv_t7'),
-  ('h_adv3', 1, 'study_b');
+  ('h_adv3', 0, 'adv_t7');
 
 INSERT INTO host_concurrent_roles (host_id, position, role) VALUES
   ('h1', 0, '운영진'),
   ('h_adv1', 0, '운영진'),
-  ('h_adv1', 1, 'LLM Agent & RAG 스터디'),
-  ('h_adv3', 0, '테라폼 스터디');
+  ('h_adv1', 1, 'LLM Agent & RAG 스터디');

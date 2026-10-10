@@ -14,23 +14,78 @@ CREATE TABLE tracks (
   sort_order INTEGER NOT NULL UNIQUE
 );
 
--- 활동 기수 목록. 가장 큰 기수가 현재 기수이고, 그보다 작은 기수는 지난 기수(아카이브 조회 대상)다.
--- 새 기수의 출결을 만들면 그 기수가 가장 커지므로 이전 기수는 자동으로 지난 기수가 된다.
--- 팀·출결이 아직 없는 기수도 이 목록에는 있을 수 있다(그 기수를 고르면 빈 화면이 보인다).
+-- 활동 반기. cohort(활동 기수 번호, 예: 27)가 키이고, 화면과 API는 반기 표기(semester_label, 예: '26-2')로 가리킨다.
+-- 현재 반기는 is_current = 1인 한 행이며 운영진이 API로 바꾼다. 그보다 작은 반기는 지난 반기(아카이브 조회 대상)다.
+-- 회원의 기수(users.term)와는 별개다. 기수와 반기의 관계는 아래 adv_term과 semester_member_terms가 정한다.
+-- 팀·출결이 아직 없는 반기도 이 목록에는 있을 수 있다(그 반기를 고르면 빈 화면이 보인다).
 CREATE TABLE cohorts (
-  cohort INTEGER PRIMARY KEY CHECK (cohort > 0)
+  cohort         INTEGER PRIMARY KEY CHECK (cohort > 0),
+  semester_label TEXT    NOT NULL UNIQUE CHECK (semester_label GLOB '[0-9][0-9]-[12]'),
+  start_date     TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  end_date       TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  is_current     INTEGER NOT NULL DEFAULT 0 CHECK (is_current IN (0, 1)),
+  adv_term       INTEGER CHECK (adv_term > 0),             -- 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 teams.cohort). 없으면 NULL
+  CHECK (start_date <= end_date)
+);
+CREATE UNIQUE INDEX idx_cohorts_single_current ON cohorts (is_current) WHERE is_current = 1;
+CREATE UNIQUE INDEX idx_cohorts_adv_term ON cohorts (adv_term) WHERE adv_term IS NOT NULL;
+
+-- 반기별 출결 점수 집계 대상 회원 기수(예: 26-2 반기 → 26기·27기).
+CREATE TABLE semester_member_terms (
+  cohort INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  term   INTEGER NOT NULL CHECK (term > 0),
+  PRIMARY KEY (cohort, term)
 );
 
 -- 동아리원. 스터디원·ADV 팀원·스터디장 후보는 모두 이 테이블의 사람을 가리킨다.
 CREATE TABLE users (
   id          TEXT PRIMARY KEY,
+  provider    TEXT NOT NULL DEFAULT 'KAKAO' CHECK (provider IN ('KAKAO', 'GOOGLE', 'NAVER')),
+  provider_id TEXT NOT NULL DEFAULT '',
+  nickname    TEXT,
+  member_type TEXT NOT NULL DEFAULT 'OUTSIDER' CHECK (member_type IN ('OUTSIDER', 'MEMBER')),
   name        TEXT    NOT NULL,
   term        INTEGER NOT NULL,                             -- 기수 (예: 26)
-  track       TEXT    NOT NULL REFERENCES tracks (name),
+  track       TEXT REFERENCES tracks (name),
   affiliation TEXT    NOT NULL DEFAULT '',                  -- 학교·회사 등 소속
   email       TEXT    NOT NULL DEFAULT '',
   phone       TEXT    NOT NULL DEFAULT '',
+  university  TEXT NOT NULL DEFAULT '',
+  major       TEXT NOT NULL DEFAULT '',
+  minor_double_major TEXT NOT NULL DEFAULT '[]',             -- JSON 배열
+  last_semester INTEGER,
+  military_status TEXT CHECK (military_status IN ('COMPLETED_OR_EXEMPT', 'NOT_COMPLETED')),
+  birth_date TEXT,
+  graduation_date TEXT CHECK (graduation_date IS NULL OR graduation_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
+  grad_school_plan INTEGER NOT NULL DEFAULT 0 CHECK (grad_school_plan IN (0, 1)),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE (name, term)
+);
+
+-- 출결·점수 시스템에서 사용하는 반기별 회원 명단. users는 전역 계정/프로필이고,
+-- 이 테이블에 등록된 사람만 해당 반기의 팀원·팀장 후보로 조회된다. 새 반기는 빈 명단으로 시작한다.
+CREATE TABLE semester_members (
+  cohort    INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  user_id   TEXT    NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+  name      TEXT    NOT NULL,
+  term      INTEGER NOT NULL CHECK (term > 0),
+  track     TEXT    NOT NULL REFERENCES tracks (name),
+  created_at TEXT   NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (cohort, user_id)
+);
+CREATE INDEX idx_semester_members_user ON semester_members (user_id);
+
+-- 동아리 활동 명단. 로그인 계정(users)과 분리해 기수별·부문별 이력을 보존한다.
+CREATE TABLE members (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  term       INTEGER NOT NULL CHECK (term > 0),
+  track      TEXT NOT NULL REFERENCES tracks (name),
+  name       TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (user_id, term, track)
 );
 
 -- 사진 파일. path는 public/images 아래의 상대 경로이고, 나중에 업로드 서비스로 옮기면 url을 채운다.
@@ -57,6 +112,7 @@ CREATE TABLE images (
 CREATE TABLE teams (
   id          TEXT PRIMARY KEY,
   group_type  TEXT NOT NULL CHECK (group_type IN ('STUDY', 'ADV', 'BASE')),
+  semester_cohort INTEGER NOT NULL DEFAULT 27 REFERENCES cohorts (cohort), -- 이 팀 데이터가 속한 반기
   cohort      INTEGER NOT NULL DEFAULT 27 CHECK (cohort > 0),   -- 활동 기수. 회원의 기수(users.term)와는 별개다
   track       TEXT NOT NULL REFERENCES tracks (name),       -- 부문
   team_name   TEXT NOT NULL,                                -- 부문 안에서만 유일
@@ -67,7 +123,7 @@ CREATE TABLE teams (
   kind        TEXT NOT NULL DEFAULT 'GENERAL' CHECK (kind IN ('GENERAL', 'MENTORING')),
   description TEXT NOT NULL DEFAULT '',
   created_at  TEXT NOT NULL,
-  UNIQUE (cohort, track, team_name),                        -- 같은 기수·부문 안에서 이름 중복 불가
+  UNIQUE (cohort, track, team_name),                        -- 기존 기수 키 중복 방지
   CHECK (group_type = 'STUDY' OR kind = 'GENERAL')          -- 멘멘은 스터디에만 있다
 );
 
@@ -81,22 +137,30 @@ CREATE VIEW general_studies AS
 CREATE TABLE team_members (
   id         TEXT PRIMARY KEY,                              -- 출결 기록이 가리키는 멤버 ID
   team_id    TEXT    NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
-  user_id    TEXT    NOT NULL REFERENCES users (id),
+  member_id  TEXT REFERENCES members (id),
+  user_id    TEXT REFERENCES users (id),                    -- 기존 시드 호환용, 이후 member_id 사용
   sort_order INTEGER NOT NULL DEFAULT 0,
   UNIQUE (team_id, user_id)
 );
 
--- 주차. status로 각 주차의 활성 여부를 데이터로 정한다(화면은 이 값을 따라 입력 가능 여부를 바꾼다).
---   · CLOSED   종료: 진행이 끝난 주차. 기록은 보이고 입력은 잠긴다(수정 요청으로만 변경)
---   · OPEN     진행 중: 출결을 입력할 수 있다
---   · UPCOMING 진행 예정: 아직 열리지 않았다. 출결은 미정이고 입력할 수 없다
--- 방학은 1~8주차, 학기는 9~16주차이며 스터디는 기간과 관계없이 1~8주차 표를 쓴다.
+-- 주차 목록. 방학은 1~8주차, 학기는 9~16주차이며 스터디는 기간과 관계없이 1~8주차 표를 쓴다.
+-- 주차의 진행 상태는 반기마다 다르므로 아래 semester_weeks에 둔다.
 CREATE TABLE weeks (
   id       TEXT PRIMARY KEY,                                -- 'w1' ~ 'w16'
   week_num INTEGER NOT NULL UNIQUE,
   period   TEXT    NOT NULL CHECK (period IN ('방학', '학기')),
-  label    TEXT    NOT NULL,                                -- '1주차'
-  status   TEXT    NOT NULL DEFAULT 'UPCOMING' CHECK (status IN ('CLOSED', 'OPEN', 'UPCOMING'))
+  label    TEXT    NOT NULL                                 -- '1주차'
+);
+
+-- 반기별 주차 진행 상태. API는 이 값으로 출결 입력 가능 여부를 정한다. 행이 없는 주차는 진행 예정으로 본다.
+--   · CLOSED   종료: 진행이 끝난 주차. 기록은 보이고 입력은 잠긴다(수정 요청으로만 변경)
+--   · OPEN     진행 중: 출결을 입력할 수 있다
+--   · UPCOMING 진행 예정: 아직 열리지 않았다. 출결은 미정이고 입력할 수 없다
+CREATE TABLE semester_weeks (
+  cohort  INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  week_id TEXT    NOT NULL REFERENCES weeks (id),
+  status  TEXT    NOT NULL DEFAULT 'UPCOMING' CHECK (status IN ('CLOSED', 'OPEN', 'UPCOMING')),
+  PRIMARY KEY (cohort, week_id)
 );
 
 -- 기수별 주차 날짜 매핑. 출결 생성 창과 CSV 추출 설정 창이 같은 값을 읽고 쓴다.
@@ -104,17 +168,16 @@ CREATE TABLE weeks (
 CREATE TABLE cohort_week_dates (
   cohort   INTEGER NOT NULL CHECK (cohort > 0),
   week_num INTEGER NOT NULL CHECK (week_num BETWEEN 1 AND 16),
-  date     TEXT    NOT NULL CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),  -- YYYY-MM-DD
+  date     TEXT    NOT NULL CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'), -- YYYY-MM-DD
   PRIMARY KEY (cohort, week_num)
 );
 
 -- 팀의 주차별 제출 상태와 활동 사진. 방학 1~8주차, 학기 9~16주차.
 CREATE TABLE attendance_sessions (
   team_id            TEXT    NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
-  week_id            TEXT    NOT NULL REFERENCES weeks (id),  -- 'w1' ~ 'w16'
+  week_id            TEXT    NOT NULL REFERENCES weeks (id), -- 'w1' ~ 'w16'
   submitted          INTEGER NOT NULL DEFAULT 0,
   submitted_at       TEXT,
-  confirmed_by_admin INTEGER NOT NULL DEFAULT 0,
   image_id           INTEGER REFERENCES images (id),
   -- 멘멘 스터디가 주차별로 첨부하는 PDF 자료(없으면 NULL). 멘멘 스터디만 쓴다.
   pdf_url            TEXT,
@@ -149,88 +212,48 @@ END;
 CREATE INDEX idx_team_members_team ON team_members (team_id);
 CREATE INDEX idx_records_session ON attendance_records (team_id, week_id);
 
+-- 기존 조회 코드와의 호환용 뷰. 반기는 모든 팀이 명시적인 외래 키로 직접 가진다.
+CREATE VIEW team_semesters AS
+  SELECT id AS team_id, semester_cohort FROM teams;
 
--- ─────────────────────────── 행사 출결 ───────────────────────────
--- 행사(컨퍼런스·해커톤·정기 세션 등)의 출석 명단은 팀 출결과 별개로 관리한다.
-
--- 행사 양식 템플릿. 새 행사를 만들 때 불러다 쓰는 기본값이다.
-CREATE TABLE event_templates (
-  id                     TEXT PRIMARY KEY,
-  title                  TEXT NOT NULL,
-  description            TEXT NOT NULL DEFAULT '',
-  allow_external         INTEGER NOT NULL DEFAULT 0,          -- 외부 참가자 허용 여부(0/1)
-  default_checkin_method TEXT NOT NULL CHECK (default_checkin_method IN ('QR_CODE', 'CODE', 'MANUAL', 'OPEN_LINK')),
-  created_at             TEXT NOT NULL
+-- 출결 점수 규칙 버전. 점수 기준이 바뀔 때 새 버전을 만들고 적용 기간으로 사용할 버전을 고른다.
+-- 전체에서 ACTIVE 규칙은 하나뿐이다. term은 기존 API 호환용 값이다.
+CREATE TABLE score_rules (
+  id                        TEXT PRIMARY KEY,
+  version                   INTEGER NOT NULL,
+  term                      INTEGER NOT NULL REFERENCES cohorts (cohort) CHECK (term > 0),
+  name                      TEXT    NOT NULL,
+  start_date                TEXT    NOT NULL,
+  end_date                  TEXT,
+  status                    TEXT    NOT NULL CHECK (status IN ('ACTIVE', 'INACTIVE', 'DRAFT', 'SCHEDULED')),
+  activated_at              TEXT,
+  created_by                TEXT    NOT NULL,
+  description               TEXT    NOT NULL DEFAULT '',
+  present_score             REAL    NOT NULL DEFAULT 0,
+  absent_penalty            REAL    NOT NULL DEFAULT 0,
+  unexcused_absent_penalty  REAL    NOT NULL DEFAULT 0,
+  late_penalty              REAL    NOT NULL DEFAULT 0,
+  early_leave_penalty       REAL    NOT NULL DEFAULT 0,
+  unexcused_late_penalty    REAL    NOT NULL DEFAULT 0,
+  study_fail_penalty        REAL    NOT NULL DEFAULT 0,
+  study_perfect_bonus       REAL    NOT NULL DEFAULT 0,
+  study_pass_bonus          REAL    NOT NULL DEFAULT 0,
+  study_leader_bonus        REAL    NOT NULL DEFAULT 0,
+  study_pass_max_absences   REAL    NOT NULL DEFAULT 2,  -- 스터디 수료로 보는 최대 결석 횟수(이보다 많이 결석하면 study_fail_penalty)
+  study_none_completed_penalty REAL NOT NULL DEFAULT -5, -- 스터디를 하나도 이수(참여)하지 않은 경우 감점
+  base_score                REAL    NOT NULL DEFAULT 10,  -- 기본 활동점수(최초 가입 시 1회, 기본: +10)
+  newcomer_excused_absent_penalty REAL    NOT NULL DEFAULT -10,  -- 신입 특칙: 운영진이 인정한 사유의 결석(기본: -10)
+  newcomer_late_penalty     REAL    NOT NULL DEFAULT -15,  -- 신입 특칙: 지각 또는 조퇴(기본: -15)
+  newcomer_excused_late_penalty REAL    NOT NULL DEFAULT -5,  -- 신입 특칙: 인정 사유가 있는 지각 또는 조퇴(기본: -5)
+  conference_first_bonus    REAL    NOT NULL DEFAULT 1,  -- 컨퍼런스 1차 출석 가점(기본: +1)
+  conference_second_bonus   REAL    NOT NULL DEFAULT 1,  -- 컨퍼런스 2차 출석 가점(기본: +1)
+  excused_absent_score      REAL    NOT NULL DEFAULT 0,  -- 인정결석 점수(기본: 0)
+  unexcused_lates_per_absence REAL    NOT NULL DEFAULT 3,  -- 무단결석 1회로 환산하는 무단지각 횟수(기본: 3)
+  expel_unexcused_absences  REAL    NOT NULL DEFAULT 3,  -- 제명되는 무단결석 누적 횟수(기본: 3)
+  CHECK (end_date IS NULL OR start_date <= end_date)
 );
+CREATE UNIQUE INDEX idx_score_rules_single_active ON score_rules (status) WHERE status = 'ACTIVE';
 
--- 템플릿의 추가 입력 항목(표의 추가 컬럼). position이 표시 순서다.
-CREATE TABLE event_template_fields (
-  template_id TEXT    NOT NULL REFERENCES event_templates (id) ON DELETE CASCADE,
-  position    INTEGER NOT NULL,
-  field_id    TEXT    NOT NULL,
-  label       TEXT    NOT NULL,
-  type        TEXT    NOT NULL CHECK (type IN ('TEXT', 'SELECT', 'PHONE', 'EMAIL')),
-  options     TEXT,                                            -- SELECT의 선택지(JSON 배열)
-  is_required INTEGER NOT NULL DEFAULT 0,
-  target      TEXT    NOT NULL DEFAULT 'ALL' CHECK (target IN ('ALL', 'INTERNAL_ONLY', 'EXTERNAL_ONLY')),
-  PRIMARY KEY (template_id, position)
-);
-
-CREATE TABLE events (
-  id                       TEXT PRIMARY KEY,
-  title                    TEXT NOT NULL,
-  status                   TEXT NOT NULL CHECK (status IN ('UPCOMING', 'IN_PROGRESS', 'FINISHED')),
-  event_date               TEXT NOT NULL,                      -- YYYY-MM-DD
-  start_time               TEXT NOT NULL,                      -- HH:MM
-  end_time                 TEXT NOT NULL,
-  location                 TEXT NOT NULL DEFAULT '',
-  description              TEXT NOT NULL DEFAULT '',
-  allow_external           INTEGER NOT NULL DEFAULT 0,
-  checkin_method           TEXT NOT NULL CHECK (checkin_method IN ('QR_CODE', 'CODE', 'MANUAL', 'OPEN_LINK')),
-  checkin_code             TEXT NOT NULL DEFAULT '',
-  status_column_index      INTEGER,                            -- 표에서 출결 컬럼 앞에 오는 추가 컬럼 수. NULL이면 추가 컬럼 뒤(맨 끝)
-  target_terms             TEXT NOT NULL DEFAULT '[]',         -- 대상 기수(JSON 배열)
-  target_tracks            TEXT NOT NULL DEFAULT '[]',         -- 대상 부문 코드(JSON 배열)
-  total_target_count       INTEGER NOT NULL DEFAULT 0,
-  internal_attended_count  INTEGER NOT NULL DEFAULT 0,
-  external_attended_count  INTEGER NOT NULL DEFAULT 0,
-  created_at               TEXT NOT NULL
-);
-
--- 행사 출석 표의 추가 컬럼. position이 표시 순서다.
-CREATE TABLE event_fields (
-  event_id    TEXT    NOT NULL REFERENCES events (id) ON DELETE CASCADE,
-  position    INTEGER NOT NULL,
-  field_id    TEXT    NOT NULL,
-  label       TEXT    NOT NULL,
-  type        TEXT    NOT NULL CHECK (type IN ('TEXT', 'SELECT', 'PHONE', 'EMAIL')),
-  options     TEXT,
-  is_required INTEGER NOT NULL DEFAULT 0,
-  target      TEXT    NOT NULL DEFAULT 'ALL' CHECK (target IN ('ALL', 'INTERNAL_ONLY', 'EXTERNAL_ONLY')),
-  PRIMARY KEY (event_id, position)
-);
-
--- 행사 참가자와 그 출결. position이 명단 표시 순서다.
--- custom_answers는 추가 컬럼 값(컬럼 이름 또는 field_id → 값)의 JSON 객체다.
-CREATE TABLE event_attendees (
-  id             TEXT PRIMARY KEY,
-  event_id       TEXT    NOT NULL REFERENCES events (id) ON DELETE CASCADE,
-  user_id        TEXT REFERENCES users (id) ON DELETE SET NULL, -- 내부 참가자. 외부 참가자는 NULL
-  position       INTEGER NOT NULL,
-  is_external    INTEGER NOT NULL DEFAULT 0,
-  name           TEXT    NOT NULL,
-  affiliation    TEXT    NOT NULL DEFAULT '',
-  term           INTEGER,
-  email          TEXT    NOT NULL DEFAULT '',
-  phone          TEXT    NOT NULL DEFAULT '',
-  status         TEXT    NOT NULL CHECK (status IN ('present', 'late', 'earlyLeave', 'absent', 'excusedAbsent',
-                                                    'unexcusedLate', 'unexcusedAbsent', 'unmarked')),
-  checked_in_at  TEXT    NOT NULL DEFAULT '-',
-  memo           TEXT,
-  custom_answers TEXT    NOT NULL DEFAULT '{}',
-  UNIQUE (event_id, user_id)
-);
-CREATE INDEX idx_event_attendees_event ON event_attendees (event_id, position);
 
 
 -- ─────────────────────────── HOST 계정 ───────────────────────────
