@@ -313,9 +313,9 @@ function getRecruitmentStatusInfo(post: RecruitmentPost): {
       label: '모집 예정',
       subLabel: 'UPCOMING',
       isActive: false,
-      color: '#d97706',
-      bg: '#fffbeb',
-      border: '#fde68a',
+      color: '#475569',
+      bg: '#f8fafc',
+      border: '#cbd5e1',
     };
   } else if (now > end || post.is_active === false) {
     return {
@@ -331,9 +331,9 @@ function getRecruitmentStatusInfo(post: RecruitmentPost): {
       label: '모집 진행중',
       subLabel: 'ACTIVE',
       isActive: true,
-      color: '#059669',
-      bg: '#ecfdf5',
-      border: '#a7f3d0',
+      color: '#0f172a',
+      bg: '#f1f5f9',
+      border: '#94a3b8',
     };
   }
 }
@@ -821,7 +821,16 @@ export function RecruitmentManagePage({
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/40'
                 }`}
               >
-                <Icon size={14} className={isActive ? 'text-red-600' : 'text-slate-400'} />
+                <Icon
+                  size={14}
+                  className={
+                    isActive && tab.id === 'posts'
+                      ? 'text-slate-800'
+                      : isActive
+                        ? 'text-red-600'
+                        : 'text-slate-400'
+                  }
+                />
                 <span>{tab.label}</span>
               </button>
             );
@@ -865,7 +874,7 @@ export function RecruitmentManagePage({
                   ],
                 });
               }}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
+              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
             >
               <Plus size={14} /> 새 모집 공고 등록
             </button>
@@ -880,7 +889,7 @@ export function RecruitmentManagePage({
                 <div
                   key={post.id}
                   className={`rounded-2xl border bg-white p-6 space-y-5 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md ${
-                    post.is_active ? 'border-red-200 ring-1 ring-red-500/10' : 'border-slate-200'
+                    post.is_active ? 'border-slate-300 ring-1 ring-slate-900/5' : 'border-slate-200'
                   }`}
                 >
                   <div className="flex items-start justify-between flex-wrap gap-3">
@@ -909,7 +918,7 @@ export function RecruitmentManagePage({
                       </h3>
 
                       <div className="flex items-center gap-2 text-xs text-slate-600">
-                        <Calendar size={13} className="text-red-500" />
+                        <Calendar size={13} className="text-slate-500" />
                         <span>
                           접수 기간:{' '}
                           <strong className="text-slate-900 font-mono">
@@ -925,7 +934,7 @@ export function RecruitmentManagePage({
                           href={post.brochure_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-blue-700 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
+                          className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
                         >
                           <BookOpen size={13} />
                           <span>홍보 책자 (PDF)</span>
@@ -961,13 +970,13 @@ export function RecruitmentManagePage({
                     </div>
                     <div>
                       <p className="text-slate-500 text-[11px] font-medium">작성중 지원서</p>
-                      <p className="font-bold text-amber-600 text-sm mt-0.5 font-mono">
+                      <p className="font-bold text-slate-900 text-sm mt-0.5 font-mono">
                         {applicantCounts.draft}건
                       </p>
                     </div>
                     <div>
                       <p className="text-slate-500 text-[11px] font-medium">제출 완료</p>
-                      <p className="font-bold text-emerald-600 text-sm mt-0.5 font-mono">
+                      <p className="font-bold text-slate-900 text-sm mt-0.5 font-mono">
                         {applicantCounts.submitted}건
                       </p>
                     </div>
@@ -983,7 +992,7 @@ export function RecruitmentManagePage({
                   {post.schedule && post.schedule.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-slate-100">
                       <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        <Clock size={13} className="text-red-500" />
+                        <Clock size={13} className="text-slate-500" />
                         <span>전형별 상세 일정</span>
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
