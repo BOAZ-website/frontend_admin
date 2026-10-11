@@ -5,6 +5,7 @@
 import { getDatabase } from '@/shared/db/database';
 
 import { createRouter, type HttpMethod, type MockRoute } from './router';
+import { clubMemberRoutes } from './routes/clubMemberRoutes';
 import { commonRoutes } from './routes/commonRoutes';
 import { eventRoutes } from './routes/eventRoutes';
 import { hostRoutes } from './routes/hostRoutes';
@@ -26,6 +27,7 @@ export const MOCK_ROUTES: readonly MockRoute[] = [
   ...scoreSheetRoutes,
   ...hostRoutes,
   ...eventRoutes,
+  ...clubMemberRoutes,
 ];
 
 const router = createRouter(MOCK_ROUTES);

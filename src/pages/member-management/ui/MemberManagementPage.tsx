@@ -11,122 +11,40 @@ import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { Tooltip } from '@/shared/ui/Tooltip';
 
+import { createClubMember, updateClubMember } from '@/entities/club-member/api/clubMemberApi';
+import type { ClubMemberCreateRequest } from '@/entities/club-member/model/dto';
 import {
-  filterClubMembers,
+  CLUB_MEMBER_TRACKS,
   ROLE_LABELS,
   STATUS_LABELS,
-  summarizeClubMembers,
-  TRACK_LABELS,
   type ClubMember,
-  type ClubMemberFilter,
   type ClubMemberRole,
   type ClubMemberStatus,
   type ClubMemberTrack,
+} from '@/entities/club-member/model/types';
+import { useClubMembers } from '@/entities/club-member/model/useClubMembers';
+import { alertApiError } from '@/shared/lib/alertApiError';
+
+import {
+  type ClubMemberFilter,
+  filterClubMembers,
+  summarizeClubMembers,
 } from '../model/memberManagement';
 
-const INITIAL_MEMBERS: ClubMember[] = [
-  {
-    id: 'm-001',
-    name: '김보아',
-    email: 'boa.kim@boaz.club',
-    phone: '010-2184-1024',
-    cohort: 30,
-    track: 'ANALYSIS',
-    status: 'ACTIVE',
-    role: 'PRESIDENT',
-    joinedAt: '2026-07-01',
-  },
-  {
-    id: 'm-002',
-    name: '박서준',
-    email: 'seojun.park@boaz.club',
-    phone: '010-3912-8221',
-    cohort: 30,
-    track: 'ENGINEERING',
-    status: 'ACTIVE',
-    role: 'OPERATOR',
-    joinedAt: '2026-07-01',
-  },
-  {
-    id: 'm-003',
-    name: '이하은',
-    email: 'haeun.lee@boaz.club',
-    phone: '010-8842-1447',
-    cohort: 30,
-    track: 'VISUALIZATION',
-    status: 'ACTIVE',
-    role: 'MEMBER',
-    joinedAt: '2026-07-01',
-  },
-  {
-    id: 'm-004',
-    name: '최민혁',
-    email: 'minhyuk.choi@boaz.club',
-    phone: '010-6231-5578',
-    cohort: 30,
-    track: 'ANALYSIS',
-    status: 'ACTIVE',
-    role: 'MEMBER',
-    joinedAt: '2026-07-01',
-  },
-  {
-    id: 'm-005',
-    name: '정다은',
-    email: 'daeun.jung@boaz.club',
-    phone: '010-4527-3098',
-    cohort: 29,
-    track: 'VISUALIZATION',
-    status: 'ALUMNI',
-    role: 'MEMBER',
-    joinedAt: '2026-01-05',
-  },
-  {
-    id: 'm-006',
-    name: '한유진',
-    email: 'yujin.han@boaz.club',
-    phone: '010-9910-7234',
-    cohort: 29,
-    track: 'ENGINEERING',
-    status: 'ACTIVE',
-    role: 'OPERATOR',
-    joinedAt: '2026-01-05',
-  },
-  {
-    id: 'm-007',
-    name: '오지훈',
-    email: 'jihun.oh@boaz.club',
-    phone: '010-3315-6210',
-    cohort: 29,
-    track: 'ANALYSIS',
-    status: 'INACTIVE',
-    role: 'MEMBER',
-    joinedAt: '2026-01-05',
-  },
-  {
-    id: 'm-008',
-    name: '윤서연',
-    email: 'seoyeon.yoon@boaz.club',
-    phone: '010-5108-4492',
-    cohort: 28,
-    track: 'VISUALIZATION',
-    status: 'ALUMNI',
-    role: 'MEMBER',
-    joinedAt: '2025-07-01',
-  },
-];
-
-const EMPTY_FORM: Omit<ClubMember, 'id'> = {
+const emptyForm = (term: number): ClubMemberCreateRequest => ({
   name: '',
   email: '',
   phone: '',
-  cohort: 30,
-  track: 'ANALYSIS',
+  term,
+  track: CLUB_MEMBER_TRACKS[0],
   status: 'ACTIVE',
   role: 'MEMBER',
   joinedAt: new Date().toISOString().slice(0, 10),
-};
+});
 
-const EMPTY_FILTER: ClubMemberFilter = { query: '', cohort: 'ALL', track: 'ALL', status: 'ALL' };
+const EMPTY_FILTER: ClubMemberFilter = { query: '', term: 'ALL', track: 'ALL', status: 'ALL' };
+/** 기록이 없는 값(시드에 없는 가입일 등)을 표에 보여줄 때 쓰는 표시. */
+const EMPTY_CELL = '-';
 
 // ─── 출결 화면(행사 출결·그룹 계정 관리)과 같은 입력칸·표·팝업 스타일 ───
 /** 도구 줄의 검색칸. */
@@ -157,27 +75,30 @@ const STATUS_TEXT: Record<ClubMemberStatus, string> = {
 const labelOptions = <T extends string>(labels: Record<T, string>) =>
   (Object.entries(labels) as [T, string][]).map(([value, label]) => ({ value, label }));
 
-const TRACK_OPTIONS = labelOptions(TRACK_LABELS);
+const TRACK_OPTIONS = CLUB_MEMBER_TRACKS.map((track) => ({ value: track, label: track }));
 const ROLE_OPTIONS = labelOptions(ROLE_LABELS);
 const STATUS_OPTIONS = labelOptions(STATUS_LABELS);
 
 export function MemberManagementPage() {
-  const [members, setMembers] = useState<ClubMember[]>(INITIAL_MEMBERS);
+  // 동아리원 목록은 API(임시 DB users 테이블)에서 읽고, 등록·수정도 API로 한 뒤 다시 읽는다.
+  // 기수 필터 선택지도 화면에서 계산하지 않고 users 테이블의 기수 목록 API로 받는다.
+  const { members: loadedMembers, terms, error: loadError, reload } = useClubMembers();
+  const members = useMemo(() => loadedMembers ?? [], [loadedMembers]);
+  const latestTerm = terms[0] ?? 1;
   const [filter, setFilter] = useState<ClubMemberFilter>(EMPTY_FILTER);
   const [editingMember, setEditingMember] = useState<ClubMember | null>(null);
-  const [form, setForm] = useState<Omit<ClubMember, 'id'>>(EMPTY_FORM);
+  const [form, setForm] = useState<ClubMemberCreateRequest>(() => emptyForm(1));
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const filteredMembers = useMemo(() => filterClubMembers(members, filter), [filter, members]);
   const summary = useMemo(() => summarizeClubMembers(members), [members]);
-  const cohortOptions = useMemo<readonly FilterDropdownOption<string>[]>(
+  const termOptions = useMemo<readonly FilterDropdownOption<string>[]>(
     () => [
       { value: 'ALL', label: '전체' },
-      ...[...new Set(members.map((member) => member.cohort))]
-        .sort((a, b) => b - a)
-        .map((cohort) => ({ value: String(cohort), label: `${cohort}기` })),
+      ...terms.map((term) => ({ value: String(term), label: `${term}기` })),
     ],
-    [members],
+    [terms],
   );
 
   const summaryItems = [
@@ -187,13 +108,15 @@ export function MemberManagementPage() {
     { label: '운영진·대표진', value: summary.operators },
   ];
 
-  const canSave = Boolean(
-    form.name.trim() && form.email.trim() && form.phone.trim() && form.joinedAt && form.cohort > 0,
-  );
+  const canSave =
+    !isSaving &&
+    Boolean(
+      form.name.trim() && form.email.trim() && form.phone.trim() && form.joinedAt && form.term > 0,
+    );
 
   const openCreate = () => {
     setEditingMember(null);
-    setForm(EMPTY_FORM);
+    setForm(emptyForm(latestTerm));
     setIsModalOpen(true);
   };
 
@@ -203,7 +126,7 @@ export function MemberManagementPage() {
       name: member.name,
       email: member.email,
       phone: member.phone,
-      cohort: member.cohort,
+      term: member.term,
       track: member.track,
       status: member.status,
       role: member.role,
@@ -217,21 +140,49 @@ export function MemberManagementPage() {
     setIsModalOpen(false);
   };
 
-  const saveMember = (event: React.FormEvent) => {
+  const saveMember = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSave) return;
-    if (editingMember) {
-      setMembers((current) =>
-        current.map((member) => (member.id === editingMember.id ? { ...member, ...form } : member)),
-      );
-    } else {
-      setMembers((current) => [...current, { ...form, id: `member-${Date.now()}` }]);
+    const request: ClubMemberCreateRequest = {
+      ...form,
+      name: form.name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+    };
+    setIsSaving(true);
+    try {
+      if (editingMember) {
+        await updateClubMember(editingMember.id, request);
+      } else {
+        await createClubMember(request);
+      }
+      closeModal();
+      reload();
+    } catch (error) {
+      alertApiError(error);
+    } finally {
+      setIsSaving(false);
     }
-    closeModal();
   };
+
+  const loadStatus = loadError ? 'error' : loadedMembers ? 'ready' : 'loading';
 
   return (
     <div className="space-y-6">
+      {loadStatus !== 'ready' && (
+        <p
+          role="status"
+          className={`rounded-md border px-4 py-3 text-xs ${
+            loadStatus === 'error'
+              ? 'border-red-200 bg-red-50 text-red-600'
+              : 'border-slate-200 bg-white text-slate-500'
+          }`}
+        >
+          {loadStatus === 'error'
+            ? `동아리원 정보를 불러오지 못했습니다. (${loadError?.message ?? '알 수 없는 오류'})`
+            : '동아리원 정보를 불러오는 중입니다.'}
+        </p>
+      )}
       {/* 1. 상단 제목 영역 */}
       <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">동아리원 관리</h1>
@@ -253,12 +204,12 @@ export function MemberManagementPage() {
           <FilterDropdown
             ariaLabel="기수 필터"
             title="기수"
-            value={filter.cohort === 'ALL' ? 'ALL' : String(filter.cohort)}
-            options={cohortOptions}
+            value={filter.term === 'ALL' ? 'ALL' : String(filter.term)}
+            options={termOptions}
             onChange={(value) =>
               setFilter((current) => ({
                 ...current,
-                cohort: value === 'ALL' ? 'ALL' : Number(value),
+                term: value === 'ALL' ? 'ALL' : Number(value),
               }))
             }
           />
@@ -313,7 +264,7 @@ export function MemberManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredMembers.length === 0 ? (
+              {loadStatus !== 'ready' ? null : filteredMembers.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-10 text-center text-slate-400">
                     <p>검색 조건에 일치하는 동아리원이 없습니다.</p>
@@ -333,15 +284,19 @@ export function MemberManagementPage() {
                     className="h-[46px] divide-x divide-slate-200 transition-colors hover:bg-slate-50/70"
                   >
                     <td className={`${TD_CLASS} font-bold text-slate-900`}>{member.name}</td>
-                    <td className={`${TD_CLASS} tabular-nums text-slate-700`}>{member.cohort}기</td>
-                    <td className={`${TD_CLASS} text-slate-700`}>{TRACK_LABELS[member.track]}</td>
+                    <td className={`${TD_CLASS} tabular-nums text-slate-700`}>{member.term}기</td>
+                    <td className={`${TD_CLASS} text-slate-700`}>{member.track}</td>
                     <td className={`${TD_CLASS} text-slate-700`}>{ROLE_LABELS[member.role]}</td>
                     <td className={`${TD_CLASS} ${STATUS_TEXT[member.status]}`}>
                       {STATUS_LABELS[member.status]}
                     </td>
-                    <td className={`${TD_CLASS} text-slate-600`}>{member.email}</td>
-                    <td className={`${TD_CLASS} tabular-nums text-slate-600`}>{member.phone}</td>
-                    <td className={`${TD_CLASS} tabular-nums text-slate-500`}>{member.joinedAt}</td>
+                    <td className={`${TD_CLASS} text-slate-600`}>{member.email || EMPTY_CELL}</td>
+                    <td className={`${TD_CLASS} tabular-nums text-slate-600`}>
+                      {member.phone || EMPTY_CELL}
+                    </td>
+                    <td className={`${TD_CLASS} tabular-nums text-slate-500`}>
+                      {member.joinedAt || EMPTY_CELL}
+                    </td>
                     <td className="px-2 py-2 text-center">
                       <Tooltip label="정보 수정" align="end">
                         <button
@@ -407,18 +362,18 @@ export function MemberManagementPage() {
                 />
               </div>
               <div>
-                <label htmlFor="member-cohort" className={FIELD_LABEL}>
+                <label htmlFor="member-term" className={FIELD_LABEL}>
                   기수 *
                 </label>
                 <input
-                  id="member-cohort"
+                  id="member-term"
                   required
                   min={1}
                   type="number"
                   className={FIELD_INPUT}
-                  value={form.cohort}
+                  value={form.term}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, cohort: Number(event.target.value) }))
+                    setForm((current) => ({ ...current, term: Number(event.target.value) }))
                   }
                 />
               </div>

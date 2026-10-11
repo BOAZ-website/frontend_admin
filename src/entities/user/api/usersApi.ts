@@ -15,3 +15,8 @@ export function fetchUsers(query: UserListQuery = {}): Promise<UserProfile[]> {
 export function verifyUserName(name: string): Promise<UserVerifyResponse> {
   return api.get(withQuery('/api/v1/users/verify', { name }));
 }
+
+/** 회원(users)에 있는 기수 목록. 큰 기수부터 온다. 기수 필터 선택지로 쓴다. */
+export function fetchUserTerms(): Promise<number[]> {
+  return api.get('/api/v1/users/terms');
+}

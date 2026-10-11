@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import type { ClubMember } from '../src/entities/club-member/model/types';
 import {
   filterClubMembers,
   summarizeClubMembers,
-  type ClubMember,
 } from '../src/pages/member-management/model/memberManagement';
 
 const MEMBERS: ClubMember[] = [
@@ -13,8 +13,8 @@ const MEMBERS: ClubMember[] = [
     name: '김보아',
     email: 'boa@example.com',
     phone: '010-1111-1111',
-    cohort: 30,
-    track: 'ANALYSIS',
+    term: 30,
+    track: '분석',
     status: 'ACTIVE',
     role: 'MEMBER',
     joinedAt: '2026-07-01',
@@ -24,8 +24,8 @@ const MEMBERS: ClubMember[] = [
     name: '이즈',
     email: 'viz@example.com',
     phone: '010-2222-2222',
-    cohort: 29,
-    track: 'VISUALIZATION',
+    term: 29,
+    track: '시각화',
     status: 'ALUMNI',
     role: 'MEMBER',
     joinedAt: '2025-07-01',
@@ -35,8 +35,8 @@ const MEMBERS: ClubMember[] = [
     name: '박엔지',
     email: 'engineer@example.com',
     phone: '010-3333-3333',
-    cohort: 30,
-    track: 'ENGINEERING',
+    term: 30,
+    track: '엔지니어링',
     status: 'ACTIVE',
     role: 'OPERATOR',
     joinedAt: '2026-07-01',
@@ -47,8 +47,8 @@ test('이름과 이메일을 검색하고 기수·부문·상태 필터를 함�
   assert.deepEqual(
     filterClubMembers(MEMBERS, {
       query: 'engineer',
-      cohort: 30,
-      track: 'ENGINEERING',
+      term: 30,
+      track: '엔지니어링',
       status: 'ACTIVE',
     }).map((member) => member.id),
     ['member-3'],
@@ -57,7 +57,7 @@ test('이름과 이메일을 검색하고 기수·부문·상태 필터를 함�
   assert.deepEqual(
     filterClubMembers(MEMBERS, {
       query: '김보아',
-      cohort: 'ALL',
+      term: 'ALL',
       track: 'ALL',
       status: 'ALL',
     }).map((member) => member.id),
@@ -69,7 +69,7 @@ test('필터 결과는 원본을 바꾸지 않고 최신 기수와 이름순으�
   const originalIds = MEMBERS.map((member) => member.id);
   const result = filterClubMembers(MEMBERS, {
     query: '',
-    cohort: 'ALL',
+    term: 'ALL',
     track: 'ALL',
     status: 'ALL',
   });
