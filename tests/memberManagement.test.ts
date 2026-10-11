@@ -19,7 +19,6 @@ const MEMBERS: ClubMember[] = [
     track: '분석',
     status: 'ACTIVE',
     role: 'MEMBER',
-    joinedAt: '2026-07-01',
   },
   {
     id: 'member-2',
@@ -32,7 +31,6 @@ const MEMBERS: ClubMember[] = [
     track: '시각화',
     status: 'ALUMNI',
     role: 'MEMBER',
-    joinedAt: '2025-07-01',
   },
   {
     id: 'member-3',
@@ -45,7 +43,6 @@ const MEMBERS: ClubMember[] = [
     track: '엔지니어링',
     status: 'ACTIVE',
     role: 'OPERATOR',
-    joinedAt: '2026-07-01',
   },
 ];
 

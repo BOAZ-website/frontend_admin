@@ -4,7 +4,6 @@ import test from 'node:test';
 
 import initSqlJs from 'sql.js';
 
-import type { ClubMemberCreateRequest } from '../src/entities/club-member/model/dto';
 import type { ClubMember } from '../src/entities/club-member/model/types';
 import { ApiError } from '../src/shared/api/apiError';
 import { createRouter } from '../src/shared/api/mock/router';
@@ -24,19 +23,6 @@ async function setup() {
   return { db, call };
 }
 
-const NEW_MEMBER: ClubMemberCreateRequest = {
-  name: '홍길동',
-  email: 'gildong@example.com',
-  phone: '010-1234-5678',
-  university: '고려대학교',
-  major: '통계학과',
-  term: 28,
-  track: '분석',
-  status: 'ACTIVE',
-  role: 'MEMBER',
-  joinedAt: '2026-07-01',
-};
-
 function expectApiError(work: () => unknown, status: number) {
   assert.throws(work, (error: unknown) => error instanceof ApiError && error.status === status);
 }
@@ -48,25 +34,14 @@ test('동아리원 목록은 임시 DB users 테이블 전체를 최신 기수 �
 
   assert.equal(members.length, userCount);
   assert.ok(members.every((member, i) => i === 0 || members[i - 1].term >= member.term));
-  const president = members.find((member) => member.id === 'u_27_01');
-  assert.equal(president?.role, 'PRESIDENT');
-  assert.equal(president?.joinedAt, '2026-01-01');
+  assert.equal(members.find((member) => member.id === 'u_27_01')?.role, 'PRESIDENT');
   assert.ok(members.filter((member) => member.term <= 25).every((m) => m.status === 'ALUMNI'));
 });
 
-test('등록하면 users와 활동 명단(members)에 저장되고 목록에 나타난다', async () => {
-  const { db, call } = await setup();
-  const created = call<ClubMember>('POST', '/api/v1/club-members', NEW_MEMBER);
+test('동아리원 등록 API는 없다(등록은 합격자 승격으로 한다)', async () => {
+  const { call } = await setup();
 
-  assert.deepEqual({ ...created, id: undefined }, { ...NEW_MEMBER, id: undefined });
-  assert.ok(call<ClubMember[]>('GET', '/api/v1/club-members').some((m) => m.id === created.id));
-  assert.equal(
-    queryAll(db, 'SELECT 1 FROM members WHERE user_id = ? AND term = 28 AND track = ?', [
-      created.id,
-      '분석',
-    ]).length,
-    1,
-  );
+  expectApiError(() => call('POST', '/api/v1/club-members', { name: '홍길동', term: 28 }), 405);
 });
 
 test('수정은 보낸 값만 바꾼다', async () => {
@@ -91,29 +66,34 @@ test('수정은 보낸 값만 바꾼다', async () => {
   assert.equal(renamed.major, '');
 });
 
+test('기수·부문을 바꾸면 그 기수·부문의 활동 명단(members) 행이 생긴다', async () => {
+  const { db, call } = await setup();
+  call('PATCH', '/api/v1/club-members/u_28_01', { term: 29, track: '시각화' });
+
+  assert.equal(
+    queryAll(db, 'SELECT 1 FROM members WHERE user_id = ? AND term = 29 AND track = ?', [
+      'u_28_01',
+      '시각화',
+    ]).length,
+    1,
+  );
+});
+
 test('같은 기수에 같은 이름이 있으면 409, 형식이 틀리면 400, 없는 동아리원은 404로 거절한다', async () => {
   const { call } = await setup();
+  const patch = (body: unknown) => () => call('PATCH', '/api/v1/club-members/u_28_02', body);
 
-  expectApiError(
-    () => call('POST', '/api/v1/club-members', { ...NEW_MEMBER, name: '김서하' }),
-    409,
-  );
-  expectApiError(() => call('POST', '/api/v1/club-members', { ...NEW_MEMBER, track: 'AI' }), 400);
-  expectApiError(
-    () => call('POST', '/api/v1/club-members', { ...NEW_MEMBER, email: 'not-an-email' }),
-    400,
-  );
-  expectApiError(
-    () => call('PATCH', '/api/v1/club-members/u_28_01', { joinedAt: '2026/07/01' }),
-    400,
-  );
+  expectApiError(patch({ name: '김서하' }), 409);
+  expectApiError(patch({ track: 'AI' }), 400);
+  expectApiError(patch({ email: 'not-an-email' }), 400);
+  expectApiError(patch({ phone: '' }), 400);
   expectApiError(() => call('PATCH', '/api/v1/club-members/u_none', { role: 'MEMBER' }), 404);
 });
 
-test('기수 목록 API는 users 테이블의 기수를 큰 기수부터 돌려주고, 새 기수 등록을 반영한다', async () => {
+test('기수 목록 API는 users 테이블의 기수를 큰 기수부터 돌려주고, 기수 변경을 반영한다', async () => {
   const { call } = await setup();
 
   assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [28, 27, 26, 25]);
-  call('POST', '/api/v1/club-members', { ...NEW_MEMBER, term: 29 });
+  call('PATCH', '/api/v1/club-members/u_25_01', { term: 29 });
   assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [29, 28, 27, 26, 25]);
 });

@@ -5,14 +5,12 @@ import {
   FilterDropdown,
   type FilterDropdownOption,
 } from '@/pages/attendance-events/ui/FilterDropdown';
-import { CreateButton } from '@/shared/ui/CreateButton';
-import { DateTextInput } from '@/shared/ui/DateTextInput';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { Tooltip } from '@/shared/ui/Tooltip';
 
-import { createClubMember, updateClubMember } from '@/entities/club-member/api/clubMemberApi';
-import type { ClubMemberCreateRequest } from '@/entities/club-member/model/dto';
+import { updateClubMember } from '@/entities/club-member/api/clubMemberApi';
+import type { ClubMemberForm } from '@/entities/club-member/model/dto';
 import {
   CLUB_MEMBER_TRACKS,
   ROLE_LABELS,
@@ -31,21 +29,21 @@ import {
   summarizeClubMembers,
 } from '../model/memberManagement';
 
-const emptyForm = (term: number): ClubMemberCreateRequest => ({
-  name: '',
-  email: '',
-  phone: '',
-  university: '',
-  major: '',
-  term,
-  track: CLUB_MEMBER_TRACKS[0],
-  status: 'ACTIVE',
-  role: 'MEMBER',
-  joinedAt: new Date().toISOString().slice(0, 10),
+/** 수정 팝업의 입력값. 동아리원 행에서 id만 뺀 값이다. */
+const toForm = (member: ClubMember): ClubMemberForm => ({
+  name: member.name,
+  email: member.email,
+  phone: member.phone,
+  university: member.university,
+  major: member.major,
+  term: member.term,
+  track: member.track,
+  status: member.status,
+  role: member.role,
 });
 
 const EMPTY_FILTER: ClubMemberFilter = { query: '', term: 'ALL', track: 'ALL', status: 'ALL' };
-/** 기록이 없는 값(시드에 없는 가입일 등)을 표에 보여줄 때 쓰는 표시. */
+/** 기록이 없는 값(대학교·전공 등)을 표에 보여줄 때 쓰는 표시. */
 const EMPTY_CELL = '-';
 
 // ─── 출결 화면(행사 출결·그룹 계정 관리)과 같은 입력칸·표·팝업 스타일 ───
@@ -82,15 +80,14 @@ const ROLE_OPTIONS = labelOptions(ROLE_LABELS);
 const STATUS_OPTIONS = labelOptions(STATUS_LABELS);
 
 export function MemberManagementPage() {
-  // 동아리원 목록은 API(임시 DB users 테이블)에서 읽고, 등록·수정도 API로 한 뒤 다시 읽는다.
+  // 동아리원 목록은 API(임시 DB users 테이블)에서 읽고, 수정도 API로 한 뒤 다시 읽는다.
+  // 동아리원 등록은 이 화면이 아니라 서류 평가의 합격자 승격으로 한다.
   // 기수 필터 선택지도 화면에서 계산하지 않고 users 테이블의 기수 목록 API로 받는다.
   const { members: loadedMembers, terms, error: loadError, reload } = useClubMembers();
   const members = useMemo(() => loadedMembers ?? [], [loadedMembers]);
-  const latestTerm = terms[0] ?? 1;
   const [filter, setFilter] = useState<ClubMemberFilter>(EMPTY_FILTER);
   const [editingMember, setEditingMember] = useState<ClubMember | null>(null);
-  const [form, setForm] = useState<ClubMemberCreateRequest>(() => emptyForm(1));
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [form, setForm] = useState<ClubMemberForm | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const filteredMembers = useMemo(() => filterClubMembers(members, filter), [filter, members]);
@@ -112,42 +109,27 @@ export function MemberManagementPage() {
 
   const canSave =
     !isSaving &&
-    Boolean(
-      form.name.trim() && form.email.trim() && form.phone.trim() && form.joinedAt && form.term > 0,
-    );
-
-  const openCreate = () => {
-    setEditingMember(null);
-    setForm(emptyForm(latestTerm));
-    setIsModalOpen(true);
-  };
+    form !== null &&
+    Boolean(form.name.trim() && form.email.trim() && form.phone.trim() && form.term > 0);
 
   const openEdit = (member: ClubMember) => {
     setEditingMember(member);
-    setForm({
-      name: member.name,
-      email: member.email,
-      phone: member.phone,
-      university: member.university,
-      major: member.major,
-      term: member.term,
-      track: member.track,
-      status: member.status,
-      role: member.role,
-      joinedAt: member.joinedAt,
-    });
-    setIsModalOpen(true);
+    setForm(toForm(member));
   };
 
   const closeModal = () => {
     setEditingMember(null);
-    setIsModalOpen(false);
+    setForm(null);
   };
+
+  /** 팝업 입력값 한 항목을 바꾼다. 팝업이 닫혀 있으면 아무것도 하지 않는다. */
+  const updateForm = (patch: Partial<ClubMemberForm>) =>
+    setForm((current) => (current ? { ...current, ...patch } : current));
 
   const saveMember = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!canSave) return;
-    const request: ClubMemberCreateRequest = {
+    if (!canSave || !form || !editingMember) return;
+    const request: ClubMemberForm = {
       ...form,
       name: form.name.trim(),
       email: form.email.trim(),
@@ -157,11 +139,7 @@ export function MemberManagementPage() {
     };
     setIsSaving(true);
     try {
-      if (editingMember) {
-        await updateClubMember(editingMember.id, request);
-      } else {
-        await createClubMember(request);
-      }
+      await updateClubMember(editingMember.id, request);
       closeModal();
       reload();
     } catch (error) {
@@ -192,7 +170,6 @@ export function MemberManagementPage() {
       {/* 1. 상단 제목 영역 */}
       <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">동아리원 관리</h1>
-        <CreateButton label="동아리원" aria-label="동아리원 등록" onClick={openCreate} />
       </div>
 
       {/* 2. 인원 요약과 검색·필터 */}
@@ -255,7 +232,7 @@ export function MemberManagementPage() {
       {/* 3. 동아리원 표 */}
       <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] border-collapse text-xs">
+          <table className="w-full min-w-[1070px] border-collapse text-xs">
             <thead className="bg-slate-50/80">
               <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-[11px]">
                 <th className={`${TH_CLASS} w-[120px] text-slate-900`}>이름</th>
@@ -267,14 +244,13 @@ export function MemberManagementPage() {
                 <th className={`${TH_CLASS} w-[130px]`}>연락처</th>
                 <th className={`${TH_CLASS} w-[130px]`}>대학교</th>
                 <th className={`${TH_CLASS} w-[130px]`}>전공</th>
-                <th className={`${TH_CLASS} w-[110px]`}>가입일</th>
                 <th className={`${TH_CLASS} w-[64px]`}>관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loadStatus !== 'ready' ? null : filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-10 text-center text-slate-400">
+                  <td colSpan={10} className="py-10 text-center text-slate-400">
                     <p>검색 조건에 일치하는 동아리원이 없습니다.</p>
                     <button
                       type="button"
@@ -306,9 +282,6 @@ export function MemberManagementPage() {
                       {member.university || EMPTY_CELL}
                     </td>
                     <td className={`${TD_CLASS} text-slate-600`}>{member.major || EMPTY_CELL}</td>
-                    <td className={`${TD_CLASS} tabular-nums text-slate-500`}>
-                      {member.joinedAt || EMPTY_CELL}
-                    </td>
                     <td className="px-2 py-2 text-center">
                       <Tooltip label="정보 수정" align="end">
                         <button
@@ -329,8 +302,8 @@ export function MemberManagementPage() {
         </div>
       </div>
 
-      {/* 동아리원 등록·수정 팝업 */}
-      {isModalOpen && (
+      {/* 동아리원 정보 수정 팝업 */}
+      {form && (
         <div
           className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs"
           onMouseDown={(event) => {
@@ -346,7 +319,7 @@ export function MemberManagementPage() {
           >
             <div className="flex items-center justify-between">
               <h3 id="member-modal-title" className="text-base font-bold text-slate-900">
-                {editingMember ? '동아리원 정보 수정' : '동아리원 등록'}
+                동아리원 정보 수정
               </h3>
               <button
                 type="button"
@@ -368,9 +341,7 @@ export function MemberManagementPage() {
                   required
                   className={FIELD_INPUT}
                   value={form.name}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, name: event.target.value }))
-                  }
+                  onChange={(event) => updateForm({ name: event.target.value })}
                 />
               </div>
               <div>
@@ -384,9 +355,7 @@ export function MemberManagementPage() {
                   type="number"
                   className={FIELD_INPUT}
                   value={form.term}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, term: Number(event.target.value) }))
-                  }
+                  onChange={(event) => updateForm({ term: Number(event.target.value) })}
                 />
               </div>
               <div>
@@ -395,7 +364,7 @@ export function MemberManagementPage() {
                   ariaLabel="부문"
                   value={form.track}
                   options={TRACK_OPTIONS}
-                  onChange={(track) => setForm((current) => ({ ...current, track }))}
+                  onChange={(track) => updateForm({ track })}
                   buttonClassName="h-10 w-full"
                 />
               </div>
@@ -405,7 +374,7 @@ export function MemberManagementPage() {
                   ariaLabel="역할"
                   value={form.role}
                   options={ROLE_OPTIONS}
-                  onChange={(role) => setForm((current) => ({ ...current, role }))}
+                  onChange={(role) => updateForm({ role })}
                   buttonClassName="h-10 w-full"
                 />
               </div>
@@ -415,16 +384,8 @@ export function MemberManagementPage() {
                   ariaLabel="활동 상태"
                   value={form.status}
                   options={STATUS_OPTIONS}
-                  onChange={(status) => setForm((current) => ({ ...current, status }))}
+                  onChange={(status) => updateForm({ status })}
                   buttonClassName="h-10 w-full"
-                />
-              </div>
-              <div>
-                <span className={FIELD_LABEL}>가입일 *</span>
-                <DateTextInput
-                  value={form.joinedAt}
-                  onChange={(joinedAt) => setForm((current) => ({ ...current, joinedAt }))}
-                  ariaLabel="가입일"
                 />
               </div>
               <div>
@@ -437,9 +398,7 @@ export function MemberManagementPage() {
                   type="email"
                   className={FIELD_INPUT}
                   value={form.email}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, email: event.target.value }))
-                  }
+                  onChange={(event) => updateForm({ email: event.target.value })}
                 />
               </div>
               <div>
@@ -451,9 +410,7 @@ export function MemberManagementPage() {
                   required
                   className={FIELD_INPUT}
                   value={form.phone}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, phone: event.target.value }))
-                  }
+                  onChange={(event) => updateForm({ phone: event.target.value })}
                 />
               </div>
               <div>
@@ -464,9 +421,7 @@ export function MemberManagementPage() {
                   id="member-university"
                   className={FIELD_INPUT}
                   value={form.university}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, university: event.target.value }))
-                  }
+                  onChange={(event) => updateForm({ university: event.target.value })}
                 />
               </div>
               <div>
@@ -477,9 +432,7 @@ export function MemberManagementPage() {
                   id="member-major"
                   className={FIELD_INPUT}
                   value={form.major}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, major: event.target.value }))
-                  }
+                  onChange={(event) => updateForm({ major: event.target.value })}
                 />
               </div>
             </div>
@@ -489,7 +442,7 @@ export function MemberManagementPage() {
                 취소
               </button>
               <button type="submit" disabled={!canSave} className={MODAL_CONFIRM_BTN}>
-                {editingMember ? '저장' : '등록'}
+                저장
               </button>
             </div>
           </form>

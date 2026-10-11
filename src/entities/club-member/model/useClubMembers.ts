@@ -14,7 +14,7 @@ export interface ClubMembersState {
   reload: () => void;
 }
 
-/** 동아리원 목록과 기수 목록을 API에서 읽는다. 등록·수정 뒤에는 reload로 둘 다 다시 읽는다. */
+/** 동아리원 목록과 기수 목록을 API에서 읽는다. 수정 뒤에는 reload로 둘 다 다시 읽는다. */
 export function useClubMembers(): ClubMembersState {
   const [version, setVersion] = useState(0);
   const [state, setState] = useState<Omit<ClubMembersState, 'reload'>>({

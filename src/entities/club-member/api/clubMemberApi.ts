@@ -3,17 +3,13 @@
  */
 import { api } from '@/shared/api/client';
 
-import type { ClubMemberCreateRequest, ClubMemberUpdateRequest } from '../model/dto';
+import type { ClubMemberUpdateRequest } from '../model/dto';
 import type { ClubMember } from '../model/types';
 
 const clubMemberPath = (memberId: string) => `/api/v1/club-members/${encodeURIComponent(memberId)}`;
 
 export function fetchClubMembers(): Promise<ClubMember[]> {
   return api.get('/api/v1/club-members');
-}
-
-export function createClubMember(request: ClubMemberCreateRequest): Promise<ClubMember> {
-  return api.post('/api/v1/club-members', request);
 }
 
 /** 보낸 값만 바뀐다. */

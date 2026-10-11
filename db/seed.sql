@@ -1560,9 +1560,7 @@ INSERT INTO host_concurrent_roles (host_id, position, role) VALUES
   ('h_adv1', 1, 'LLM Agent & RAG 스터디');
 
 -- ── 동아리원 관리 화면 예시 값 ─────────────────────────────
--- 가입일은 기수가 처음 활동한 반기의 시작일이다(N기는 N-1 반기에 들어온다. 예: 28기 → 26-2 반기).
 -- 연락처가 없는 예시 회원에는 형식만 맞춘 임시 이메일·전화번호를 채운다.
-UPDATE users SET joined_at = (SELECT start_date FROM cohorts WHERE cohorts.cohort = users.term - 1);
 UPDATE users SET email = 'boaz.' || substr(id, 3) || '@example.com' WHERE email = '';
 UPDATE users SET phone = printf('010-0%03d-%04d', term, rowid) WHERE phone = '';
 -- 대학교는 소속(affiliation)에 학교 이름이 적힌 회원만 옮겨 채우고, 그 회원들에게 예시 전공을 넣는다.

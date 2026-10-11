@@ -19,8 +19,6 @@ export interface ClubMember {
   track: ClubMemberTrack;
   status: ClubMemberStatus;
   role: ClubMemberRole;
-  /** 동아리 가입일(YYYY-MM-DD). 기록이 없으면 빈 문자열. */
-  joinedAt: string;
 }
 
 export const CLUB_MEMBER_TRACKS: readonly ClubMemberTrack[] = ['분석', '시각화', '엔지니어링'];

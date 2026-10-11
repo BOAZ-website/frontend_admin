@@ -58,10 +58,9 @@ CREATE TABLE users (
   birth_date TEXT,
   graduation_date TEXT CHECK (graduation_date IS NULL OR graduation_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
   grad_school_plan INTEGER NOT NULL DEFAULT 0 CHECK (grad_school_plan IN (0, 1)),
-  -- 동아리원 관리 화면에서 고치는 값: 활동 상태(활동 중·수료·비활동), 동아리 역할, 동아리 가입일
+  -- 동아리원 관리 화면에서 고치는 값: 활동 상태(활동 중·수료·비활동), 동아리 역할
   club_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (club_status IN ('ACTIVE', 'ALUMNI', 'INACTIVE')),
   club_role   TEXT NOT NULL DEFAULT 'MEMBER' CHECK (club_role IN ('MEMBER', 'OPERATOR', 'PRESIDENT')),
-  joined_at   TEXT CHECK (joined_at IS NULL OR joined_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE (name, term)

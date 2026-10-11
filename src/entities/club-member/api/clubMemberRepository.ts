@@ -6,7 +6,7 @@ import type { ClubMember } from '../model/types';
 
 const SELECT_CLUB_MEMBERS = `
   SELECT id, name, email, phone, university, major, term, track,
-         club_status AS status, club_role AS role, COALESCE(joined_at, '') AS joinedAt
+         club_status AS status, club_role AS role
     FROM users`;
 
 /** 임시 DB의 users 테이블에서 동아리원 목록을 읽는다. 최신 기수 → 이름 순. */
@@ -39,34 +39,12 @@ export function hasNameConflict(
   );
 }
 
-export function insertClubMember(db: Database, member: ClubMember): void {
-  execute(
-    db,
-    `INSERT INTO users (id, member_type, name, term, track, email, phone, university, major,
-                        club_status, club_role, joined_at)
-     VALUES (?, 'MEMBER', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      member.id,
-      member.name,
-      member.term,
-      member.track,
-      member.email,
-      member.phone,
-      member.university,
-      member.major,
-      member.status,
-      member.role,
-      member.joinedAt || null,
-    ],
-  );
-}
-
 export function updateClubMember(db: Database, member: ClubMember): void {
   execute(
     db,
     `UPDATE users
         SET name = ?, term = ?, track = ?, email = ?, phone = ?, university = ?, major = ?,
-            club_status = ?, club_role = ?, joined_at = ?, updated_at = datetime('now')
+            club_status = ?, club_role = ?, updated_at = datetime('now')
       WHERE id = ?`,
     [
       member.name,
@@ -78,7 +56,6 @@ export function updateClubMember(db: Database, member: ClubMember): void {
       member.major,
       member.status,
       member.role,
-      member.joinedAt || null,
       member.id,
     ],
   );

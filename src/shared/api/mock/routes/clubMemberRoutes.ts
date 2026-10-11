@@ -1,13 +1,13 @@
 /**
  * 동아리원 관리 API. 동아리원 한 명은 임시 DB users 테이블의 한 행이며,
- * 등록·수정 시 그 기수·부문의 활동 명단(members) 행도 없으면 함께 만든다.
+ * 수정 시 그 기수·부문의 활동 명단(members) 행이 없으면 함께 만든다.
+ * 동아리원 등록은 이 API가 아니라 서류 평가의 합격자 승격으로 한다.
  */
 import type { Database } from 'sql.js';
 
 import {
   findClubMember,
   hasNameConflict,
-  insertClubMember,
   listClubMembers,
   updateClubMember,
 } from '@/entities/club-member/api/clubMemberRepository';
@@ -23,7 +23,6 @@ import { notFound } from '../queries';
 import { ApiError, type MockRoute } from '../router';
 import { type Body, oneOf, optionalNumber, optionalString, readBody } from '../validate';
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const badRequest = (message: string) => new ApiError(400, 'BAD_REQUEST', message);
@@ -44,7 +43,6 @@ function applyMemberBody(base: ClubMember, body: Body): ClubMember {
     phone: text('phone') ?? base.phone,
     university: text('university') ?? base.university,
     major: text('major') ?? base.major,
-    joinedAt: text('joinedAt') ?? base.joinedAt,
     term: optionalNumber(body, 'term') ?? base.term,
     track: oneOf(text('track'), CLUB_MEMBER_TRACKS, 'track') ?? base.track,
     status: oneOf(text('status'), CLUB_MEMBER_STATUSES, 'status') ?? base.status,
@@ -59,9 +57,6 @@ function validateMember(db: Database, member: ClubMember): void {
     throw badRequest('email 값은 이메일 형식이어야 합니다.');
   }
   if (!member.phone) throw badRequest('phone 값이 필요합니다.');
-  if (!DATE_PATTERN.test(member.joinedAt)) {
-    throw badRequest('joinedAt 값은 YYYY-MM-DD 형식이어야 합니다.');
-  }
   if (hasNameConflict(db, member.name, member.term, member.id)) {
     throw new ApiError(
       409,
@@ -77,34 +72,6 @@ export const clubMemberRoutes: MockRoute[] = [
     pattern: '/api/v1/club-members',
     summary: '동아리원 전체 목록(최신 기수 → 이름 순). 검색·필터는 화면에서 한다',
     handler: ({ db }) => listClubMembers(db),
-  },
-  {
-    method: 'POST',
-    pattern: '/api/v1/club-members',
-    summary: '동아리원 등록(이름·기수·부문·역할·활동 상태·가입일·이메일·연락처·대학교·전공)',
-    handler: ({ db, body }) => {
-      const input = readBody(body);
-      if (optionalNumber(input, 'term') === undefined) throw badRequest('term 값이 필요합니다.');
-      if (!('track' in input)) throw badRequest('track 값이 필요합니다.');
-      const draft: ClubMember = {
-        id: `u_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-        name: '',
-        email: '',
-        phone: '',
-        university: '',
-        major: '',
-        term: 0,
-        track: CLUB_MEMBER_TRACKS[0],
-        status: 'ACTIVE',
-        role: 'MEMBER',
-        joinedAt: '',
-      };
-      const member = applyMemberBody(draft, input);
-      validateMember(db, member);
-      insertClubMember(db, member);
-      ensureMemberProfile(db, member.id, member.term, member.track, member.name);
-      return findMember(db, member.id);
-    },
   },
   {
     method: 'PATCH',
