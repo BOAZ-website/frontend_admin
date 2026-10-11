@@ -378,7 +378,8 @@ export function Sidebar({
                           {grp.title}
                         </p>
                       )}
-                      <div className="space-y-0.5">
+                      {/* 페이지는 그룹 제목보다 한 단계 안쪽에 두어, 제목 아래에 딸린 메뉴로 읽히게 한다. */}
+                      <div className={`space-y-0.5 ${grp.title ? 'pl-3' : ''}`}>
                         {grp.pages.map((page) => {
                           const isActive = activePage === page.id;
                           return (
