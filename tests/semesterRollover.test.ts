@@ -10,6 +10,7 @@ import type { AttendanceMetaResponse } from '../src/entities/attendance/model/dt
 import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
 import { createRouter } from '../src/shared/api/mock/router';
 import { commonRoutes } from '../src/shared/api/mock/routes/commonRoutes';
+import { userRoutes } from '../src/shared/api/mock/routes/userRoutes';
 import { eventRoutes } from '../src/shared/api/mock/routes/eventRoutes';
 import { teamRoutes } from '../src/shared/api/mock/routes/teamRoutes';
 
@@ -17,7 +18,7 @@ import { teamRoutes } from '../src/shared/api/mock/routes/teamRoutes';
 const read = (file: string) => readFileSync(new URL(`../db/${file}`, import.meta.url), 'utf8');
 const schema = `${read('schema.sql')}\n${read('event-schema.sql')}`;
 const seed = `${read('seed.sql')}\n${read('event-seed.sql')}`;
-const router = createRouter([...commonRoutes, ...teamRoutes, ...eventRoutes]);
+const router = createRouter([...commonRoutes, ...userRoutes, ...teamRoutes, ...eventRoutes]);
 
 async function freshDb() {
   const SQL = await initSqlJs();
