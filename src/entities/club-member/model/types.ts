@@ -10,6 +10,10 @@ export interface ClubMember {
   name: string;
   email: string;
   phone: string;
+  /** 대학교. 기록이 없으면 빈 문자열. */
+  university: string;
+  /** 전공. 기록이 없으면 빈 문자열. */
+  major: string;
   /** 기수 (예: 28) */
   term: number;
   track: ClubMemberTrack;

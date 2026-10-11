@@ -5,7 +5,7 @@ import { execute, queryAll } from '@/shared/db/createDatabase';
 import type { ClubMember } from '../model/types';
 
 const SELECT_CLUB_MEMBERS = `
-  SELECT id, name, email, phone, term, track,
+  SELECT id, name, email, phone, university, major, term, track,
          club_status AS status, club_role AS role, COALESCE(joined_at, '') AS joinedAt
     FROM users`;
 
@@ -42,8 +42,9 @@ export function hasNameConflict(
 export function insertClubMember(db: Database, member: ClubMember): void {
   execute(
     db,
-    `INSERT INTO users (id, member_type, name, term, track, email, phone, club_status, club_role, joined_at)
-     VALUES (?, 'MEMBER', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (id, member_type, name, term, track, email, phone, university, major,
+                        club_status, club_role, joined_at)
+     VALUES (?, 'MEMBER', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       member.id,
       member.name,
@@ -51,6 +52,8 @@ export function insertClubMember(db: Database, member: ClubMember): void {
       member.track,
       member.email,
       member.phone,
+      member.university,
+      member.major,
       member.status,
       member.role,
       member.joinedAt || null,
@@ -62,7 +65,7 @@ export function updateClubMember(db: Database, member: ClubMember): void {
   execute(
     db,
     `UPDATE users
-        SET name = ?, term = ?, track = ?, email = ?, phone = ?,
+        SET name = ?, term = ?, track = ?, email = ?, phone = ?, university = ?, major = ?,
             club_status = ?, club_role = ?, joined_at = ?, updated_at = datetime('now')
       WHERE id = ?`,
     [
@@ -71,6 +74,8 @@ export function updateClubMember(db: Database, member: ClubMember): void {
       member.track,
       member.email,
       member.phone,
+      member.university,
+      member.major,
       member.status,
       member.role,
       member.joinedAt || null,

@@ -35,6 +35,8 @@ const emptyForm = (term: number): ClubMemberCreateRequest => ({
   name: '',
   email: '',
   phone: '',
+  university: '',
+  major: '',
   term,
   track: CLUB_MEMBER_TRACKS[0],
   status: 'ACTIVE',
@@ -126,6 +128,8 @@ export function MemberManagementPage() {
       name: member.name,
       email: member.email,
       phone: member.phone,
+      university: member.university,
+      major: member.major,
       term: member.term,
       track: member.track,
       status: member.status,
@@ -148,6 +152,8 @@ export function MemberManagementPage() {
       name: form.name.trim(),
       email: form.email.trim(),
       phone: form.phone.trim(),
+      university: form.university.trim(),
+      major: form.major.trim(),
     };
     setIsSaving(true);
     try {
@@ -249,7 +255,7 @@ export function MemberManagementPage() {
       {/* 3. 동아리원 표 */}
       <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] border-collapse text-xs">
+          <table className="w-full min-w-[1180px] border-collapse text-xs">
             <thead className="bg-slate-50/80">
               <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-[11px]">
                 <th className={`${TH_CLASS} w-[120px] text-slate-900`}>이름</th>
@@ -259,6 +265,8 @@ export function MemberManagementPage() {
                 <th className={`${TH_CLASS} w-[90px]`}>활동 상태</th>
                 <th className={TH_CLASS}>이메일</th>
                 <th className={`${TH_CLASS} w-[130px]`}>연락처</th>
+                <th className={`${TH_CLASS} w-[130px]`}>대학교</th>
+                <th className={`${TH_CLASS} w-[130px]`}>전공</th>
                 <th className={`${TH_CLASS} w-[110px]`}>가입일</th>
                 <th className={`${TH_CLASS} w-[64px]`}>관리</th>
               </tr>
@@ -266,7 +274,7 @@ export function MemberManagementPage() {
             <tbody className="divide-y divide-slate-100">
               {loadStatus !== 'ready' ? null : filteredMembers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-slate-400">
+                  <td colSpan={11} className="py-10 text-center text-slate-400">
                     <p>검색 조건에 일치하는 동아리원이 없습니다.</p>
                     <button
                       type="button"
@@ -294,6 +302,10 @@ export function MemberManagementPage() {
                     <td className={`${TD_CLASS} tabular-nums text-slate-600`}>
                       {member.phone || EMPTY_CELL}
                     </td>
+                    <td className={`${TD_CLASS} text-slate-600`}>
+                      {member.university || EMPTY_CELL}
+                    </td>
+                    <td className={`${TD_CLASS} text-slate-600`}>{member.major || EMPTY_CELL}</td>
                     <td className={`${TD_CLASS} tabular-nums text-slate-500`}>
                       {member.joinedAt || EMPTY_CELL}
                     </td>
@@ -441,6 +453,32 @@ export function MemberManagementPage() {
                   value={form.phone}
                   onChange={(event) =>
                     setForm((current) => ({ ...current, phone: event.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <label htmlFor="member-university" className={FIELD_LABEL}>
+                  대학교
+                </label>
+                <input
+                  id="member-university"
+                  className={FIELD_INPUT}
+                  value={form.university}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, university: event.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <label htmlFor="member-major" className={FIELD_LABEL}>
+                  전공
+                </label>
+                <input
+                  id="member-major"
+                  className={FIELD_INPUT}
+                  value={form.major}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, major: event.target.value }))
                   }
                 />
               </div>

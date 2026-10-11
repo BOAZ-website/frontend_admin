@@ -28,6 +28,8 @@ const NEW_MEMBER: ClubMemberCreateRequest = {
   name: '홍길동',
   email: 'gildong@example.com',
   phone: '010-1234-5678',
+  university: '고려대학교',
+  major: '통계학과',
   term: 28,
   track: '분석',
   status: 'ACTIVE',
@@ -78,6 +80,15 @@ test('수정은 보낸 값만 바꾼다', async () => {
   assert.equal(updated.role, 'OPERATOR');
   assert.equal(updated.name, '김서하');
   assert.equal(updated.email, 'seoha.k@yonsei.ac.kr');
+  assert.equal(updated.university, '연세대학교');
+  assert.equal(updated.major, '응용통계학과');
+
+  const renamed = call<ClubMember>('PATCH', '/api/v1/club-members/u_28_01', {
+    university: '서울대학교',
+    major: '',
+  });
+  assert.equal(renamed.university, '서울대학교');
+  assert.equal(renamed.major, '');
 });
 
 test('같은 기수에 같은 이름이 있으면 409, 형식이 틀리면 400, 없는 동아리원은 404로 거절한다', async () => {

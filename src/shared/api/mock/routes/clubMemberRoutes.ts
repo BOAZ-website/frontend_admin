@@ -42,6 +42,8 @@ function applyMemberBody(base: ClubMember, body: Body): ClubMember {
     name: text('name') ?? base.name,
     email: text('email') ?? base.email,
     phone: text('phone') ?? base.phone,
+    university: text('university') ?? base.university,
+    major: text('major') ?? base.major,
     joinedAt: text('joinedAt') ?? base.joinedAt,
     term: optionalNumber(body, 'term') ?? base.term,
     track: oneOf(text('track'), CLUB_MEMBER_TRACKS, 'track') ?? base.track,
@@ -79,7 +81,7 @@ export const clubMemberRoutes: MockRoute[] = [
   {
     method: 'POST',
     pattern: '/api/v1/club-members',
-    summary: '동아리원 등록(이름·기수·부문·역할·활동 상태·가입일·이메일·연락처)',
+    summary: '동아리원 등록(이름·기수·부문·역할·활동 상태·가입일·이메일·연락처·대학교·전공)',
     handler: ({ db, body }) => {
       const input = readBody(body);
       if (optionalNumber(input, 'term') === undefined) throw badRequest('term 값이 필요합니다.');
@@ -89,6 +91,8 @@ export const clubMemberRoutes: MockRoute[] = [
         name: '',
         email: '',
         phone: '',
+        university: '',
+        major: '',
         term: 0,
         track: CLUB_MEMBER_TRACKS[0],
         status: 'ACTIVE',
