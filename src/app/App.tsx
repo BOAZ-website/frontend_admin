@@ -13,6 +13,7 @@ import { FaqSection } from '@/pages/content-faq/ui/FaqSection';
 import { ReviewsSection } from '@/pages/content-reviews/ui/ReviewsSection';
 import { EvaluationManagePage } from '@/pages/recruiting-evaluation/ui/EvaluationManagePage';
 import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentManagePage';
+import { MemberManagementPage } from '@/pages/member-management/ui/MemberManagementPage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
@@ -30,41 +31,8 @@ import { useScoreRules } from '@/entities/score-rule/model/useScoreRules';
 import type { StudyTeamInfo } from '@/entities/study-team/model/types';
 import type { UserRole, UserTrack } from '@/entities/user/model/types';
 import type { ActivePage } from '@/shared/config/activePage';
-import { PAGE_LABELS } from '@/shared/config/pageLabels';
+import { isActivePage, PAGE_LABELS } from '@/shared/config/pageLabels';
 import { confirmLeave } from '@/shared/lib/leaveGuard';
-
-const VALID_ACTIVE_PAGES = new Set<string>([
-  'att-events',
-  'att-hosts',
-  'att-scores',
-  'att-rules',
-  'att-input',
-  'att-input-adv',
-  'att-input-study',
-  'att-session',
-  'att-adv',
-  'att-study',
-  'att-internal',
-  'content-archive',
-  'content-faq',
-  'content-curriculum',
-  'content-reviews',
-  'content',
-  'recruiting',
-  'recruiting-posts',
-  'recruiting-questions',
-  'recruiting-preview',
-  'recruiting-csv',
-  'recruiting-leads',
-  'evaluation',
-  'evaluation-evals',
-  'evaluation-applicants',
-  'evaluation-promote',
-  'system',
-  'system-accounts',
-  'system-permissions',
-  'system-audit',
-]);
 
 const NO_TEAMS: StudyTeamInfo[] = [];
 const NO_HOSTS: HostAccount[] = [];
@@ -75,13 +43,9 @@ const NO_WEEKS: WeekInfo[] = [];
 function getInitialActivePage(): ActivePage {
   try {
     const hash = window.location.hash.replace(/^#/, '');
-    if (hash && VALID_ACTIVE_PAGES.has(hash)) {
-      return hash as ActivePage;
-    }
+    if (isActivePage(hash)) return hash;
     const saved = localStorage.getItem('boaz_active_page');
-    if (saved && VALID_ACTIVE_PAGES.has(saved)) {
-      return saved as ActivePage;
-    }
+    if (saved && isActivePage(saved)) return saved;
   } catch {
     // ignore
   }
@@ -111,9 +75,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#/, '');
-      if (hash && VALID_ACTIVE_PAGES.has(hash)) {
-        setActivePage(hash as ActivePage);
-      }
+      if (isActivePage(hash)) setActivePage(hash);
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
@@ -705,7 +667,11 @@ export default function App() {
           )}
 
           {/* 5. System Section */}
-          {(activePage.startsWith('system') || activePage === 'system') && (
+          {activePage === 'system-members' && <MemberManagementPage />}
+          {(activePage === 'system' ||
+            activePage === 'system-accounts' ||
+            activePage === 'system-permissions' ||
+            activePage === 'system-audit') && (
             <SystemAccountsPage
               initialSubTab={
                 activePage === 'system-permissions'

@@ -35,6 +35,8 @@
 | 백엔드를 연동한다 | [`screens/07-ia-gap.md`](screens/07-ia-gap.md) §4 (API 근거 없는 기능) → 담당 도메인 문서 |
 | 회의에서 정할 것을 찾는다 | [`02-open-items.md`](02-open-items.md) |
 | 특정 화면의 코드 위치를 찾는다 | [`screens/06-screen-inventory.md`](screens/06-screen-inventory.md) |
+| 임시 API 경로와 그 API를 쓰는 화면을 찾는다 | [`frontend/01-mock-api.md`](frontend/01-mock-api.md) |
+| 임시 DB 테이블·열·관계를 확인한다 | [`frontend/02-mock-db.md`](frontend/02-mock-db.md) |
 | 일정·우선순위·담당 분야를 확인한다 | [`01-wbs.md`](01-wbs.md) — 화면 티켓은 EPIC 절, 결정 대기는 각 EPIC의 디자인 확정(`*-DSN`) 티켓과 API 확인 항목, 일정은 마일스톤 절 |
 
 ---
@@ -46,6 +48,9 @@ docs/
 ├── README.md                          이 문서
 ├── 01-wbs.md                          실행 계획 — EPIC·화면 티켓·기능 ID·마일스톤 (기능명세서 기준)
 ├── 02-open-items.md                   도메인 교차 결정 안건 (미정)
+├── frontend/                          프론트엔드 개발 문서
+│   ├── 01-mock-api.md                 임시 API 65개 ↔ 화면 쪽 함수 ↔ 사용 화면 (조회용)
+│   └── 02-mock-db.md                  임시 DB 테이블 22개 · 관계 · 시드 현황 (조회용)
 ├── ia/
 │   ├── 01-ia-strategy.md              IA를 어떤 기준으로 짰는가 (판단 근거)
 │   └── 02-ia-tree.md                  목표 IA 트리 · 권한 매트릭스 · 라우트 맵
@@ -79,6 +84,7 @@ docs/
 | `ia/` · `spec/` | `00`~ | `00`은 공통 바닥, 나머지는 도메인 단위 |
 | `screens/` | `00`~`05` | `00`은 공통 전제, `01`~`05`는 도메인별 화면 현황 |
 | `screens/` | `06`~ | 도메인에 속하지 않는 조회·대조용 부록 |
+| `frontend/` | `01`~ | 프론트엔드 개발 문서(코드 구조·임시 API 등) |
 
 **제목은 `<이름> — <성격>` 형식**으로 쓰고, 상단에 `기준 커밋 / 최종 갱신 / 운영 주체 / 표기 규칙` 4열 표를 둔다.
 

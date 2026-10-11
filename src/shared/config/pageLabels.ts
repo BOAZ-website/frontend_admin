@@ -28,7 +28,16 @@ export const PAGE_LABELS: Record<ActivePage, string> = {
   'att-rules': '출결 규정 관리',
   'att-internal': '정규 출결 관리',
   system: '시스템·계정',
+  'system-members': '동아리원 관리',
   'system-accounts': '운영진 계정 관리 (CRUD)',
   'system-permissions': '권한 매트릭스',
   'system-audit': '보안 감사 로그',
 };
+
+/**
+ * 주소 해시나 브라우저 저장값이 실제 화면 ID인지 확인한다.
+ * PAGE_LABELS는 모든 ActivePage를 빠짐없이 가져야 타입 검사를 통과하므로, 화면 ID 목록을 따로 두지 않고 이 키를 쓴다.
+ */
+export function isActivePage(value: string): value is ActivePage {
+  return Object.hasOwn(PAGE_LABELS, value);
+}

@@ -33,3 +33,10 @@ export function listSemesterUsers(db: Database, cohort: number): UserProfile[] {
     [cohort],
   );
 }
+
+/** users 테이블에 있는 회원 기수 목록(중복 없이 큰 기수부터). */
+export function listUserTerms(db: Database): number[] {
+  return queryAll<{ term: number }>(db, 'SELECT DISTINCT term FROM users ORDER BY term DESC').map(
+    ({ term }) => term,
+  );
+}

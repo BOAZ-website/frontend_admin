@@ -1,6 +1,6 @@
 /**
  * 출결 화면들이 공통으로 쓰는 기준 데이터: 반기(기수·반기 표기·현재 반기·ADV 기수·점수 집계 대상 기수),
- * 반기별 주차 진행 상태와 날짜, 부문, 회원 검색·이름 검증.
+ * 반기별 주차 진행 상태와 날짜, 부문. 회원 검색·이름 검증은 userRoutes.ts에 있다.
  * 화면이 계산하던 값(현재·다음 반기, 반기 표기, 기본 주차)은 모두 여기서 DB를 읽어 내려준다.
  */
 import type { Database } from 'sql.js';
@@ -275,38 +275,6 @@ export const commonRoutes: MockRoute[] = [
         ]),
       );
       return semesterWeeks(db, cohort);
-    },
-  },
-  {
-    method: 'GET',
-    pattern: '/api/v1/users',
-    summary: '회원 목록·검색(팀장·팀원·트랙원 선택). name은 정확히, keyword는 이름 일부로 찾는다',
-    handler: ({ db, query }) => {
-      const semester = resolveSemester(db, query.get('semester'));
-      const name = query.get('name')?.trim();
-      const keyword = query.get('keyword')?.trim();
-      const term = parsePositiveInt(query.get('term'), 'term');
-      const track = query.get('track')?.trim();
-      return listSemesterUsers(db, semester.cohort).filter(
-        (user) =>
-          (!name || user.name === name) &&
-          (!keyword || user.name.includes(keyword)) &&
-          (term === undefined || user.term === term) &&
-          (!track || user.track === track),
-      );
-    },
-  },
-  {
-    method: 'GET',
-    pattern: '/api/v1/users/verify',
-    summary: '등록된 회원인지 이름으로 검증(동명이인이면 후보를 모두 돌려준다)',
-    handler: ({ db, query }) => {
-      const semester = resolveSemester(db, query.get('semester'));
-      const name = query.get('name')?.trim() ?? '';
-      const matches = name
-        ? listSemesterUsers(db, semester.cohort).filter((user) => user.name === name)
-        : [];
-      return { name, registered: matches.length > 0, matches };
     },
   },
 ];

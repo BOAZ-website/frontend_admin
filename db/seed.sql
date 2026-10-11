@@ -1558,3 +1558,27 @@ INSERT INTO host_concurrent_roles (host_id, position, role) VALUES
   ('h1', 0, '운영진'),
   ('h_adv1', 0, '운영진'),
   ('h_adv1', 1, 'LLM Agent & RAG 스터디');
+
+-- ── 동아리원 관리 화면 예시 값 ─────────────────────────────
+-- 연락처가 없는 예시 회원에는 형식만 맞춘 임시 이메일·전화번호를 채운다.
+UPDATE users SET email = 'boaz.' || substr(id, 3) || '@example.com' WHERE email = '';
+UPDATE users SET phone = printf('010-0%03d-%04d', term, rowid) WHERE phone = '';
+-- 대학교는 소속(affiliation)에 학교 이름이 적힌 회원만 옮겨 채우고, 그 회원들에게 예시 전공을 넣는다.
+UPDATE users SET university = affiliation WHERE affiliation LIKE '%대학교';
+UPDATE users SET major = CASE id
+  WHEN 'u_28_01' THEN '응용통계학과'
+  WHEN 'u_28_02' THEN '컴퓨터소프트웨어학부'
+  WHEN 'u_28_03' THEN '경제학과'
+  WHEN 'u_28_04' THEN '컴퓨터공학부'
+  WHEN 'u_28_05' THEN '산업공학과'
+  WHEN 'u_28_06' THEN '컴퓨터과학과'
+  WHEN 'u_28_08' THEN '정보산업공학과'
+  WHEN 'u_28_09' THEN '통계학과'
+  WHEN 'u_28_10' THEN '데이터사이언스융합전공'
+  WHEN 'u_28_13' THEN '통계학과'
+  ELSE major
+END;
+UPDATE users SET club_status = 'ALUMNI' WHERE term <= 25;
+UPDATE users SET club_status = 'INACTIVE' WHERE id IN ('u_27_07', 'u_28_14');
+UPDATE users SET club_role = 'PRESIDENT' WHERE id = 'u_27_01';
+UPDATE users SET club_role = 'OPERATOR' WHERE id IN ('u_26_01', 'u_27_02', 'u_28_01');

@@ -5,6 +5,7 @@
 import { getDatabase } from '@/shared/db/database';
 
 import { createRouter, type HttpMethod, type MockRoute } from './router';
+import { clubMemberRoutes } from './routes/clubMemberRoutes';
 import { commonRoutes } from './routes/commonRoutes';
 import { eventRoutes } from './routes/eventRoutes';
 import { hostRoutes } from './routes/hostRoutes';
@@ -13,10 +14,12 @@ import { scoreRuleRoutes } from './routes/scoreRuleRoutes';
 import { scoreSheetRoutes } from './routes/scoreSheetRoutes';
 import { teamAttendanceRoutes } from './routes/teamAttendanceRoutes';
 import { teamRoutes } from './routes/teamRoutes';
+import { userRoutes } from './routes/userRoutes';
 
-/** 임시 API 전체 경로 목록. 경로·설명은 각 routes 파일에 함께 적혀 있다. */
+/** 임시 API 전체 경로 목록. 경로·설명은 리소스별 routes 파일에 함께 적혀 있다. */
 export const MOCK_ROUTES: readonly MockRoute[] = [
   ...commonRoutes,
+  ...userRoutes,
   ...teamRoutes,
   ...teamAttendanceRoutes,
   ...scoreRoutes,
@@ -24,6 +27,7 @@ export const MOCK_ROUTES: readonly MockRoute[] = [
   ...scoreSheetRoutes,
   ...hostRoutes,
   ...eventRoutes,
+  ...clubMemberRoutes,
 ];
 
 const router = createRouter(MOCK_ROUTES);
