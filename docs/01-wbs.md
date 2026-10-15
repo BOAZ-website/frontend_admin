@@ -379,7 +379,7 @@
 | 기능 ID | 내용 | 담당 | 선행 |
 | --- | --- | --- | --- |
 | VIEW-01 | 전 인원 × 활동별 출결 종합 조회 | FE + BE | ATT-ROSTER · **API-10** |
-| API-10 | 명단 출결 종합 조회 API — `ATTENDANCE_{BASE,ADV,STUDY,EVENT}_READ`를 **열 단위로 적용**. 대표진 범위가 `SYS-A-5`에 걸린다 | BE | ATT-CORE |
+| API-10 | 명단 출결 종합 조회 API — `ATTENDANCE_{BASE,ADV,STUDY,EVENT}_READ`를 **열 단위로 적용**. 대표진·차기대표진은 `_READ`만 갖는다(`SYS-A-5` 해결, [`spec/06`](spec/06-system.md) §3.4) | BE | ATT-CORE |
 | VIEW-02 | 기수·부문·활동·그룹 필터 | FE | — |
 | VIEW-03 | 임의 컬럼 표시 | FE | ROS-05 |
 
@@ -541,8 +541,8 @@
 > 소요 기간 `한 달 이상`
 
 - 담당자: BE
-- 선행 ⏳: **`SYS-A-5`** 기본 세트 7키 × Permission 41개 격자 — `DefaultPermissions.java`의 SUPER 2행을 확정한다. `ia/02` §2와 `spec/01` §2가 서로 다르게 적고 있어 구현자가 임의로 고를 수 없다
-    - **차단 범위는 SUPER 2행뿐이다.** enum 41개 · `EffectivePermissions` · `ScopeGuard` · 테이블 2개는 병행 작성 가능하다. 다만 0·1단계를 한 배포로 묶었으므로 **배포는 격자에 묶인다**
+- 선행 ✅: **`SYS-A-5`** 기본 세트 7키 × Permission 41개 격자 — 권한 매트릭스 개정판([`spec/06`](spec/06-system.md) §3.4)으로 SUPER 2행이 정해졌다. 대표진·차기대표진은 출결 관리·입력탭·점수 집계·HOST 계정을 조회만 하고, 점수 규칙은 쓰기까지 갖는다
+    - 남은 확인: `SYS-A-6` — `콘텐츠 조회`(`CONTENT_READ`) 행의 주체별 값과 `본인 계정 정보 조회` 행의 처리(스터디장·ADV 팀장 `X`가 `/me`를 차단하는지 여부)
 
 | 단계 | 내용 | 되돌리기 |
 | --- | --- | --- |
@@ -791,7 +791,7 @@ Epic 3 티켓의 규모를 합산하면 **24~32 인·주**다. 우선순위대�
 
 **M2와 M6에서 `SYS-AUTH`를 쪼갠 이유.** `SYS-AUTH`는 0~5단계짜리 "한 달 이상" 티켓이다. M2가 요구하는 것은 권한 판정과 `@PreAuthorize`(0~3단계)이고, `SYS-PERM`의 전제인 권한 커스텀 API와 `/me` 확장은 5단계다. 한 키로 묶어 두면 M2가 언제 닫히는지 판정할 수 없다.
 
-**`SYS-A-5`가 `SYS-AUTH` 0단계의 선행이다.** 기본 세트 7키 중 `(SUPER, 대표진)`·`(SUPER, 차기대표진)` 두 행의 내용이 미정이라 `DefaultPermissions.java`를 쓸 수 없다. M2 착수 전에 격자를 확정해야 한다.
+**`SYS-A-5`는 해결됐다.** 권한 매트릭스 개정판([`spec/06`](spec/06-system.md) §3.4)이 `(SUPER, 대표진)`·`(SUPER, 차기대표진)` 두 행의 값을 정한다. `DefaultPermissions.java`는 `CONTENT_READ` 열(`SYS-A-6`)을 빼면 이 표대로 쓸 수 있다.
 
 **`ATT-B-2`가 `ATT-CORE` 착수의 선행이다.** 신입 특칙형 상태의 저장 방식이 정해지지 않으면 상태 enum을 굳힐 수 없고, 스키마 티켓은 되돌리는 비용이 가장 크다. 10월 착수 전에 정해야 한다.
 
