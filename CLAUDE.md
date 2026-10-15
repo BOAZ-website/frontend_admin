@@ -75,6 +75,9 @@ Tailwind CSS v4를 `@tailwindcss/vite` 플러그인으로 사용합니다. `post
 
 - UI 문구와 커밋 메시지는 한국어를 사용하고, 식별자와 타입 이름은 영어를 사용합니다.
 - 커밋 메시지는 `feat:`, `refactor:` 접두사를 사용하는 Conventional Commits 형식입니다.
+- WBS 티켓 작업을 끝내면 같은 PR에서 `docs/03-wbs-fe.md` 진행 현황표의 그 티켓 행을 고칩니다. `현재 상태`를 바뀐 단계로 바꾸고, 완료 기준을 채웠으면 `완료`로 적습니다. GitHub 이슈 칸이 비어 있으면 이슈 번호도 적습니다.
+  - 화면 티켓의 완료: 티켓 What의 핵심 기능마다 화면이 있음. 데이터가 목업·임시 API여도 됨(실제 API 연동은 별도)
+  - 플랫폼 기반(PLT) 티켓의 완료: 티켓 Acceptance를 모두 충족함
 - `tsconfig.app.json`에 `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`, `erasableSyntaxOnly`가 켜져 있습니다. 사용하지 않는 매개변수는 기존 코드처럼 `_onToggleRole`, `_sIdx`와 같이 밑줄 접두사를 붙여 처리하고, 타입 임포트는 반드시 `import type`으로 작성해야 합니다.
 
 ## 문서 작성 규칙
