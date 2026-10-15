@@ -38,7 +38,7 @@ localStorage 키는 `boaz_score_rules`, `boaz_delivery_template`, `boaz_custom_n
 
 ### 역할(Role) 처리
 
-`UserRole`은 `"SUPER" | "TEAM" | "HOST" | "CONTENT_ADMIN"`입니다. 역할은 **로그인 후 진입 페이지를 결정하는 용도로만** 쓰이며, 사이드바는 역할과 무관하게 모든 메뉴를 보여줍니다. `SIDEBAR_NAV`의 `permission` 필드는 백엔드 권한 이름을 기록해 둔 메타데이터일 뿐, 현재 필터링에 사용되지 않습니다. 권한별 메뉴 노출을 구현한다면 이 필드가 출발점입니다.
+`UserRole`은 `"SUPER" | "TEAM" | "HOST" | "CONTENT_ADMIN"`입니다. 역할은 로그인 후 진입 페이지와 사이드바 메뉴 범위를 정합니다. `src/widgets/sidebar/ui/Sidebar.tsx`의 `filteredNav`가 `HOST`에게는 출결 섹션의 "출결 입력" 그룹만, `CONTENT_ADMIN`에게는 콘텐츠 섹션만 보여 주고, 나머지 역할에는 모든 메뉴를 보여 줍니다. 이 제한은 사이드바에만 걸려 있어 주소 해시로 다른 화면에 들어가는 것은 막지 않습니다. `SIDEBAR_NAV`의 `permission` 필드는 백엔드 권한 이름을 기록해 둔 메타데이터일 뿐, 현재 필터링에 사용되지 않습니다. permission 기반 게이팅(SYS-GATE)을 구현한다면 이 필드가 출발점입니다.
 
 ### FSD 레이어와 경로 별칭
 
