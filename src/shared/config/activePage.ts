@@ -29,4 +29,5 @@ export type ActivePage =
   | 'system-members'
   | 'system-accounts'
   | 'system-permissions'
+  | 'system-permission-grant'
   | 'system-audit';

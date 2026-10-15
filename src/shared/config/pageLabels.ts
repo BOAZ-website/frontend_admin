@@ -31,6 +31,7 @@ export const PAGE_LABELS: Record<ActivePage, string> = {
   'system-members': '동아리원 관리',
   'system-accounts': '운영진 계정 관리 (CRUD)',
   'system-permissions': '권한 매트릭스',
+  'system-permission-grant': '권한 부여',
   'system-audit': '보안 감사 로그',
 };
 

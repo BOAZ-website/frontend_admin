@@ -671,14 +671,17 @@ export default function App() {
           {(activePage === 'system' ||
             activePage === 'system-accounts' ||
             activePage === 'system-permissions' ||
+            activePage === 'system-permission-grant' ||
             activePage === 'system-audit') && (
             <SystemAccountsPage
               initialSubTab={
                 activePage === 'system-permissions'
                   ? 'permissions'
-                  : activePage === 'system-audit'
-                    ? 'audit'
-                    : 'accounts'
+                  : activePage === 'system-permission-grant'
+                    ? 'grant'
+                    : activePage === 'system-audit'
+                      ? 'audit'
+                      : 'accounts'
               }
             />
           )}
