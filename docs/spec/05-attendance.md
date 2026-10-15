@@ -521,7 +521,7 @@
 | API-07 | 최종 집계 export 3종 | 세션 / 행사 / 스터디 | High |
 | API-08 | 그룹 CRUD · 장 지정 · **리더십 행 생성/삭제** | `ATT-GROUP` — `API-01`~`07`에 대응 화면이 없었다. 계정 발급·회수는 **기존 계정 CRUD API를 호출**한다. 출결 도메인이 소유하는 것은 `admin_group_leader` 행이고 `admin_account` 행은 시스템 도메인 소유다 | High |
 | API-09 | **Term 설정 · 무효 주차 CRUD** | `SET-RULE`의 `RULE-01`·`RULE-02` — `ATT-LDR`의 선행이라 함께 앞선다. `API-03`이 읽을 무효 주차 데이터를 쓰는 유일한 경로다. **종료된 Term은 §6.3 아카이브 전환에 따라 수정을 서버에서 차단**하고, 무효 주차 토글은 이미 기록된 출결을 계산에서 빼는 소급 효과가 있으므로 **변경 이력을 남긴다**. 점수 규칙 CRUD(`RULE-03`~`RULE-05`)는 `ATT-B-1`에 막혀 있어 `SET-RULE` 티켓의 BE 몫으로 둔다 | High |
-| API-10 | 명단 출결 종합 조회 (read-only) | `ATT-VIEW` — 전 인원 × 전 활동 교차 조회라 프론트 조립으로는 감당할 수 없다. **`ATTENDANCE_{BASE,ADV,STUDY,EVENT}_READ`를 열 단위로 적용**한다(BASE만 READ인 사람에게 스터디 열이 보이면 안 된다). 대표진의 `ATTENDANCE_*` 범위가 미정이라 **권한 판정이 `SYS-A-5`에 걸린다** | Mid |
+| API-10 | 명단 출결 종합 조회 (read-only) | `ATT-VIEW` — 전 인원 × 전 활동 교차 조회라 프론트 조립으로는 감당할 수 없다. **`ATTENDANCE_{BASE,ADV,STUDY,EVENT}_READ`를 열 단위로 적용**한다(BASE만 READ인 사람에게 스터디 열이 보이면 안 된다). 대표진·차기대표진은 `ATTENDANCE_*_READ`만 갖는다([`06-system.md`](06-system.md) §3.4) | Mid |
 
 ---
 
