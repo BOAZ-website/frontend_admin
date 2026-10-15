@@ -1582,3 +1582,33 @@ UPDATE users SET club_status = 'ALUMNI' WHERE term <= 25;
 UPDATE users SET club_status = 'INACTIVE' WHERE id IN ('u_27_07', 'u_28_14');
 UPDATE users SET club_role = 'PRESIDENT' WHERE id = 'u_27_01';
 UPDATE users SET club_role = 'OPERATOR' WHERE id IN ('u_26_01', 'u_27_02', 'u_28_01');
+
+-- ─────────────────────────── 운영진 계정·권한 ───────────────────────────
+-- 운영진 계정은 모두 회원(users)을 가리킨다. 이름·기수·부문은 users에서 읽는다.
+-- 임시 비밀번호는 모두 'Boaz!2026'이다. 고준서(8번)는 운영지원팀 운영진이면서 스터디장·ADV 팀장을 겸한다.
+INSERT INTO admin (id, user_id, username, password, role, team_name, created_by, created_at, updated_at) VALUES
+  (1, 'u_26_01', 'boaz_master_lead', 'Boaz!2026', 'MASTER', '서비스운영팀', NULL, '2026-07-01 09:00:00', '2026-08-16 19:00:00'),
+  (2, 'u_27_01', 'boaz_president', 'Boaz!2026', 'SUPER', '대표진', 1, '2026-07-05 14:30:00', '2026-07-05 14:30:00'),
+  (3, 'u_28_01', 'boaz_next_president', 'Boaz!2026', 'SUPER', '차기대표진', 1, '2026-07-06 10:00:00', '2026-07-06 10:00:00'),
+  (4, 'u_28_04', 'boaz_ops_lead', 'Boaz!2026', 'TEAM', '운영지원팀', 1, '2026-07-10 11:20:00', '2026-07-20 16:00:00'),
+  (5, 'u_28_05', 'boaz_service_dev', 'Boaz!2026', 'TEAM', '서비스운영팀', 1, '2026-07-12 15:40:00', '2026-08-10 18:10:00'),
+  (6, 'u_28_09', 'boaz_plan_lead', 'Boaz!2026', 'TEAM', '기획팀', 1, '2026-07-15 09:10:00', '2026-07-15 09:10:00'),
+  (7, 'u_28_10', 'boaz_design_lead', 'Boaz!2026', 'TEAM', '디자인팀', 1, '2026-07-18 13:00:00', '2026-07-18 13:00:00'),
+  (8, 'u_27_02', 'boaz_dual_leader', 'Boaz!2026', 'TEAM', '운영지원팀', 1, '2026-08-20 10:00:00', '2026-08-20 10:00:00');
+
+-- 운영진 계정이 있는 회원은 동아리원 관리에서도 운영진 역할로 보이게 맞춘다.
+UPDATE users SET club_role = 'OPERATOR' WHERE id IN ('u_28_04', 'u_28_05', 'u_28_09', 'u_28_10');
+
+INSERT INTO admin_group_leader (id, admin_id, group_id) VALUES
+  (1, 8, 'study_d'),
+  (2, 8, 'adv_t1');
+
+-- 기획팀장에게 콘텐츠 CUD를 열어 준 예외 한 건(기타 운영진 기본 세트에는 없다).
+INSERT INTO admin_permission_override (id, admin_id, permission, effect, granted_by, created_at) VALUES
+  (1, 6, 'CONTENT_WRITE', 'GRANT', 1, '2026-08-01 10:00:00');
+
+INSERT INTO admin_audit_log (id, created_at, actor_admin_id, actor_label, target_label, action_type, description, ip_address) VALUES
+  (1, '2026-07-10 11:20:00', 1, '남민서 (MASTER)', '강태양 (boaz_ops_lead)', 'ACCOUNT_CREATE', '운영진 계정 발급 (TEAM · 운영지원팀)', '121.134.82.11'),
+  (2, '2026-07-18 13:00:00', 1, '남민서 (MASTER)', '윤재혁 (boaz_design_lead)', 'ACCOUNT_CREATE', '운영진 계정 발급 (TEAM · 디자인팀)', '121.134.82.11'),
+  (3, '2026-08-01 10:00:00', 1, '남민서 (MASTER)', '한예린 (boaz_plan_lead)', 'PERMISSION_CHANGE', '추가: 콘텐츠 CUD', '121.134.82.11'),
+  (4, '2026-08-16 18:40:00', 1, '남민서 (MASTER)', '윤재혁 (boaz_design_lead)', 'PASSWORD_RESET', '비밀번호 재설정', '121.134.82.11');

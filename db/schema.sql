@@ -302,3 +302,56 @@ CREATE TABLE host_concurrent_roles (
   role     TEXT    NOT NULL,
   PRIMARY KEY (host_id, position)
 );
+
+-- ─────────────────────────── 운영진 계정·권한 ───────────────────────────
+-- 운영진(관리자) 계정. HOST 계정은 위 host_accounts가 따로 맡는다.
+-- 운영진은 모두 회원(users)이다. 계정은 user_id로 회원 한 명을 가리키고, 이름·기수·부문은 users에서 읽는다
+-- (계정에 따로 저장하지 않아 동아리원 관리에서 고친 값이 그대로 반영된다).
+-- 권한은 (role, team_name) 조합의 기본 권한 세트(코드) + 계정별 예외(admin_permission_override)
+-- + 맡은 그룹에서 계산되는 권한(admin_group_leader)으로 정해진다. docs/spec/06-system.md §3.
+CREATE TABLE admin (
+  id         INTEGER PRIMARY KEY,
+  user_id    TEXT    NOT NULL UNIQUE REFERENCES users (id) ON DELETE RESTRICT, -- 계정 주인(회원). 회원 한 명에 계정 하나, 계정이 있는 회원은 지울 수 없다
+  username   TEXT    NOT NULL UNIQUE,
+  password   TEXT    NOT NULL,                             -- 임시 DB 전용 평문. 실제 서버는 해시로 저장한다
+  role       TEXT    NOT NULL CHECK (role IN ('MASTER', 'SUPER', 'TEAM')),
+  team_name  TEXT    NOT NULL,                             -- 운영진의 자리(대표진·서비스운영팀 등). 새 팀이 생길 수 있어 값을 제한하지 않는다
+  created_by INTEGER REFERENCES admin (id) ON DELETE SET NULL,
+  created_at TEXT    NOT NULL,
+  updated_at TEXT    NOT NULL
+);
+
+-- 계정별 권한 예외. 기본 권한 세트 대비 더한 것(GRANT)·뺀 것(REVOKE)만 저장한다.
+-- 권한 하나에 행이 최대 하나라 같은 권한에 GRANT와 REVOKE가 함께 걸리지 않는다.
+CREATE TABLE admin_permission_override (
+  id         INTEGER PRIMARY KEY,
+  admin_id   INTEGER NOT NULL REFERENCES admin (id) ON DELETE CASCADE,
+  permission TEXT    NOT NULL,
+  effect     TEXT    NOT NULL CHECK (effect IN ('GRANT', 'REVOKE')),
+  granted_by INTEGER NOT NULL,
+  created_at TEXT    NOT NULL,
+  UNIQUE (admin_id, permission)
+);
+
+-- 운영진이 맡은 그룹(ADV 팀·스터디). 백엔드의 activity_group 자리를 teams가 대신한다.
+-- 맡은 그룹의 종류(ADV·STUDY)에 따라 출결 입력 권한(_OWN_GROUP_)이 매 요청 계산된다.
+CREATE TABLE admin_group_leader (
+  id       INTEGER PRIMARY KEY,
+  admin_id INTEGER NOT NULL REFERENCES admin (id) ON DELETE CASCADE,
+  group_id TEXT    NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
+  UNIQUE (group_id)                                        -- 그룹당 리더 1명
+);
+
+-- 보안 감사 로그. 백엔드는 별도 착수 항목이라 열은 임시안이다(docs/spec/06-system.md §4.3).
+-- 수행자·대상은 계정이 지워져도 기록이 남도록 표시 문자열로도 저장한다.
+CREATE TABLE admin_audit_log (
+  id             INTEGER PRIMARY KEY,
+  created_at     TEXT    NOT NULL,
+  actor_admin_id INTEGER,
+  actor_label    TEXT    NOT NULL,
+  target_label   TEXT    NOT NULL,
+  action_type    TEXT    NOT NULL CHECK (action_type IN
+                   ('ACCOUNT_CREATE', 'ACCOUNT_UPDATE', 'ACCOUNT_DELETE', 'PASSWORD_RESET', 'PERMISSION_CHANGE')),
+  description    TEXT    NOT NULL,
+  ip_address     TEXT    NOT NULL
+);
