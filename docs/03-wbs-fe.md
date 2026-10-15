@@ -82,10 +82,10 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 | ATT-SUM | 임시 API | M5 | (#18 닫힘) | |
 | ATT-TL | 없음 | M5 | | |
 | SYS-GATE | 없음 | M2 | | |
-| SYS-ACC | 목업 | M6 | #38 분할 | |
-| SYS-PERM | 목업 | M6 | #38 분할 | |
+| SYS-ACC | 임시 API | M6 | #38 분할 | |
+| SYS-PERM | 임시 API | M6 | #38 분할 | |
 | SYS-MEM | 임시 API | M6 | (#30 닫힘) | |
-| SYS-LOG | 목업 | M7 이후 | #38 분할 | |
+| SYS-LOG | 임시 API | M7 이후 | #38 분할 | |
 | CNT-FAQ | 목업 | M0 | | |
 | CNT-ARC | 목업 | M7 | | |
 | CNT-REV | 목업 | M7 | | |
@@ -547,7 +547,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 
 ### SYS-ACC 운영진 계정 관리
 
-- 규모 `한 주` · 현재 상태: 목업 (`src/pages/system-accounts/ui/SystemAccountsPage.tsx`의 `INITIAL_ACCOUNTS`) · 기존 이슈 #38 분할
+- 규모 `한 주` · 현재 상태: 임시 API (`src/pages/system-accounts/ui/SystemAccountsPage.tsx`, `src/shared/api/mock/routes/adminAccountRoutes.ts`) · 기존 이슈 #38 분할
 - **선행:** SYS-DSN · SYS-AUTH · PLT-CONFIRM · PLT-ERRMSG. 확인 필요: SYS-API-1
 - **Why:** 운영진 계정 발급·수정·삭제를 DB 직접 수정 없이 화면에서 한다.
 - **What:** FE 기능 ID: ACC-01 계정 조회·지표·필터 · ACC-02 역할·권한 확인 · ACC-03 계정 발급 · ACC-04 계정 수정 — 오버라이드 삭제 경고, 본인 변경 차단 · ACC-05 비밀번호 변경 · ACC-06 계정 삭제 — 마지막 보유자 차단, 확인 모달
@@ -559,7 +559,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 
 ### SYS-PERM 계정별 권한 관리
 
-- 규모 `한 주` · 현재 상태: 목업 (같은 파일의 권한 하위 탭) · 기존 이슈 #38 분할
+- 규모 `한 주` · 현재 상태: 임시 API (계정 목록에서 들어가는 `AccountPermissionEditor.tsx`, 권한 부여 하위 탭의 `PermissionGrantPanel.tsx`) · 기존 이슈 #38 분할
 - **선행:** SYS-DSN · SYS-AUTH 5단계(권한 커스텀 API)
 - **Why:** 역할 기본 권한과 다른 권한이 필요한 운영진을 계정 단위로 조정한다.
 - **What:** FE 기능 ID: PERM-01 서버 permission 목록으로 41개 체크박스·7묶음 렌더 · PERM-02 기본 세트 체크·변경 항목 강조 · PERM-03 담당 그룹 권한 읽기 전용 · PERM-04 최종 집합 저장 · PERM-05 자기 회수·마지막 보유자 회수 거부 사유 표시
@@ -583,7 +583,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 
 ### SYS-LOG 보안 감사 로그
 
-- 규모 `한 주` · 현재 상태: 목업 (같은 파일의 `INITIAL_AUDIT_LOGS`) · 기존 이슈 #38 분할
+- 규모 `한 주` · 현재 상태: 임시 API (같은 화면의 감사 로그 하위 탭, `admin_audit_log` 임시 테이블) · 기존 이슈 #38 분할
 - **선행:** SYS-DSN · SYS-API-2(저장·조회 API, BE 별도 착수). 권한 구현 완료 후 착수
 - **Why:** 출결 수정·콘텐츠 삭제·승격·권한 변경 같은 관리 행위를 누가 언제 했는지 확인한다.
 - **What:** LOG-01 이력 조회(일시·수행자·액션·대상·상세·IP) (FE 몫) · LOG-02 검색·필터
