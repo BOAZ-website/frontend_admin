@@ -1,6 +1,6 @@
 /**
  * 운영진 계정 API 호출. 화면은 경로를 직접 쓰지 않고 이 함수들을 부른다.
- * 경로는 백엔드 AdminController 기준이며, 권한 카탈로그 응답 형태는 백엔드와 협의가 필요하다.
+ * 경로는 백엔드 AdminController 기준이며, 권한 커스텀·카탈로그 응답 형태는 백엔드와 협의가 필요하다.
  */
 import { api } from '@/shared/api/client';
 
@@ -8,6 +8,7 @@ import type {
   AdminAccountCreateRequest,
   AdminAccountUpdateRequest,
   AdminPasswordRequest,
+  AdminPermissionsRequest,
 } from '../model/dto';
 import type { AdminAccount, PermissionCatalog } from '../model/types';
 
@@ -46,4 +47,12 @@ export function deleteAdminAccount(accountId: number): Promise<void> {
 
 export function fetchPermissionCatalog(): Promise<PermissionCatalog> {
   return api.get('/api/v1/admin/permissions');
+}
+
+/** 체크된 최종 권한 집합을 보낸다. 기본 세트와의 차이 계산은 서버가 한다. */
+export function saveAccountPermissions(
+  accountId: number,
+  request: AdminPermissionsRequest,
+): Promise<AdminAccount> {
+  return api.put(`${accountPath(accountId)}/permissions`, request);
 }

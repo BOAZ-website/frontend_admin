@@ -4,6 +4,7 @@ import {
   changeAdminPassword,
   createAdminAccount,
   deleteAdminAccount,
+  saveAccountPermissions,
   updateAdminAccount,
 } from '@/entities/admin-account/api/adminAccountApi';
 import type {
@@ -13,6 +14,7 @@ import type {
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { useAdminConsole } from '@/pages/system-accounts/model/useAdminConsole';
 import { AccountFormModal } from '@/pages/system-accounts/ui/AccountFormModal';
+import { AccountPermissionEditor } from '@/pages/system-accounts/ui/AccountPermissionEditor';
 import { AccountsTable, type AccountActions } from '@/pages/system-accounts/ui/AccountsTable';
 import { MyAccountCard } from '@/pages/system-accounts/ui/MyAccountCard';
 import { PasswordModal } from '@/pages/system-accounts/ui/PasswordModal';
@@ -23,12 +25,13 @@ import { CreateButton } from '@/shared/ui/CreateButton';
 type FormTarget = { mode: 'create' } | { mode: 'edit'; account: AdminAccount };
 
 /**
- * 운영진 계정 관리 화면.
+ * 운영진 계정 관리 화면. 계정 목록에서 계정을 고르면 그 계정의 권한 관리 화면으로 바뀐다.
  * 데이터는 모두 API(백엔드 연결 전에는 임시 API)로 읽고 쓴다. 메뉴·버튼은 로그인한 계정의
  * 유효 권한(/me)으로 보이거나 숨기고, 최종 판정은 서버가 한다(권한이 없으면 403).
  */
 export function SystemAccountsPage() {
   const { data, error, reload } = useAdminConsole();
+  const [permissionTargetId, setPermissionTargetId] = useState<number | null>(null);
   const [formTarget, setFormTarget] = useState<FormTarget | null>(null);
   const [passwordTarget, setPasswordTarget] = useState<AdminAccount | null>(null);
 
@@ -57,13 +60,23 @@ export function SystemAccountsPage() {
   const isSelf = (account: AdminAccount) => account.id === me.id;
   const canWriteOthers = can('ADMIN_ACCOUNT_WRITE');
   const canWriteSelf = canWriteOthers || can('ADMIN_ACCOUNT_SELF_WRITE');
+  const canManagePermissions = can('ADMIN_PERMISSION_WRITE');
   const canChangePassword = (account: AdminAccount) =>
     isSelf(account) ? canWriteSelf : canWriteOthers;
   const actions: AccountActions = {
     canEdit: (account) => (isSelf(account) ? canWriteSelf : canWriteOthers),
+    canManagePermissions,
     canDelete: (account) => !isSelf(account) && can('ADMIN_ACCOUNT_CREATE_DELETE'),
   };
-  const pageTitle = accounts ? '운영진 계정 관리' : '내 계정 정보';
+  const permissionTarget =
+    canManagePermissions && permissionTargetId !== null
+      ? (accounts?.find((account) => account.id === permissionTargetId) ?? null)
+      : null;
+  const pageTitle = permissionTarget
+    ? '계정별 권한 관리'
+    : accounts
+      ? '운영진 계정 관리'
+      : '내 계정 정보';
 
   /** API 요청을 보내고 성공하면 데이터를 다시 읽는다. 실패하면 서버가 돌려준 사유를 알린다. */
   const run = async (work: () => Promise<unknown>, successMessage?: string): Promise<boolean> => {
@@ -101,13 +114,16 @@ export function SystemAccountsPage() {
     void run(() => deleteAdminAccount(account.id), '계정을 삭제했습니다.');
   };
 
+  const savePermissions = (account: AdminAccount, permissions: string[]) =>
+    run(() => saveAccountPermissions(account.id, { permissions }));
+
   return (
     <div className="space-y-6">
       {/* 1. 상단 제목 영역 */}
       <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">{pageTitle}</h1>
 
-        {can('ADMIN_ACCOUNT_CREATE_DELETE') && (
+        {!permissionTarget && can('ADMIN_ACCOUNT_CREATE_DELETE') && (
           <CreateButton
             label="계정"
             aria-label="새 운영진 계정 발급"
@@ -116,13 +132,22 @@ export function SystemAccountsPage() {
         )}
       </div>
 
-      {/* 목록 조회 권한이 있으면 전체 계정, 없으면 본인 정보 */}
-      {accounts ? (
+      {/* 권한 관리 대상을 골랐으면 권한 편집, 아니면 목록 조회 권한에 따라 전체 계정 또는 본인 정보 */}
+      {permissionTarget ? (
+        <AccountPermissionEditor
+          key={permissionTarget.id}
+          catalog={catalog}
+          account={permissionTarget}
+          onBack={() => setPermissionTargetId(null)}
+          onSave={(permissions) => savePermissions(permissionTarget, permissions)}
+        />
+      ) : accounts ? (
         <AccountsTable
           catalog={catalog}
           accounts={accounts}
           actions={actions}
           onEdit={(account) => setFormTarget({ mode: 'edit', account })}
+          onPermissions={(account) => setPermissionTargetId(account.id)}
           onDelete={deleteAccount}
         />
       ) : (
