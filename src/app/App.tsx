@@ -668,23 +668,7 @@ export default function App() {
 
           {/* 5. System Section */}
           {activePage === 'system-members' && <MemberManagementPage />}
-          {(activePage === 'system' ||
-            activePage === 'system-accounts' ||
-            activePage === 'system-permissions' ||
-            activePage === 'system-permission-grant' ||
-            activePage === 'system-audit') && (
-            <SystemAccountsPage
-              initialSubTab={
-                activePage === 'system-permissions'
-                  ? 'permissions'
-                  : activePage === 'system-permission-grant'
-                    ? 'grant'
-                    : activePage === 'system-audit'
-                      ? 'audit'
-                      : 'accounts'
-              }
-            />
-          )}
+          {(activePage === 'system' || activePage === 'system-accounts') && <SystemAccountsPage />}
         </main>
       </div>
 

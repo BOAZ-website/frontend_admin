@@ -341,17 +341,3 @@ CREATE TABLE admin_group_leader (
   group_id TEXT    NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
   UNIQUE (group_id)                                        -- 그룹당 리더 1명
 );
-
--- 보안 감사 로그. 백엔드는 별도 착수 항목이라 열은 임시안이다(docs/spec/06-system.md §4.3).
--- 수행자·대상은 계정이 지워져도 기록이 남도록 표시 문자열로도 저장한다.
-CREATE TABLE admin_audit_log (
-  id             INTEGER PRIMARY KEY,
-  created_at     TEXT    NOT NULL,
-  actor_admin_id INTEGER,
-  actor_label    TEXT    NOT NULL,
-  target_label   TEXT    NOT NULL,
-  action_type    TEXT    NOT NULL CHECK (action_type IN
-                   ('ACCOUNT_CREATE', 'ACCOUNT_UPDATE', 'ACCOUNT_DELETE', 'PASSWORD_RESET', 'PERMISSION_CHANGE')),
-  description    TEXT    NOT NULL,
-  ip_address     TEXT    NOT NULL
-);

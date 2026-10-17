@@ -13,7 +13,7 @@ import {
   type LeadershipGroup,
   type PermissionOverrides,
 } from '../model/permissions';
-import type { AdminAccount, AdminAuditLog, AdminRole, AuditActionType } from '../model/types';
+import type { AdminAccount, AdminRole } from '../model/types';
 
 /** admin 테이블의 열과, 계정 주인 회원(users)에서 합쳐 읽는 이름·기수·부문. */
 export interface AdminFields {
@@ -179,60 +179,4 @@ export function replaceOverrides(
       [adminId, permission, isGranted ? 'GRANT' : 'REVOKE', grantedBy, now],
     );
   });
-}
-
-interface AuditRow extends Record<string, unknown> {
-  id: number;
-  created_at: string;
-  actor_label: string;
-  target_label: string;
-  action_type: AuditActionType;
-  description: string;
-  ip_address: string;
-}
-
-/** 감사 로그(최신 기록부터). */
-export function listAuditLogs(db: Database): AdminAuditLog[] {
-  return queryAll<AuditRow>(
-    db,
-    'SELECT * FROM admin_audit_log ORDER BY created_at DESC, id DESC',
-  ).map((row) => ({
-    id: row.id,
-    createdAt: row.created_at,
-    actor: row.actor_label,
-    target: row.target_label,
-    actionType: row.action_type,
-    description: row.description,
-    ipAddress: row.ip_address,
-  }));
-}
-
-export const accountLabel = (row: Pick<AdminRow, 'name' | 'username'>): string =>
-  `${row.name} (${row.username})`;
-
-/** 임시 API는 요청자 IP를 알 수 없어 고정값을 남긴다. */
-const MOCK_IP_ADDRESS = '121.134.82.11';
-
-export function insertAuditLog(
-  db: Database,
-  actor: AdminRow,
-  targetLabel: string,
-  actionType: AuditActionType,
-  description: string,
-): void {
-  execute(
-    db,
-    `INSERT INTO admin_audit_log (created_at, actor_admin_id, actor_label, target_label,
-                                  action_type, description, ip_address)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      nowText(),
-      actor.id,
-      `${actor.name} (${actor.role})`,
-      targetLabel,
-      actionType,
-      description,
-      MOCK_IP_ADDRESS,
-    ],
-  );
 }

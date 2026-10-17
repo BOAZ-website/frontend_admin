@@ -1,6 +1,6 @@
 /**
- * 운영진 계정·권한·감사 로그 API 호출. 화면은 경로를 직접 쓰지 않고 이 함수들을 부른다.
- * 경로는 백엔드 AdminController 기준이며, 권한 커스텀·일괄 부여·카탈로그 응답 형태는 백엔드와 협의가 필요하다.
+ * 운영진 계정 API 호출. 화면은 경로를 직접 쓰지 않고 이 함수들을 부른다.
+ * 경로는 백엔드 AdminController 기준이며, 권한 카탈로그 응답 형태는 백엔드와 협의가 필요하다.
  */
 import { api } from '@/shared/api/client';
 
@@ -8,10 +8,8 @@ import type {
   AdminAccountCreateRequest,
   AdminAccountUpdateRequest,
   AdminPasswordRequest,
-  AdminPermissionBulkRequest,
-  AdminPermissionsRequest,
 } from '../model/dto';
-import type { AdminAccount, AdminAuditLog, PermissionCatalog } from '../model/types';
+import type { AdminAccount, PermissionCatalog } from '../model/types';
 
 const accountPath = (accountId: number) => `/api/v1/admin/accounts/${accountId}`;
 
@@ -48,23 +46,4 @@ export function deleteAdminAccount(accountId: number): Promise<void> {
 
 export function fetchPermissionCatalog(): Promise<PermissionCatalog> {
   return api.get('/api/v1/admin/permissions');
-}
-
-/** 체크된 최종 권한 집합을 보낸다. 기본 세트와의 차이 계산은 서버가 한다. */
-export function saveAccountPermissions(
-  accountId: number,
-  request: AdminPermissionsRequest,
-): Promise<AdminAccount> {
-  return api.put(`${accountPath(accountId)}/permissions`, request);
-}
-
-/** 고른 권한들을 여러 계정에 한 번에 부여·회수한다. 바뀐 계정들을 돌려준다. */
-export function applyPermissionsInBulk(
-  request: AdminPermissionBulkRequest,
-): Promise<AdminAccount[]> {
-  return api.post('/api/v1/admin/permissions/bulk', request);
-}
-
-export function fetchAuditLogs(): Promise<AdminAuditLog[]> {
-  return api.get('/api/v1/admin/audit-logs');
 }

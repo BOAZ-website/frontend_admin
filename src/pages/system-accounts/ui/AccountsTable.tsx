@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { Pencil, Search, ShieldCheck, Trash2 } from 'lucide-react';
+import { Pencil, Search, Trash2 } from 'lucide-react';
 
 import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/model/types';
 import { PermissionChips } from '@/pages/system-accounts/ui/PermissionChips';
@@ -17,7 +17,6 @@ import { Tooltip } from '@/shared/ui/Tooltip';
 /** 행마다 보일 관리 버튼. 로그인한 계정의 유효 권한으로 정한다. */
 export interface AccountActions {
   canEdit: (account: AdminAccount) => boolean;
-  canManagePermissions: boolean;
   canDelete: (account: AdminAccount) => boolean;
 }
 
@@ -26,7 +25,6 @@ interface AccountsTableProps {
   accounts: readonly AdminAccount[];
   actions: AccountActions;
   onEdit: (account: AdminAccount) => void;
-  onPermissions: (account: AdminAccount) => void;
   onDelete: (account: AdminAccount) => void;
 }
 
@@ -39,7 +37,6 @@ export function AccountsTable({
   accounts,
   actions,
   onEdit,
-  onPermissions,
   onDelete,
 }: AccountsTableProps) {
   const [query, setQuery] = useState('');
@@ -127,19 +124,7 @@ export function AccountsTable({
                               {teamName}
                             </td>
                           )}
-                          <td className={`${TD_CLASS} font-bold text-slate-900`}>
-                            {actions.canManagePermissions ? (
-                              <button
-                                type="button"
-                                onClick={() => onPermissions(account)}
-                                className="cursor-pointer underline-offset-2 hover:underline"
-                              >
-                                {account.name}
-                              </button>
-                            ) : (
-                              account.name
-                            )}
-                          </td>
+                          <td className={`${TD_CLASS} font-bold text-slate-900`}>{account.name}</td>
                           <td className={TD_CLASS}>
                             <code className={USERNAME_CHIP}>{account.username}</code>
                           </td>
@@ -154,18 +139,6 @@ export function AccountsTable({
                           </td>
                           <td className={TD_CLASS}>
                             <div className="flex items-center justify-center gap-0.5">
-                              {actions.canManagePermissions && (
-                                <Tooltip label="권한">
-                                  <button
-                                    type="button"
-                                    onClick={() => onPermissions(account)}
-                                    aria-label={`${account.name} 권한`}
-                                    className={ICON_BTN}
-                                  >
-                                    <ShieldCheck size={14} aria-hidden="true" />
-                                  </button>
-                                </Tooltip>
-                              )}
                               {actions.canEdit(account) && (
                                 <Tooltip label="수정">
                                   <button

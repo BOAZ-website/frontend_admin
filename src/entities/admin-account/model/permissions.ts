@@ -293,31 +293,3 @@ export const toOverrides = (
         checked[permission.key] !== isInBaseSet(permission, key),
     ).map((permission) => [permission.key, checked[permission.key]] as const),
   );
-
-/** 권한 부여 화면의 일괄 동작. 부여·회수는 예외로 저장하고, 기본값으로 되돌리기는 예외를 지운다. */
-export type PermissionChange = 'grant' | 'revoke' | 'reset';
-
-/**
- * 고른 권한들을 한 계정의 예외에 반영한 새 예외를 돌려준다. 원래 예외는 바꾸지 않는다.
- * 바꾼 결과가 기본 세트와 같으면 예외를 남기지 않고, 담당 그룹 권한은 대상에서 뺀다.
- */
-export const applyPermissionChange = (
-  overrides: PermissionOverrides,
-  key: BaseSetKey | null,
-  permissionKeys: readonly string[],
-  change: PermissionChange,
-): PermissionOverrides => {
-  const targets = PERMISSIONS.filter(
-    (permission) => !permission.ownGroup && permissionKeys.includes(permission.key),
-  );
-  const next: Record<string, boolean> = { ...overrides };
-  for (const permission of targets) {
-    const desired = change === 'reset' ? null : change === 'grant';
-    if (desired === null || desired === isInBaseSet(permission, key)) {
-      delete next[permission.key];
-    } else {
-      next[permission.key] = desired;
-    }
-  }
-  return next;
-};

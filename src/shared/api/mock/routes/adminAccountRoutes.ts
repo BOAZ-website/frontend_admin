@@ -1,5 +1,5 @@
 /**
- * 운영진 계정·권한·감사 로그 API. 백엔드 "Admin 권한 체계 재설계" 설계 문서의 동작을 따른다.
+ * 운영진 계정 API. 백엔드 "Admin 권한 체계 재설계" 설계 문서의 동작을 따른다.
  *   · 요청마다 로그인한 계정의 유효 권한을 확인하고, 없으면 403을 돌려준다(@PreAuthorize 자리).
  *   · 본인 계정 여부·락아웃 방지처럼 대상을 봐야 하는 판정은 처리 함수 안에서 한다(ScopeGuard 자리).
  * 로그인은 임시 API 전용 세션(/api/v1/mock/admin-session)으로 흉내 낸다. 실제 서버는 JWT로 요청자를 안다.
@@ -7,15 +7,12 @@
 import type { Database } from 'sql.js';
 
 import {
-  accountLabel,
   deleteAdmin,
   findAdminRow,
   hasAdminAccount,
   insertAdmin,
-  insertAuditLog,
   isUsernameTaken,
   listAdminRows,
-  listAuditLogs,
   overridesOf,
   replaceOverrides,
   toAdminAccount,
@@ -30,12 +27,8 @@ import {
   LOCKOUT_GUARDED_PERMISSION,
   PERMISSION_GROUPS,
   PERMISSIONS,
-  applyPermissionChange,
-  baseSetKeyOf,
   isEffectivelyAllowed,
   isValidCombination,
-  toOverrides,
-  type PermissionChange,
   type PermissionOverrides,
 } from '@/entities/admin-account/model/permissions';
 import {
@@ -47,14 +40,7 @@ import {
 
 import { notFound } from '../queries';
 import { ApiError, type MockRoute } from '../router';
-import {
-  type Body,
-  oneOf,
-  optionalString,
-  readBody,
-  requiredString,
-  stringArray,
-} from '../validate';
+import { oneOf, optionalString, readBody, requiredString } from '../validate';
 
 const badRequest = (code: string, message: string) => new ApiError(400, code, message);
 const conflict = (code: string, message: string) => new ApiError(409, code, message);
@@ -153,45 +139,6 @@ function requireValidCombination(role: string, teamName: string) {
   }
 }
 
-function readAccountIds(body: Body): number[] {
-  const value = body.accountIds;
-  if (
-    !Array.isArray(value) ||
-    value.length === 0 ||
-    value.some((id) => typeof id !== 'number' || !Number.isInteger(id))
-  ) {
-    throw badRequest('BAD_REQUEST', 'accountIds 값은 정수 배열이어야 합니다.');
-  }
-  return [...new Set(value as number[])];
-}
-
-function readPermissionKeys(body: Body): string[] {
-  const keys = stringArray(body, 'permissions', { required: true });
-  const unknown = keys.filter((key) => !PERMISSIONS.some((p) => p.key === key));
-  if (unknown.length > 0) {
-    throw badRequest('UNKNOWN_PERMISSION', `없는 권한입니다: ${unknown.join(', ')}`);
-  }
-  return keys;
-}
-
-const permissionLabel = (key: string): string =>
-  PERMISSIONS.find((p) => p.key === key)?.label ?? key;
-
-/** 감사 로그에 남길 예외 내역. 예: '추가: 콘텐츠 CUD · 제외: 보안 감사 로그 조회' */
-function describeOverrides(overrides: PermissionOverrides): string {
-  const added = Object.keys(overrides)
-    .filter((key) => overrides[key])
-    .map(permissionLabel);
-  const removed = Object.keys(overrides)
-    .filter((key) => !overrides[key])
-    .map(permissionLabel);
-  const parts = [
-    added.length > 0 ? `추가: ${added.join(', ')}` : '',
-    removed.length > 0 ? `제외: ${removed.join(', ')}` : '',
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(' · ') : '기본 권한으로 되돌림';
-}
-
 const catalogOf = (db: Database): PermissionCatalog => ({
   groups: PERMISSION_GROUPS.map((group) => ({ ...group, permissions: [...group.permissions] })),
   baseSets: [...BASE_SET_COLUMNS],
@@ -199,12 +146,6 @@ const catalogOf = (db: Database): PermissionCatalog => ({
   // 기본 팀 목록에 없는 팀으로 만든 계정이 있으면 그 팀도 고를 수 있게 붙인다.
   teamNames: [...new Set([...ADMIN_TEAM_NAMES, ...listAdminRows(db).map((row) => row.team_name)])],
 });
-
-const PERMISSION_CHANGE_LABELS: Record<PermissionChange, string> = {
-  grant: '부여',
-  revoke: '회수',
-  reset: '기본값으로 되돌림',
-};
 
 export const adminAccountRoutes: MockRoute[] = [
   {
@@ -258,15 +199,7 @@ export const adminAccountRoutes: MockRoute[] = [
         team_name: teamName,
         created_by: actor.id,
       });
-      const created = findAdminRow(db, id)!;
-      insertAuditLog(
-        db,
-        actor,
-        accountLabel(created),
-        'ACCOUNT_CREATE',
-        `운영진 계정 발급 (${role} · ${teamName})`,
-      );
-      return toAdminAccount(db, created);
+      return toAdminAccount(db, findAdminRow(db, id)!);
     },
   },
   {
@@ -300,15 +233,6 @@ export const adminAccountRoutes: MockRoute[] = [
         replaceOverrides(db, target.id, {}, actor.id);
       }
       updateAdmin(db, next);
-      insertAuditLog(
-        db,
-        actor,
-        accountLabel(next),
-        'ACCOUNT_UPDATE',
-        isBaseChanged
-          ? `역할·부서 변경 (${target.role} · ${target.team_name} → ${next.role} · ${next.team_name}), 권한 예외 삭제`
-          : '계정 정보 수정(변경 없음)',
-      );
       return toAdminAccount(db, findAdminRow(db, target.id)!);
     },
   },
@@ -332,13 +256,6 @@ export const adminAccountRoutes: MockRoute[] = [
       if (!PASSWORD_PATTERN.test(newPassword))
         throw badRequest('INVALID_PASSWORD', PASSWORD_POLICY);
       updateAdminPassword(db, target.id, newPassword);
-      insertAuditLog(
-        db,
-        actor,
-        accountLabel(target),
-        'PASSWORD_RESET',
-        isSelf ? '본인 비밀번호 변경' : '비밀번호 재설정',
-      );
       return undefined;
     },
   },
@@ -354,7 +271,6 @@ export const adminAccountRoutes: MockRoute[] = [
         throw badRequest('CANNOT_DELETE_SELF', '본인 계정은 삭제할 수 없습니다.');
       }
       guardLockout(db, actor, new Map([[target.id, { row: null }]]));
-      insertAuditLog(db, actor, accountLabel(target), 'ACCOUNT_DELETE', '운영진 계정 삭제');
       deleteAdmin(db, target.id);
       return undefined;
     },
@@ -366,79 +282,6 @@ export const adminAccountRoutes: MockRoute[] = [
     handler: ({ db }) => {
       actorOf(db);
       return catalogOf(db);
-    },
-  },
-  {
-    method: 'PUT',
-    pattern: '/api/v1/admin/accounts/:accountId/permissions',
-    summary: '계정별 권한 저장. 체크된 최종 집합을 받아 기본 세트와의 차이만 예외로 저장한다',
-    handler: ({ db, params, body }) => {
-      const actor = requireAny(db, 'ADMIN_PERMISSION_WRITE');
-      const target = findTarget(db, params.accountId);
-      const desired = new Set(readPermissionKeys(readBody(body)));
-      const checked = Object.fromEntries(PERMISSIONS.map((p) => [p.key, desired.has(p.key)]));
-      const overrides = toOverrides(checked, baseSetKeyOf(target.role, target.team_name));
-      guardLockout(db, actor, new Map([[target.id, { overrides }]]));
-      replaceOverrides(db, target.id, overrides, actor.id);
-      insertAuditLog(
-        db,
-        actor,
-        accountLabel(target),
-        'PERMISSION_CHANGE',
-        describeOverrides(overrides),
-      );
-      return toAdminAccount(db, target);
-    },
-  },
-  {
-    method: 'POST',
-    pattern: '/api/v1/admin/permissions/bulk',
-    summary: '[협의 필요] 고른 권한들을 여러 계정에 한 번에 부여·회수·기본값으로 되돌린다',
-    handler: ({ db, body }) => {
-      const actor = requireAny(db, 'ADMIN_PERMISSION_WRITE');
-      const data = readBody(body);
-      const targets = readAccountIds(data).map((id) => findTarget(db, String(id)));
-      const keys = readPermissionKeys(data);
-      const change = oneOf(
-        requiredString(data, 'change'),
-        ['grant', 'revoke', 'reset'] as const,
-        'change',
-      )!;
-      const pending = new Map(
-        targets.map((row) => [
-          row.id,
-          {
-            overrides: applyPermissionChange(
-              overridesOf(db, row.id),
-              baseSetKeyOf(row.role, row.team_name),
-              keys,
-              change,
-            ),
-          },
-        ]),
-      );
-      guardLockout(db, actor, pending);
-      targets.forEach((row) => {
-        const { overrides } = pending.get(row.id)!;
-        replaceOverrides(db, row.id, overrides, actor.id);
-        insertAuditLog(
-          db,
-          actor,
-          accountLabel(row),
-          'PERMISSION_CHANGE',
-          `일괄 ${PERMISSION_CHANGE_LABELS[change]} · ${describeOverrides(overrides)}`,
-        );
-      });
-      return targets.map((row) => toAdminAccount(db, row));
-    },
-  },
-  {
-    method: 'GET',
-    pattern: '/api/v1/admin/audit-logs',
-    summary: '보안 감사 로그(최신 기록부터)',
-    handler: ({ db }) => {
-      requireAny(db, 'AUDIT_LOG_READ');
-      return listAuditLogs(db);
     },
   },
   {

@@ -1606,9 +1606,3 @@ INSERT INTO admin_group_leader (id, admin_id, group_id) VALUES
 -- 기획팀장에게 콘텐츠 CUD를 열어 준 예외 한 건(기타 운영진 기본 세트에는 없다).
 INSERT INTO admin_permission_override (id, admin_id, permission, effect, granted_by, created_at) VALUES
   (1, 6, 'CONTENT_WRITE', 'GRANT', 1, '2026-08-01 10:00:00');
-
-INSERT INTO admin_audit_log (id, created_at, actor_admin_id, actor_label, target_label, action_type, description, ip_address) VALUES
-  (1, '2026-07-10 11:20:00', 1, '남민서 (MASTER)', '강태양 (boaz_ops_lead)', 'ACCOUNT_CREATE', '운영진 계정 발급 (TEAM · 운영지원팀)', '121.134.82.11'),
-  (2, '2026-07-18 13:00:00', 1, '남민서 (MASTER)', '윤재혁 (boaz_design_lead)', 'ACCOUNT_CREATE', '운영진 계정 발급 (TEAM · 디자인팀)', '121.134.82.11'),
-  (3, '2026-08-01 10:00:00', 1, '남민서 (MASTER)', '한예린 (boaz_plan_lead)', 'PERMISSION_CHANGE', '추가: 콘텐츠 CUD', '121.134.82.11'),
-  (4, '2026-08-16 18:40:00', 1, '남민서 (MASTER)', '윤재혁 (boaz_design_lead)', 'PASSWORD_RESET', '비밀번호 재설정', '121.134.82.11');

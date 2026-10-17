@@ -1,4 +1,3 @@
-import type { PermissionChange } from './permissions';
 import type { AdminRole } from './types';
 
 /**
@@ -25,16 +24,4 @@ export type AdminAccountUpdateRequest = Partial<
 export interface AdminPasswordRequest {
   newPassword: string;
   currentPassword?: string;
-}
-
-/** 계정별 권한 저장(PUT .../permissions). 체크된 최종 집합을 보내고 기본 세트와의 차이는 서버가 계산한다. */
-export interface AdminPermissionsRequest {
-  permissions: string[];
-}
-
-/** 권한 일괄 부여·회수(POST /api/v1/admin/permissions/bulk). 백엔드와 협의가 필요한 제안 API다. */
-export interface AdminPermissionBulkRequest {
-  accountIds: number[];
-  permissions: string[];
-  change: PermissionChange;
 }

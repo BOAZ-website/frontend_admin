@@ -27,7 +27,4 @@ export type ActivePage =
   | 'evaluation-promote'
   | 'system'
   | 'system-members'
-  | 'system-accounts'
-  | 'system-permissions'
-  | 'system-permission-grant'
-  | 'system-audit';
+  | 'system-accounts';

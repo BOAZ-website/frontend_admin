@@ -56,25 +56,6 @@ export interface AdminAccount {
   effectivePermissions: string[];
 }
 
-export const AUDIT_ACTION_TYPES = [
-  'ACCOUNT_CREATE',
-  'ACCOUNT_UPDATE',
-  'ACCOUNT_DELETE',
-  'PASSWORD_RESET',
-  'PERMISSION_CHANGE',
-] as const;
-export type AuditActionType = (typeof AUDIT_ACTION_TYPES)[number];
-
-export interface AdminAuditLog {
-  id: number;
-  createdAt: string;
-  actor: string;
-  target: string;
-  actionType: AuditActionType;
-  description: string;
-  ipAddress: string;
-}
-
 /**
  * 권한 카탈로그(GET /api/v1/admin/permissions). 권한 목록, 기본 권한 세트 열과 규칙, 운영진 팀 목록이다.
  * 화면은 권한 체크박스·매트릭스를 하드코딩하지 않고 이 응답으로 그린다(설계 §7.3).

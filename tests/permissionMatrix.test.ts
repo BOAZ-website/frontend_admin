@@ -5,7 +5,6 @@ import {
   BASE_SET_COLUMNS,
   BASE_SET_RULES,
   isValidCombination,
-  applyPermissionChange,
   PERMISSIONS,
   baseSetKeyOf,
   isEffectivelyAllowed,
@@ -101,28 +100,6 @@ test('체크 상태에서 기본 세트와 다른 항목만 예외로 남기고,
     'otherTeam',
   );
   assert.deepEqual(overrides, { APPLICANT_CSV_READ: true, EVALUATION_OWN_TRACK_WRITE: false });
-});
-
-test('고른 권한을 한 번에 부여·회수하고, 기본 세트와 같아지면 예외를 남기지 않는다', () => {
-  const keys = [
-    'APPLICANT_CSV_READ',
-    'EVALUATION_OWN_TRACK_WRITE',
-    'ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE',
-  ];
-
-  const granted = applyPermissionChange({}, 'otherTeam', keys, 'grant');
-  assert.deepEqual(granted, { APPLICANT_CSV_READ: true });
-
-  const revoked = applyPermissionChange(granted, 'otherTeam', keys, 'revoke');
-  assert.deepEqual(revoked, { EVALUATION_OWN_TRACK_WRITE: false });
-
-  const reset = applyPermissionChange(
-    { APPLICANT_CSV_READ: true, CONTENT_WRITE: true },
-    'otherTeam',
-    ['APPLICANT_CSV_READ'],
-    'reset',
-  );
-  assert.deepEqual(reset, { CONTENT_WRITE: true });
 });
 
 test('유효 권한을 영역별 관리·조회로 요약하고, 누구나 가진 권한은 빼고 센다', () => {
