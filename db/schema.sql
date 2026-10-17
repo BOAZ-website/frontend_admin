@@ -335,9 +335,39 @@ CREATE TABLE admin_permission_override (
 
 -- 운영진이 맡은 그룹(ADV 팀·스터디). 백엔드의 activity_group 자리를 teams가 대신한다.
 -- 맡은 그룹의 종류(ADV·STUDY)에 따라 출결 입력 권한(_OWN_GROUP_)이 매 요청 계산된다.
+-- 행은 직접 넣지 않는다. 팀장(teams.leader_id)이 바뀌거나 팀장인 회원에게 계정이 생기면 아래 트리거가 맞춘다.
 CREATE TABLE admin_group_leader (
   id       INTEGER PRIMARY KEY,
   admin_id INTEGER NOT NULL REFERENCES admin (id) ON DELETE CASCADE,
   group_id TEXT    NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
   UNIQUE (group_id)                                        -- 그룹당 리더 1명
 );
+
+-- 팀을 만들거나 팀장을 바꾸면 그 팀의 리더 계정을 새 팀장의 운영진 계정으로 바꾼다(계정이 없으면 비운다).
+CREATE TRIGGER trg_admin_group_leader_on_team_insert
+AFTER INSERT ON teams
+WHEN NEW.group_type IN ('ADV', 'STUDY')
+BEGIN
+  INSERT INTO admin_group_leader (admin_id, group_id)
+  SELECT a.id, NEW.id FROM admin a WHERE a.user_id = NEW.leader_id;
+END;
+
+CREATE TRIGGER trg_admin_group_leader_on_leader_change
+AFTER UPDATE OF leader_id ON teams
+WHEN NEW.group_type IN ('ADV', 'STUDY') AND NEW.leader_id IS NOT OLD.leader_id
+BEGIN
+  DELETE FROM admin_group_leader WHERE group_id = NEW.id;
+  INSERT INTO admin_group_leader (admin_id, group_id)
+  SELECT a.id, NEW.id FROM admin a WHERE a.user_id = NEW.leader_id;
+END;
+
+-- 이번 반기 팀의 팀장인 회원에게 운영진 계정이 생기면 그 팀들을 맡은 그룹으로 붙인다.
+CREATE TRIGGER trg_admin_group_leader_on_admin_insert
+AFTER INSERT ON admin
+BEGIN
+  INSERT INTO admin_group_leader (admin_id, group_id)
+  SELECT NEW.id, t.id FROM teams t
+   WHERE t.leader_id = NEW.user_id
+     AND t.group_type IN ('ADV', 'STUDY')
+     AND t.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1);
+END;

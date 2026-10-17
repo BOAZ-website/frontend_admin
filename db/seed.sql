@@ -1599,9 +1599,7 @@ INSERT INTO admin (id, user_id, username, password, role, team_name, created_by,
 -- 운영진 계정이 있는 회원은 동아리원 관리에서도 운영진 역할로 보이게 맞춘다.
 UPDATE users SET club_role = 'OPERATOR' WHERE id IN ('u_28_04', 'u_28_05', 'u_28_09', 'u_28_10');
 
-INSERT INTO admin_group_leader (id, admin_id, group_id) VALUES
-  (1, 8, 'study_d'),
-  (2, 8, 'adv_t1');
+-- 고준서(8번)가 맡은 그룹(study_d·adv_t1)은 계정을 넣을 때 트리거가 teams.leader_id로 채운다.
 
 -- 기획팀장에게 콘텐츠 CUD를 열어 준 예외 한 건(기타 운영진 기본 세트에는 없다).
 INSERT INTO admin_permission_override (id, admin_id, permission, effect, granted_by, created_at) VALUES

@@ -98,6 +98,8 @@ export function AccountFormModal({
 
   const isValidCombination = isValidCombinationIn(catalog, form.role, form.teamName);
   const isChanged = !account || form.role !== account.role || form.teamName !== account.teamName;
+  // 역할·부서가 바뀌면 기본 권한 세트가 같아도 서버가 따로 조정한 권한을 모두 지운다.
+  const exceptionsToDrop = account && isChanged ? Object.keys(account.overrides).length : 0;
   const canSave =
     !isSaving &&
     isChanged &&
@@ -108,6 +110,14 @@ export function AccountFormModal({
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSave) return;
+    if (
+      exceptionsToDrop > 0 &&
+      !window.confirm(
+        `역할·부서를 바꾸면 이 계정에 따로 조정한 권한 ${exceptionsToDrop}개가 모두 지워지고 기본 권한으로 돌아갑니다. 저장할까요?`,
+      )
+    ) {
+      return;
+    }
     setIsSaving(true);
     const isSaved = await onSubmit({ ...form, username: form.username.trim() });
     setIsSaving(false);
@@ -116,9 +126,6 @@ export function AccountFormModal({
 
   const titleId = isCreate ? 'create-account-title' : 'edit-account-title';
   const baseKey = baseSetKeyIn(catalog, form.role, form.teamName);
-  // 역할·부서를 바꿔 기본 권한 세트가 달라지면 서버가 따로 조정한 권한을 모두 지운다.
-  const exceptionsToDrop =
-    account && baseKey !== account.baseSetKey ? Object.keys(account.overrides).length : 0;
 
   return (
     <div

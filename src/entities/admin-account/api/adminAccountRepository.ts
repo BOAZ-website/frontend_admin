@@ -5,6 +5,7 @@
 import type { Database } from 'sql.js';
 
 import { execute, queryAll } from '@/shared/db/createDatabase';
+import { localDateTime } from '@/shared/lib/date';
 
 import {
   PERMISSIONS,
@@ -109,7 +110,7 @@ export function toAdminAccount(db: Database, row: AdminRow): AdminAccount {
   };
 }
 
-export const nowText = (): string => new Date().toISOString().slice(0, 19).replace('T', ' ');
+export const nowText = (): string => localDateTime();
 
 export function insertAdmin(
   db: Database,
