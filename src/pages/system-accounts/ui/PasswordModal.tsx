@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RefreshCw, X } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, X } from 'lucide-react';
 
 import type { AdminPasswordRequest } from '@/entities/admin-account/model/dto';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
@@ -28,6 +28,7 @@ export function PasswordModal({ account, isSelf, onClose, onSubmit }: PasswordMo
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const isMismatch = confirmPassword !== '' && newPassword !== confirmPassword;
@@ -41,6 +42,8 @@ export function PasswordModal({ account, isSelf, onClose, onSubmit }: PasswordMo
     const generated = randomPassword();
     setNewPassword(generated);
     setConfirmPassword(generated);
+    // 만든 비밀번호를 전달해야 하므로 보이게 바꾼다.
+    setIsPasswordVisible(true);
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -103,16 +106,26 @@ export function PasswordModal({ account, isSelf, onClose, onSubmit }: PasswordMo
                 임의 비밀번호 생성
               </button>
             </div>
-            <input
-              id="new-password"
-              type="text"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="8자 이상, 영문·숫자·특수문자(!@#$%^&*) 포함"
-              autoComplete="off"
-              spellCheck={false}
-              className={`${FIELD_INPUT} font-mono`}
-            />
+            <div className="relative">
+              <input
+                id="new-password"
+                type={isPasswordVisible ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="8자 이상, 영문·숫자·특수문자(!@#$%^&*) 포함"
+                autoComplete="new-password"
+                spellCheck={false}
+                className={`${FIELD_INPUT} pr-10 font-mono`}
+              />
+              <button
+                type="button"
+                onClick={() => setIsPasswordVisible((value) => !value)}
+                aria-label={isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기'}
+                className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                {isPasswordVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
           </div>
 
           <div>
@@ -121,11 +134,11 @@ export function PasswordModal({ account, isSelf, onClose, onSubmit }: PasswordMo
             </label>
             <input
               id="confirm-password"
-              type="text"
+              type={isPasswordVisible ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               placeholder="새 비밀번호 다시 입력"
-              autoComplete="off"
+              autoComplete="new-password"
               spellCheck={false}
               aria-invalid={isMismatch}
               className={`${FIELD_INPUT} font-mono`}
