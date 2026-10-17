@@ -10,6 +10,7 @@ import type {
   AdminAccountCreateRequest,
   AdminPasswordRequest,
 } from '@/entities/admin-account/model/dto';
+import { can } from '@/entities/admin-account/model/can';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { useAdminConsole } from '@/pages/system-accounts/model/useAdminConsole';
 import { AccountFormModal } from '@/pages/system-accounts/ui/AccountFormModal';
@@ -53,23 +54,25 @@ export function SystemAccountsPage() {
   // 계정 발급 때 고를 수 있는 동아리원: 아직 운영진 계정이 없는 회원.
   const linkedUserIds = new Set(accounts?.map((account) => account.userId) ?? [me.userId]);
   const selectableMembers = (members ?? []).filter((member) => !linkedUserIds.has(member.id));
-  const can = (key: string) => me.effectivePermissions.includes(key);
   const isSelf = (account: AdminAccount) => account.id === me.id;
-  const canWriteOthers = can('ADMIN_ACCOUNT_WRITE');
-  const canWriteSelf = canWriteOthers || can('ADMIN_ACCOUNT_SELF_WRITE');
+  const canWriteOthers = can(me, 'ADMIN_ACCOUNT_WRITE');
+  const canWriteSelf = canWriteOthers || can(me, 'ADMIN_ACCOUNT_SELF_WRITE');
   const canChangePassword = (account: AdminAccount) =>
     isSelf(account) ? canWriteSelf : canWriteOthers;
   const actions: AccountActions = {
     canEdit: (account) => (isSelf(account) ? canWriteSelf : canWriteOthers),
-    canDelete: (account) => !isSelf(account) && can('ADMIN_ACCOUNT_CREATE_DELETE'),
+    canDelete: (account) => !isSelf(account) && can(me, 'ADMIN_ACCOUNT_CREATE_DELETE'),
   };
   const pageTitle = accounts ? '운영진 계정 관리' : '내 계정 정보';
 
-  /** API 요청을 보내고 성공하면 데이터를 다시 읽는다. 실패하면 서버가 돌려준 사유를 알린다. */
+  /**
+   * API 요청을 보내고 성공하면 데이터를 다시 읽는다. 실패하면 서버가 돌려준 사유를 알린다.
+   * 다시 읽기가 끝난 뒤에 돌아가므로, 화면은 갱신된 데이터로 다음 동작을 받는다.
+   */
   const run = async (work: () => Promise<unknown>, successMessage?: string): Promise<boolean> => {
     try {
       await work();
-      reload();
+      await reload();
       if (successMessage) window.alert(successMessage);
       return true;
     } catch (requestError) {
@@ -107,7 +110,7 @@ export function SystemAccountsPage() {
       <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">{pageTitle}</h1>
 
-        {can('ADMIN_ACCOUNT_CREATE_DELETE') && (
+        {can(me, 'ADMIN_ACCOUNT_CREATE_DELETE') && (
           <CreateButton
             label="계정"
             aria-label="새 운영진 계정 발급"
@@ -115,6 +118,25 @@ export function SystemAccountsPage() {
           />
         )}
       </div>
+
+      {/* 다시 읽기에 실패하면 화면에 남은 값이 최신이 아닐 수 있다. */}
+      {error && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600"
+        >
+          <span>
+            계정 정보를 다시 불러오지 못해 화면이 최신이 아닐 수 있습니다. ({error.message})
+          </span>
+          <button
+            type="button"
+            onClick={() => void reload()}
+            className="shrink-0 cursor-pointer rounded-sm border border-red-200 bg-white px-2.5 py-1 font-semibold hover:bg-red-100"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
 
       {/* 목록 조회 권한이 있으면 전체 계정, 없으면 본인 정보 */}
       {accounts ? (
