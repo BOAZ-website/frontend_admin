@@ -113,9 +113,44 @@ test('역할·부서를 바꾸면 권한 예외가 지워지고, 본인 역할�
   );
 });
 
-test('본인 계정은 삭제할 수 없다', async () => {
+test('권한 저장은 기본 세트와 다른 항목만 예외로 남긴다', async () => {
   const { call } = await setup();
+  const designer = call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === 7)!;
+  const desired = [...designer.effectivePermissions, 'APPLICANT_CSV_READ'].filter(
+    (key) => key !== 'FINAL_DECISION_READ',
+  );
+  const saved = call<AdminAccount>('PUT', '/api/v1/admin/accounts/7/permissions', {
+    permissions: desired,
+  });
+  assert.deepEqual(saved.overrides, { APPLICANT_CSV_READ: true, FINAL_DECISION_READ: false });
+});
+
+test('"타 계정 정보 수정" 권한은 본인에게서, 또 마지막 보유자에게서 회수할 수 없다', async () => {
+  const { call } = await setup();
+  const permissionsOf = (accountId: number) =>
+    call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === accountId)!
+      .effectivePermissions;
+  const save = (accountId: number, permissions: string[]) =>
+    call<AdminAccount>('PUT', `/api/v1/admin/accounts/${accountId}/permissions`, { permissions });
+
+  expectApiError(
+    () =>
+      save(
+        1,
+        permissionsOf(1).filter((key) => key !== 'ADMIN_ACCOUNT_WRITE'),
+      ),
+    409,
+    'CANNOT_REVOKE_OWN_ACCOUNT_WRITE',
+  );
   expectApiError(() => call('DELETE', '/api/v1/admin/accounts/1'), 400, 'CANNOT_DELETE_SELF');
+
+  // 다른 계정에 먼저 주면 보유자가 둘이 되어, 그 계정의 권한은 다시 회수할 수 있다.
+  save(5, [...permissionsOf(5), 'ADMIN_ACCOUNT_WRITE']);
+  const revoked = save(
+    5,
+    permissionsOf(5).filter((key) => key !== 'ADMIN_ACCOUNT_WRITE'),
+  );
+  assert.ok(!revoked.effectivePermissions.includes('ADMIN_ACCOUNT_WRITE'));
 });
 
 test('본인 비밀번호는 현재 비밀번호가 맞아야 바뀐다', async () => {
@@ -223,4 +258,27 @@ test('팀장이 바뀌면 맡은 그룹도 새 팀장의 운영진 계정으로 
   execute(db, "UPDATE teams SET leader_id = 'u_28_13' WHERE id = 'study_d'");
   assert.deepEqual(leadershipOf(8), []);
   assert.equal(leaderAccountOf('study_d'), undefined);
+});
+
+test('권한 저장은 없는 권한 키를 400으로, 권한 부여 권한이 없으면 403으로 거부한다', async () => {
+  const { call, loginAs } = await setup();
+  expectApiError(
+    () =>
+      call('PUT', '/api/v1/admin/accounts/7/permissions', {
+        permissions: ['CONTENT_WRITE', 'NOT_A_PERMISSION'],
+      }),
+    400,
+    'UNKNOWN_PERMISSION',
+  );
+  expectApiError(
+    () => call('PUT', '/api/v1/admin/accounts/7/permissions', { permissions: 'CONTENT_WRITE' }),
+    400,
+  );
+
+  loginAs(5); // 서비스운영팀: 권한 부여(커스텀) 권한 없음
+  expectApiError(
+    () => call('PUT', '/api/v1/admin/accounts/7/permissions', { permissions: [] }),
+    403,
+    'FORBIDDEN',
+  );
 });

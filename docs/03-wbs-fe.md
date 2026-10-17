@@ -83,7 +83,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 | ATT-TL | 없음 | M5 | | |
 | SYS-GATE | 없음 | M2 | | |
 | SYS-ACC | 임시 API | M6 | #46 | |
-| SYS-PERM | 없음 | M6 | #47 | |
+| SYS-PERM | 임시 API | M6 | #47 | |
 | SYS-MEM | 임시 API | M6 | (#30 닫힘) | |
 | SYS-LOG | 없음 | M7 이후 | #48 | |
 | CNT-FAQ | 목업 | M0 | | |
@@ -559,7 +559,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 
 ### SYS-PERM 계정별 권한 관리
 
-- 규모 `한 주` · 현재 상태: 없음 (기존 권한 매트릭스 화면은 명세 `SYS-A-1`에 따라 삭제) · GitHub 이슈 #47 (#38에서 분할)
+- 규모 `한 주` · 현재 상태: 임시 API (계정 목록에서 들어가는 `AccountPermissionEditor.tsx`, `PUT /api/v1/admin/accounts/:accountId/permissions`) · GitHub 이슈 #47 (#38에서 분할)
 - **선행:** SYS-DSN · SYS-AUTH 5단계(권한 커스텀 API)
 - **Why:** 역할 기본 권한과 다른 권한이 필요한 운영진을 계정 단위로 조정한다.
 - **What:** FE 기능 ID: PERM-01 서버 permission 목록으로 41개 체크박스·7묶음 렌더 · PERM-02 기본 세트 체크·변경 항목 강조 · PERM-03 담당 그룹 권한 읽기 전용 · PERM-04 최종 집합 저장 · PERM-05 자기 회수·마지막 보유자 회수 거부 사유 표시

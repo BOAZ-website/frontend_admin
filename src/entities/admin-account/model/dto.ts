@@ -25,3 +25,8 @@ export interface AdminPasswordRequest {
   newPassword: string;
   currentPassword?: string;
 }
+
+/** 계정별 권한 저장(PUT .../permissions). 체크된 최종 집합을 보내고 기본 세트와의 차이는 서버가 계산한다. */
+export interface AdminPermissionsRequest {
+  permissions: string[];
+}

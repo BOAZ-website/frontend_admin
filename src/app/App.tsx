@@ -668,7 +668,16 @@ export default function App() {
 
           {/* 5. System Section */}
           {activePage === 'system-members' && <MemberManagementPage />}
-          {(activePage === 'system' || activePage === 'system-accounts') && <SystemAccountsPage />}
+          {(activePage === 'system' ||
+            activePage === 'system-accounts' ||
+            activePage === 'system-permissions') && (
+            <SystemAccountsPage
+              view={activePage === 'system-permissions' ? 'permissions' : 'accounts'}
+              onViewChange={(view) =>
+                setActivePage(view === 'permissions' ? 'system-permissions' : 'system-accounts')
+              }
+            />
+          )}
         </main>
       </div>
 

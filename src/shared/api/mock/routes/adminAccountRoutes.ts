@@ -1,5 +1,5 @@
 /**
- * 운영진 계정 API. 백엔드 "Admin 권한 체계 재설계" 설계 문서의 동작을 따른다.
+ * 운영진 계정·권한 API. 백엔드 "Admin 권한 체계 재설계" 설계 문서의 동작을 따른다.
  *   · 요청마다 로그인한 계정의 유효 권한을 확인하고, 없으면 403을 돌려준다(@PreAuthorize 자리).
  *   · 본인 계정 여부·락아웃 방지처럼 대상을 봐야 하는 판정은 처리 함수 안에서 한다(ScopeGuard 자리).
  * 로그인은 임시 API 전용 세션(/api/v1/mock/admin-session)으로 흉내 낸다. 실제 서버는 JWT로 요청자를 안다.
@@ -27,8 +27,10 @@ import {
   LOCKOUT_GUARDED_PERMISSION,
   PERMISSION_GROUPS,
   PERMISSIONS,
+  baseSetKeyOf,
   isEffectivelyAllowed,
   isValidCombination,
+  toOverrides,
   type PermissionOverrides,
 } from '@/entities/admin-account/model/permissions';
 import {
@@ -40,7 +42,14 @@ import {
 
 import { notFound } from '../queries';
 import { ApiError, type MockRoute } from '../router';
-import { oneOf, optionalString, readBody, requiredString } from '../validate';
+import {
+  type Body,
+  oneOf,
+  optionalString,
+  readBody,
+  requiredString,
+  stringArray,
+} from '../validate';
 
 const badRequest = (code: string, message: string) => new ApiError(400, code, message);
 const conflict = (code: string, message: string) => new ApiError(409, code, message);
@@ -137,6 +146,15 @@ function requireValidCombination(role: string, teamName: string) {
       `${role} · ${teamName}은 정해진 역할·부서 조합이 아니라 권한이 없는 계정이 됩니다.`,
     );
   }
+}
+
+function readPermissionKeys(body: Body): string[] {
+  const keys = stringArray(body, 'permissions', { required: true });
+  const unknown = keys.filter((key) => !PERMISSIONS.some((p) => p.key === key));
+  if (unknown.length > 0) {
+    throw badRequest('UNKNOWN_PERMISSION', `없는 권한입니다: ${unknown.join(', ')}`);
+  }
+  return keys;
 }
 
 const catalogOf = (db: Database): PermissionCatalog => ({
@@ -282,6 +300,21 @@ export const adminAccountRoutes: MockRoute[] = [
     handler: ({ db }) => {
       actorOf(db);
       return catalogOf(db);
+    },
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/v1/admin/accounts/:accountId/permissions',
+    summary: '계정별 권한 저장. 체크된 최종 집합을 받아 기본 세트와의 차이만 예외로 저장한다',
+    handler: ({ db, params, body }) => {
+      const actor = requireAny(db, 'ADMIN_PERMISSION_WRITE');
+      const target = findTarget(db, params.accountId);
+      const desired = new Set(readPermissionKeys(readBody(body)));
+      const checked = Object.fromEntries(PERMISSIONS.map((p) => [p.key, desired.has(p.key)]));
+      const overrides = toOverrides(checked, baseSetKeyOf(target.role, target.team_name));
+      guardLockout(db, actor, new Map([[target.id, { overrides }]]));
+      replaceOverrides(db, target.id, overrides, actor.id);
+      return toAdminAccount(db, target);
     },
   },
   {
