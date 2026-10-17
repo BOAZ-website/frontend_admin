@@ -259,3 +259,26 @@ test('팀장이 바뀌면 맡은 그룹도 새 팀장의 운영진 계정으로 
   assert.deepEqual(leadershipOf(8), []);
   assert.equal(leaderAccountOf('study_d'), undefined);
 });
+
+test('권한 저장은 없는 권한 키를 400으로, 권한 부여 권한이 없으면 403으로 거부한다', async () => {
+  const { call, loginAs } = await setup();
+  expectApiError(
+    () =>
+      call('PUT', '/api/v1/admin/accounts/7/permissions', {
+        permissions: ['CONTENT_WRITE', 'NOT_A_PERMISSION'],
+      }),
+    400,
+    'UNKNOWN_PERMISSION',
+  );
+  expectApiError(
+    () => call('PUT', '/api/v1/admin/accounts/7/permissions', { permissions: 'CONTENT_WRITE' }),
+    400,
+  );
+
+  loginAs(5); // 서비스운영팀: 권한 부여(커스텀) 권한 없음
+  expectApiError(
+    () => call('PUT', '/api/v1/admin/accounts/7/permissions', { permissions: [] }),
+    403,
+    'FORBIDDEN',
+  );
+});
