@@ -179,3 +179,48 @@ test('운영진 계정이 있는 회원은 회원 DB에서 지울 수 없다(외
   const { db } = await setup();
   assert.throws(() => execute(db, "DELETE FROM users WHERE id = 'u_26_01'"), /FOREIGN KEY/);
 });
+
+test('역할·부서가 그대로인 수정은 저장하지 않아 권한 예외가 남는다', async () => {
+  const { call } = await setup();
+  const kept = call<AdminAccount>('PATCH', '/api/v1/admin/accounts/6', { teamName: '기획팀' });
+  assert.deepEqual(kept.overrides, { CONTENT_WRITE: true });
+});
+
+test('계정 생성·삭제 권한이 없으면 삭제는 403이다', async () => {
+  const { call, loginAs } = await setup();
+  loginAs(5); // 서비스운영팀: 계정 생성·삭제 권한 없음
+  expectApiError(() => call('DELETE', '/api/v1/admin/accounts/7'), 403, 'FORBIDDEN');
+});
+
+test('"타 계정 정보 수정" 권한의 마지막 보유자는 삭제할 수 없다', async () => {
+  const { db, call, loginAs } = await setup();
+  // 대표진(2번)에게 계정 생성·삭제를 주고, 서운팀장(1번) 대신 5번만 "타 계정 정보 수정"을 갖게 한다.
+  execute(
+    db,
+    `INSERT INTO admin_permission_override (admin_id, permission, effect, granted_by, created_at) VALUES
+       (2, 'ADMIN_ACCOUNT_CREATE_DELETE', 'GRANT', 1, '2026-10-17 10:00:00'),
+       (1, 'ADMIN_ACCOUNT_WRITE', 'REVOKE', 1, '2026-10-17 10:00:00'),
+       (5, 'ADMIN_ACCOUNT_WRITE', 'GRANT', 1, '2026-10-17 10:00:00')`,
+  );
+  loginAs(2);
+  expectApiError(() => call('DELETE', '/api/v1/admin/accounts/5'), 409, 'LAST_ACCOUNT_MANAGER');
+});
+
+test('팀장이 바뀌면 맡은 그룹도 새 팀장의 운영진 계정으로 옮겨진다', async () => {
+  const { db, call } = await setup();
+  const leadershipOf = (accountId: number) =>
+    call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === accountId)!
+      .leadership;
+
+  const leaderAccountOf = (groupId: string) =>
+    db.exec('SELECT admin_id FROM admin_group_leader WHERE group_id = ?', [groupId])[0]?.values;
+
+  execute(db, "UPDATE teams SET leader_id = 'u_28_04' WHERE id = 'adv_t1'");
+  assert.deepEqual(leadershipOf(8), ['STUDY']);
+  assert.deepEqual(leaderAccountOf('adv_t1'), [[4]]);
+
+  // 운영진 계정이 없는 회원이 팀장이 되면 그 팀은 어느 계정에도 붙지 않는다.
+  execute(db, "UPDATE teams SET leader_id = 'u_28_13' WHERE id = 'study_d'");
+  assert.deepEqual(leadershipOf(8), []);
+  assert.equal(leaderAccountOf('study_d'), undefined);
+});
