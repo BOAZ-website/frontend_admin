@@ -15,7 +15,7 @@ import { can } from '@/entities/admin-account/model/can';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { useAdminConsole } from '@/pages/system-accounts/model/useAdminConsole';
 import { AccountFormModal } from '@/pages/system-accounts/ui/AccountFormModal';
-import { AccountPermissionEditor } from '@/pages/system-accounts/ui/AccountPermissionEditor';
+import { AccountPermissionsTab } from '@/pages/system-accounts/ui/AccountPermissionsTab';
 import { AccountsTable, type AccountActions } from '@/pages/system-accounts/ui/AccountsTable';
 import { MyAccountCard } from '@/pages/system-accounts/ui/MyAccountCard';
 import { PasswordModal } from '@/pages/system-accounts/ui/PasswordModal';
@@ -25,12 +25,21 @@ import { CreateButton } from '@/shared/ui/CreateButton';
 /** 계정 발급·수정 팝업 대상. */
 type FormTarget = { mode: 'create' } | { mode: 'edit'; account: AdminAccount };
 
+/** 사이드바에서 고른 화면: 운영진 계정 관리 또는 계정별 권한 관리. */
+export type SystemAccountsView = 'accounts' | 'permissions';
+
+interface SystemAccountsPageProps {
+  view?: SystemAccountsView;
+  /** 계정 표의 권한 버튼처럼 화면 안에서 다른 화면으로 옮길 때 사이드바 선택도 함께 바꾼다. */
+  onViewChange?: (view: SystemAccountsView) => void;
+}
+
 /**
- * 운영진 계정 관리 화면. 계정 목록에서 계정을 고르면 그 계정의 권한 관리 화면으로 바뀐다.
+ * 운영진 계정 관리와 계정별 권한 관리 화면. 두 화면이 같은 데이터를 쓰므로 한 컴포넌트에서 그린다.
  * 데이터는 모두 API(백엔드 연결 전에는 임시 API)로 읽고 쓴다. 메뉴·버튼은 로그인한 계정의
  * 유효 권한(/me)으로 보이거나 숨기고, 최종 판정은 서버가 한다(권한이 없으면 403).
  */
-export function SystemAccountsPage() {
+export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAccountsPageProps) {
   const { data, error, reload } = useAdminConsole();
   const [permissionTargetId, setPermissionTargetId] = useState<number | null>(null);
   const [formTarget, setFormTarget] = useState<FormTarget | null>(null);
@@ -68,15 +77,17 @@ export function SystemAccountsPage() {
     canManagePermissions,
     canDelete: (account) => !isSelf(account) && can(me, 'ADMIN_ACCOUNT_CREATE_DELETE'),
   };
-  const permissionTarget =
-    canManagePermissions && permissionTargetId !== null
-      ? (accounts?.find((account) => account.id === permissionTargetId) ?? null)
-      : null;
-  const pageTitle = permissionTarget
+  const isPermissionsView = view === 'permissions';
+  const pageTitle = isPermissionsView
     ? '계정별 권한 관리'
     : accounts
       ? '운영진 계정 관리'
       : '내 계정 정보';
+
+  const openPermissions = (account: AdminAccount) => {
+    setPermissionTargetId(account.id);
+    onViewChange?.('permissions');
+  };
 
   /**
    * API 요청을 보내고 성공하면 데이터를 다시 읽는다. 실패하면 서버가 돌려준 사유를 알린다.
@@ -126,7 +137,7 @@ export function SystemAccountsPage() {
       <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">{pageTitle}</h1>
 
-        {!permissionTarget && can(me, 'ADMIN_ACCOUNT_CREATE_DELETE') && (
+        {!isPermissionsView && can(me, 'ADMIN_ACCOUNT_CREATE_DELETE') && (
           <CreateButton
             label="계정"
             aria-label="새 운영진 계정 발급"
@@ -154,22 +165,30 @@ export function SystemAccountsPage() {
         </div>
       )}
 
-      {/* 권한 관리 대상을 골랐으면 권한 편집, 아니면 목록 조회 권한에 따라 전체 계정 또는 본인 정보 */}
-      {permissionTarget ? (
-        <AccountPermissionEditor
-          key={permissionTarget.id}
-          catalog={catalog}
-          account={permissionTarget}
-          onBack={() => setPermissionTargetId(null)}
-          onSave={(permissions) => savePermissions(permissionTarget, permissions)}
-        />
+      {/* 계정별 권한 관리: 계정 목록 조회 권한이 있어야 계정을 고를 수 있다 */}
+      {isPermissionsView ? (
+        accounts ? (
+          <AccountPermissionsTab
+            catalog={catalog}
+            me={me}
+            accounts={accounts}
+            canEdit={canManagePermissions}
+            selectedId={permissionTargetId}
+            onSelect={setPermissionTargetId}
+            onSave={savePermissions}
+          />
+        ) : (
+          <p className="rounded-md border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
+            계정별 권한을 보려면 &quot;운영진 계정 목록 조회&quot; 권한이 필요합니다.
+          </p>
+        )
       ) : accounts ? (
         <AccountsTable
           catalog={catalog}
           accounts={accounts}
           actions={actions}
           onEdit={(account) => setFormTarget({ mode: 'edit', account })}
-          onPermissions={(account) => setPermissionTargetId(account.id)}
+          onPermissions={openPermissions}
           onDelete={deleteAccount}
         />
       ) : (
