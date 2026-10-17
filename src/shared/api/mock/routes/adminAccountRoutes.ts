@@ -227,11 +227,11 @@ export const adminAccountRoutes: MockRoute[] = [
           '본인 계정의 역할·부서는 스스로 바꿀 수 없습니다.',
         );
       }
-      if (isBaseChanged) {
-        requireValidCombination(next.role, next.team_name);
-        guardLockout(db, actor, new Map([[target.id, { row: next, overrides: {} }]]));
-        replaceOverrides(db, target.id, {}, actor.id);
-      }
+      // 바뀐 것이 없으면 저장하지 않는다(수정 시각·권한 예외를 그대로 둔다).
+      if (!isBaseChanged) return toAdminAccount(db, target);
+      requireValidCombination(next.role, next.team_name);
+      guardLockout(db, actor, new Map([[target.id, { row: next, overrides: {} }]]));
+      replaceOverrides(db, target.id, {}, actor.id);
       updateAdmin(db, next);
       return toAdminAccount(db, findAdminRow(db, target.id)!);
     },
