@@ -23,7 +23,7 @@ export interface BaseSetColumn {
 }
 
 export const BASE_SET_COLUMNS: readonly BaseSetColumn[] = [
-  { key: 'master', label: '서운팀장', keyLabel: 'MASTER · 서비스운영팀' },
+  { key: 'master', label: '서비스운영팀장', keyLabel: 'MASTER · 서비스운영팀' },
   { key: 'president', label: '대표진', keyLabel: 'SUPER · 대표진' },
   { key: 'nextPresident', label: '차기대표진', keyLabel: 'SUPER · 차기대표진' },
   { key: 'serviceTeam', label: '서비스운영팀', keyLabel: 'TEAM · 서비스운영팀' },
