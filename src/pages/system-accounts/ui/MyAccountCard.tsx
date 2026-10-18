@@ -40,7 +40,7 @@ export function MyAccountCard({ catalog, me, canEditSelf, onChangePassword }: My
                 {me.role}
               </span>
             </h2>
-            <p className="mt-0.5 font-mono text-xs text-slate-500">{me.username}</p>
+            <p className="mt-0.5 font-mono text-xs text-slate-500">{me.username ?? ''}</p>
           </div>
         </div>
 

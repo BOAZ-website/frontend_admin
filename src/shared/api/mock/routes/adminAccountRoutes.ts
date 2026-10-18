@@ -12,6 +12,7 @@ import {
   hasAdminAccount,
   insertAdmin,
   isUsernameTaken,
+  issueAdminCredentials,
   listAdminRows,
   overridesOf,
   replaceOverrides,
@@ -45,13 +46,10 @@ import { oneOf, optionalString, readBody, requiredString } from '../validate';
 const badRequest = (code: string, message: string) => new ApiError(400, code, message);
 const conflict = (code: string, message: string) => new ApiError(409, code, message);
 
-const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
-const USERNAME_PATTERN = /^[a-z0-9_]{4,30}$/;
-const PASSWORD_POLICY =
-  '비밀번호는 8자 이상이고 영문·숫자·특수문자(!@#$%^&*)를 각각 1개 이상 포함해야 합니다.';
+// 아이디 형식(글자 종류·길이)과 비밀번호 규칙 검사는 실제 백엔드에 맡긴다. 임시 API는 빈 값과 아이디 중복만 거부한다.
 
 // ─── 로그인 흉내(임시 API 전용) ───
-/** DB마다 로그인한 계정 id. 새로고침하면 DB와 함께 첫 서운팀장 계정으로 돌아간다. */
+/** DB마다 로그인한 계정 id. 새로고침하면 DB와 함께 첫 서비스운영팀장 계정으로 돌아간다. */
 const sessions = new WeakMap<Database, number>();
 const DEFAULT_ACTOR_ID = 1;
 
@@ -88,6 +86,13 @@ function requireAny(db: Database, ...keys: string[]): AdminRow {
     throw new ApiError(403, 'FORBIDDEN', `이 작업에는 "${labels}" 권한이 필요합니다.`);
   }
   return actor;
+}
+
+/** 아이디 중복만 검사한다. 형식 검사는 실제 백엔드에 맡긴다. */
+function requireUsableUsername(db: Database, username: string): void {
+  if (isUsernameTaken(db, username)) {
+    throw conflict('DUPLICATE_USERNAME', '이미 사용 중인 아이디입니다.');
+  }
 }
 
 function findTarget(db: Database, accountId: string): AdminRow {
@@ -168,13 +173,19 @@ export const adminAccountRoutes: MockRoute[] = [
     method: 'POST',
     pattern: '/api/v1/admin/accounts',
     summary:
-      '운영진 계정 발급. 계정 주인은 회원(userId)으로 고른다. 정해지지 않은 역할·부서 조합은 400, 같은 아이디·이미 계정이 있는 회원은 409',
+      '운영진 추가. 계정 주인은 회원(userId)으로 고른다. 아이디·초기 비밀번호는 함께 보내면 바로 발급하고, 빼면 운영진으로만 정한다(나중에 .../credentials로 발급). 정해지지 않은 역할·부서 조합은 400, 같은 아이디·이미 운영진인 회원은 409',
     handler: ({ db, body }) => {
       const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
       const data = readBody(body);
       const userId = requiredString(data, 'userId');
-      const username = requiredString(data, 'username');
-      const password = requiredString(data, 'password');
+      const username = optionalString(data, 'username')?.trim() || null;
+      const password = optionalString(data, 'password') || null;
+      if ((username === null) !== (password === null)) {
+        throw badRequest(
+          'INCOMPLETE_CREDENTIALS',
+          '아이디와 초기 비밀번호는 함께 입력해야 합니다.',
+        );
+      }
       const role = oneOf(requiredString(data, 'role'), ADMIN_ROLES, 'role')!;
       const teamName = requiredString(data, 'teamName');
       if (!userExists(db, userId)) {
@@ -183,14 +194,8 @@ export const adminAccountRoutes: MockRoute[] = [
       if (hasAdminAccount(db, userId)) {
         throw conflict('DUPLICATE_ADMIN_USER', '이 회원은 이미 운영진 계정이 있습니다.');
       }
-      if (!USERNAME_PATTERN.test(username)) {
-        throw badRequest('INVALID_USERNAME', '아이디는 영어 소문자·숫자·밑줄로 4~30자여야 합니다.');
-      }
-      if (!PASSWORD_PATTERN.test(password)) throw badRequest('INVALID_PASSWORD', PASSWORD_POLICY);
+      if (username !== null) requireUsableUsername(db, username);
       requireValidCombination(role, teamName);
-      if (isUsernameTaken(db, username)) {
-        throw conflict('DUPLICATE_USERNAME', '이미 사용 중인 아이디입니다.');
-      }
       const id = insertAdmin(db, {
         user_id: userId,
         username,
@@ -237,6 +242,25 @@ export const adminAccountRoutes: MockRoute[] = [
     },
   },
   {
+    method: 'PUT',
+    pattern: '/api/v1/admin/accounts/:accountId/credentials',
+    summary:
+      '계정 발급. 운영진으로 정해졌지만 아이디가 없는 사람에게 아이디·초기 비밀번호를 준다. 이미 발급했으면 409',
+    handler: ({ db, params, body }) => {
+      requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
+      const target = findTarget(db, params.accountId);
+      if (target.username !== null) {
+        throw conflict('CREDENTIALS_ALREADY_ISSUED', '이미 계정을 발급한 운영진입니다.');
+      }
+      const data = readBody(body);
+      const username = requiredString(data, 'username').trim();
+      const password = requiredString(data, 'password');
+      requireUsableUsername(db, username);
+      issueAdminCredentials(db, target.id, username, password);
+      return toAdminAccount(db, findAdminRow(db, target.id)!);
+    },
+  },
+  {
     method: 'PATCH',
     pattern: '/api/v1/admin/accounts/:accountId/password',
     summary:
@@ -248,13 +272,17 @@ export const adminAccountRoutes: MockRoute[] = [
       if (isSelf) requireAny(db, 'ADMIN_ACCOUNT_SELF_WRITE', 'ADMIN_ACCOUNT_WRITE');
       else requireAny(db, 'ADMIN_ACCOUNT_WRITE');
 
+      if (target.username === null) {
+        throw conflict(
+          'CREDENTIALS_NOT_ISSUED',
+          '계정을 아직 발급하지 않은 운영진입니다. 먼저 계정을 발급해 주세요.',
+        );
+      }
       const data = readBody(body);
       const newPassword = requiredString(data, 'newPassword');
       if (isSelf && optionalString(data, 'currentPassword') !== target.password) {
         throw badRequest('INVALID_CURRENT_PASSWORD', '현재 비밀번호가 맞지 않습니다.');
       }
-      if (!PASSWORD_PATTERN.test(newPassword))
-        throw badRequest('INVALID_PASSWORD', PASSWORD_POLICY);
       updateAdminPassword(db, target.id, newPassword);
       return undefined;
     },
@@ -269,6 +297,12 @@ export const adminAccountRoutes: MockRoute[] = [
       const target = findTarget(db, params.accountId);
       if (actor.id === target.id) {
         throw badRequest('CANNOT_DELETE_SELF', '본인 계정은 삭제할 수 없습니다.');
+      }
+      if (target.role === 'MASTER') {
+        throw badRequest(
+          'CANNOT_DELETE_MASTER',
+          '서비스운영팀장(MASTER) 계정은 삭제할 수 없습니다.',
+        );
       }
       guardLockout(db, actor, new Map([[target.id, { row: null }]]));
       deleteAdmin(db, target.id);

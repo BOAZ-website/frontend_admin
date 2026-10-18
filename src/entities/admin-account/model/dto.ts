@@ -6,10 +6,17 @@ import type { AdminRole } from './types';
  */
 export interface AdminAccountCreateRequest {
   userId: string;
-  username: string;
-  password: string;
+  /** 아이디·초기 비밀번호는 함께 보내거나 함께 뺀다. 빼면 운영진으로만 정하고 계정은 나중에 발급한다. */
+  username?: string;
+  password?: string;
   role: AdminRole;
   teamName: string;
+}
+
+/** 계정 발급(PUT .../credentials). 운영진으로 정해졌지만 아이디가 없는 사람에게 아이디·초기 비밀번호를 준다. */
+export interface AdminCredentialsRequest {
+  username: string;
+  password: string;
 }
 
 /**

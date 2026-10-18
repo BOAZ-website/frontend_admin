@@ -7,6 +7,7 @@ import { api } from '@/shared/api/client';
 import type {
   AdminAccountCreateRequest,
   AdminAccountUpdateRequest,
+  AdminCredentialsRequest,
   AdminPasswordRequest,
 } from '../model/dto';
 import type { AdminAccount, PermissionCatalog } from '../model/types';
@@ -31,6 +32,14 @@ export function updateAdminAccount(
   request: AdminAccountUpdateRequest,
 ): Promise<AdminAccount> {
   return api.patch(accountPath(accountId), request);
+}
+
+/** 아이디가 없는 운영진에게 계정(아이디·초기 비밀번호)을 발급한다. 이미 있으면 409. */
+export function issueAdminCredentials(
+  accountId: number,
+  request: AdminCredentialsRequest,
+): Promise<AdminAccount> {
+  return api.put(`${accountPath(accountId)}/credentials`, request);
 }
 
 export function changeAdminPassword(

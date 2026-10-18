@@ -13,16 +13,18 @@ export type AdminRole = (typeof ADMIN_ROLES)[number];
 /**
  * 운영진 팀(자리) 목록. 새 팀이 생기면 여기에 더한다. 이름으로 정한 기본 권한 세트가 없는 팀은
  * 기타 운영진(TEAM 폴백) 권한을 받으므로 권한 표는 고치지 않는다.
+ * 가나다순으로 둔다(계정 발급 팝업의 팀 선택 순서). 운영진 계정 관리의 팀 목록은 화면에서 따로 가나다순으로 정렬한다.
+ * 차기대표진은 팀이 아니라 대표진 안의 자리지만, 권한 세트가 달라 따로 둔다.
  */
 export const ADMIN_TEAM_NAMES = [
-  '대표진',
-  '차기대표진',
-  '서비스운영팀',
-  '운영지원팀',
   '기획팀',
   '대외협력팀',
+  '대표진',
   '디자인팀',
+  '서비스운영팀',
+  '운영지원팀',
   '자료연구팀',
+  '차기대표진',
 ] as const;
 
 /**
@@ -33,7 +35,8 @@ export interface AdminAccount {
   id: number;
   /** 계정 주인(회원) id. 운영진은 모두 회원이며 이름·기수·부문은 회원 정보에서 온다. */
   userId: string;
-  username: string;
+  /** 로그인 아이디. 운영진으로 정해졌지만 계정을 아직 발급하지 않았으면 null이다(백엔드 협의 필요). */
+  username: string | null;
   /** 회원 이름(users.name). */
   name: string;
   role: AdminRole;
@@ -43,6 +46,8 @@ export interface AdminAccount {
   term: number;
   /** 운영진의 자리(대표진·서비스운영팀 등). 새 팀이 생길 수 있어 문자열이다. */
   teamName: string;
+  /** 그 팀의 팀장인지. 대표진은 팀장을 두지 않는다. 권한과는 관계없고 표시에만 쓴다(백엔드 협의 필요). */
+  isTeamLead: boolean;
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;
