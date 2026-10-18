@@ -105,6 +105,25 @@ function requireUsableUsername(db: Database, username: string): void {
   }
 }
 
+/**
+ * 계정 하나를 고치는 요청의 권한 확인. 본인 여부는 경로의 id로 정하고, 권한을 먼저 확인한 뒤 계정을 찾는다.
+ * 그래서 권한이 없는 사람은 없는 계정 id를 보내도 404가 아니라 403을 받는다(계정이 있는지 알 수 없다).
+ */
+function requireAccountWrite(db: Database, accountId: string) {
+  const actor = actorOf(db);
+  const isSelf = String(actor.id) === accountId;
+  if (isSelf) requireAny(db, 'ADMIN_ACCOUNT_SELF_WRITE', 'ADMIN_ACCOUNT_WRITE');
+  else requireAny(db, 'ADMIN_ACCOUNT_WRITE');
+  return { actor, isSelf, target: findTarget(db, accountId) };
+}
+
+/** 팀 이름의 앞뒤 공백을 지운다. '대표진 '처럼 공백만 다른 이름이 새 팀으로 저장되지 않게 한다. */
+function teamNameOf(value: string): string {
+  const teamName = value.trim();
+  if (!teamName) throw badRequest('INVALID_TEAM_NAME', '소속 부서를 입력해 주세요.');
+  return teamName;
+}
+
 function findTarget(db: Database, accountId: string): AdminRow {
   const id = Number(accountId);
   const row = Number.isInteger(id) ? findAdminRow(db, id) : undefined;
@@ -216,7 +235,7 @@ export const adminAccountRoutes: MockRoute[] = [
         );
       }
       const role = oneOf(requiredString(data, 'role'), ADMIN_ROLES, 'role')!;
-      const teamName = requiredString(data, 'teamName');
+      const teamName = teamNameOf(requiredString(data, 'teamName'));
       if (!userExists(db, userId)) {
         throw badRequest('USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
       }
@@ -242,17 +261,14 @@ export const adminAccountRoutes: MockRoute[] = [
     summary:
       '역할·부서 수정(보낸 값만 바뀐다). 이름·기수·부문은 회원 정보에서 고친다. 본인 역할·부서 변경은 400, 역할·부서가 바뀌면 권한 예외를 모두 지운다',
     handler: ({ db, params, body }) => {
-      const target = findTarget(db, params.accountId);
-      const actor = actorOf(db);
-      const isSelf = actor.id === target.id;
-      if (isSelf) requireAny(db, 'ADMIN_ACCOUNT_SELF_WRITE', 'ADMIN_ACCOUNT_WRITE');
-      else requireAny(db, 'ADMIN_ACCOUNT_WRITE');
+      const { actor, isSelf, target } = requireAccountWrite(db, params.accountId);
 
       const data = readBody(body);
+      const teamNameInput = optionalString(data, 'teamName');
       const next: AdminRow = {
         ...target,
         role: oneOf(optionalString(data, 'role'), ADMIN_ROLES, 'role') ?? target.role,
-        team_name: optionalString(data, 'teamName') || target.team_name,
+        team_name: teamNameInput === undefined ? target.team_name : teamNameOf(teamNameInput),
       };
       const isBaseChanged = next.role !== target.role || next.team_name !== target.team_name;
       if (isSelf && isBaseChanged) {
@@ -295,11 +311,7 @@ export const adminAccountRoutes: MockRoute[] = [
     summary:
       '비밀번호 변경. 본인은 현재 비밀번호가 필요하고, 다른 계정은 "타 계정 정보 수정" 권한으로 재설정한다',
     handler: ({ db, params, body }) => {
-      const target = findTarget(db, params.accountId);
-      const actor = actorOf(db);
-      const isSelf = actor.id === target.id;
-      if (isSelf) requireAny(db, 'ADMIN_ACCOUNT_SELF_WRITE', 'ADMIN_ACCOUNT_WRITE');
-      else requireAny(db, 'ADMIN_ACCOUNT_WRITE');
+      const { isSelf, target } = requireAccountWrite(db, params.accountId);
 
       if (target.username === null) {
         throw conflict(

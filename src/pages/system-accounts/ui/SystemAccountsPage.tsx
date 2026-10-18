@@ -75,6 +75,15 @@ export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAc
         {error
           ? `계정 정보를 불러오지 못했습니다. (${error.message})`
           : '계정 정보를 불러오는 중입니다.'}
+        {error && (
+          <button
+            type="button"
+            onClick={() => void reload()}
+            className="ml-3 cursor-pointer rounded-sm border border-red-200 bg-white px-2.5 py-1 font-semibold hover:bg-red-100"
+          >
+            다시 시도
+          </button>
+        )}
       </p>
     );
   }
@@ -125,13 +134,20 @@ export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAc
   const run = async (work: () => Promise<unknown>, successMessage?: string): Promise<boolean> => {
     try {
       await work();
-      await reload();
-      if (successMessage) window.alert(successMessage);
-      return true;
     } catch (requestError) {
       alertApiError(requestError);
       return false;
     }
+    // 저장은 끝났으므로 true를 돌려준다. 목록을 다시 읽지 못했으면 화면이 최신이 아니라는 것을 따로 알린다.
+    const isReloaded = await reload();
+    if (!isReloaded) {
+      window.alert(
+        `${successMessage ?? '저장했습니다.'} 다만 목록을 다시 불러오지 못해 화면이 최신이 아닙니다. 위쪽 "다시 시도"를 눌러 주세요.`,
+      );
+    } else if (successMessage) {
+      window.alert(successMessage);
+    }
+    return true;
   };
 
   const submitForm = (form: AdminAccountCreateRequest) => {
