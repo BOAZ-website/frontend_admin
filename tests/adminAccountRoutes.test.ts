@@ -34,6 +34,15 @@ function expectApiError(work: () => unknown, status: number, code?: string) {
   );
 }
 
+/**
+ * 운영진이면서 스터디장·ADV 팀장인 경우를 만든다. 시드의 출결 데이터는 건드리지 않고, 이 테스트 DB에서만
+ * 고준서가 맡던 그룹(adv_t1·study_d)과 HOST 계정(host_adv_ana1)을 운영지원팀 운영진 전혜린(8번 계정)에게 옮긴다.
+ */
+function makeDualLeader(db: Awaited<ReturnType<typeof setup>>['db']) {
+  execute(db, "UPDATE teams SET leader_id = 'u_27_26' WHERE id IN ('adv_t1', 'study_d')");
+  execute(db, "UPDATE host_accounts SET user_id = 'u_27_26' WHERE id = 'h_adv1'");
+}
+
 // 박지훈(u_28_11)은 아직 운영진 계정이 없는 회원이다.
 const NEW_ACCOUNT = {
   userId: 'u_28_11',
@@ -44,11 +53,12 @@ const NEW_ACCOUNT = {
 };
 
 test('계정 목록은 기본 권한 세트·맡은 그룹·예외·유효 권한을 함께 돌려준다', async () => {
-  const { call } = await setup();
+  const { db, call } = await setup();
+  makeDualLeader(db);
   const accounts = call<AdminAccount[]>('GET', '/api/v1/admin/accounts');
-  assert.equal(accounts.length, 8);
+  assert.equal(accounts.length, 40);
 
-  const dual = accounts.find((a) => a.username === 'boaz_dual_leader')!;
+  const dual = accounts.find((a) => a.id === 8)!;
   assert.equal(dual.baseSetKey, 'opsTeam');
   assert.deepEqual(dual.leadership, ['ADV', 'STUDY']);
   assert.ok(dual.effectivePermissions.includes('ATTENDANCE_STUDY_ENTRY_OWN_GROUP_WRITE'));
@@ -66,7 +76,7 @@ test('로그인한 계정의 권한이 없으면 403을 돌려준다', async () 
   assert.equal(call<AdminAccount>('GET', '/api/v1/admin/accounts/me').id, 7);
 
   loginAs(5); // 서비스운영팀: 목록은 보지만 발급은 못 한다
-  assert.equal(call<AdminAccount[]>('GET', '/api/v1/admin/accounts').length, 8);
+  assert.equal(call<AdminAccount[]>('GET', '/api/v1/admin/accounts').length, 40);
   expectApiError(() => call('POST', '/api/v1/admin/accounts', NEW_ACCOUNT), 403);
 });
 
@@ -144,7 +154,7 @@ test('운영진 계정의 이름·기수·부문은 회원 정보에서 오고, 
   const { db, call } = await setup();
   const [master] = call<AdminAccount[]>('GET', '/api/v1/admin/accounts');
   assert.equal(master.userId, 'u_26_01');
-  assert.deepEqual([master.name, master.term, master.track], ['남민서', 26, '분석']);
+  assert.deepEqual([master.name, master.term, master.track], ['남민서', 26, '엔지니어링']);
 
   execute(db, "UPDATE users SET term = 27, track = '시각화' WHERE id = 'u_26_01'");
   const me = call<AdminAccount>('GET', '/api/v1/admin/accounts/me');
@@ -194,7 +204,7 @@ test('계정 생성·삭제 권한이 없으면 삭제는 403이다', async () =
 
 test('"타 계정 정보 수정" 권한의 마지막 보유자는 삭제할 수 없다', async () => {
   const { db, call, loginAs } = await setup();
-  // 대표진(2번)에게 계정 생성·삭제를 주고, 서운팀장(1번) 대신 5번만 "타 계정 정보 수정"을 갖게 한다.
+  // 대표진(2번)에게 계정 생성·삭제를 주고, 서비스운영팀장(1번) 대신 5번만 "타 계정 정보 수정"을 갖게 한다.
   execute(
     db,
     `INSERT INTO admin_permission_override (admin_id, permission, effect, granted_by, created_at) VALUES
@@ -215,7 +225,8 @@ test('팀장이 바뀌면 맡은 그룹도 새 팀장의 운영진 계정으로 
   const leaderAccountOf = (groupId: string) =>
     db.exec('SELECT admin_id FROM admin_group_leader WHERE group_id = ?', [groupId])[0]?.values;
 
-  execute(db, "UPDATE teams SET leader_id = 'u_28_04' WHERE id = 'adv_t1'");
+  makeDualLeader(db);
+  execute(db, "UPDATE teams SET leader_id = 'u_26_08' WHERE id = 'adv_t1'");
   assert.deepEqual(leadershipOf(8), ['STUDY']);
   assert.deepEqual(leaderAccountOf('adv_t1'), [[4]]);
 
@@ -223,4 +234,75 @@ test('팀장이 바뀌면 맡은 그룹도 새 팀장의 운영진 계정으로 
   execute(db, "UPDATE teams SET leader_id = 'u_28_13' WHERE id = 'study_d'");
   assert.deepEqual(leadershipOf(8), []);
   assert.equal(leaderAccountOf('study_d'), undefined);
+});
+test('운영진으로 정해졌지만 계정이 없는 사람에게 아이디·초기 비밀번호를 발급한다', async () => {
+  const { call, loginAs } = await setup();
+  // 35번(디자인팀 27기)은 시드에서 운영진으로만 정해지고 계정은 아직 없다.
+  const pending = call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === 35)!;
+  assert.equal(pending.username, null);
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/35/password', { newPassword: 'x' }),
+    409,
+    'CREDENTIALS_NOT_ISSUED',
+  );
+
+  // 비밀번호 규칙은 백엔드에 맡기므로 임시 API는 짧은 비밀번호도 받는다.
+  const issued = call<AdminAccount>('PUT', '/api/v1/admin/accounts/35/credentials', {
+    username: 'boaz_design_4',
+    password: 'abc',
+  });
+  assert.equal(issued.username, 'boaz_design_4');
+
+  expectApiError(
+    () =>
+      call('PUT', '/api/v1/admin/accounts/35/credentials', {
+        username: 'boaz_design_x',
+        password: 'abc',
+      }),
+    409,
+    'CREDENTIALS_ALREADY_ISSUED',
+  );
+  // 다른 운영진이 쓰는 아이디는 줄 수 없다.
+  expectApiError(
+    () =>
+      call('PUT', '/api/v1/admin/accounts/36/credentials', {
+        username: 'boaz_design_4',
+        password: 'abc',
+      }),
+    409,
+    'DUPLICATE_USERNAME',
+  );
+
+  loginAs(5); // 서비스운영팀: 계정 생성·삭제 권한 없음
+  expectApiError(
+    () =>
+      call('PUT', '/api/v1/admin/accounts/36/credentials', {
+        username: 'boaz_design_5',
+        password: 'abc',
+      }),
+    403,
+    'FORBIDDEN',
+  );
+});
+
+test('운영진 추가는 아이디·초기 비밀번호 없이도 되고, 둘 중 하나만 보내면 400이다', async () => {
+  const { call } = await setup();
+  const added = call<AdminAccount>('POST', '/api/v1/admin/accounts', {
+    userId: 'u_28_11',
+    role: 'TEAM',
+    teamName: '기획팀',
+  });
+  assert.equal(added.username, null);
+
+  expectApiError(
+    () =>
+      call('POST', '/api/v1/admin/accounts', {
+        userId: 'u_28_12',
+        username: 'boaz_half',
+        role: 'TEAM',
+        teamName: '기획팀',
+      }),
+    400,
+    'INCOMPLETE_CREDENTIALS',
+  );
 });
