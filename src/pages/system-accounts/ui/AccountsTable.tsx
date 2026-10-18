@@ -2,7 +2,9 @@ import { Fragment, useMemo, useState } from 'react';
 import { Pencil, Search, ShieldCheck, Trash2 } from 'lucide-react';
 
 import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/model/types';
+import { useResizableWidths } from '@/pages/system-accounts/model/useResizableWidths';
 import { PermissionChips } from '@/pages/system-accounts/ui/PermissionChips';
+import { ResizeHandle } from '@/pages/system-accounts/ui/ResizeHandle';
 import {
   ICON_BTN,
   ROW_CLASS,
@@ -30,6 +32,45 @@ interface AccountsTableProps {
   onDelete: (account: AdminAccount) => void;
 }
 
+type ColumnKey =
+  'team' | 'name' | 'username' | 'role' | 'track' | 'term' | 'permissions' | 'actions';
+
+/**
+ * 표의 열. 출결 표처럼 머리 칸 오른쪽 손잡이를 끌어 너비를 바꾼다. 핵심 열(isKey)은 머리 글자를 진하게 둔다.
+ * 권한 열(isFluid)은 남는 너비를 모두 차지해서, 표가 화면보다 넓어지지 않는다(가로 스크롤 없음).
+ * COLUMN_WIDTHS의 권한 값은 그 열이 줄어들 수 있는 최소 너비다.
+ */
+const COLUMNS: readonly { key: ColumnKey; label: string; isKey?: boolean; isFluid?: boolean }[] = [
+  { key: 'team', label: '운영진', isKey: true },
+  { key: 'name', label: '이름', isKey: true },
+  { key: 'username', label: '아이디' },
+  { key: 'role', label: '역할' },
+  { key: 'track', label: '부문' },
+  { key: 'term', label: '기수' },
+  { key: 'permissions', label: '권한', isFluid: true },
+  { key: 'actions', label: '관리' },
+];
+// 기본 너비 합계(910px)가 1280px 화면의 표 영역(약 960px)보다 작아서 처음에는 가로 스크롤이 없다.
+const COLUMN_WIDTHS: Record<ColumnKey, number> = {
+  team: 110,
+  name: 100,
+  username: 160,
+  role: 80,
+  track: 90,
+  term: 60,
+  permissions: 200,
+  actions: 110,
+};
+const COLUMN_LIMITS: Partial<Record<ColumnKey, { min: number }>> = {
+  team: { min: 90 },
+  name: { min: 80 },
+  username: { min: 110 },
+  role: { min: 60 },
+  track: { min: 60 },
+  term: { min: 50 },
+  actions: { min: 100 },
+};
+
 /**
  * 운영진 계정 표. 출결 표와 같은 모양이며, 왼쪽 운영진 칸(팀)이 소속 인원 수만큼 세로로 이어진다.
  * 팀 순서는 카탈로그의 팀 순서이고, 팀 안에서는 생성일 순이다.
@@ -43,6 +84,9 @@ export function AccountsTable({
   onDelete,
 }: AccountsTableProps) {
   const [query, setQuery] = useState('');
+  const { widths, resizingKey, startResize } = useResizableWidths(COLUMN_WIDTHS, COLUMN_LIMITS);
+  // 이 너비보다 좁은 화면에서만 가로 스크롤이 생긴다(권한 열이 최소 너비까지 줄어든 뒤).
+  const tableMinWidth = COLUMNS.reduce((sum, column) => sum + widths[column.key], 0);
 
   // 사람이 없는 팀은 보이지 않는다. 목록에 없는 새 팀은 맨 뒤에 붙는다.
   const teamGroups = useMemo(() => {
@@ -89,17 +133,28 @@ export function AccountsTable({
 
       <div className={TABLE_BOX}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] border-collapse text-xs">
+          <table
+            className="w-full table-fixed border-collapse text-xs"
+            style={{ minWidth: `${tableMinWidth}px` }}
+          >
             <thead className="bg-slate-50/80 select-none">
               <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-[11px]">
-                <th className={`${TH_CLASS} w-[140px] text-slate-900`}>운영진</th>
-                <th className={`${TH_CLASS} w-[150px] text-slate-900`}>이름</th>
-                <th className={`${TH_CLASS} w-[170px]`}>아이디</th>
-                <th className={`${TH_CLASS} w-[90px]`}>역할</th>
-                <th className={`${TH_CLASS} w-[100px]`}>부문</th>
-                <th className={`${TH_CLASS} w-[70px]`}>기수</th>
-                <th className={`${TH_CLASS} min-w-[260px]`}>권한</th>
-                <th className={`${TH_CLASS} w-[120px]`}>관리</th>
+                {COLUMNS.map((column) => (
+                  <th
+                    key={column.key}
+                    style={column.isFluid ? undefined : { width: `${widths[column.key]}px` }}
+                    className={`${TH_CLASS} relative ${column.isKey ? 'text-slate-900' : ''}`}
+                  >
+                    {column.label}
+                    {!column.isFluid && (
+                      <ResizeHandle
+                        isActive={resizingKey === column.key}
+                        onMouseDown={(event) => startResize(event, column.key)}
+                        className="absolute -right-2 top-0 bottom-0 flex"
+                      />
+                    )}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
