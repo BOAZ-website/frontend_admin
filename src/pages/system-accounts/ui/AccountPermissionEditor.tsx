@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Lock, Minus, Plus, RotateCcw } from 'lucide-react';
 
+import { permissionsIn } from '@/entities/admin-account/model/catalog';
 import type { PermissionDef, PermissionGroup } from '@/entities/admin-account/model/permissions';
 import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/model/types';
 import {
@@ -76,6 +77,29 @@ const ROW_BAR = {
 } as const;
 
 /**
+ * 저장 전에 보여 줄 변경 요약. 저장된 상태와 비교해 더한 권한·뺀 권한을 카탈로그 순서로 늘어놓는다.
+ * 자주 하지 않고 영향이 큰 작업이라 저장 버튼을 누르면 한 번 더 확인한다.
+ */
+function saveSummaryOf(
+  catalog: PermissionCatalog,
+  saved: readonly string[],
+  checked: ReadonlySet<string>,
+): string {
+  const savedSet = new Set(saved);
+  const permissions = permissionsIn(catalog);
+  const turnedOn = permissions.filter((p) => checked.has(p.key) && !savedSet.has(p.key));
+  const turnedOff = permissions.filter((p) => !checked.has(p.key) && savedSet.has(p.key));
+  const lines = ['다음 변경을 저장할까요?'];
+  if (turnedOn.length > 0) {
+    lines.push('', `추가 ${turnedOn.length}개`, ...turnedOn.map((p) => `- ${p.label}`));
+  }
+  if (turnedOff.length > 0) {
+    lines.push('', `제외 ${turnedOff.length}개`, ...turnedOff.map((p) => `- ${p.label}`));
+  }
+  return lines.join('\n');
+}
+
+/**
  * 운영진 한 명의 권한 편집(SYS-PERM). 왼쪽은 지금 가진 권한, 오른쪽은 추가할 수 있는 권한이다.
  * 권한은 양쪽 다 카탈로그 묶음과 순서를 그대로 지켜, 옮겨도 같은 자리에 들어간다.
  * 기본 권한에 없는데 더한 권한은 왼쪽에 "추가", 기본 권한인데 뺀 권한은 오른쪽에 "기본에서 제외"로 표시한다.
@@ -90,8 +114,12 @@ export function AccountPermissionEditor({
   onSave,
   onDirtyChange,
 }: AccountPermissionEditorProps) {
-  const saved = savedCheckedOf(catalog, account);
-  const [checked, setChecked] = useState<ReadonlySet<string>>(() => new Set(saved));
+  // 저장 기준. 처음에는 계정의 유효 권한이고, 저장에 성공하면 그때의 상태로 옮긴다.
+  // 저장 뒤 목록을 다시 읽지 못해 계정 값이 예전 그대로여도, 저장한 내용이 "저장하지 않은 변경"으로 남지 않는다.
+  const [saved, setSaved] = useState<readonly string[]>(() => savedCheckedOf(catalog, account));
+  const [checked, setChecked] = useState<ReadonlySet<string>>(
+    () => new Set(savedCheckedOf(catalog, account)),
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const unsavedCount = unsavedCountOf(saved, checked);
@@ -110,15 +138,29 @@ export function AccountPermissionEditor({
       return next;
     });
 
-  const resetToBase = () => setChecked(new Set(baseCheckedOf(catalog, account)));
+  // 기본 권한으로 되돌려도 잠긴 권한(본인·마지막 보유자의 "타 계정 정보 수정")은 빠지지 않는다. 개별 빼기 버튼과 같은 규칙이다.
+  const resetToBase = () =>
+    setChecked((current) => {
+      const next = new Set(baseCheckedOf(catalog, account));
+      for (const permission of permissionsIn(catalog)) {
+        const isLocked = lockReasonOf(permission, account, me, accounts) !== null;
+        if (isLocked && current.has(permission.key)) next.add(permission.key);
+      }
+      return next;
+    });
   const discard = () => setChecked(new Set(saved));
 
   // 저장에 성공하면 부모가 계정을 다시 읽고, 바뀐 예외로 key가 달라져 이 편집기가 새 상태로 다시 만들어진다.
   // 실패하면 고른 상태를 그대로 두어 고쳐서 다시 저장할 수 있다.
   const save = async () => {
+    if (!window.confirm(saveSummaryOf(catalog, saved, checked))) return;
     setIsSaving(true);
-    await onSave([...checked]);
-    setIsSaving(false);
+    try {
+      const isSaved = await onSave([...checked]);
+      if (isSaved) setSaved([...checked]);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const isHeld = (permission: PermissionDef): boolean =>
