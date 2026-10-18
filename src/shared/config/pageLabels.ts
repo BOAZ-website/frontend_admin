@@ -30,7 +30,7 @@ export const PAGE_LABELS: Record<ActivePage, string> = {
   system: '시스템·계정',
   'system-members': '동아리원 관리',
   'system-accounts': '운영진 계정 관리',
-  'system-permissions': '계정별 권한 관리',
+  'system-permissions': '계정·권한 관리',
 };
 
 /**

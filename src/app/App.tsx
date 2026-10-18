@@ -40,9 +40,15 @@ const NO_SEMESTERS: SemesterDto[] = [];
 const NO_TRACKS: UserTrack[] = [];
 const NO_WEEKS: WeekInfo[] = [];
 
+/**
+ * 주소(#)의 화면 이름. '#system-permissions/u_26_08'처럼 '/' 뒤에 화면 안의 위치(고른 계정 등)를 붙일 수 있어,
+ * '/' 앞부분만 화면 이름으로 읽는다.
+ */
+const pageOfHash = (): string => window.location.hash.replace(/^#/, '').split('/')[0];
+
 function getInitialActivePage(): ActivePage {
   try {
-    const hash = window.location.hash.replace(/^#/, '');
+    const hash = pageOfHash();
     if (isActivePage(hash)) return hash;
     const saved = localStorage.getItem('boaz_active_page');
     if (saved && isActivePage(saved)) return saved;
@@ -64,7 +70,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('boaz_active_page', activePage);
-      if (window.location.hash.replace(/^#/, '') !== activePage) {
+      if (pageOfHash() !== activePage) {
         window.history.replaceState(null, '', `#${activePage}`);
       }
     } catch {
@@ -74,7 +80,7 @@ export default function App() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace(/^#/, '');
+      const hash = pageOfHash();
       if (isActivePage(hash)) setActivePage(hash);
     };
     window.addEventListener('hashchange', handleHashChange);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   changeAdminPassword,
@@ -27,10 +27,24 @@ import { AccountDeliveryDialog } from '@/shared/ui/AccountDeliveryDialog';
 import { CreateButton } from '@/shared/ui/CreateButton';
 import { PasswordResetDialog } from '@/shared/ui/PasswordResetDialog';
 
+/** 계정·권한 관리 화면의 주소 이름. 고른 사람은 '/' 뒤에 붙인다. */
+const PERMISSIONS_HASH = 'system-permissions';
+
+/** 주소 '#system-permissions/<key>'의 사람 key. 없으면 null. */
+function holderKeyOfHash(): string | null {
+  const [page, key] = window.location.hash.replace(/^#/, '').split('/');
+  if (page !== PERMISSIONS_HASH || !key) return null;
+  try {
+    return decodeURIComponent(key);
+  } catch {
+    return null;
+  }
+}
+
 /** 계정 발급·수정 팝업 대상. */
 type FormTarget = { mode: 'create' } | { mode: 'edit'; account: AdminAccount };
 
-/** 사이드바에서 고른 화면: 운영진 계정 관리 또는 계정별 권한 관리. */
+/** 사이드바에서 고른 화면: 운영진 계정 관리 또는 계정·권한 관리. */
 export type SystemAccountsView = 'accounts' | 'permissions';
 
 interface SystemAccountsPageProps {
@@ -40,14 +54,26 @@ interface SystemAccountsPageProps {
 }
 
 /**
- * 운영진 계정 관리와 계정별 권한 관리 화면. 두 화면이 같은 데이터를 쓰므로 한 컴포넌트에서 그린다.
+ * 운영진 계정 관리와 계정·권한 관리 화면. 두 화면이 같은 데이터를 쓰므로 한 컴포넌트에서 그린다.
  * 데이터는 모두 API(백엔드 연결 전에는 임시 API)로 읽고 쓴다. 메뉴·버튼은 로그인한 계정의
  * 유효 권한(/me)으로 보이거나 숨기고, 최종 판정은 서버가 한다(권한이 없으면 403).
  */
 export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAccountsPageProps) {
   const { data, error, reload } = useAdminConsole();
-  /** 계정별 권한 관리에서 고른 사람(AccountHolder.key, 보통 회원 id). */
-  const [permissionTargetKey, setPermissionTargetKey] = useState<string | null>(null);
+  /**
+   * 계정·권한 관리에서 고른 사람(AccountHolder.key, 보통 회원 id). 주소 '#system-permissions/<key>'에 남겨,
+   * 새로고침해도 그 사람이 다시 열린다.
+   */
+  const [permissionTargetKey, setPermissionTargetKey] = useState<string | null>(() =>
+    view === 'permissions' ? holderKeyOfHash() : null,
+  );
+  useEffect(() => {
+    if (view !== 'permissions') return;
+    const hash = permissionTargetKey
+      ? `#${PERMISSIONS_HASH}/${encodeURIComponent(permissionTargetKey)}`
+      : `#${PERMISSIONS_HASH}`;
+    if (window.location.hash !== hash) window.history.replaceState(null, '', hash);
+  }, [view, permissionTargetKey]);
   // 운영진 계정 화면으로 돌아오면 고른 사람을 지운다. 그래야 메뉴로 권한 관리에 들어올 때 권한 매트릭스가
   // 먼저 열리고, 계정 표의 권한 버튼으로 들어올 때만 그 사람이 열린다.
   const [prevView, setPrevView] = useState(view);
@@ -117,7 +143,7 @@ export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAc
   };
   const isPermissionsView = view === 'permissions';
   const pageTitle = isPermissionsView
-    ? '계정별 권한 관리'
+    ? '계정·권한 관리'
     : accounts
       ? '운영진 계정 관리'
       : '내 계정 정보';
@@ -255,7 +281,7 @@ export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAc
         </div>
       )}
 
-      {/* 계정별 권한 관리: 계정 목록 조회 권한이 있어야 계정을 고를 수 있다 */}
+      {/* 계정·권한 관리: 계정 목록 조회 권한이 있어야 계정을 고를 수 있다 */}
       {isPermissionsView ? (
         accounts && holders ? (
           <AccountPermissionsTab
