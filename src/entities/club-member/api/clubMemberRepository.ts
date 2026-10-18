@@ -11,11 +11,20 @@ const SELECT_CLUB_MEMBERS = `
          (SELECT a.team_name FROM admin a WHERE a.user_id = users.id) AS operatorTeam
     FROM users`;
 
-/** 임시 DB의 users 테이블에서 동아리원 목록을 읽는다. 최신 기수 → 이름 순. */
+/**
+ * 임시 DB의 users 테이블에서 동아리원 목록을 읽는다. 화면은 정렬하지 않고 이 순서를 그대로 쓴다.
+ * 1차는 활동 상태(활동기수 → 수료 → 탈퇴), 2차는 부문(분석 → 시각화 → 엔지니어링), 3차는 이름 가나다순이다.
+ * 그래서 부문 명단은 활동기수 → 수료 → 이름 순, 활동기수·수료기수 목록은 부문 → 이름 순으로 보인다.
+ * 탈퇴한 사람만은 부문 대신 기수(최신 기수부터)로 정렬한다.
+ */
 export function listClubMembers(db: Database): ClubMember[] {
   return queryAll<ClubMember & Record<string, unknown>>(
     db,
-    `${SELECT_CLUB_MEMBERS} ORDER BY term DESC, name`,
+    `${SELECT_CLUB_MEMBERS}
+     ORDER BY CASE club_status WHEN 'ACTIVE' THEN 0 WHEN 'ALUMNI' THEN 1 ELSE 2 END,
+              CASE WHEN club_status = 'WITHDRAWN' THEN -term ELSE 0 END,
+              CASE track WHEN '분석' THEN 0 WHEN '시각화' THEN 1 WHEN '엔지니어링' THEN 2 ELSE 3 END,
+              name, id`,
   );
 }
 

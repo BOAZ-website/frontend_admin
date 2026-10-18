@@ -27,13 +27,27 @@ function expectApiError(work: () => unknown, status: number) {
   assert.throws(work, (error: unknown) => error instanceof ApiError && error.status === status);
 }
 
-test('동아리원 목록은 임시 DB users 테이블 전체를 최신 기수 순으로 돌려준다', async () => {
+test('동아리원 목록은 임시 DB users 테이블 전체를 활동 상태 → 부문 → 이름 가나다순으로 돌려준다', async () => {
   const { db, call } = await setup();
   const members = call<ClubMember[]>('GET', '/api/v1/club-members');
   const userCount = queryAll<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM users')[0].n;
 
   assert.equal(members.length, userCount);
-  assert.ok(members.every((member, i) => i === 0 || members[i - 1].term >= member.term));
+  const STATUS_ORDER = ['ACTIVE', 'ALUMNI', 'WITHDRAWN'];
+  const TRACK_ORDER = ['분석', '시각화', '엔지니어링'];
+  assert.ok(
+    members.every((member, i) => {
+      if (i === 0) return true;
+      const prev = members[i - 1];
+      const byStatus = STATUS_ORDER.indexOf(prev.status) - STATUS_ORDER.indexOf(member.status);
+      const byTrack = TRACK_ORDER.indexOf(prev.track) - TRACK_ORDER.indexOf(member.track);
+      if (byStatus !== 0) return byStatus < 0;
+      // 탈퇴한 사람은 최신 기수부터다.
+      if (member.status === 'WITHDRAWN' && prev.term !== member.term)
+        return prev.term > member.term;
+      return byTrack < 0 || (byTrack === 0 && prev.name <= member.name);
+    }),
+  );
   assert.equal(members.find((member) => member.id === 'u_27_01')?.role, 'PRESIDENT');
   assert.ok(members.filter((member) => member.term <= 25).every((m) => m.status === 'ALUMNI'));
 });

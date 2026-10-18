@@ -104,7 +104,8 @@ export const clubMemberRoutes: MockRoute[] = [
   {
     method: 'GET',
     pattern: '/api/v1/club-members',
-    summary: '동아리원 전체 목록(최신 기수 → 이름 순). 검색·필터는 화면에서 한다',
+    summary:
+      '동아리원 전체 목록(활동 상태 → 부문 → 이름 순, 탈퇴는 최신 기수부터). 검색·필터는 화면에서 하고, 화면은 정렬하지 않는다',
     handler: ({ db }) => listClubMembers(db),
   },
   {
