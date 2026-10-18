@@ -19,6 +19,11 @@ export interface ClubMember {
   track: ClubMemberTrack;
   status: ClubMemberStatus;
   role: ClubMemberRole;
+  /**
+   * 운영진 팀(운영진 명단의 소속 팀). 운영진이 아니면 null.
+   * 동아리원 관리에서 정하면 운영진 계정 관리의 운영진 명단에 그대로 반영된다(계정은 그 화면에서 발급).
+   */
+  operatorTeam: string | null;
 }
 
 export const CLUB_MEMBER_TRACKS: readonly ClubMemberTrack[] = ['분석', '시각화', '엔지니어링'];

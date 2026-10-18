@@ -9,6 +9,8 @@ import type {
   AdminAccountUpdateRequest,
   AdminCredentialsRequest,
   AdminPasswordRequest,
+  OperatorAssignRequest,
+  OperatorTeamRequest,
   AdminPermissionsRequest,
 } from '../model/dto';
 import type { AccountHolder, AdminAccount, PermissionCatalog } from '../model/types';
@@ -38,6 +40,22 @@ export function updateAdminAccount(
   request: AdminAccountUpdateRequest,
 ): Promise<AdminAccount> {
   return api.patch(accountPath(accountId), request);
+}
+
+/**
+ * 팀 운영진 일괄 지정. 이 팀 운영진을 보낸 회원들로 맞춘다: 새 회원은 계정 발급 전 상태로 더하고,
+ * 다른 팀 운영진은 이 팀으로 옮기고, 목록에서 빠진 이 팀 운영진은 운영진에서 뺀다(계정이 있으면 함께 삭제).
+ */
+export function setOperatorTeamMembers(
+  teamName: string,
+  request: OperatorTeamRequest,
+): Promise<AdminAccount[]> {
+  return api.put(`/api/v1/admin/operator-teams/${encodeURIComponent(teamName)}`, request);
+}
+
+/** 한 명의 운영진 팀을 정하거나(teamName), 운영진에서 뺀다(null). */
+export function assignOperator(userId: string, request: OperatorAssignRequest): Promise<void> {
+  return api.put(`/api/v1/admin/operators/${encodeURIComponent(userId)}`, request);
 }
 
 /** 아이디가 없는 운영진에게 계정(아이디·초기 비밀번호)을 발급한다. 이미 있으면 409. */

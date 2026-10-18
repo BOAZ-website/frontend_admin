@@ -13,6 +13,16 @@ export interface AdminAccountCreateRequest {
   teamName: string;
 }
 
+/** 팀 운영진 일괄 지정(PUT /api/v1/admin/operator-teams/:teamName). 이 팀 운영진을 이 회원들로 맞춘다. */
+export interface OperatorTeamRequest {
+  userIds: string[];
+}
+
+/** 한 명의 운영진 지정(PUT /api/v1/admin/operators/:userId). null이면 운영진에서 뺀다. */
+export interface OperatorAssignRequest {
+  teamName: string | null;
+}
+
 /** 계정 발급(PUT .../credentials). 운영진으로 정해졌지만 아이디가 없는 사람에게 아이디·초기 비밀번호를 준다. */
 export interface AdminCredentialsRequest {
   username: string;

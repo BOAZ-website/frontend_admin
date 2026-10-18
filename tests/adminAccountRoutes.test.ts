@@ -443,3 +443,98 @@ test('팀 이름의 앞뒤 공백은 지우고, 공백만 있으면 400이다', 
     'INVALID_ROLE_TEAM',
   );
 });
+
+const operatorsOf = (accounts: readonly AdminAccount[], teamName: string) =>
+  accounts
+    .filter((account) => account.teamName === teamName)
+    .map((account) => account.userId)
+    .sort();
+
+const clubRoleOf = (db: Awaited<ReturnType<typeof setup>>['db'], userId: string) =>
+  db.exec('SELECT club_role FROM users WHERE id = ?', [userId])[0]?.values[0]?.[0];
+
+test('팀 운영진 일괄 지정은 새 회원을 더하고, 다른 팀에서 옮기고, 빠진 사람은 운영진에서 뺀다', async () => {
+  const { db, call } = await setup();
+  const before = call<AdminAccount[]>('GET', '/api/v1/admin/accounts');
+  const research = operatorsOf(before, '자료연구팀');
+  const removed = research[0];
+  // 박지훈(u_28_11)은 운영진이 아니고, 김대현(u_26_23)은 서비스운영팀 운영진이다.
+  const userIds = [...research.slice(1), 'u_28_11', 'u_26_23'];
+
+  const team = call<AdminAccount[]>(
+    'PUT',
+    `/api/v1/admin/operator-teams/${encodeURIComponent('자료연구팀')}`,
+    { userIds },
+  );
+  assert.deepEqual(team.map((account) => account.userId).sort(), [...userIds].sort());
+
+  const added = team.find((account) => account.userId === 'u_28_11')!;
+  assert.equal(added.username, null);
+  assert.equal(added.role, 'TEAM');
+  assert.equal(clubRoleOf(db, 'u_28_11'), 'OPERATOR');
+
+  const moved = team.find((account) => account.userId === 'u_26_23')!;
+  assert.equal(moved.baseSetKey, 'otherTeam');
+  assert.deepEqual(moved.overrides, {});
+
+  const after = call<AdminAccount[]>('GET', '/api/v1/admin/accounts');
+  assert.equal(
+    after.some((account) => account.userId === removed),
+    false,
+  );
+  assert.equal(clubRoleOf(db, removed), 'MEMBER');
+  assert.equal(operatorsOf(after, '서비스운영팀').includes('u_26_23'), false);
+});
+
+test('대표진으로 지정하면 대표진 역할(SUPER)을 받는다', async () => {
+  const { call } = await setup();
+  const presidents = operatorsOf(call<AdminAccount[]>('GET', '/api/v1/admin/accounts'), '대표진');
+  const team = call<AdminAccount[]>(
+    'PUT',
+    `/api/v1/admin/operator-teams/${encodeURIComponent('대표진')}`,
+    {
+      userIds: [...presidents, 'u_28_11'],
+    },
+  );
+  assert.equal(team.find((account) => account.userId === 'u_28_11')?.role, 'SUPER');
+});
+
+test('운영진 지정은 본인·서비스운영팀장을 빼지 못하고, 권한이 없으면 403이다', async () => {
+  const { call, loginAs } = await setup();
+  const service = operatorsOf(
+    call<AdminAccount[]>('GET', '/api/v1/admin/accounts'),
+    '서비스운영팀',
+  );
+  // 1번(로그인한 서비스운영팀장)을 빼려 하면 거부한다.
+  expectApiError(
+    () =>
+      call('PUT', `/api/v1/admin/operator-teams/${encodeURIComponent('서비스운영팀')}`, {
+        userIds: service.filter((userId) => userId !== 'u_26_01'),
+      }),
+    400,
+    'CANNOT_MODIFY_OWN_ROLE',
+  );
+
+  loginAs(5); // 서비스운영팀: 계정 생성·삭제 권한 없음
+  expectApiError(
+    () => call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: '기획팀' }),
+    403,
+    'FORBIDDEN',
+  );
+});
+
+test('한 명의 운영진 지정은 팀을 정하거나 옮기고, null이면 운영진에서 뺀다', async () => {
+  const { db, call } = await setup();
+  const teamOf = (userId: string) =>
+    call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find(
+      (account) => account.userId === userId,
+    )?.teamName;
+
+  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: '기획팀' });
+  assert.equal(teamOf('u_28_11'), '기획팀');
+  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: ' 디자인팀 ' });
+  assert.equal(teamOf('u_28_11'), '디자인팀');
+  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: null });
+  assert.equal(teamOf('u_28_11'), undefined);
+  assert.equal(clubRoleOf(db, 'u_28_11'), 'MEMBER');
+});

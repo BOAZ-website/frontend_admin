@@ -7,6 +7,7 @@
 import type { Database } from 'sql.js';
 
 import { listAccountHolders } from '@/entities/admin-account/api/accountHolderRepository';
+import { syncOperatorRole } from '@/entities/club-member/api/clubMemberRepository';
 import {
   deleteAdmin,
   findAdminRow,
@@ -39,6 +40,7 @@ import {
   ADMIN_ROLES,
   ADMIN_TEAM_NAMES,
   type AdminAccount,
+  type AdminRole,
   type PermissionCatalog,
 } from '@/entities/admin-account/model/types';
 
@@ -189,6 +191,84 @@ const catalogOf = (db: Database): PermissionCatalog => ({
   // 기본 팀 목록에 없는 팀으로 만든 계정이 있으면 그 팀도 고를 수 있게 붙인다.
   teamNames: [...new Set([...ADMIN_TEAM_NAMES, ...listAdminRows(db).map((row) => row.team_name)])],
 });
+
+// ─── 운영진 지정(동아리원 관리) ───
+/**
+ * 운영진 자리(팀)에 맞는 역할. 기본 권한 규칙에서 그 팀 이름을 쓰는 역할을 고르고(서비스운영팀은 TEAM),
+ * 규칙에 없는 팀은 TEAM이다. 예: 대표진·차기대표진은 SUPER.
+ */
+function roleForTeam(teamName: string): AdminRole {
+  const roles = BASE_SET_RULES.filter(
+    (rule) => rule.teamName === teamName && rule.role !== 'HOST',
+  ).map((rule) => rule.role as AdminRole);
+  if (roles.length === 0 || roles.includes('TEAM')) return 'TEAM';
+  return roles[0];
+}
+
+interface OperatorPlan {
+  /** 운영진에서 뺄 계정. 계정(아이디)이 있으면 함께 삭제된다. */
+  removals: AdminRow[];
+  /** 다른 팀에서 옮길 계정. 역할·부서가 바뀌므로 권한 예외는 지운다. */
+  moves: AdminRow[];
+  /** 새로 운영진으로 정할 회원(계정 발급 전 상태로 더한다). */
+  addUserIds: string[];
+  /** 옮기거나 더할 팀. 빼기만 하면 null. */
+  teamName: string | null;
+}
+
+/**
+ * 운영진 지정 변경을 한 번에 적용한다. 먼저 모두 검사하고(하나라도 막히면 아무것도 바꾸지 않는다) 그다음 바꾼다.
+ * 운영진 계정 관리와 같은 보호 규칙: 본인·서비스운영팀장은 빼거나 옮길 수 없고, "타 계정 정보 수정" 보유자를 하나는 남긴다.
+ */
+function applyOperatorPlan(db: Database, actor: AdminRow, plan: OperatorPlan): void {
+  for (const row of [...plan.removals, ...plan.moves]) {
+    if (row.id === actor.id) {
+      throw badRequest(
+        'CANNOT_MODIFY_OWN_ROLE',
+        '본인은 운영진에서 빼거나 다른 팀으로 옮길 수 없습니다.',
+      );
+    }
+    if (row.role === 'MASTER') {
+      throw badRequest(
+        'CANNOT_MOVE_MASTER',
+        '서비스운영팀장(MASTER)은 운영진에서 빼거나 다른 팀으로 옮길 수 없습니다.',
+      );
+    }
+  }
+  for (const userId of plan.addUserIds) {
+    if (!userExists(db, userId))
+      throw badRequest('USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
+  }
+  const role = plan.teamName ? roleForTeam(plan.teamName) : null;
+  if (plan.teamName && role) requireValidCombination(role, plan.teamName);
+
+  const pending = new Map<number, PendingChange>();
+  for (const row of plan.removals) pending.set(row.id, { row: null });
+  for (const row of plan.moves) {
+    pending.set(row.id, { row: { ...row, role: role!, team_name: plan.teamName! }, overrides: {} });
+  }
+  if (pending.size > 0) guardLockout(db, actor, pending);
+
+  for (const row of plan.removals) {
+    deleteAdmin(db, row.id);
+    syncOperatorRole(db, row.user_id, false);
+  }
+  for (const row of plan.moves) {
+    replaceOverrides(db, row.id, {}, actor.id);
+    updateAdmin(db, { id: row.id, role: role!, team_name: plan.teamName! });
+  }
+  for (const userId of plan.addUserIds) {
+    insertAdmin(db, {
+      user_id: userId,
+      username: null,
+      password: null,
+      role: role!,
+      team_name: plan.teamName!,
+      created_by: actor.id,
+    });
+    syncOperatorRole(db, userId, true);
+  }
+}
 
 export const adminAccountRoutes: MockRoute[] = [
   {
@@ -387,6 +467,53 @@ export const adminAccountRoutes: MockRoute[] = [
       const row = findTarget(db, String(accountId));
       sessions.set(db, row.id);
       return toAdminAccount(db, row);
+    },
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/v1/admin/operator-teams/:teamName',
+    summary:
+      '팀 운영진 일괄 지정(동아리원 관리). 이 팀 운영진을 userIds로 맞춘다: 새 회원은 계정 발급 전 상태로 더하고, 다른 팀 운영진은 옮기고, 빠진 이 팀 운영진은 뺀다. 이 팀 운영진 목록을 돌려준다',
+    handler: ({ db, params, body }) => {
+      const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
+      const teamName = teamNameOf(params.teamName);
+      const userIds = new Set(stringArray(readBody(body), 'userIds', { required: true }));
+      const rows = listAdminRows(db);
+      const operatorUserIds = new Set(rows.map((row) => row.user_id));
+      applyOperatorPlan(db, actor, {
+        removals: rows.filter((row) => row.team_name === teamName && !userIds.has(row.user_id)),
+        moves: rows.filter((row) => row.team_name !== teamName && userIds.has(row.user_id)),
+        addUserIds: [...userIds].filter((userId) => !operatorUserIds.has(userId)),
+        teamName,
+      });
+      return listAdminRows(db)
+        .filter((row) => row.team_name === teamName)
+        .map((row) => toAdminAccount(db, row));
+    },
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/v1/admin/operators/:userId',
+    summary:
+      '한 명의 운영진 지정(동아리원 관리). teamName이면 그 팀 운영진으로 정하거나 옮기고, null이면 운영진에서 뺀다(계정이 있으면 함께 삭제)',
+    handler: ({ db, params, body }) => {
+      const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
+      const data = readBody(body);
+      const teamName = data.teamName === null ? null : teamNameOf(requiredString(data, 'teamName'));
+      const row = listAdminRows(db).find((admin) => admin.user_id === params.userId);
+      if (teamName === null) {
+        if (row)
+          applyOperatorPlan(db, actor, { removals: [row], moves: [], addUserIds: [], teamName });
+        return undefined;
+      }
+      if (row?.team_name === teamName) return undefined;
+      applyOperatorPlan(db, actor, {
+        removals: [],
+        moves: row ? [row] : [],
+        addUserIds: row ? [] : [params.userId],
+        teamName,
+      });
+      return undefined;
     },
   },
 ];
