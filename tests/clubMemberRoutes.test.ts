@@ -18,7 +18,7 @@ async function setup() {
   const SQL = await initSqlJs();
   const db = createDatabase(SQL, schema, seed);
   const router = createRouter([...clubMemberRoutes, ...userRoutes]);
-  const call = <T>(method: 'GET' | 'POST' | 'PATCH', path: string, body?: unknown) =>
+  const call = <T>(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown) =>
     router.dispatch(db, method, path, body) as T;
   return { db, call };
 }
@@ -38,10 +38,43 @@ test('동아리원 목록은 임시 DB users 테이블 전체를 최신 기수 �
   assert.ok(members.filter((member) => member.term <= 25).every((m) => m.status === 'ALUMNI'));
 });
 
-test('동아리원 등록 API는 없다(등록은 합격자 승격으로 한다)', async () => {
-  const { call } = await setup();
+test('동아리원을 추가하면 일반 회원으로 들어가고 활동 명단(members) 행도 생긴다', async () => {
+  const { db, call } = await setup();
+  const created = call<ClubMember>('POST', '/api/v1/club-members', {
+    name: '홍길동',
+    email: 'gildong@example.com',
+    phone: '010-0000-0000',
+    university: '',
+    major: '',
+    term: 20,
+    track: '시각화',
+    status: 'ALUMNI',
+  });
 
-  expectApiError(() => call('POST', '/api/v1/club-members', { name: '홍길동', term: 28 }), 405);
+  assert.equal(created.role, 'MEMBER');
+  assert.equal(created.status, 'ALUMNI');
+  assert.equal(created.operatorTeam, null);
+  assert.ok(call<ClubMember[]>('GET', '/api/v1/club-members').some((m) => m.id === created.id));
+  assert.equal(
+    queryAll<{ n: number }>(
+      db,
+      'SELECT COUNT(*) AS n FROM members WHERE user_id = ? AND term = 20 AND track = ?',
+      [created.id, '시각화'],
+    )[0].n,
+    1,
+  );
+});
+
+test('추가할 때 필수 값이 없거나 같은 기수에 같은 이름이 있으면 거절한다', async () => {
+  const { call } = await setup();
+  const base = { name: '홍길동', email: 'g@example.com', phone: '010', term: 20, track: '분석' };
+  const post = (body: unknown) => () => call('POST', '/api/v1/club-members', body);
+
+  expectApiError(post({ ...base, name: '' }), 400);
+  expectApiError(post({ ...base, email: 'not-an-email' }), 400);
+  expectApiError(post({ ...base, term: 0 }), 400);
+  expectApiError(post({ ...base, track: 'AI' }), 400);
+  expectApiError(post({ ...base, name: '김서하', term: 28 }), 409);
 });
 
 test('수정은 보낸 값만 바꾼다', async () => {
@@ -96,4 +129,60 @@ test('기수 목록 API는 users 테이블의 기수를 큰 기수부터 돌려�
   assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [28, 27, 26, 25]);
   call('PATCH', '/api/v1/club-members/u_25_01', { term: 29 });
   assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [29, 28, 27, 26, 25]);
+});
+
+test('운영진 배지는 역할만 보내 달고 떼며, 다른 정보는 그대로 둔다', async () => {
+  const { call } = await setup();
+  const before = call<ClubMember[]>('GET', '/api/v1/club-members').find(
+    (member) => member.role === 'MEMBER',
+  )!;
+
+  const badged = call<ClubMember>('PATCH', `/api/v1/club-members/${before.id}`, {
+    role: 'OPERATOR',
+  });
+  assert.equal(badged.role, 'OPERATOR');
+  assert.deepEqual({ ...badged, role: before.role }, before);
+
+  const removed = call<ClubMember>('PATCH', `/api/v1/club-members/${before.id}`, {
+    role: 'MEMBER',
+  });
+  assert.equal(removed.role, 'MEMBER');
+});
+
+test('삭제하면 반기 명단·팀 소속·출결 기록이 함께 지워지고, 팀장 칸은 비워진다', async () => {
+  const { db, call } = await setup();
+  const count = (sql: string, id: string) => queryAll<{ n: number }>(db, sql, [id])[0].n;
+  // 운영진이 아니면서 팀장인 사람을 고른다(팀 소속·출결 기록도 있는 사람).
+  const target = queryAll<{ id: string }>(
+    db,
+    `SELECT t.leader_id AS id FROM teams t
+      WHERE t.leader_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM admin a WHERE a.user_id = t.leader_id)
+      LIMIT 1`,
+  )[0].id;
+
+  call('DELETE', `/api/v1/club-members/${target}`);
+
+  assert.equal(count('SELECT COUNT(*) AS n FROM users WHERE id = ?', target), 0);
+  assert.equal(count('SELECT COUNT(*) AS n FROM semester_members WHERE user_id = ?', target), 0);
+  assert.equal(count('SELECT COUNT(*) AS n FROM team_members WHERE user_id = ?', target), 0);
+  assert.equal(count('SELECT COUNT(*) AS n FROM teams WHERE leader_id = ?', target), 0);
+  assert.equal(
+    count(
+      `SELECT COUNT(*) AS n FROM attendance_records r
+         JOIN team_members tm ON tm.id = r.member_id WHERE tm.user_id = ?`,
+      target,
+    ),
+    0,
+  );
+  expectApiError(() => call('DELETE', `/api/v1/club-members/${target}`), 404);
+});
+
+test('운영진은 삭제할 수 없다(409)', async () => {
+  const { db, call } = await setup();
+  const operatorId = queryAll<{ user_id: string }>(db, 'SELECT user_id FROM admin LIMIT 1')[0]
+    .user_id;
+
+  expectApiError(() => call('DELETE', `/api/v1/club-members/${operatorId}`), 409);
+  assert.ok(call<ClubMember[]>('GET', '/api/v1/club-members').some((m) => m.id === operatorId));
 });

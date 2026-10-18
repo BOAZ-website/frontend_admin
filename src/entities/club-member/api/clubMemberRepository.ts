@@ -1,6 +1,6 @@
 import type { Database } from 'sql.js';
 
-import { execute, queryAll } from '@/shared/db/createDatabase';
+import { execute, inTransaction, queryAll } from '@/shared/db/createDatabase';
 
 import type { ClubMember } from '../model/types';
 
@@ -39,6 +39,62 @@ export function hasNameConflict(
       exceptId ?? '',
     ]).length > 0
   );
+}
+
+/** 동아리원을 새로 넣는다. 역할은 일반 회원(MEMBER)으로 시작한다. */
+export function insertClubMember(db: Database, member: ClubMember): void {
+  execute(
+    db,
+    `INSERT INTO users (id, name, term, track, email, phone, university, major, club_status, club_role)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'MEMBER')`,
+    [
+      member.id,
+      member.name,
+      member.term,
+      member.track,
+      member.email,
+      member.phone,
+      member.university,
+      member.major,
+      member.status,
+    ],
+  );
+}
+
+/** 운영진 명단(admin)에 있는 회원인지. 운영진은 운영진에서 먼저 빼야 삭제할 수 있다. */
+export function isOperator(db: Database, userId: string): boolean {
+  return queryAll(db, 'SELECT 1 FROM admin WHERE user_id = ?', [userId]).length > 0;
+}
+
+/**
+ * 동아리원을 관련 기록과 함께 지운다. 한 트랜잭션이라 중간에 실패하면 아무것도 지워지지 않는다.
+ * - 팀 소속(team_members)과 그 출결 기록(attendance_records, 연쇄 삭제)
+ * - 팀장으로 들어 있던 팀의 팀장 칸(비운다)
+ * - 반기 명단(semester_members)과 활동 명단(members, 연쇄 삭제)
+ * - HOST 계정은 남기고, 주인 정보(이름·기수·부문)를 계정에 옮겨 적은 뒤 주인 연결만 끊는다
+ * 운영진 명단(admin)에 있는 회원은 부르는 쪽에서 먼저 막는다.
+ */
+export function deleteClubMember(db: Database, userId: string): void {
+  inTransaction(db, () => {
+    execute(
+      db,
+      `DELETE FROM team_members
+        WHERE user_id = ? OR member_id IN (SELECT id FROM members WHERE user_id = ?)`,
+      [userId, userId],
+    );
+    execute(db, 'UPDATE teams SET leader_id = NULL WHERE leader_id = ?', [userId]);
+    execute(db, 'DELETE FROM semester_members WHERE user_id = ?', [userId]);
+    execute(
+      db,
+      `UPDATE host_accounts
+          SET host_name = COALESCE(host_name, (SELECT name FROM users WHERE id = ?)),
+              generation = COALESCE(generation, (SELECT term || '기' FROM users WHERE id = ?)),
+              track = COALESCE(track, (SELECT track FROM users WHERE id = ?))
+        WHERE user_id = ?`,
+      [userId, userId, userId, userId],
+    );
+    execute(db, 'DELETE FROM users WHERE id = ?', [userId]);
+  });
 }
 
 /**
