@@ -1,9 +1,6 @@
 /**
  * 시스템·계정 화면 공통 스타일. 출결 화면(그룹 계정 관리)·동아리원 관리와 같은 입력칸·표·팝업 모양이다.
  */
-/** 도구 줄의 검색칸. */
-export const TOOLBAR_FIELD =
-  'h-9 rounded-sm border border-slate-200 bg-white text-xs font-semibold text-slate-800 shadow-2xs outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
 export const TABLE_BOX = 'overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xs';
 /** 표 머리 칸. 출결 표처럼 칸마다 연한 회색 바탕에 굵은 글자다. 핵심 열은 text-slate-900을 덧붙인다. */
 export const TH_CLASS =
