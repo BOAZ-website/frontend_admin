@@ -64,7 +64,8 @@ const ACTION = {
   add: {
     label: '추가',
     Icon: Plus,
-    className: 'border-blue-200 text-blue-700 hover:border-blue-600 hover:bg-blue-600 hover:text-white',
+    className:
+      'border-blue-200 text-blue-700 hover:border-blue-600 hover:bg-blue-600 hover:text-white',
   },
 } as const;
 
