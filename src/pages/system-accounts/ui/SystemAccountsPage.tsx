@@ -4,34 +4,42 @@ import {
   changeAdminPassword,
   createAdminAccount,
   deleteAdminAccount,
+  issueAdminCredentials,
   updateAdminAccount,
 } from '@/entities/admin-account/api/adminAccountApi';
 import type {
   AdminAccountCreateRequest,
+  AdminCredentialsRequest,
   AdminPasswordRequest,
 } from '@/entities/admin-account/model/dto';
 import { can } from '@/entities/admin-account/model/can';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { useAdminConsole } from '@/pages/system-accounts/model/useAdminConsole';
 import { AccountFormModal } from '@/pages/system-accounts/ui/AccountFormModal';
-import { AccountsTable, type AccountActions } from '@/pages/system-accounts/ui/AccountsTable';
+import { AccountsTab, type AccountActions } from '@/pages/system-accounts/ui/AccountsTab';
+import { CredentialIssueModal } from '@/pages/system-accounts/ui/CredentialIssueModal';
 import { MyAccountCard } from '@/pages/system-accounts/ui/MyAccountCard';
 import { PasswordModal } from '@/pages/system-accounts/ui/PasswordModal';
 import { alertApiError } from '@/shared/lib/alertApiError';
+import { AccountDeliveryDialog } from '@/shared/ui/AccountDeliveryDialog';
 import { CreateButton } from '@/shared/ui/CreateButton';
+import { PasswordResetDialog } from '@/shared/ui/PasswordResetDialog';
 
 /** 계정 발급·수정 팝업 대상. */
 type FormTarget = { mode: 'create' } | { mode: 'edit'; account: AdminAccount };
 
 /**
- * 운영진 계정 관리 화면.
- * 데이터는 모두 API(백엔드 연결 전에는 임시 API)로 읽고 쓴다. 메뉴·버튼은 로그인한 계정의
+ * 운영진 계정 관리 화면. 데이터는 모두 API(백엔드 연결 전에는 임시 API)로 읽고 쓴다. 메뉴·버튼은 로그인한 계정의
  * 유효 권한(/me)으로 보이거나 숨기고, 최종 판정은 서버가 한다(권한이 없으면 403).
  */
 export function SystemAccountsPage() {
   const { data, error, reload } = useAdminConsole();
   const [formTarget, setFormTarget] = useState<FormTarget | null>(null);
   const [passwordTarget, setPasswordTarget] = useState<AdminAccount | null>(null);
+  /** "+ 계정"으로 여는 계정 발급 창. */
+  const [isIssueOpen, setIsIssueOpen] = useState(false);
+  /** 계정을 발급하거나 다른 계정의 비밀번호를 재설정한 뒤 띄우는 전달문. */
+  const [delivery, setDelivery] = useState<{ title: string; text: string } | null>(null);
 
   if (!data) {
     return (
@@ -60,8 +68,18 @@ export function SystemAccountsPage() {
   const canChangePassword = (account: AdminAccount) =>
     isSelf(account) ? canWriteSelf : canWriteOthers;
   const actions: AccountActions = {
-    canEdit: (account) => (isSelf(account) ? canWriteSelf : canWriteOthers),
-    canDelete: (account) => !isSelf(account) && can(me, 'ADMIN_ACCOUNT_CREATE_DELETE'),
+    passwordResetBlockReason: (account) => {
+      // 계정을 아직 발급하지 않은 운영진은 바꿀 비밀번호가 없다.
+      if (account.username === null) return '계정을 발급하지 않아 재설정할 비밀번호가 없습니다.';
+      if (!canChangePassword(account)) return '다른 운영진의 비밀번호를 재설정할 권한이 없습니다.';
+      return null;
+    },
+    deleteBlockReason: (account) => {
+      if (account.role === 'MASTER') return '서비스운영팀장(MASTER) 계정은 삭제할 수 없습니다.';
+      if (isSelf(account)) return '본인 계정은 삭제할 수 없습니다.';
+      if (!can(me, 'ADMIN_ACCOUNT_CREATE_DELETE')) return '운영진 계정을 삭제할 권한이 없습니다.';
+      return null;
+    },
   };
   const pageTitle = accounts ? '운영진 계정 관리' : '내 계정 정보';
 
@@ -92,13 +110,58 @@ export function SystemAccountsPage() {
     return run(() => updateAdminAccount(account.id, { role: form.role, teamName: form.teamName }));
   };
 
-  const submitPassword = (request: AdminPasswordRequest) =>
+  /** 본인 비밀번호 변경. 현재 비밀번호를 확인하고, 끝나면 알림만 띄운다. */
+  const submitOwnPassword = (request: AdminPasswordRequest) =>
     passwordTarget
       ? run(() => changeAdminPassword(passwordTarget.id, request), '비밀번호를 변경했습니다.')
       : Promise.resolve(false);
 
+  /**
+   * 다른 계정의 비밀번호 재설정. 출결의 그룹 계정 관리와 같은 흐름이다:
+   * 새 비밀번호 입력 → 한 번 더 확인 → 재설정 → 본인에게 보낼 전달문 창.
+   * 비밀번호 규칙 검사는 서버가 한다.
+   */
+  const resetOthersPassword = async (newPassword: string) => {
+    if (!passwordTarget) return;
+    const target = passwordTarget;
+    if (!window.confirm(`${target.name}님 계정의 비밀번호를 정말 재설정할까요?`)) return;
+    const isReset = await run(() => changeAdminPassword(target.id, { newPassword }));
+    if (!isReset) return;
+    setPasswordTarget(null);
+    setDelivery({
+      title: `${target.name} 비밀번호 재설정`,
+      text: `[BOAZ 운영진 계정 비밀번호 재설정 안내]
+
+• 로그인 아이디: ${target.username ?? ''}
+• 새 비밀번호: ${newPassword}
+
+로그인 후 새 비밀번호로 접속해 주세요.`,
+    });
+  };
+
+  /**
+   * 운영진 계정 발급. 출결의 그룹 계정 발급처럼, 발급한 뒤 본인에게 보낼 전달문 창을 띄운다.
+   * 아이디 형식·중복과 비밀번호 규칙 검사는 서버가 한다.
+   */
+  const issueCredentials = async (account: AdminAccount, request: AdminCredentialsRequest) => {
+    const isIssued = await run(() => issueAdminCredentials(account.id, request));
+    if (isIssued) {
+      setDelivery({
+        title: `${account.name} 계정 발급`,
+        text: `[BOAZ 운영진 계정 발급 안내]
+
+• 로그인 아이디: ${request.username}
+• 초기 비밀번호: ${request.password}
+
+로그인 후 비밀번호를 바꿔 주세요.`,
+      });
+    }
+    return isIssued;
+  };
+
   const deleteAccount = (account: AdminAccount) => {
-    if (!window.confirm(`운영진 계정 '${account.username} (${account.name})'을(를) 삭제할까요?`)) {
+    const label = account.username ? `${account.username} (${account.name})` : account.name;
+    if (!window.confirm(`운영진 '${label}'을(를) 삭제할까요?`)) {
       return;
     }
     void run(() => deleteAdminAccount(account.id), '계정을 삭제했습니다.');
@@ -114,7 +177,7 @@ export function SystemAccountsPage() {
           <CreateButton
             label="계정"
             aria-label="새 운영진 계정 발급"
-            onClick={() => setFormTarget({ mode: 'create' })}
+            onClick={() => setIsIssueOpen(true)}
           />
         )}
       </div>
@@ -138,13 +201,12 @@ export function SystemAccountsPage() {
         </div>
       )}
 
-      {/* 목록 조회 권한이 있으면 전체 계정, 없으면 본인 정보 */}
       {accounts ? (
-        <AccountsTable
+        <AccountsTab
           catalog={catalog}
           accounts={accounts}
           actions={actions}
-          onEdit={(account) => setFormTarget({ mode: 'edit', account })}
+          onResetPassword={setPasswordTarget}
           onDelete={deleteAccount}
         />
       ) : (
@@ -177,12 +239,35 @@ export function SystemAccountsPage() {
         />
       )}
 
-      {passwordTarget && (
-        <PasswordModal
-          account={passwordTarget}
-          isSelf={isSelf(passwordTarget)}
-          onClose={() => setPasswordTarget(null)}
-          onSubmit={submitPassword}
+      {passwordTarget &&
+        (isSelf(passwordTarget) ? (
+          <PasswordModal
+            account={passwordTarget}
+            isSelf
+            onClose={() => setPasswordTarget(null)}
+            onSubmit={submitOwnPassword}
+          />
+        ) : (
+          <PasswordResetDialog
+            onClose={() => setPasswordTarget(null)}
+            onSubmit={(newPassword) => void resetOthersPassword(newPassword)}
+          />
+        ))}
+
+      {isIssueOpen && accounts && (
+        <CredentialIssueModal
+          pendingAccounts={accounts.filter((account) => account.username === null)}
+          onClose={() => setIsIssueOpen(false)}
+          onSubmit={issueCredentials}
+        />
+      )}
+
+      {delivery && (
+        <AccountDeliveryDialog
+          title={delivery.title}
+          text={delivery.text}
+          onTextChange={(text) => setDelivery({ ...delivery, text })}
+          onClose={() => setDelivery(null)}
         />
       )}
     </div>
