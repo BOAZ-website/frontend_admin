@@ -312,10 +312,11 @@ CREATE TABLE host_concurrent_roles (
 CREATE TABLE admin (
   id         INTEGER PRIMARY KEY,
   user_id    TEXT    NOT NULL UNIQUE REFERENCES users (id) ON DELETE RESTRICT, -- 계정 주인(회원). 회원 한 명에 계정 하나, 계정이 있는 회원은 지울 수 없다
-  username   TEXT    NOT NULL UNIQUE,
-  password   TEXT    NOT NULL,                             -- 임시 DB 전용 평문. 실제 서버는 해시로 저장한다
+  username   TEXT    UNIQUE,                               -- 로그인 아이디. 운영진으로 정해졌지만 계정을 아직 발급하지 않았으면 NULL
+  password   TEXT,                                         -- 임시 DB 전용 평문(실제 서버는 해시). 아이디와 함께 NULL이거나 함께 채워진다
   role       TEXT    NOT NULL CHECK (role IN ('MASTER', 'SUPER', 'TEAM')),
   team_name  TEXT    NOT NULL,                             -- 운영진의 자리(대표진·서비스운영팀 등). 새 팀이 생길 수 있어 값을 제한하지 않는다
+  is_team_lead INTEGER NOT NULL DEFAULT 0 CHECK (is_team_lead IN (0, 1)), -- 그 팀의 팀장인지. 대표진은 쓰지 않는다. 권한과는 관계없다
   created_by INTEGER REFERENCES admin (id) ON DELETE SET NULL,
   created_at TEXT    NOT NULL,
   updated_at TEXT    NOT NULL

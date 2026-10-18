@@ -49,6 +49,7 @@ const accountOf = (overrides: Record<string, boolean>, patch: Partial<AdminAccou
     track: '분석',
     term: 28,
     teamName: '기획팀',
+    isTeamLead: false,
     createdBy: 1,
     createdAt: '2026-07-15 09:10:00',
     updatedAt: '2026-07-15 09:10:00',

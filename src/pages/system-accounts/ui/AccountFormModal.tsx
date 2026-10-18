@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Eye, EyeOff, RefreshCw, Search, X } from 'lucide-react';
+import { AlertTriangle, Search, X } from 'lucide-react';
 
 import {
   baseSetKeyIn,
@@ -13,11 +13,7 @@ import type {
   PermissionCatalog,
 } from '@/entities/admin-account/model/types';
 import type { ClubMember } from '@/entities/club-member/model/types';
-import {
-  ROLE_DESCRIPTIONS,
-  ROLE_OPTIONS,
-  randomPassword,
-} from '@/pages/system-accounts/ui/accountLabels';
+import { ROLE_DESCRIPTIONS, ROLE_OPTIONS } from '@/pages/system-accounts/ui/accountLabels';
 import {
   FIELD_INPUT,
   FIELD_LABEL,
@@ -31,11 +27,22 @@ import {
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 
-type AccountForm = AdminAccountCreateRequest;
+/** 팝업 입력값. 아이디·초기 비밀번호는 비워 둘 수 있다(비우면 운영진으로만 정하고 계정은 나중에 발급한다). */
+type AccountForm = Omit<AdminAccountCreateRequest, 'username' | 'password'> & {
+  username: string;
+  password: string;
+};
+
+/** 입력값을 요청으로 바꾼다. 아이디·초기 비밀번호가 둘 다 있을 때만 싣는다. */
+const requestOf = (form: AccountForm): AdminAccountCreateRequest => {
+  const username = form.username.trim();
+  const base = { userId: form.userId, role: form.role, teamName: form.teamName };
+  return username && form.password ? { ...base, username, password: form.password } : base;
+};
 
 interface AccountFormModalProps {
   catalog: PermissionCatalog;
-  /** 없으면 새 계정 발급, 있으면 그 계정 수정. */
+  /** 없으면 운영진 추가, 있으면 그 운영진 수정. */
   account?: AdminAccount;
   /** 발급할 때 고를 수 있는 회원(아직 운영진 계정이 없는 동아리원). */
   members?: readonly ClubMember[];
@@ -45,20 +52,20 @@ interface AccountFormModalProps {
   /** 수정 팝업에서 비밀번호 재설정 팝업을 연다. 권한이 없으면 넘기지 않는다. */
   onResetPassword?: () => void;
   /** 저장에 성공하면 true. 실패하면 팝업을 그대로 둔다. */
-  onSubmit: (form: AccountForm) => Promise<boolean>;
+  onSubmit: (request: AdminAccountCreateRequest) => Promise<boolean>;
 }
 
 const emptyForm = (catalog: PermissionCatalog): AccountForm => ({
   userId: '',
   username: '',
-  password: randomPassword(),
+  password: '',
   role: 'TEAM',
   teamName: catalog.teamNames.includes('서비스운영팀') ? '서비스운영팀' : catalog.teamNames[0],
 });
 
 const formOf = (account: AdminAccount): AccountForm => ({
   userId: account.userId,
-  username: account.username,
+  username: account.username ?? '',
   password: '',
   role: account.role,
   teamName: account.teamName,
@@ -69,7 +76,8 @@ const memberLine = (member: Pick<ClubMember, 'name' | 'term'> & { track: string 
   `${member.name} · ${member.term}기 · ${member.track}`;
 
 /**
- * 운영진 계정 발급·수정 팝업. 운영진은 모두 회원이므로, 발급할 때는 동아리원을 골라 계정을 만든다.
+ * 운영진 추가·수정 팝업. 운영진은 모두 회원이므로, 추가할 때는 동아리원을 골라 운영진으로 정한다.
+ * 아이디·초기 비밀번호는 함께 입력하면 바로 계정을 발급하고, 비워 두면 나중에 운영진 표에서 발급한다.
  * 이름·기수·부문은 회원 정보를 그대로 쓰고(동아리원 관리에서 고친다), 여기서는 역할·부서만 정한다.
  */
 export function AccountFormModal({
@@ -86,7 +94,6 @@ export function AccountFormModal({
     account ? formOf(account) : emptyForm(catalog),
   );
   const [memberQuery, setMemberQuery] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const update = (patch: Partial<AccountForm>) => setForm((current) => ({ ...current, ...patch }));
 
@@ -100,12 +107,15 @@ export function AccountFormModal({
   const isChanged = !account || form.role !== account.role || form.teamName !== account.teamName;
   // 역할·부서가 바뀌면 기본 권한 세트가 같아도 서버가 따로 조정한 권한을 모두 지운다.
   const exceptionsToDrop = account && isChanged ? Object.keys(account.overrides).length : 0;
+  // 아이디·초기 비밀번호는 함께 입력하거나 함께 비운다.
+  const hasUsername = Boolean(form.username.trim());
+  const hasPassword = Boolean(form.password);
+  const isCredentialsHalf = isCreate && hasUsername !== hasPassword;
   const canSave =
     !isSaving &&
     isChanged &&
     isValidCombination &&
-    (!isCreate ||
-      (Boolean(form.userId) && Boolean(form.username.trim()) && Boolean(form.password)));
+    (!isCreate || (Boolean(form.userId) && !isCredentialsHalf));
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -119,7 +129,7 @@ export function AccountFormModal({
       return;
     }
     setIsSaving(true);
-    const isSaved = await onSubmit({ ...form, username: form.username.trim() });
+    const isSaved = await onSubmit(requestOf(form));
     setIsSaving(false);
     if (isSaved) onClose();
   };
@@ -143,7 +153,7 @@ export function AccountFormModal({
       >
         <div className="flex items-center justify-between">
           <h3 id={titleId} className="text-base font-bold text-slate-900">
-            {isCreate ? '운영진 계정 발급' : '운영진 계정'}
+            {isCreate ? '운영진 추가' : '운영진 계정'}
           </h3>
           <button type="button" onClick={onClose} className={MODAL_CLOSE_BTN} aria-label="창 닫기">
             <X size={18} />
@@ -224,7 +234,7 @@ export function AccountFormModal({
                   id="account-username"
                   value={form.username}
                   onChange={(event) => update({ username: event.target.value })}
-                  placeholder="예: boaz_team2"
+                  placeholder="(선택) 예: boaz_team2"
                   autoComplete="off"
                   className={`${FIELD_INPUT} font-mono`}
                 />
@@ -239,41 +249,33 @@ export function AccountFormModal({
 
           {isCreate ? (
             <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <label
-                  htmlFor="account-password"
-                  className="text-[11px] font-semibold text-slate-500"
-                >
-                  초기 비밀번호
-                </label>
-                <button
-                  type="button"
-                  onClick={() => update({ password: randomPassword() })}
-                  className={FIELD_TEXT_BTN}
-                >
-                  <RefreshCw size={11} aria-hidden="true" />
-                  새로 만들기
-                </button>
-              </div>
-              <div className="relative">
-                <input
-                  id="account-password"
-                  type={isPasswordVisible ? 'text' : 'password'}
-                  value={form.password}
-                  onChange={(event) => update({ password: event.target.value })}
-                  autoComplete="new-password"
-                  className={`${FIELD_INPUT} pr-10 font-mono`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setIsPasswordVisible((value) => !value)}
-                  aria-label={isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기'}
-                  className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                >
-                  {isPasswordVisible ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
+              {/* 출결의 그룹 계정 발급처럼 발급하는 사람이 직접 입력한다. 본인에게 전달해야 하므로 글자를 그대로 보인다. */}
+              <label htmlFor="account-password" className={FIELD_LABEL}>
+                초기 비밀번호
+              </label>
+              <input
+                id="account-password"
+                type="text"
+                value={form.password}
+                onChange={(event) => update({ password: event.target.value })}
+                placeholder="(선택) 초기 비밀번호 직접 입력"
+                autoComplete="off"
+                spellCheck={false}
+                className={`${FIELD_INPUT} font-mono`}
+              />
             </div>
+          ) : (
+            <div />
+          )}
+
+          {isCreate ? (
+            <p
+              className={`col-span-full -mt-2 text-[11px] ${isCredentialsHalf ? 'text-red-600' : 'text-slate-500'}`}
+            >
+              {isCredentialsHalf
+                ? '아이디와 초기 비밀번호는 함께 입력하거나 함께 비워 주세요.'
+                : '아이디·초기 비밀번호를 비워 두면 운영진으로만 추가하고, 계정은 나중에 운영진 표에서 발급합니다.'}
+            </p>
           ) : (
             <div />
           )}
@@ -343,7 +345,7 @@ export function AccountFormModal({
           </button>
           {canChangeRole && (
             <button type="submit" disabled={!canSave} className={MODAL_CONFIRM_BTN}>
-              {isCreate ? '발급' : '저장'}
+              {isCreate ? '추가' : '저장'}
             </button>
           )}
         </div>

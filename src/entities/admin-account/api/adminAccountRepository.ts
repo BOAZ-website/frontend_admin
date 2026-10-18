@@ -20,8 +20,9 @@ import type { AdminAccount, AdminRole } from '../model/types';
 export interface AdminFields {
   id: number;
   user_id: string;
-  username: string;
-  password: string;
+  /** 계정을 아직 발급하지 않았으면 null. */
+  username: string | null;
+  password: string | null;
   role: AdminRole;
   /** users.name */
   name: string;
@@ -30,6 +31,8 @@ export interface AdminFields {
   /** users.term */
   term: number;
   team_name: string;
+  /** 0 또는 1. 그 팀의 팀장인지. */
+  is_team_lead: number;
   created_by: number | null;
   created_at: string;
   updated_at: string;
@@ -39,7 +42,7 @@ export type AdminRow = AdminFields & Record<string, unknown>;
 
 /** 운영진 계정과 계정 주인 회원을 합쳐 읽는다. 이름·기수·부문은 users에만 있다. */
 const SELECT_ADMIN = `
-  SELECT a.id, a.user_id, a.username, a.password, a.role, a.team_name,
+  SELECT a.id, a.user_id, a.username, a.password, a.role, a.team_name, a.is_team_lead,
          a.created_by, a.created_at, a.updated_at,
          u.name, u.term, u.track
     FROM admin a
@@ -98,6 +101,7 @@ export function toAdminAccount(db: Database, row: AdminRow): AdminAccount {
     track: row.track,
     term: row.term,
     teamName: row.team_name,
+    isTeamLead: row.is_team_lead === 1,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -148,6 +152,21 @@ export function updateAdmin(
     row.team_name,
     nowText(),
     row.id,
+  ]);
+}
+
+/** 운영진으로 정해진 사람에게 로그인 계정(아이디·초기 비밀번호)을 발급한다. */
+export function issueAdminCredentials(
+  db: Database,
+  id: number,
+  username: string,
+  password: string,
+): void {
+  execute(db, 'UPDATE admin SET username = ?, password = ?, updated_at = ? WHERE id = ?', [
+    username,
+    password,
+    nowText(),
+    id,
   ]);
 }
 

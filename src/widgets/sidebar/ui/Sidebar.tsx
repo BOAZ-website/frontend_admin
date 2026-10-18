@@ -120,7 +120,7 @@ const SIDEBAR_NAV = [
         title: '계정 및 권한',
         pages: [
           { id: 'system-members', label: '동아리원 관리' },
-          { id: 'system-accounts', label: '운영진 계정 관리 (CRUD)' },
+          { id: 'system-accounts', label: '운영진 계정 관리' },
           { id: 'system-permissions', label: '계정별 권한 관리' },
         ],
       },
