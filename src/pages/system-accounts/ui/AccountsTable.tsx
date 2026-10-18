@@ -1,5 +1,5 @@
-import { Fragment, useMemo, useState } from 'react';
-import { Pencil, Search, ShieldCheck, Trash2 } from 'lucide-react';
+import { Fragment, useMemo } from 'react';
+import { Pencil, ShieldCheck, Trash2 } from 'lucide-react';
 
 import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/model/types';
 import { useResizableWidths } from '@/pages/system-accounts/model/useResizableWidths';
@@ -11,7 +11,6 @@ import {
   TABLE_BOX,
   TD_CLASS,
   TH_CLASS,
-  TOOLBAR_FIELD,
   USERNAME_CHIP,
 } from '@/pages/system-accounts/ui/systemStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
@@ -83,180 +82,150 @@ export function AccountsTable({
   onPermissions,
   onDelete,
 }: AccountsTableProps) {
-  const [query, setQuery] = useState('');
   const { widths, resizingKey, startResize } = useResizableWidths(COLUMN_WIDTHS, COLUMN_LIMITS);
   // 이 너비보다 좁은 화면에서만 가로 스크롤이 생긴다(권한 열이 최소 너비까지 줄어든 뒤).
   const tableMinWidth = COLUMNS.reduce((sum, column) => sum + widths[column.key], 0);
 
   // 사람이 없는 팀은 보이지 않는다. 목록에 없는 새 팀은 맨 뒤에 붙는다.
   const teamGroups = useMemo(() => {
-    const text = query.trim().toLowerCase();
-    const matched = accounts.filter(
-      (account) =>
-        !text ||
-        [account.username, account.name].some((value) => value.toLowerCase().includes(text)),
-    );
     const teamOrder = [
       ...catalog.teamNames,
-      ...matched.map((account) => account.teamName).filter((t) => !catalog.teamNames.includes(t)),
+      ...accounts.map((account) => account.teamName).filter((t) => !catalog.teamNames.includes(t)),
     ];
     return [...new Set(teamOrder)]
       .map((teamName) => ({
         teamName,
-        members: matched.filter((account) => account.teamName === teamName),
+        members: accounts.filter((account) => account.teamName === teamName),
       }))
       .filter((group) => group.members.length > 0);
-  }, [accounts, catalog.teamNames, query]);
+  }, [accounts, catalog.teamNames]);
 
   return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs font-medium text-slate-500">
-          전체{' '}
-          <span className="text-sm font-bold tabular-nums text-slate-900">{accounts.length}</span>명
-        </p>
-        <div className="relative">
-          <Search
-            size={13}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
-            aria-hidden="true"
-          />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="이름·아이디 검색"
-            aria-label="이름, 아이디 검색"
-            className={`w-44 pl-8 pr-3 font-medium placeholder:font-normal placeholder:text-slate-400 ${TOOLBAR_FIELD}`}
-          />
-        </div>
-      </div>
-
-      <div className={TABLE_BOX}>
-        <div className="overflow-x-auto">
-          <table
-            className="w-full table-fixed border-collapse text-xs"
-            style={{ minWidth: `${tableMinWidth}px` }}
-          >
-            <thead className="bg-slate-50/80 select-none">
-              <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-[11px]">
-                {COLUMNS.map((column) => (
-                  <th
-                    key={column.key}
-                    style={column.isFluid ? undefined : { width: `${widths[column.key]}px` }}
-                    className={`${TH_CLASS} relative ${column.isKey ? 'text-slate-900' : ''}`}
-                  >
-                    {column.label}
-                    {!column.isFluid && (
-                      <ResizeHandle
-                        isActive={resizingKey === column.key}
-                        onMouseDown={(event) => startResize(event, column.key)}
-                        className="absolute -right-2 top-0 bottom-0 flex"
-                      />
-                    )}
-                  </th>
-                ))}
+    <div className={TABLE_BOX}>
+      <div className="overflow-x-auto">
+        <table
+          className="w-full table-fixed border-collapse text-xs"
+          style={{ minWidth: `${tableMinWidth}px` }}
+        >
+          <thead className="bg-slate-50/80 select-none">
+            <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-[11px]">
+              {COLUMNS.map((column) => (
+                <th
+                  key={column.key}
+                  style={column.isFluid ? undefined : { width: `${widths[column.key]}px` }}
+                  className={`${TH_CLASS} relative ${column.isKey ? 'text-slate-900' : ''}`}
+                >
+                  {column.label}
+                  {!column.isFluid && (
+                    <ResizeHandle
+                      isActive={resizingKey === column.key}
+                      onMouseDown={(event) => startResize(event, column.key)}
+                      className="absolute -right-2 top-0 bottom-0 flex"
+                    />
+                  )}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {teamGroups.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-8 text-center text-slate-400">
+                  운영진 계정이 없습니다.
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {teamGroups.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
-                    검색 결과가 없습니다.
-                  </td>
-                </tr>
-              ) : (
-                teamGroups.map(({ teamName, members }) => (
-                  <Fragment key={teamName}>
-                    {members.map((account, index) => {
-                      return (
-                        <tr
-                          key={account.id}
-                          className={`${ROW_CLASS} border-t border-slate-200 first:border-t-0`}
-                        >
-                          {/* 운영진 칸: 팀 이름이 소속 인원 수만큼 세로로 이어진다. */}
-                          {index === 0 && (
-                            <td
-                              rowSpan={members.length}
-                              className={`${TD_CLASS} bg-white font-bold text-slate-900`}
+            ) : (
+              teamGroups.map(({ teamName, members }) => (
+                <Fragment key={teamName}>
+                  {members.map((account, index) => {
+                    return (
+                      <tr
+                        key={account.id}
+                        className={`${ROW_CLASS} border-t border-slate-200 first:border-t-0`}
+                      >
+                        {/* 운영진 칸: 팀 이름이 소속 인원 수만큼 세로로 이어진다. */}
+                        {index === 0 && (
+                          <td
+                            rowSpan={members.length}
+                            className={`${TD_CLASS} bg-white font-bold text-slate-900`}
+                          >
+                            {teamName}
+                          </td>
+                        )}
+                        <td className={`${TD_CLASS} font-bold text-slate-900`}>
+                          {actions.canManagePermissions ? (
+                            <button
+                              type="button"
+                              onClick={() => onPermissions(account)}
+                              className="cursor-pointer underline-offset-2 hover:underline"
                             >
-                              {teamName}
-                            </td>
+                              {account.name}
+                            </button>
+                          ) : (
+                            account.name
                           )}
-                          <td className={`${TD_CLASS} font-bold text-slate-900`}>
-                            {actions.canManagePermissions ? (
-                              <button
-                                type="button"
-                                onClick={() => onPermissions(account)}
-                                className="cursor-pointer underline-offset-2 hover:underline"
-                              >
-                                {account.name}
-                              </button>
-                            ) : (
-                              account.name
+                        </td>
+                        <td className={TD_CLASS}>
+                          <code className={USERNAME_CHIP}>{account.username}</code>
+                        </td>
+                        <td className={`${TD_CLASS} text-slate-600`}>{account.role}</td>
+                        <td className={`${TD_CLASS} text-slate-600`}>{account.track}</td>
+                        <td className={`${TD_CLASS} text-slate-600`}>{account.term}기</td>
+                        <td className="px-3 py-2">
+                          <PermissionChips
+                            catalog={catalog}
+                            effectivePermissions={account.effectivePermissions}
+                          />
+                        </td>
+                        <td className={TD_CLASS}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            {actions.canManagePermissions && (
+                              <Tooltip label="권한">
+                                <button
+                                  type="button"
+                                  onClick={() => onPermissions(account)}
+                                  aria-label={`${account.name} 권한`}
+                                  className={ICON_BTN}
+                                >
+                                  <ShieldCheck size={14} aria-hidden="true" />
+                                </button>
+                              </Tooltip>
                             )}
-                          </td>
-                          <td className={TD_CLASS}>
-                            <code className={USERNAME_CHIP}>{account.username}</code>
-                          </td>
-                          <td className={`${TD_CLASS} text-slate-600`}>{account.role}</td>
-                          <td className={`${TD_CLASS} text-slate-600`}>{account.track}</td>
-                          <td className={`${TD_CLASS} text-slate-600`}>{account.term}기</td>
-                          <td className="px-3 py-2">
-                            <PermissionChips
-                              catalog={catalog}
-                              effectivePermissions={account.effectivePermissions}
-                            />
-                          </td>
-                          <td className={TD_CLASS}>
-                            <div className="flex items-center justify-center gap-0.5">
-                              {actions.canManagePermissions && (
-                                <Tooltip label="권한">
-                                  <button
-                                    type="button"
-                                    onClick={() => onPermissions(account)}
-                                    aria-label={`${account.name} 권한`}
-                                    className={ICON_BTN}
-                                  >
-                                    <ShieldCheck size={14} aria-hidden="true" />
-                                  </button>
-                                </Tooltip>
-                              )}
-                              {actions.canEdit(account) && (
-                                <Tooltip label="수정">
-                                  <button
-                                    type="button"
-                                    onClick={() => onEdit(account)}
-                                    aria-label={`${account.name} 수정`}
-                                    className={ICON_BTN}
-                                  >
-                                    <Pencil size={14} aria-hidden="true" />
-                                  </button>
-                                </Tooltip>
-                              )}
-                              {actions.canDelete(account) && (
-                                <Tooltip label="삭제" align="end">
-                                  <button
-                                    type="button"
-                                    onClick={() => onDelete(account)}
-                                    aria-label={`${account.name} 삭제`}
-                                    className={`${ICON_BTN} hover:bg-red-50 hover:text-red-600`}
-                                  >
-                                    <Trash2 size={14} aria-hidden="true" />
-                                  </button>
-                                </Tooltip>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </Fragment>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                            {actions.canEdit(account) && (
+                              <Tooltip label="수정">
+                                <button
+                                  type="button"
+                                  onClick={() => onEdit(account)}
+                                  aria-label={`${account.name} 수정`}
+                                  className={ICON_BTN}
+                                >
+                                  <Pencil size={14} aria-hidden="true" />
+                                </button>
+                              </Tooltip>
+                            )}
+                            {actions.canDelete(account) && (
+                              <Tooltip label="삭제" align="end">
+                                <button
+                                  type="button"
+                                  onClick={() => onDelete(account)}
+                                  aria-label={`${account.name} 삭제`}
+                                  className={`${ICON_BTN} hover:bg-red-50 hover:text-red-600`}
+                                >
+                                  <Trash2 size={14} aria-hidden="true" />
+                                </button>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
-    </>
+    </div>
   );
 }
