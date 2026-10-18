@@ -80,11 +80,11 @@ test('추가할 때 필수 값이 없거나 같은 기수에 같은 이름이 �
 test('수정은 보낸 값만 바꾼다', async () => {
   const { call } = await setup();
   const updated = call<ClubMember>('PATCH', '/api/v1/club-members/u_28_01', {
-    status: 'INACTIVE',
+    status: 'WITHDRAWN',
     role: 'OPERATOR',
   });
 
-  assert.equal(updated.status, 'INACTIVE');
+  assert.equal(updated.status, 'WITHDRAWN');
   assert.equal(updated.role, 'OPERATOR');
   assert.equal(updated.name, '김서하');
   assert.equal(updated.email, 'seoha.k@yonsei.ac.kr');

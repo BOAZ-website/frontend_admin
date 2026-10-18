@@ -1623,7 +1623,7 @@ UPDATE users SET major = CASE id
   ELSE major
 END;
 UPDATE users SET club_status = 'ALUMNI' WHERE term <= 25;
-UPDATE users SET club_status = 'INACTIVE' WHERE id IN ('u_27_07', 'u_28_14');
+UPDATE users SET club_status = 'WITHDRAWN' WHERE id IN ('u_27_07', 'u_28_14');
 UPDATE users SET club_role = 'PRESIDENT' WHERE id = 'u_27_01';
 UPDATE users SET club_role = 'OPERATOR' WHERE id IN ('u_26_01', 'u_27_02', 'u_28_01');
 

@@ -65,7 +65,7 @@ const FIELD_INPUT =
 const STATUS_TEXT: Record<ClubMemberStatus, string> = {
   ACTIVE: 'text-slate-900 font-semibold',
   ALUMNI: 'text-slate-500',
-  INACTIVE: 'text-slate-400',
+  WITHDRAWN: 'text-slate-500',
 };
 
 const labelOptions = <T extends string>(labels: Record<T, string>) =>
