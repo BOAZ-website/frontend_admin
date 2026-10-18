@@ -41,7 +41,15 @@ interface SystemAccountsPageProps {
  */
 export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAccountsPageProps) {
   const { data, error, reload } = useAdminConsole();
-  const [permissionTargetId, setPermissionTargetId] = useState<number | null>(null);
+  /** 계정별 권한 관리에서 고른 사람(AccountHolder.key, 보통 회원 id). */
+  const [permissionTargetKey, setPermissionTargetKey] = useState<string | null>(null);
+  // 운영진 계정 화면으로 돌아오면 고른 사람을 지운다. 그래야 메뉴로 권한 관리에 들어올 때 권한 매트릭스가
+  // 먼저 열리고, 계정 표의 권한 버튼으로 들어올 때만 그 사람이 열린다.
+  const [prevView, setPrevView] = useState(view);
+  if (view !== prevView) {
+    setPrevView(view);
+    if (view === 'accounts') setPermissionTargetKey(null);
+  }
   const [formTarget, setFormTarget] = useState<FormTarget | null>(null);
   const [passwordTarget, setPasswordTarget] = useState<AdminAccount | null>(null);
 
@@ -62,7 +70,7 @@ export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAc
     );
   }
 
-  const { me, catalog, accounts, members } = data;
+  const { me, catalog, accounts, holders, members } = data;
   // 계정 발급 때 고를 수 있는 동아리원: 아직 운영진 계정이 없는 회원.
   const linkedUserIds = new Set(accounts?.map((account) => account.userId) ?? [me.userId]);
   const selectableMembers = (members ?? []).filter((member) => !linkedUserIds.has(member.id));
@@ -85,7 +93,7 @@ export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAc
       : '내 계정 정보';
 
   const openPermissions = (account: AdminAccount) => {
-    setPermissionTargetId(account.id);
+    setPermissionTargetKey(account.userId);
     onViewChange?.('permissions');
   };
 
@@ -167,14 +175,15 @@ export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAc
 
       {/* 계정별 권한 관리: 계정 목록 조회 권한이 있어야 계정을 고를 수 있다 */}
       {isPermissionsView ? (
-        accounts ? (
+        accounts && holders ? (
           <AccountPermissionsTab
             catalog={catalog}
             me={me}
+            holders={holders}
             accounts={accounts}
             canEdit={canManagePermissions}
-            selectedId={permissionTargetId}
-            onSelect={setPermissionTargetId}
+            selectedKey={permissionTargetKey}
+            onSelect={setPermissionTargetKey}
             onSave={savePermissions}
           />
         ) : (
