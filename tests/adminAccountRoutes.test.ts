@@ -4,7 +4,11 @@ import test from 'node:test';
 
 import initSqlJs from 'sql.js';
 
-import type { AdminAccount, PermissionCatalog } from '../src/entities/admin-account/model/types';
+import type {
+  AccountHolder,
+  AdminAccount,
+  PermissionCatalog,
+} from '../src/entities/admin-account/model/types';
 import { ApiError } from '../src/shared/api/apiError';
 import { createRouter } from '../src/shared/api/mock/router';
 import { adminAccountRoutes } from '../src/shared/api/mock/routes/adminAccountRoutes';
@@ -281,4 +285,33 @@ test('권한 저장은 없는 권한 키를 400으로, 권한 부여 권한이 �
     403,
     'FORBIDDEN',
   );
+});
+
+test('계정 통합 목록은 운영진 계정과 HOST 계정을 회원 단위로 합치고 맡은 그룹을 싣는다', async () => {
+  const { call, loginAs } = await setup();
+  const holders = call<AccountHolder[]>('GET', '/api/v1/admin/account-holders');
+
+  // 운영진 8명 + HOST 계정만 있는 2명
+  assert.equal(holders.length, 10);
+  assert.equal(new Set(holders.map((holder) => holder.key)).size, holders.length);
+
+  // 운영지원팀 운영진이면서 ADV·스터디 팀장인 고준서: 한 사람으로 합쳐진다
+  const dual = holders.find((holder) => holder.userId === 'u_27_02')!;
+  assert.equal(dual.adminAccount?.teamName, '운영지원팀');
+  assert.deepEqual(
+    dual.hostLogins.map((login) => login.username),
+    ['host_adv_ana1'],
+  );
+  assert.deepEqual(dual.leaderGroups.map((group) => group.teamId).sort(), ['adv_t1', 'study_d']);
+
+  // HOST 계정만 있는 사람은 운영진 계정이 없다
+  const hostOnly = holders.find((holder) => holder.userId === 'u_28_08')!;
+  assert.equal(hostOnly.adminAccount, null);
+  assert.deepEqual(
+    hostOnly.leaderGroups.map((group) => group.groupType),
+    ['ADV'],
+  );
+
+  loginAs(7); // 계정 목록 조회 권한 없음
+  expectApiError(() => call('GET', '/api/v1/admin/account-holders'), 403, 'FORBIDDEN');
 });

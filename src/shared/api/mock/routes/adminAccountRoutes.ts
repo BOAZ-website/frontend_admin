@@ -6,6 +6,7 @@
  */
 import type { Database } from 'sql.js';
 
+import { listAccountHolders } from '@/entities/admin-account/api/accountHolderRepository';
 import {
   deleteAdmin,
   findAdminRow,
@@ -174,6 +175,16 @@ export const adminAccountRoutes: MockRoute[] = [
     handler: ({ db }) => {
       requireAny(db, 'ADMIN_ACCOUNT_READ');
       return listAdminRows(db).map((row) => toAdminAccount(db, row));
+    },
+  },
+  {
+    method: 'GET',
+    pattern: '/api/v1/admin/account-holders',
+    summary:
+      '[협의 필요] 계정 통합 목록. 운영진 계정과 HOST 계정을 회원 단위로 합치고, 이번 반기 맡은 그룹을 싣는다',
+    handler: ({ db }) => {
+      requireAny(db, 'ADMIN_ACCOUNT_READ');
+      return listAccountHolders(db);
     },
   },
   {

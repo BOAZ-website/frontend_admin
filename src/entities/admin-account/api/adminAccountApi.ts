@@ -10,9 +10,14 @@ import type {
   AdminPasswordRequest,
   AdminPermissionsRequest,
 } from '../model/dto';
-import type { AdminAccount, PermissionCatalog } from '../model/types';
+import type { AccountHolder, AdminAccount, PermissionCatalog } from '../model/types';
 
 const accountPath = (accountId: number) => `/api/v1/admin/accounts/${accountId}`;
+
+/** 계정을 가진 사람 전체(운영진 계정 + HOST 계정). 계정별 권한 관리 탭의 목록에 쓴다. */
+export function fetchAccountHolders(): Promise<AccountHolder[]> {
+  return api.get('/api/v1/admin/account-holders');
+}
 
 export function fetchMyAccount(): Promise<AdminAccount> {
   return api.get('/api/v1/admin/accounts/me');

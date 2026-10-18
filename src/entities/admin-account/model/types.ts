@@ -67,3 +67,38 @@ export interface PermissionCatalog {
   /** 계정 발급·수정에서 고를 수 있는 운영진 팀. 새 팀은 여기에 더해진다. */
   teamNames: string[];
 }
+
+/** 이번 반기에 맡은 그룹(ADV 팀·스터디). 팀장(teams.leader_id)이 이 회원이면 들어간다. */
+export interface LeaderGroup {
+  teamId: string;
+  name: string;
+  groupType: 'ADV' | 'STUDY';
+  /** 스터디만. MENTORING(멘멘)·GENERAL */
+  studyKind: 'MENTORING' | 'GENERAL' | null;
+}
+
+/** 스터디장·ADV 팀장 로그인 계정(HOST). */
+export interface HostLogin {
+  id: string;
+  username: string;
+  active: boolean;
+  lastLogin: string | null;
+}
+
+/**
+ * 계정 통합 목록(GET /api/v1/admin/account-holders, 임시 API 전용 제안). 계정을 가진 사람 한 명이 한 행이다.
+ * 운영진 계정(운영 권한)과 HOST 계정(맡은 그룹 출결 입력)을 회원 단위로 합친다.
+ * 백엔드 설계(2026-10-16)는 두 계정을 admin 하나로 합치므로, 실서버에서는 응답 형태가 바뀔 수 있다.
+ */
+export interface AccountHolder {
+  /** 회원 id(users.id). HOST 계정에 회원이 연결되지 않았으면 'host:{계정 id}' */
+  key: string;
+  userId: string | null;
+  name: string;
+  term: number | null;
+  track: string | null;
+  /** 운영진 계정. 없으면 운영 권한이 없다. */
+  adminAccount: AdminAccount | null;
+  hostLogins: HostLogin[];
+  leaderGroups: LeaderGroup[];
+}
