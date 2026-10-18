@@ -306,3 +306,47 @@ test('운영진 추가는 아이디·초기 비밀번호 없이도 되고, 둘 �
     'INCOMPLETE_CREDENTIALS',
   );
 });
+
+test('수정·비밀번호 변경은 권한을 먼저 확인해, 권한이 없으면 없는 계정 id에도 403을 돌려준다', async () => {
+  const { call, loginAs } = await setup();
+  loginAs(7); // 디자인팀(기타 운영진): 타 계정 정보 수정 권한 없음
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/6', { teamName: '기획팀' }),
+    403,
+    'FORBIDDEN',
+  );
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/9999', { teamName: '기획팀' }),
+    403,
+    'FORBIDDEN',
+  );
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/9999/password', { newPassword: 'x' }),
+    403,
+    'FORBIDDEN',
+  );
+
+  loginAs(1); // 권한이 있으면 없는 계정은 404다.
+  expectApiError(() => call('PATCH', '/api/v1/admin/accounts/9999', { teamName: '기획팀' }), 404);
+});
+
+test('팀 이름의 앞뒤 공백은 지우고, 공백만 있으면 400이다', async () => {
+  const { call } = await setup();
+  const moved = call<AdminAccount>('PATCH', '/api/v1/admin/accounts/6', {
+    teamName: ' 서비스운영팀 ',
+  });
+  assert.equal(moved.teamName, '서비스운영팀');
+  assert.equal(moved.baseSetKey, 'serviceTeam');
+
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/6', { teamName: '   ' }),
+    400,
+    'INVALID_TEAM_NAME',
+  );
+  // '대표진 '처럼 공백이 붙어도 대표진 자리로 보고, TEAM 역할로는 받지 않는다.
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/7', { teamName: '대표진 ' }),
+    400,
+    'INVALID_ROLE_TEAM',
+  );
+});
