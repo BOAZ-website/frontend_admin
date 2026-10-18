@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   fetchAdminAccounts,
@@ -24,8 +24,11 @@ export interface AdminConsoleState {
   data: AdminConsoleData | null;
   /** 마지막으로 읽기에 실패한 사유. 다시 읽기를 시작하면 비운다. */
   error: Error | null;
-  /** 모두 다시 읽는다. 읽기가 끝나면(실패해도) 끝나는 Promise를 돌려준다. */
-  reload: () => Promise<void>;
+  /**
+   * 모두 다시 읽는다. 다시 읽었으면 true, 실패했으면 false를 돌려준다(실패 사유는 error에 둔다).
+   * 쓰기 요청 뒤에 부르는 쪽은 false면 "저장은 됐지만 목록이 최신이 아니다"를 따로 알린다.
+   */
+  reload: () => Promise<boolean>;
 }
 
 /** 로그인한 계정(/me)의 유효 권한을 먼저 읽고, 권한이 있는 데이터(계정 목록·발급 대상 회원)만 요청한다. */
@@ -41,33 +44,37 @@ async function loadAdminConsole(): Promise<AdminConsoleData> {
 const toError = (error: unknown): Error =>
   error instanceof Error ? error : new Error(String(error));
 
-/** 시스템·계정 화면의 데이터. 쓰기 요청 뒤에는 reload로 모두 다시 읽는다. */
+/**
+ * 시스템·계정 화면의 데이터. 쓰기 요청 뒤에는 reload로 모두 다시 읽는다.
+ * 처음 읽기·reload·"다시 시도"가 겹쳐도 마지막으로 보낸 요청의 결과만 반영한다(늦게 온 이전 응답은 버린다).
+ */
 export function useAdminConsole(): AdminConsoleState {
   const [data, setData] = useState<AdminConsoleData | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  /** 마지막으로 보낸 읽기 요청 번호. 화면을 떠나면 -1로 두어 남은 응답을 모두 버린다. */
+  const latestRequestRef = useRef(0);
 
-  useEffect(() => {
-    let isCancelled = false;
-    loadAdminConsole()
-      .then((loaded) => {
-        if (!isCancelled) setData(loaded);
-      })
-      .catch((loadError: unknown) => {
-        if (!isCancelled) setError(toError(loadError));
-      });
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
-  const reload = useCallback(async () => {
+  const load = useCallback(async (): Promise<boolean> => {
+    const requestId = latestRequestRef.current + 1;
+    latestRequestRef.current = requestId;
     setError(null);
     try {
-      setData(await loadAdminConsole());
+      const loaded = await loadAdminConsole();
+      if (latestRequestRef.current !== requestId) return false;
+      setData(loaded);
+      return true;
     } catch (loadError) {
-      setError(toError(loadError));
+      if (latestRequestRef.current === requestId) setError(toError(loadError));
+      return false;
     }
   }, []);
 
-  return { data, error, reload };
+  useEffect(() => {
+    void load();
+    return () => {
+      latestRequestRef.current = -1;
+    };
+  }, [load]);
+
+  return { data, error, reload: load };
 }
