@@ -23,11 +23,7 @@ import {
 import { useClubMembers } from '@/entities/club-member/model/useClubMembers';
 import { alertApiError } from '@/shared/lib/alertApiError';
 
-import {
-  type ClubMemberFilter,
-  filterClubMembers,
-  summarizeClubMembers,
-} from '../model/memberManagement';
+import { type ClubMemberFilter, filterClubMembers } from '../model/memberManagement';
 
 /** 수정 팝업의 입력값. 동아리원 행에서 id만 뺀 값이다. */
 const toForm = (member: ClubMember): ClubMemberForm => ({
@@ -91,7 +87,6 @@ export function MemberManagementPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const filteredMembers = useMemo(() => filterClubMembers(members, filter), [filter, members]);
-  const summary = useMemo(() => summarizeClubMembers(members), [members]);
   const termOptions = useMemo<readonly FilterDropdownOption<string>[]>(
     () => [
       { value: 'ALL', label: '전체' },
@@ -99,13 +94,6 @@ export function MemberManagementPage() {
     ],
     [terms],
   );
-
-  const summaryItems = [
-    { label: '전체', value: summary.total },
-    { label: '활동 중', value: summary.active },
-    { label: '수료', value: summary.alumni },
-    { label: '운영진·대표진', value: summary.operators },
-  ];
 
   const canSave =
     !isSaving &&
@@ -172,17 +160,8 @@ export function MemberManagementPage() {
         <h1 className="text-xl font-bold tracking-tight text-slate-900">동아리원 관리</h1>
       </div>
 
-      {/* 2. 인원 요약과 검색·필터 */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <dl className="flex flex-wrap items-center gap-5 text-xs" aria-label="동아리원 현황 요약">
-          {summaryItems.map(({ label, value }) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <dt className="font-medium text-slate-500">{label}</dt>
-              <dd className="text-sm font-bold tabular-nums text-slate-900">{value}명</dd>
-            </div>
-          ))}
-        </dl>
-
+      {/* 2. 검색·필터 */}
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <FilterDropdown
             ariaLabel="기수 필터"
