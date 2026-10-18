@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type {
   AccountHolder,
@@ -14,6 +14,7 @@ import { AccountPermissionEditor } from '@/pages/system-accounts/ui/AccountPermi
 import { HolderProfileTable } from '@/pages/system-accounts/ui/HolderProfileTable';
 import { PermissionMatrix } from '@/pages/system-accounts/ui/PermissionMatrix';
 import { SplitListItem, SplitView } from '@/pages/system-accounts/ui/SplitView';
+import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { LIST_SECTION_TITLE, TABLE_BOX } from '@/pages/system-accounts/ui/systemStyles';
 
 interface AccountPermissionsTabProps {
@@ -95,6 +96,22 @@ export function AccountPermissionsTab({
   const canLeave = () =>
     !isDirty ||
     window.confirm('저장하지 않은 변경이 있습니다. 저장하지 않고 다른 계정으로 옮길까요?');
+
+  // 사이드바로 다른 메뉴로 옮길 때도 같은 확인을 거친다. 등록한 함수가 늘 최신 isDirty를 보도록 ref에 둔다.
+  const canLeaveRef = useRef(canLeave);
+  canLeaveRef.current = canLeave;
+  useEffect(() => registerLeaveGuard(() => canLeaveRef.current()), []);
+
+  // 새로고침·탭 닫기: 브라우저가 직접 '사이트에서 나가시겠습니까?'를 묻는다(문구는 바꿀 수 없다).
+  useEffect(() => {
+    if (!isDirty) return undefined;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   const select = (holderKey: string) => {
     if (holderKey === selectedKey && peekTarget === 'holder') return;
