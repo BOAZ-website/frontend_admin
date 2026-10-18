@@ -31,5 +31,6 @@ yarn-error.log*
 .serena/
 
 # local docs
-/docs
+/docs/frontend/
+/docs/personal/
 /references
