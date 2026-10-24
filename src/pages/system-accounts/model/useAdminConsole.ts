@@ -12,8 +12,6 @@ import type {
   AdminAccount,
   PermissionCatalog,
 } from '@/entities/admin-account/model/types';
-import { fetchClubMembers } from '@/entities/club-member/api/clubMemberApi';
-import type { ClubMember } from '@/entities/club-member/model/types';
 
 export interface AdminConsoleData {
   me: AdminAccount;
@@ -22,8 +20,6 @@ export interface AdminConsoleData {
   accounts: AdminAccount[] | null;
   /** 계정을 가진 사람 전체(운영진 + HOST). 계정 목록 조회 권한이 없으면 null. */
   holders: AccountHolder[] | null;
-  /** 계정 발급 때 고를 동아리원(users). 계정 생성 권한이 없으면 null. */
-  members: ClubMember[] | null;
 }
 
 export interface AdminConsoleState {
@@ -38,16 +34,15 @@ export interface AdminConsoleState {
   reload: () => Promise<boolean>;
 }
 
-/** 로그인한 계정(/me)의 유효 권한을 먼저 읽고, 권한이 있는 데이터(계정 목록·발급 대상 회원)만 요청한다. */
+/** 로그인한 계정(/me)의 유효 권한을 먼저 읽고, 권한이 있는 데이터(계정 목록)만 요청한다. */
 async function loadAdminConsole(): Promise<AdminConsoleData> {
   const [me, catalog] = await Promise.all([fetchMyAccount(), fetchPermissionCatalog()]);
   const canReadAccounts = can(me, 'ADMIN_ACCOUNT_READ');
-  const [accounts, holders, members] = await Promise.all([
+  const [accounts, holders] = await Promise.all([
     canReadAccounts ? fetchAdminAccounts() : null,
     canReadAccounts ? fetchAccountHolders() : null,
-    can(me, 'ADMIN_ACCOUNT_CREATE_DELETE') ? fetchClubMembers() : null,
   ]);
-  return { me, catalog, accounts, holders, members };
+  return { me, catalog, accounts, holders };
 }
 
 const toError = (error: unknown): Error =>

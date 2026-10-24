@@ -13,7 +13,7 @@ const COLUMNS: readonly { label: string; width: string }[] = [
 ];
 
 /*
- * 출결 스터디 표·운영진 목록 표와 같은 모양이다: 위쪽 회색 머리 칸, 머리 칸·줄 모두 44px(아래 운영 권한 표와 같은 높이), 옅은 세로 구분선, 가운데 정렬.
+ * 출결 스터디 표·운영진 계정 표와 같은 모양이다: 위쪽 회색 머리 칸, 머리 칸·줄 모두 44px(아래 운영 권한 표와 같은 높이), 옅은 세로 구분선, 가운데 정렬.
  */
 const TH = 'px-2 py-1 text-center font-bold bg-slate-100/90 text-slate-700';
 const CELL = 'px-3 py-1.5 text-center text-xs';
