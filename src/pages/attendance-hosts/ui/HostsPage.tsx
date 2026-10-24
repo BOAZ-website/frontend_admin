@@ -17,6 +17,7 @@ import { alertApiError } from '@/shared/lib/alertApiError';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { CreateButton } from '@/shared/ui/CreateButton';
+import { PageLoadingBody } from '@/widgets/page-loading/ui/PageLoadingState';
 
 export type HostCategory = 'ADV' | 'STUDY' | string;
 
@@ -544,20 +545,6 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
 
   return (
     <div className="space-y-6">
-      {dataStatus !== 'ready' && (
-        <p
-          role="status"
-          className={`rounded-md border px-4 py-3 text-xs ${
-            dataStatus === 'error'
-              ? 'border-red-200 bg-red-50 text-red-600'
-              : 'border-slate-200 bg-white text-slate-500'
-          }`}
-        >
-          {dataStatus === 'error'
-            ? `HOST 계정 정보를 불러오지 못했습니다. (${dataError?.message ?? '알 수 없는 오류'})`
-            : 'HOST 계정 정보를 불러오는 중입니다.'}
-        </p>
-      )}
       {/* 1. 상단 타이틀 영역 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
         <div>
@@ -573,7 +560,17 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
       </div>
 
       {/* 2. 메인 2열 레이아웃: 좌측 컴팩트 탭 + 우측 최대 확장 본문 */}
-      <div className="flex flex-col lg:flex-row gap-5 items-start">
+      {/* 읽는 동안에는 제목 줄은 두고 본문 자리에 화면 높이의 빈 틀과 안내만 둔다(읽은 뒤 화면이 튀지 않게). */}
+      {dataStatus !== 'ready' && (
+        <PageLoadingBody
+          error={dataStatus === 'error' ? dataError : null}
+          loadingMessage="HOST 계정 정보를 불러오는 중입니다."
+          errorMessage="HOST 계정 정보를 불러오지 못했습니다."
+        />
+      )}
+      <div
+        className={`flex flex-col lg:flex-row gap-5 items-start ${dataStatus === 'ready' ? '' : 'hidden'}`}
+      >
         {/* =========================================================
             좌측 네비게이션: 그룹 유형 (Type) 탭 (w-48)
            ========================================================= */}

@@ -1,5 +1,7 @@
 import type { ComponentProps } from 'react';
 
+import { PageLoadingState } from '@/widgets/page-loading/ui/PageLoadingState';
+
 import { useEventPageData } from '../model/useEventPageData';
 import { EventAttendanceManagePage } from './EventAttendanceManagePage';
 
@@ -23,18 +25,18 @@ export function EventAttendanceContainer(props: ContainerProps) {
 
   if (data.status !== 'ready') {
     return (
-      <p
-        role="status"
-        className={`rounded-md border px-4 py-3 text-xs ${
-          data.status === 'error'
-            ? 'border-red-200 bg-red-50 text-red-600'
-            : 'border-slate-200 bg-white text-slate-500'
-        }`}
-      >
-        {data.status === 'error'
-          ? `행사 정보를 불러오지 못했습니다. (${data.error?.message ?? '알 수 없는 오류'})`
-          : '행사 정보를 불러오는 중입니다.'}
-      </p>
+      <PageLoadingState
+        className="space-y-6 w-full"
+        header={
+          // 다 읽은 뒤 '행사 전체 목록' 제목 줄과 같은 높이(제목 + 행사 추가 버튼 h-9 + 아래 여백).
+          <div className="flex min-h-11 items-center pb-2 border-b border-slate-200/80">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">행사 전체 목록</h1>
+          </div>
+        }
+        error={data.status === 'error' ? data.error : null}
+        loadingMessage="행사 정보를 불러오는 중입니다."
+        errorMessage="행사 정보를 불러오지 못했습니다."
+      />
     );
   }
 
