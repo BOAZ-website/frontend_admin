@@ -43,24 +43,23 @@ class GlobalErrorBoundary extends Component<Props, State> {
               "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
           }}
         >
-          <div className="max-w-sm w-full bg-white rounded-2xl p-7 border border-slate-200/80 shadow-[0_12px_36px_rgba(0,0,0,0.04)] text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
-            {/* Soft Pastel Badge Icon */}
-            <div className="w-12 h-12 rounded-2xl bg-rose-50/80 border border-rose-100/80 flex items-center justify-center text-rose-400 mx-auto shadow-2xs">
-              <AlertCircle size={22} strokeWidth={1.8} />
-            </div>
+          <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 animate-in fade-in duration-150">
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+              <AlertCircle size={18} className="shrink-0 text-red-600" aria-hidden="true" />
+              일시적인 오류가 발생했습니다
+            </h2>
+            <p className="mt-2 text-xs leading-5 text-slate-600">
+              새로고침해도 같은 화면이 나오면 아래 오류 내용과 함께 서비스운영팀에 문의해 주세요.
+            </p>
 
-            {/* Title & Description */}
-            <div className="space-y-1.5">
-              <h2 className="text-base font-bold text-slate-800 tracking-tight">
-                일시적인 오류가 발생했습니다
-              </h2>
-              <p className="text-xs text-slate-500 font-normal leading-relaxed">
-                여기서 문제가 지속될 경우 서비스운영팀에 문의해주세요.
+            {/* 문의할 때 전달할 수 있도록 오류 메시지를 그대로 보여 준다. */}
+            {this.state.error?.message && (
+              <p className="mt-4 line-clamp-3 select-text break-all rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700">
+                {this.state.error.message}
               </p>
-            </div>
+            )}
 
-            {/* Action Buttons */}
-            <div className="space-y-2 pt-1">
+            <div className="mt-6 flex justify-end">
               <button
                 type="button"
                 onClick={async () => {
@@ -80,9 +79,9 @@ class GlobalErrorBoundary extends Component<Props, State> {
                     window.location.reload();
                   }
                 }}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-sky-500 hover:bg-sky-600 active:scale-[0.99] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-sm bg-slate-900 px-4 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
               >
-                <RotateCcw size={13} />
+                <RotateCcw size={14} aria-hidden="true" />
                 <span>페이지 새로고침</span>
               </button>
             </div>

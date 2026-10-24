@@ -5,6 +5,7 @@
 import type { Database } from 'sql.js';
 
 import { sessionKey } from '@/entities/attendance/model/lib';
+import { CLUB_MEMBER_TRACKS } from '@/entities/club-member/model/types';
 import type { CohortWeekDates } from '@/entities/cohort/api/cohortRepository';
 import type { AttendanceState, SessionRecord } from '@/entities/attendance/model/types';
 import type { WeekInfo } from '@/entities/attendance/model/week';
@@ -34,7 +35,7 @@ export interface TeamDbState {
 }
 
 type GroupType = 'STUDY' | 'ADV' | 'BASE';
-const VALID_TRACKS = ['분석', '시각화', '엔지니어링'];
+const VALID_TRACKS: readonly string[] = CLUB_MEMBER_TRACKS;
 
 interface TeamRow extends Record<string, unknown> {
   id: string;
