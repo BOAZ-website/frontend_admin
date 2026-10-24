@@ -80,7 +80,7 @@ const SIDEBAR_NAV = [
   },
   {
     id: 'attendance',
-    label: '출결 & 점수 시스템',
+    label: '출결 및 점수 시스템',
     icon: ClipboardList,
     permission: 'ATTENDANCE_*',
     groups: [
