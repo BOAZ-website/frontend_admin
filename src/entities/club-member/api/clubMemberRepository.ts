@@ -1,8 +1,11 @@
 import type { Database } from 'sql.js';
 
-import { execute, inTransaction, queryAll } from '@/shared/db/createDatabase';
+import { execute, queryAll } from '@/shared/db/createDatabase';
 
-import type { ClubMember } from '../model/types';
+import type { ClubMember, ClubMemberTermScope } from '../model/types';
+
+/** 부문 순서(분석 → 시각화 → 엔지니어링)는 tracks.sort_order를 따른다. 표에 없는 부문은 맨 뒤다. */
+const TRACK_ORDER = 'COALESCE((SELECT t.sort_order FROM tracks t WHERE t.name = users.track), 999)';
 
 /** 운영진 팀은 운영진 명단(admin)에서 읽는다. 운영진 계정 관리와 같은 데이터다. */
 const SELECT_CLUB_MEMBERS = `
@@ -23,8 +26,55 @@ export function listClubMembers(db: Database): ClubMember[] {
     `${SELECT_CLUB_MEMBERS}
      ORDER BY CASE club_status WHEN 'ACTIVE' THEN 0 WHEN 'ALUMNI' THEN 1 ELSE 2 END,
               CASE WHEN club_status = 'WITHDRAWN' THEN -term ELSE 0 END,
-              CASE track WHEN '분석' THEN 0 WHEN '시각화' THEN 1 WHEN '엔지니어링' THEN 2 ELSE 3 END,
+              ${TRACK_ORDER},
               name, id`,
+  );
+}
+
+/**
+ * 기수 페이지 조건(status·track)을 WHERE 조각과 바인딩 값으로 만든다. 값은 모두 ?로 넘긴다.
+ * status가 없으면 활동·수료(ACTIVE·ALUMNI)만 고른다(탈퇴는 기수 페이지에 넣지 않는다).
+ */
+function termScopeFilter(scope: ClubMemberTermScope): { sql: string; params: string[] } {
+  const statusFilter = scope.status
+    ? { sql: 'club_status = ?', params: [scope.status] }
+    : { sql: "club_status IN ('ACTIVE', 'ALUMNI')", params: [] };
+  if (!scope.track) return statusFilter;
+  return {
+    sql: `${statusFilter.sql} AND track = ?`,
+    params: [...statusFilter.params, scope.track],
+  };
+}
+
+/** 조건(status·track)에 맞는 사람이 있는 기수 목록. 큰 기수부터. */
+export function listClubMemberTerms(db: Database, scope: ClubMemberTermScope): number[] {
+  const filter = termScopeFilter(scope);
+  return queryAll<{ term: number }>(
+    db,
+    `SELECT DISTINCT term FROM users WHERE ${filter.sql} ORDER BY term DESC`,
+    filter.params,
+  ).map((row) => row.term);
+}
+
+/**
+ * 한 기수에서 조건(status·track)에 맞는 동아리원.
+ * 활동 상태(활동 → 수료) → 부문(분석 → 시각화 → 엔지니어링) → 이름 → id 순이다.
+ * 그래서 status만 주면 부문 → 이름 순, track만 주면 활동 → 수료 → 이름 순이 된다.
+ */
+export function listClubMembersByTerm(
+  db: Database,
+  scope: ClubMemberTermScope,
+  term: number,
+): ClubMember[] {
+  const filter = termScopeFilter(scope);
+  return queryAll<ClubMember & Record<string, unknown>>(
+    db,
+    `${SELECT_CLUB_MEMBERS}
+     WHERE ${filter.sql} AND term = ?
+     ORDER BY CASE club_status WHEN 'ACTIVE' THEN 0 WHEN 'ALUMNI' THEN 1 ELSE 2 END,
+              ${TRACK_ORDER},
+              name, id`,
+    [...filter.params, term],
   );
 }
 
@@ -70,40 +120,21 @@ export function insertClubMember(db: Database, member: ClubMember): void {
   );
 }
 
-/** 운영진 명단(admin)에 있는 회원인지. 운영진은 운영진에서 먼저 빼야 삭제할 수 있다. */
+/** 운영진 명단(admin)에 있는 회원인지. 운영진은 운영진에서 먼저 빼야 탈퇴 처리할 수 있다. */
 export function isOperator(db: Database, userId: string): boolean {
   return queryAll(db, 'SELECT 1 FROM admin WHERE user_id = ?', [userId]).length > 0;
 }
 
 /**
- * 동아리원을 관련 기록과 함께 지운다. 한 트랜잭션이라 중간에 실패하면 아무것도 지워지지 않는다.
- * - 팀 소속(team_members)과 그 출결 기록(attendance_records, 연쇄 삭제)
- * - 팀장으로 들어 있던 팀의 팀장 칸(비운다)
- * - 반기 명단(semester_members)과 활동 명단(members, 연쇄 삭제)
- * - HOST 계정은 남기고, 주인 정보(이름·기수·부문)를 계정에 옮겨 적은 뒤 주인 연결만 끊는다
- * 운영진 명단(admin)에 있는 회원은 부르는 쪽에서 먼저 막는다.
+ * 동아리원을 탈퇴 처리한다. 행을 지우지 않고 활동 상태만 탈퇴(WITHDRAWN)로 바꾼다.
+ * 반기 명단·팀 소속·출결 기록·HOST 계정 연결은 그대로 남는다.
+ * 운영진이거나 이미 탈퇴한 회원은 부르는 쪽에서 먼저 막는다.
  */
-export function deleteClubMember(db: Database, userId: string): void {
-  inTransaction(db, () => {
-    execute(
-      db,
-      `DELETE FROM team_members
-        WHERE user_id = ? OR member_id IN (SELECT id FROM members WHERE user_id = ?)`,
-      [userId, userId],
-    );
-    execute(db, 'UPDATE teams SET leader_id = NULL WHERE leader_id = ?', [userId]);
-    execute(db, 'DELETE FROM semester_members WHERE user_id = ?', [userId]);
-    execute(
-      db,
-      `UPDATE host_accounts
-          SET host_name = COALESCE(host_name, (SELECT name FROM users WHERE id = ?)),
-              generation = COALESCE(generation, (SELECT term || '기' FROM users WHERE id = ?)),
-              track = COALESCE(track, (SELECT track FROM users WHERE id = ?))
-        WHERE user_id = ?`,
-      [userId, userId, userId, userId],
-    );
-    execute(db, 'DELETE FROM users WHERE id = ?', [userId]);
-  });
+export function withdrawClubMember(db: Database, userId: string): void {
+  execute(db, `UPDATE users SET club_status = ?, updated_at = datetime('now') WHERE id = ?`, [
+    'WITHDRAWN',
+    userId,
+  ]);
 }
 
 /**
