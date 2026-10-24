@@ -4,37 +4,12 @@
  */
 import { getDatabase } from '@/shared/db/database';
 
-import { createRouter, type HttpMethod, type MockRoute } from './router';
-import { adminAccountRoutes } from './routes/adminAccountRoutes';
-import { authRoutes } from './routes/authRoutes';
-import { clubMemberRoutes } from './routes/clubMemberRoutes';
-import { commonRoutes } from './routes/commonRoutes';
-import { eventRoutes } from './routes/eventRoutes';
-import { hostRoutes } from './routes/hostRoutes';
-import { scoreRoutes } from './routes/scoreRoutes';
-import { scoreRuleRoutes } from './routes/scoreRuleRoutes';
-import { scoreSheetRoutes } from './routes/scoreSheetRoutes';
-import { teamAttendanceRoutes } from './routes/teamAttendanceRoutes';
-import { teamRoutes } from './routes/teamRoutes';
-import { userRoutes } from './routes/userRoutes';
+import { recordWrite } from './audit';
+import { MOCK_ROUTES } from './mockRoutes';
+import { createRouter, type HttpMethod } from './router';
 
-/** 임시 API 전체 경로 목록. 경로·설명은 리소스별 routes 파일에 함께 적혀 있다. */
-export const MOCK_ROUTES: readonly MockRoute[] = [
-  ...commonRoutes,
-  ...userRoutes,
-  ...teamRoutes,
-  ...teamAttendanceRoutes,
-  ...scoreRoutes,
-  ...scoreRuleRoutes,
-  ...scoreSheetRoutes,
-  ...hostRoutes,
-  ...eventRoutes,
-  ...clubMemberRoutes,
-  ...adminAccountRoutes,
-  ...authRoutes,
-];
-
-const router = createRouter(MOCK_ROUTES);
+// 쓰기 요청은 성공하면 감사 로그에 남긴다(audit.ts).
+const router = createRouter(MOCK_ROUTES, { aroundWrite: recordWrite });
 
 export async function mockRequest<T>(method: HttpMethod, path: string, body: unknown): Promise<T> {
   const db = await getDatabase();

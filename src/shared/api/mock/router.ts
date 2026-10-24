@@ -62,7 +62,15 @@ function toApiError(error: unknown): unknown {
   return error;
 }
 
-export function createRouter(routes: readonly MockRoute[]) {
+export interface RouterOptions {
+  /**
+   * 쓰기 요청을 감싸는 함수(감사 기록 등). run()이 실제 처리이며, 같은 트랜잭션 안에서 불린다.
+   * 처리나 감싸는 함수가 실패하면 트랜잭션 전체가 되돌아간다.
+   */
+  aroundWrite?: (request: MockRequest, route: MockRoute, run: () => unknown) => unknown;
+}
+
+export function createRouter(routes: readonly MockRoute[], options: RouterOptions = {}) {
   const compiled = routes.map(compile);
 
   return {
@@ -86,7 +94,11 @@ export function createRouter(routes: readonly MockRoute[]) {
       try {
         return method === 'GET'
           ? route.handler(request)
-          : inTransaction(db, () => route.handler(request));
+          : inTransaction(db, () =>
+              options.aroundWrite
+                ? options.aroundWrite(request, route, () => route.handler(request))
+                : route.handler(request),
+            );
       } catch (error) {
         throw toApiError(error);
       }
