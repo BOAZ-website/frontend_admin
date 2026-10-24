@@ -2,7 +2,7 @@
  * 운영진 계정·권한 API. 백엔드 "Admin 권한 체계 재설계" 설계 문서의 동작을 따른다.
  *   · 요청마다 로그인한 계정의 유효 권한을 확인하고, 없으면 403을 돌려준다(@PreAuthorize 자리).
  *   · 본인 계정 여부·락아웃 방지처럼 대상을 봐야 하는 판정은 처리 함수 안에서 한다(ScopeGuard 자리).
- * 로그인은 임시 API 전용 세션(/api/v1/mock/admin-session)으로 흉내 낸다. 실제 서버는 JWT로 요청자를 안다.
+ * 요청자는 임시 API 세션(session.ts, 로그인은 authRoutes.ts)에서 읽는다. 실제 서버는 JWT로 요청자를 안다.
  */
 import type { Database } from 'sql.js';
 
@@ -13,14 +13,13 @@ import {
   findAdminRow,
   hasAdminAccount,
   insertAdmin,
-  isUsernameTaken,
-  issueAdminCredentials,
   listAdminRows,
   overridesOf,
   replaceOverrides,
   toAdminAccount,
   updateAdmin,
   updateAdminPassword,
+  updateAdminUsername,
   userExists,
   type AdminRow,
 } from '@/entities/admin-account/api/adminAccountRepository';
@@ -36,6 +35,8 @@ import {
   toOverrides,
   type PermissionOverrides,
 } from '@/entities/admin-account/model/permissions';
+import { compareTeamNames } from '@/entities/admin-account/model/teams';
+import type { AuthSession } from '@/entities/auth/model/types';
 import {
   ADMIN_ROLES,
   ADMIN_TEAM_NAMES,
@@ -43,11 +44,11 @@ import {
   type AdminRole,
   type PermissionCatalog,
 } from '@/entities/admin-account/model/types';
-import type { AuthSession } from '@/entities/auth/model/types';
 
 import { notFound } from '../queries';
 import { ApiError, type MockRoute } from '../router';
 import { currentSession, setSession } from '../session';
+import { requireUnusedLoginUsername, restoreByUsername } from './authRoutes';
 import {
   type Body,
   oneOf,
@@ -56,15 +57,13 @@ import {
   requiredString,
   stringArray,
 } from '../validate';
-import { restoreByUsername } from './authRoutes';
 
 const badRequest = (code: string, message: string) => new ApiError(400, code, message);
 const conflict = (code: string, message: string) => new ApiError(409, code, message);
 
 // 아이디 형식(글자 종류·길이)과 비밀번호 규칙 검사는 실제 백엔드에 맡긴다. 임시 API는 빈 값과 아이디 중복만 거부한다.
 
-// ─── 로그인 흉내(임시 API 전용) ───
-/** DB마다 로그인한 계정 id. 새로고침하면 DB와 함께 첫 서비스운영팀장 계정으로 돌아간다. */
+// ─── 요청자(임시 API 세션) ───
 /**
  * 지금 로그인한 운영진 계정. 세션의 계정이 지워졌으면 첫 계정으로 본다.
  * HOST 세션은 운영진 계정 API를 쓸 수 없어 403이다(내 계정 정보 /me 포함).
@@ -97,7 +96,7 @@ const hasPermission = (
 };
 
 /** 요청자가 권한 중 하나라도 가졌는지 확인하고 요청자를 돌려준다. 없으면 403. */
-function requireAny(db: Database, ...keys: string[]): AdminRow {
+export function requireAny(db: Database, ...keys: string[]): AdminRow {
   const actor = actorOf(db);
   if (!keys.some((key) => hasPermission(db, actor, key))) {
     const labels = keys
@@ -106,13 +105,6 @@ function requireAny(db: Database, ...keys: string[]): AdminRow {
     throw new ApiError(403, 'FORBIDDEN', `이 작업에는 "${labels}" 권한이 필요합니다.`);
   }
   return actor;
-}
-
-/** 아이디 중복만 검사한다. 형식 검사는 실제 백엔드에 맡긴다. */
-function requireUsableUsername(db: Database, username: string): void {
-  if (isUsernameTaken(db, username)) {
-    throw conflict('DUPLICATE_USERNAME', '이미 사용 중인 아이디입니다.');
-  }
 }
 
 /**
@@ -196,11 +188,13 @@ const catalogOf = (db: Database): PermissionCatalog => ({
   groups: PERMISSION_GROUPS.map((group) => ({ ...group, permissions: [...group.permissions] })),
   baseSets: [...BASE_SET_COLUMNS],
   rules: [...BASE_SET_RULES],
-  // 기본 팀 목록에 없는 팀으로 만든 계정이 있으면 그 팀도 고를 수 있게 붙인다.
-  teamNames: [...new Set([...ADMIN_TEAM_NAMES, ...listAdminRows(db).map((row) => row.team_name)])],
+  // 코드의 기본 팀 목록과 DB에 있는 팀을 합치는 곳은 여기 한 곳이다. 화면 순서(고정 팀 → 가나다순)로 준다.
+  teamNames: [
+    ...new Set([...ADMIN_TEAM_NAMES, ...listAdminRows(db).map((row) => row.team_name)]),
+  ].sort(compareTeamNames),
 });
 
-// ─── 운영진 지정(동아리원 관리) ───
+// ─── 운영진 지정(동아리원 명단) ───
 /**
  * 운영진 자리(팀)에 맞는 역할. 기본 권한 규칙에서 그 팀 이름을 쓰는 역할을 고르고(서비스운영팀은 TEAM),
  * 규칙에 없는 팀은 TEAM이다. 예: 대표진·차기대표진은 SUPER.
@@ -213,69 +207,134 @@ function roleForTeam(teamName: string): AdminRole {
   return roles[0];
 }
 
-interface OperatorPlan {
-  /** 운영진에서 뺄 계정. 계정(아이디)이 있으면 함께 삭제된다. */
-  removals: AdminRow[];
-  /** 다른 팀에서 옮길 계정. 역할·부서가 바뀌므로 권한 예외는 지운다. */
-  moves: AdminRow[];
-  /** 새로 운영진으로 정할 회원(계정 발급 전 상태로 더한다). */
-  addUserIds: string[];
-  /** 옮기거나 더할 팀. 빼기만 하면 null. */
-  teamName: string | null;
+/** 새 운영진의 로그인 계정. 운영진이면 반드시 아이디·비밀번호가 있다. */
+interface Credentials {
+  username: string;
+  password: string;
 }
 
 /**
- * 운영진 지정 변경을 한 번에 적용한다. 먼저 모두 검사하고(하나라도 막히면 아무것도 바꾸지 않는다) 그다음 바꾼다.
- * 운영진 계정 관리와 같은 보호 규칙: 본인·서비스운영팀장은 빼거나 옮길 수 없고, "타 계정 정보 수정" 보유자를 하나는 남긴다.
+ * 아이디(앞뒤 공백 제거)·비밀번호를 읽는다. 둘 중 하나라도 비었으면 400, 아이디가 운영진·HOST와 겹치면 409.
+ * 운영진 추가(POST /admin/accounts)와 새 운영진 지정(PUT /admin/operators/:userId)이 같이 쓴다.
  */
-function applyOperatorPlan(db: Database, actor: AdminRow, plan: OperatorPlan): void {
-  for (const row of [...plan.removals, ...plan.moves]) {
-    if (row.id === actor.id) {
-      throw badRequest(
-        'CANNOT_MODIFY_OWN_ROLE',
-        '본인은 운영진에서 빼거나 다른 팀으로 옮길 수 없습니다.',
-      );
-    }
-    if (row.role === 'MASTER') {
-      throw badRequest(
-        'CANNOT_MOVE_MASTER',
-        '서비스운영팀장(MASTER)은 운영진에서 빼거나 다른 팀으로 옮길 수 없습니다.',
-      );
-    }
+function readCredentials(db: Database, data: Body): Credentials {
+  const username = optionalString(data, 'username')?.trim() ?? '';
+  const password = optionalString(data, 'password') ?? '';
+  if (!username || !password) {
+    throw badRequest('INCOMPLETE_CREDENTIALS', '아이디와 초기 비밀번호를 입력해 주세요.');
   }
-  for (const userId of plan.addUserIds) {
-    if (!userExists(db, userId))
-      throw badRequest('USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
-  }
-  const role = plan.teamName ? roleForTeam(plan.teamName) : null;
-  if (plan.teamName && role) requireValidCombination(role, plan.teamName);
+  requireUnusedLoginUsername(db, username);
+  return { username, password };
+}
 
-  const pending = new Map<number, PendingChange>();
-  for (const row of plan.removals) pending.set(row.id, { row: null });
-  for (const row of plan.moves) {
-    pending.set(row.id, { row: { ...row, role: role!, team_name: plan.teamName! }, overrides: {} });
+/** 본인·서비스운영팀장은 운영진에서 빼거나 다른 팀으로 옮길 수 없다. */
+function requireMovable(actor: AdminRow, row: AdminRow): void {
+  if (row.id === actor.id) {
+    throw badRequest(
+      'CANNOT_MODIFY_OWN_ROLE',
+      '본인은 운영진에서 빼거나 다른 팀으로 옮길 수 없습니다.',
+    );
   }
-  if (pending.size > 0) guardLockout(db, actor, pending);
+  if (row.role === 'MASTER') {
+    throw badRequest(
+      'CANNOT_MOVE_MASTER',
+      '서비스운영팀장(MASTER)은 운영진에서 빼거나 다른 팀으로 옮길 수 없습니다.',
+    );
+  }
+}
 
-  for (const row of plan.removals) {
-    deleteAdmin(db, row.id);
-    syncOperatorRole(db, row.user_id, false);
+/**
+ * 운영진 지정에서 아이디·비밀번호를 바꿀 수 없는 계정. 본인은 현재 비밀번호를 확인하는 PATCH .../password로만 바꾸고,
+ * 서비스운영팀장(MASTER) 계정은 바꿀 수 없다.
+ */
+function requireCredentialsEditable(actor: AdminRow, row: AdminRow): void {
+  if (row.id === actor.id) {
+    throw badRequest(
+      'CANNOT_MODIFY_OWN_CREDENTIALS',
+      '본인 계정의 아이디·비밀번호는 여기서 바꿀 수 없습니다. 내 계정에서 바꿔 주세요.',
+    );
   }
-  for (const row of plan.moves) {
+  if (row.role === 'MASTER') {
+    throw badRequest(
+      'CANNOT_MODIFY_MASTER_CREDENTIALS',
+      '서비스운영팀장(MASTER) 계정의 아이디·비밀번호는 바꿀 수 없습니다.',
+    );
+  }
+}
+
+/** 운영진에서 뺀다(계정도 함께 삭제). "타 계정 정보 수정" 보유자를 하나는 남긴다. */
+function removeOperator(db: Database, actor: AdminRow, row: AdminRow): void {
+  requireMovable(actor, row);
+  guardLockout(db, actor, new Map([[row.id, { row: null }]]));
+  deleteAdmin(db, row.id);
+  syncOperatorRole(db, row.user_id, false);
+}
+
+/**
+ * 이미 운영진인 계정의 팀·아이디·비밀번호를 바꾼다. 모두 검사한 뒤 한꺼번에 저장한다(하나라도 막히면 아무것도 바뀌지 않는다).
+ *   · 팀: teamName이 지금 팀과 다르면 옮긴다. 역할·부서가 바뀌므로 권한 예외는 지운다. 본인·서비스운영팀장은 옮길 수 없다.
+ *   · 아이디: username을 보내고 지금 아이디와 다르면 바꾼다. 빈 값은 400, 다른 계정과 겹치면 409.
+ *   · 비밀번호: password를 보내면(빈 값 아님) 바꾼다.
+ *   · 아이디·비밀번호가 실제로 바뀌면 본인·서비스운영팀장(MASTER) 계정은 400이다(바뀌는 것이 없으면 막지 않는다).
+ */
+function updateOperator(
+  db: Database,
+  actor: AdminRow,
+  row: AdminRow,
+  teamName: string,
+  data: Body,
+): void {
+  const isTeamChanged = row.team_name !== teamName;
+  const role = isTeamChanged ? roleForTeam(teamName) : row.role;
+  if (isTeamChanged) {
+    requireMovable(actor, row);
+    requireValidCombination(role, teamName);
+    guardLockout(
+      db,
+      actor,
+      new Map([[row.id, { row: { ...row, role, team_name: teamName }, overrides: {} }]]),
+    );
+  }
+  const usernameInput = optionalString(data, 'username');
+  if (usernameInput !== undefined && !usernameInput) {
+    throw badRequest('INCOMPLETE_CREDENTIALS', '아이디와 초기 비밀번호를 입력해 주세요.');
+  }
+  const nextUsername =
+    usernameInput !== undefined && usernameInput !== row.username ? usernameInput : null;
+  const nextPassword = optionalString(data, 'password') || null;
+  if (nextUsername !== null || nextPassword !== null) requireCredentialsEditable(actor, row);
+  if (nextUsername !== null) requireUnusedLoginUsername(db, nextUsername);
+
+  if (isTeamChanged) {
     replaceOverrides(db, row.id, {}, actor.id);
-    updateAdmin(db, { id: row.id, role: role!, team_name: plan.teamName! });
+    updateAdmin(db, { id: row.id, role, team_name: teamName });
   }
-  for (const userId of plan.addUserIds) {
-    insertAdmin(db, {
-      user_id: userId,
-      username: null,
-      password: null,
-      role: role!,
-      team_name: plan.teamName!,
-      created_by: actor.id,
-    });
-    syncOperatorRole(db, userId, true);
-  }
+  if (nextUsername !== null) updateAdminUsername(db, row.id, nextUsername);
+  if (nextPassword !== null) updateAdminPassword(db, row.id, nextPassword);
+}
+
+/** 운영진이 아닌 회원을 그 팀 운영진으로 정하고, 받은 아이디·비밀번호로 계정을 만든다. */
+function addOperator(
+  db: Database,
+  actor: AdminRow,
+  userId: string,
+  teamName: string,
+  data: Body,
+): void {
+  if (!userExists(db, userId))
+    throw badRequest('USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
+  const role = roleForTeam(teamName);
+  requireValidCombination(role, teamName);
+  const { username, password } = readCredentials(db, data);
+  insertAdmin(db, {
+    user_id: userId,
+    username,
+    password,
+    role,
+    team_name: teamName,
+    created_by: actor.id,
+  });
+  syncOperatorRole(db, userId, true);
 }
 
 export const adminAccountRoutes: MockRoute[] = [
@@ -309,19 +368,11 @@ export const adminAccountRoutes: MockRoute[] = [
     method: 'POST',
     pattern: '/api/v1/admin/accounts',
     summary:
-      '운영진 추가. 계정 주인은 회원(userId)으로 고른다. 아이디·초기 비밀번호는 함께 보내면 바로 발급하고, 빼면 운영진으로만 정한다(나중에 .../credentials로 발급). 정해지지 않은 역할·부서 조합은 400, 같은 아이디·이미 운영진인 회원은 409',
+      '운영진 추가. 계정 주인은 회원(userId)으로 고르고, 아이디·초기 비밀번호는 필수다(없으면 400). 정해지지 않은 역할·부서 조합은 400, 같은 아이디·이미 운영진인 회원은 409',
     handler: ({ db, body }) => {
       const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
       const data = readBody(body);
       const userId = requiredString(data, 'userId');
-      const username = optionalString(data, 'username')?.trim() || null;
-      const password = optionalString(data, 'password') || null;
-      if ((username === null) !== (password === null)) {
-        throw badRequest(
-          'INCOMPLETE_CREDENTIALS',
-          '아이디와 초기 비밀번호는 함께 입력해야 합니다.',
-        );
-      }
       const role = oneOf(requiredString(data, 'role'), ADMIN_ROLES, 'role')!;
       const teamName = teamNameOf(requiredString(data, 'teamName'));
       if (!userExists(db, userId)) {
@@ -330,7 +381,7 @@ export const adminAccountRoutes: MockRoute[] = [
       if (hasAdminAccount(db, userId)) {
         throw conflict('DUPLICATE_ADMIN_USER', '이 회원은 이미 운영진 계정이 있습니다.');
       }
-      if (username !== null) requireUsableUsername(db, username);
+      const { username, password } = readCredentials(db, data);
       requireValidCombination(role, teamName);
       const id = insertAdmin(db, {
         user_id: userId,
@@ -340,6 +391,7 @@ export const adminAccountRoutes: MockRoute[] = [
         team_name: teamName,
         created_by: actor.id,
       });
+      syncOperatorRole(db, userId, true);
       return toAdminAccount(db, findAdminRow(db, id)!);
     },
   },
@@ -375,25 +427,6 @@ export const adminAccountRoutes: MockRoute[] = [
     },
   },
   {
-    method: 'PUT',
-    pattern: '/api/v1/admin/accounts/:accountId/credentials',
-    summary:
-      '계정 발급. 운영진으로 정해졌지만 아이디가 없는 사람에게 아이디·초기 비밀번호를 준다. 이미 발급했으면 409',
-    handler: ({ db, params, body }) => {
-      requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
-      const target = findTarget(db, params.accountId);
-      if (target.username !== null) {
-        throw conflict('CREDENTIALS_ALREADY_ISSUED', '이미 계정을 발급한 운영진입니다.');
-      }
-      const data = readBody(body);
-      const username = requiredString(data, 'username').trim();
-      const password = requiredString(data, 'password');
-      requireUsableUsername(db, username);
-      issueAdminCredentials(db, target.id, username, password);
-      return toAdminAccount(db, findAdminRow(db, target.id)!);
-    },
-  },
-  {
     method: 'PATCH',
     pattern: '/api/v1/admin/accounts/:accountId/password',
     summary:
@@ -401,12 +434,6 @@ export const adminAccountRoutes: MockRoute[] = [
     handler: ({ db, params, body }) => {
       const { isSelf, target } = requireAccountWrite(db, params.accountId);
 
-      if (target.username === null) {
-        throw conflict(
-          'CREDENTIALS_NOT_ISSUED',
-          '계정을 아직 발급하지 않은 운영진입니다. 먼저 계정을 발급해 주세요.',
-        );
-      }
       const data = readBody(body);
       const newPassword = requiredString(data, 'newPassword');
       if (isSelf && optionalString(data, 'currentPassword') !== target.password) {
@@ -435,6 +462,7 @@ export const adminAccountRoutes: MockRoute[] = [
       }
       guardLockout(db, actor, new Map([[target.id, { row: null }]]));
       deleteAdmin(db, target.id);
+      syncOperatorRole(db, target.user_id, false);
       return undefined;
     },
   },
@@ -481,48 +509,23 @@ export const adminAccountRoutes: MockRoute[] = [
   },
   {
     method: 'PUT',
-    pattern: '/api/v1/admin/operator-teams/:teamName',
-    summary:
-      '팀 운영진 일괄 지정(동아리원 관리). 이 팀 운영진을 userIds로 맞춘다: 새 회원은 계정 발급 전 상태로 더하고, 다른 팀 운영진은 옮기고, 빠진 이 팀 운영진은 뺀다. 이 팀 운영진 목록을 돌려준다',
-    handler: ({ db, params, body }) => {
-      const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
-      const teamName = teamNameOf(params.teamName);
-      const userIds = new Set(stringArray(readBody(body), 'userIds', { required: true }));
-      const rows = listAdminRows(db);
-      const operatorUserIds = new Set(rows.map((row) => row.user_id));
-      applyOperatorPlan(db, actor, {
-        removals: rows.filter((row) => row.team_name === teamName && !userIds.has(row.user_id)),
-        moves: rows.filter((row) => row.team_name !== teamName && userIds.has(row.user_id)),
-        addUserIds: [...userIds].filter((userId) => !operatorUserIds.has(userId)),
-        teamName,
-      });
-      return listAdminRows(db)
-        .filter((row) => row.team_name === teamName)
-        .map((row) => toAdminAccount(db, row));
-    },
-  },
-  {
-    method: 'PUT',
     pattern: '/api/v1/admin/operators/:userId',
     summary:
-      '한 명의 운영진 지정(동아리원 관리). teamName이면 그 팀 운영진으로 정하거나 옮기고, null이면 운영진에서 뺀다(계정이 있으면 함께 삭제)',
+      '한 명의 운영진 지정(동아리원 명단). 운영진이 아닌 회원을 팀으로 정하면 아이디·초기 비밀번호가 필수이고(없으면 400, 겹치면 409) 그 값으로 계정을 만든다. 이미 운영진이면 teamName이 다를 때 팀을 옮기고, username이 지금과 다르면 아이디를(빈 값 400, 겹치면 409), password를 보내면 비밀번호를 함께 바꾼다. null이면 운영진에서 뺀다(운영진 계정도 함께 삭제)',
     handler: ({ db, params, body }) => {
       const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
       const data = readBody(body);
       const teamName = data.teamName === null ? null : teamNameOf(requiredString(data, 'teamName'));
       const row = listAdminRows(db).find((admin) => admin.user_id === params.userId);
       if (teamName === null) {
-        if (row)
-          applyOperatorPlan(db, actor, { removals: [row], moves: [], addUserIds: [], teamName });
+        if (row) removeOperator(db, actor, row);
         return undefined;
       }
-      if (row?.team_name === teamName) return undefined;
-      applyOperatorPlan(db, actor, {
-        removals: [],
-        moves: row ? [row] : [],
-        addUserIds: row ? [] : [params.userId],
-        teamName,
-      });
+      if (!row) {
+        addOperator(db, actor, params.userId, teamName, data);
+        return undefined;
+      }
+      updateOperator(db, actor, row, teamName, data);
       return undefined;
     },
   },

@@ -20,9 +20,9 @@ import type { AdminAccount, AdminRole } from '../model/types';
 export interface AdminFields {
   id: number;
   user_id: string;
-  /** 계정을 아직 발급하지 않았으면 null. */
-  username: string | null;
-  password: string | null;
+  username: string;
+  /** 임시 DB 전용 평문(실제 서버는 해시). */
+  password: string;
   role: AdminRole;
   /** users.name */
   name: string;
@@ -60,9 +60,6 @@ export const userExists = (db: Database, userId: string): boolean =>
 /** 그 회원에게 이미 운영진 계정이 있는지(회원 한 명에 계정 하나). */
 export const hasAdminAccount = (db: Database, userId: string): boolean =>
   queryAll(db, 'SELECT 1 FROM admin WHERE user_id = ?', [userId]).length > 0;
-
-export const isUsernameTaken = (db: Database, username: string): boolean =>
-  queryAll(db, 'SELECT 1 FROM admin WHERE username = ?', [username]).length > 0;
 
 /** 계정별 예외를 권한 이름 → 추가(true)·제외(false) 형태로 읽는다. */
 export function overridesOf(db: Database, adminId: number): PermissionOverrides {
@@ -142,29 +139,29 @@ export function insertAdmin(
   return queryAll<{ id: number }>(db, 'SELECT last_insert_rowid() AS id')[0].id;
 }
 
-/** 계정에서 바꿀 수 있는 것은 역할·부서뿐이다. 이름·기수·부문은 회원 정보(users)에서 고친다. */
+/**
+ * 계정에서 바꿀 수 있는 것은 역할·부서뿐이다. 이름·기수·부문은 회원 정보(users)에서 고친다.
+ * 팀이 바뀌면 이전 팀의 팀장 표시(is_team_lead)는 0으로 되돌린다.
+ */
 export function updateAdmin(
   db: Database,
   row: Pick<AdminFields, 'id' | 'role' | 'team_name'>,
 ): void {
-  execute(db, 'UPDATE admin SET role = ?, team_name = ?, updated_at = ? WHERE id = ?', [
-    row.role,
-    row.team_name,
-    nowText(),
-    row.id,
-  ]);
+  execute(
+    db,
+    `UPDATE admin
+        SET role = ?, team_name = ?,
+            is_team_lead = CASE WHEN team_name = ? THEN is_team_lead ELSE 0 END,
+            updated_at = ?
+      WHERE id = ?`,
+    [row.role, row.team_name, row.team_name, nowText(), row.id],
+  );
 }
 
-/** 운영진으로 정해진 사람에게 로그인 계정(아이디·초기 비밀번호)을 발급한다. */
-export function issueAdminCredentials(
-  db: Database,
-  id: number,
-  username: string,
-  password: string,
-): void {
-  execute(db, 'UPDATE admin SET username = ?, password = ?, updated_at = ? WHERE id = ?', [
+/** 로그인 아이디를 바꾼다. 겹침 검사는 부르는 쪽(임시 API)이 먼저 한다. */
+export function updateAdminUsername(db: Database, id: number, username: string): void {
+  execute(db, 'UPDATE admin SET username = ?, updated_at = ? WHERE id = ?', [
     username,
-    password,
     nowText(),
     id,
   ]);
