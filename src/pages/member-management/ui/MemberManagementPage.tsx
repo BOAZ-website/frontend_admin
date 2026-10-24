@@ -208,6 +208,13 @@ export function MemberManagementPage() {
   /** 새 운영진 계정을 만든 뒤 띄우는 전달문. */
   const [delivery, setDelivery] = useState<{ title: string; text: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  /**
+   * 이 화면에서 저장(추가·수정·탈퇴 처리)을 한 번이라도 했는지. 저장 뒤 목록을 다시 읽다가 실패하면
+   * "저장은 됐지만 목록이 최신이 아니다"를 따로 알린다.
+   */
+  const [hasSaved, setHasSaved] = useState(false);
+  /** 탈퇴 처리를 보내는 중인 동아리원 id. 버튼을 연달아 눌러 같은 요청이 두 번 가지 않게 한다. */
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   /** 방금 운영진 팀이 바뀐 동아리원. 잠깐 줄 바탕을 칠한다. */
   const [freshBadgeIds, setFreshBadgeIds] = useState<ReadonlySet<string>>(() => new Set());
   const { teams: operatorTeams, error: teamsError } = useOperatorTeams();
@@ -375,14 +382,17 @@ export function MemberManagementPage() {
       return;
     }
     setIsSaving(true);
-    /** 이번 저장에서 새로 만든 동아리원. 운영진 지정이 실패하면 팝업을 이 사람의 정보 수정으로 바꾼다. */
-    let created: ClubMember | null = null;
+    /**
+     * 이번 저장에서 동아리원 정보(첫 단계)를 저장한 결과. 운영진 지정(둘째 단계)만 실패하면
+     * 목록을 다시 읽고, 팝업을 이 사람의 정보 수정으로 바꿔 다시 저장할 때 운영진 지정만 다시 하게 한다.
+     */
+    let savedMember: ClubMember | null = null;
     try {
       // 추가는 역할을 보내지 않는다(일반 회원으로 시작하고, 운영진 팀을 고르면 아래에서 정한다).
       const { name, email, phone, university, major, term, track, status } = request;
       const saved = editingMember
         ? await updateClubMember(editingMember.id, request)
-        : (created = await createClubMember({
+        : await createClubMember({
             name,
             email,
             phone,
@@ -391,7 +401,9 @@ export function MemberManagementPage() {
             term,
             track,
             status,
-          }));
+          });
+      savedMember = saved;
+      setHasSaved(true);
       // 새 운영진이면 입력한 아이디·초기 비밀번호로 계정을 함께 만든다. 아이디 중복·비밀번호 규칙 검사는 서버가 한다.
       const username = formUsername.trim();
       const isIssuing = needsCredentials && teamName !== null;
@@ -416,14 +428,18 @@ export function MemberManagementPage() {
       reload();
       reloadPage();
     } catch (error) {
-      // 동아리원은 만들었는데 운영진 지정이 실패했으면, 다시 저장할 때 같은 사람을 또 만들지 않도록
-      // 팝업을 방금 만든 사람의 정보 수정으로 바꾼다. 입력값·운영진 팀·아이디·비밀번호는 그대로 둔다.
-      if (created) {
-        setEditingMember(created);
+      if (savedMember) {
+        // 동아리원 정보는 저장됐고 운영진 지정만 실패했다. 목록을 다시 읽어 저장된 값을 보이고,
+        // 팝업은 그 사람의 정보 수정으로 바꿔 다시 저장하면 운영진 지정만 다시 하게 한다(추가였다면 또 만들지 않는다).
+        // 입력값·운영진 팀·아이디·비밀번호는 그대로 둔다.
+        setEditingMember(savedMember);
         reload();
         reloadPage();
+        const reason = error instanceof Error ? error.message : '알 수 없는 오류';
+        window.alert(`동아리원 정보는 저장했지만 운영진 지정은 하지 못했습니다. (${reason})`);
+      } else {
+        alertApiError(error);
       }
-      alertApiError(error);
     } finally {
       setIsSaving(false);
     }
@@ -441,12 +457,17 @@ export function MemberManagementPage() {
     ) {
       return;
     }
+    if (withdrawingId !== null) return;
+    setWithdrawingId(member.id);
     try {
       await withdrawClubMember(member.id);
+      setHasSaved(true);
       reload();
       reloadPage();
     } catch (error) {
       alertApiError(error);
+    } finally {
+      setWithdrawingId(null);
     }
   };
 
@@ -533,7 +554,9 @@ export function MemberManagementPage() {
           }`}
         >
           {tableStatus === 'error'
-            ? `동아리원 정보를 불러오지 못했습니다. (${tableError?.message ?? '알 수 없는 오류'})`
+            ? hasSaved
+              ? `저장은 됐지만 동아리원 목록을 다시 불러오지 못해 화면이 최신이 아닐 수 있습니다. 새로고침해 주세요. (${tableError?.message ?? '알 수 없는 오류'})`
+              : `동아리원 정보를 불러오지 못했습니다. (${tableError?.message ?? '알 수 없는 오류'})`
             : '동아리원 정보를 불러오는 중입니다.'}
         </p>
       )}
@@ -790,7 +813,9 @@ export function MemberManagementPage() {
                               type="button"
                               onClick={() => withdrawMember(member)}
                               disabled={
-                                member.status === 'WITHDRAWN' || member.operatorTeam !== null
+                                member.status === 'WITHDRAWN' ||
+                                member.operatorTeam !== null ||
+                                withdrawingId !== null
                               }
                               aria-label={`${member.name} 탈퇴 처리`}
                               className={WITHDRAW_ICON_BTN}
