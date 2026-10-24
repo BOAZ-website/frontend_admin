@@ -45,7 +45,7 @@ const NO_TRACKS: UserTrack[] = [];
 const NO_WEEKS: WeekInfo[] = [];
 
 /**
- * 주소(#)의 화면 이름. '#system-permissions/u_26_08'처럼 '/' 뒤에 화면 안의 위치(고른 계정 등)를 붙일 수 있어,
+ * 주소(#)의 화면 이름. '#system-accounts/u_26_08'처럼 '/' 뒤에 화면 안의 위치(고른 계정 등)를 붙일 수 있어,
  * '/' 앞부분만 화면 이름으로 읽는다.
  */
 const pageOfHash = (): string => window.location.hash.replace(/^#/, '').split('/')[0];
@@ -53,6 +53,15 @@ const pageOfHash = (): string => window.location.hash.replace(/^#/, '').split('/
 function getInitialActivePage(): ActivePage {
   try {
     const hash = pageOfHash();
+    // 권한 설정 화면은 권한 관리 화면의 권한 편집 창으로 합쳤다. 예전 주소는 같은 사람을 연 채 권한 관리로 옮긴다.
+    if (hash === 'system-permissions') {
+      window.history.replaceState(
+        null,
+        '',
+        window.location.hash.replace(/^#system-permissions/, '#system-accounts'),
+      );
+      return 'system-accounts';
+    }
     if (isActivePage(hash)) return hash;
     const saved = localStorage.getItem('boaz_active_page');
     if (saved && isActivePage(saved)) return saved;
@@ -689,16 +698,7 @@ export default function App() {
 
           {/* 5. System Section */}
           {activePage === 'system-members' && <MemberManagementPage />}
-          {(activePage === 'system' ||
-            activePage === 'system-accounts' ||
-            activePage === 'system-permissions') && (
-            <SystemAccountsPage
-              view={activePage === 'system-permissions' ? 'permissions' : 'accounts'}
-              onViewChange={(view) =>
-                setActivePage(view === 'permissions' ? 'system-permissions' : 'system-accounts')
-              }
-            />
-          )}
+          {(activePage === 'system' || activePage === 'system-accounts') && <SystemAccountsPage />}
         </main>
       </div>
 
