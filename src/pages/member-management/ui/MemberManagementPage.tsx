@@ -121,7 +121,8 @@ const ALL_TRACK_SHEETS = MEMBER_SHEETS.filter(
   (item) => item.id === 'active' || item.id === 'alumni',
 );
 const TRACK_SHEETS = MEMBER_SHEETS.filter((item) => item.kind === 'track');
-const BASE_COLUMN_COUNT = 8;
+/** 늘 있는 열 수(이름·기수·이메일·연락처·대학교·전공·관리). 부문·운영진·활동 상태 열은 명단에 따라 더한다. */
+const BASE_COLUMN_COUNT = 7;
 
 const MEMBERS_HASH = 'system-members';
 
@@ -167,6 +168,8 @@ export function MemberManagementPage() {
   const hasTrackColumn = sheetItem?.kind !== 'track';
   const hasStatusColumn = sheetItem?.kind !== 'status';
   const isWithdrawnSheet = sheet === 'withdrawn';
+  // 탈퇴하면 운영진에서도 빠지므로(운영진은 탈퇴 처리할 수 없다) 탈퇴 명단에는 운영진 열을 두지 않는다.
+  const hasOperatorColumn = !isWithdrawnSheet;
   // 활동기수·수료기수 목록({ status })과 부문 명단({ track })은 한 페이지에 한 기수씩 서버에서 읽는다.
   // 탈퇴 명단은 기수 페이지가 없다(null). 기수를 안 고르면(null) 서버가 최신 기수를 고른다.
   const termScope = termScopeOfSheet(sheet);
@@ -507,7 +510,11 @@ export function MemberManagementPage() {
   const shownRows = tableStatus === 'ready' ? visibleMembers : heldRows;
   /** 이전 행 없이 읽는 중이면 표 안에 읽는 중 안내 한 줄을 둔다(처음 읽을 때는 위 안내만 쓴다). */
   const isLoadingRowShown = tableStatus === 'loading' && !isSheetSwitching;
-  const columnCount = BASE_COLUMN_COUNT + Number(hasTrackColumn) + Number(hasStatusColumn);
+  const columnCount =
+    BASE_COLUMN_COUNT +
+    Number(hasTrackColumn) +
+    Number(hasOperatorColumn) +
+    Number(hasStatusColumn);
   /** 다 읽었을 때의 패널 제목. 기수 페이지가 있는 명단은 읽어 온 기수를 앞에 붙인다(예: '25기 수료기수 목록'). */
   const settledTitle =
     sheetItem && isPagedSheet && currentPage && currentPage.term !== null
@@ -712,7 +719,7 @@ export function MemberManagementPage() {
                   <th className={`${TH_CLASS} w-[120px] text-slate-900`}>이름</th>
                   <th className={`${TH_CLASS} w-[80px]`}>기수</th>
                   {hasTrackColumn && <th className={`${TH_CLASS} w-[100px]`}>부문</th>}
-                  <th className={`${TH_CLASS} w-[120px]`}>운영진</th>
+                  {hasOperatorColumn && <th className={`${TH_CLASS} w-[120px]`}>운영진</th>}
                   {hasStatusColumn && <th className={`${TH_CLASS} w-[90px]`}>활동 상태</th>}
                   <th className={TH_CLASS}>이메일</th>
                   <th className={`${TH_CLASS} w-[130px]`}>연락처</th>
@@ -766,12 +773,14 @@ export function MemberManagementPage() {
                       {hasTrackColumn && (
                         <td className={`${TD_CLASS} text-slate-700`}>{member.track}</td>
                       )}
-                      <td
-                        className={`${TD_CLASS} text-slate-700`}
-                        aria-label={member.operatorTeam ?? '운영진 팀 없음'}
-                      >
-                        {member.operatorTeam}
-                      </td>
+                      {hasOperatorColumn && (
+                        <td
+                          className={`${TD_CLASS} text-slate-700`}
+                          aria-label={member.operatorTeam ?? '운영진 팀 없음'}
+                        >
+                          {member.operatorTeam}
+                        </td>
+                      )}
                       {hasStatusColumn && (
                         <td className={`${TD_CLASS} ${STATUS_TEXT[member.status]}`}>
                           {STATUS_LABELS[member.status]}
