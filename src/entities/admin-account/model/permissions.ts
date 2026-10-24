@@ -4,6 +4,12 @@
  *
  * 유효 권한 = 기본 세트(role, teamName) − 뺀 것 + 더한 것 + 담당 그룹 파생
  */
+import {
+  NEXT_PRESIDENT_TEAM,
+  OPERATIONS_SUPPORT_TEAM,
+  PRESIDENT_TEAM,
+  SERVICE_OPERATIONS_TEAM,
+} from './teams';
 
 /** 기본 권한 세트 키. 명시 키 6개 + TEAM 폴백 1개. 스터디장·ADV 팀장은 그룹리더 하나로 합친다. */
 export type BaseSetKey =
@@ -217,11 +223,11 @@ export interface BaseSetRule {
 
 /** 명시 키 6개 + TEAM 폴백 1개. 폴백은 TEAM에만 있어, 정해지지 않은 MASTER·SUPER·HOST 조합은 권한이 0이다. */
 export const BASE_SET_RULES: readonly BaseSetRule[] = [
-  { role: 'MASTER', teamName: '서비스운영팀', key: 'master' },
-  { role: 'SUPER', teamName: '대표진', key: 'president' },
-  { role: 'SUPER', teamName: '차기대표진', key: 'nextPresident' },
-  { role: 'TEAM', teamName: '서비스운영팀', key: 'serviceTeam' },
-  { role: 'TEAM', teamName: '운영지원팀', key: 'opsTeam' },
+  { role: 'MASTER', teamName: SERVICE_OPERATIONS_TEAM, key: 'master' },
+  { role: 'SUPER', teamName: PRESIDENT_TEAM, key: 'president' },
+  { role: 'SUPER', teamName: NEXT_PRESIDENT_TEAM, key: 'nextPresident' },
+  { role: 'TEAM', teamName: SERVICE_OPERATIONS_TEAM, key: 'serviceTeam' },
+  { role: 'TEAM', teamName: OPERATIONS_SUPPORT_TEAM, key: 'opsTeam' },
   { role: 'HOST', teamName: '그룹리더', key: 'groupLeader' },
   { role: 'TEAM', teamName: '*', key: 'otherTeam' },
 ];

@@ -5,11 +5,8 @@ import type {
   AdminAccount,
   PermissionCatalog,
 } from '@/entities/admin-account/model/types';
-import {
-  byLeadThenTermThenTrack,
-  displayTeamOf,
-  sortTeamNames,
-} from '@/pages/system-accounts/model/teamOrder';
+import { displayTeamOf } from '@/entities/admin-account/model/teams';
+import { byLeadThenTermThenTrack, sortTeamNames } from '@/pages/system-accounts/model/teamOrder';
 import { AccountPermissionEditor } from '@/pages/system-accounts/ui/AccountPermissionEditor';
 import { HolderProfileTable } from '@/pages/system-accounts/ui/HolderProfileTable';
 import { PermissionMatrix } from '@/pages/system-accounts/ui/PermissionMatrix';

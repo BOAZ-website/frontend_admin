@@ -5,9 +5,6 @@
 import { api } from '@/shared/api/client';
 
 import type {
-  AdminAccountCreateRequest,
-  AdminAccountUpdateRequest,
-  AdminCredentialsRequest,
   AdminPasswordRequest,
   OperatorAssignRequest,
   OperatorTeamRequest,
@@ -30,21 +27,8 @@ export function fetchAdminAccounts(): Promise<AdminAccount[]> {
   return api.get('/api/v1/admin/accounts');
 }
 
-export function createAdminAccount(request: AdminAccountCreateRequest): Promise<AdminAccount> {
-  return api.post('/api/v1/admin/accounts', request);
-}
-
-/** 보낸 값만 바뀐다. 역할·부서가 바뀌면 그 계정의 권한 예외는 모두 지워진다. */
-export function updateAdminAccount(
-  accountId: number,
-  request: AdminAccountUpdateRequest,
-): Promise<AdminAccount> {
-  return api.patch(accountPath(accountId), request);
-}
-
 /**
- * 팀 운영진 일괄 지정. 이 팀 운영진을 보낸 회원들로 맞춘다: 새 회원은 계정 발급 전 상태로 더하고,
- * 다른 팀 운영진은 이 팀으로 옮기고, 목록에서 빠진 이 팀 운영진은 운영진에서 뺀다(계정이 있으면 함께 삭제).
+ * 팀 운영진 일괄 지정. 동아리원 명단 화면을 바꾸기 전(#30)까지만 남겨 둔다.
  */
 export function setOperatorTeamMembers(
   teamName: string,
@@ -53,17 +37,9 @@ export function setOperatorTeamMembers(
   return api.put(`/api/v1/admin/operator-teams/${encodeURIComponent(teamName)}`, request);
 }
 
-/** 한 명의 운영진 팀을 정하거나(teamName), 운영진에서 뺀다(null). */
+/** 한 명의 운영진 팀을 정하거나(teamName), 운영진에서 뺀다(null). 새 운영진이면 아이디·초기 비밀번호를 함께 보낸다. */
 export function assignOperator(userId: string, request: OperatorAssignRequest): Promise<void> {
   return api.put(`/api/v1/admin/operators/${encodeURIComponent(userId)}`, request);
-}
-
-/** 아이디가 없는 운영진에게 계정(아이디·초기 비밀번호)을 발급한다. 이미 있으면 409. */
-export function issueAdminCredentials(
-  accountId: number,
-  request: AdminCredentialsRequest,
-): Promise<AdminAccount> {
-  return api.put(`${accountPath(accountId)}/credentials`, request);
 }
 
 export function changeAdminPassword(

@@ -312,8 +312,8 @@ CREATE TABLE host_concurrent_roles (
 CREATE TABLE admin (
   id         INTEGER PRIMARY KEY,
   user_id    TEXT    NOT NULL UNIQUE REFERENCES users (id) ON DELETE RESTRICT, -- 계정 주인(회원). 회원 한 명에 계정 하나, 계정이 있는 회원은 지울 수 없다
-  username   TEXT    UNIQUE,                               -- 로그인 아이디. 운영진으로 정해졌지만 계정을 아직 발급하지 않았으면 NULL
-  password   TEXT,                                         -- 임시 DB 전용 평문(실제 서버는 해시). 아이디와 함께 NULL이거나 함께 채워진다
+  username   TEXT    NOT NULL UNIQUE,                      -- 로그인 아이디. 운영진이면 반드시 계정이 있다(운영진 지정 때 함께 만든다)
+  password   TEXT    NOT NULL,                             -- 임시 DB 전용 평문(실제 서버는 해시)
   role       TEXT    NOT NULL CHECK (role IN ('MASTER', 'SUPER', 'TEAM')),
   team_name  TEXT    NOT NULL,                             -- 운영진의 자리(대표진·서비스운영팀 등). 새 팀이 생길 수 있어 값을 제한하지 않는다
   is_team_lead INTEGER NOT NULL DEFAULT 0 CHECK (is_team_lead IN (0, 1)), -- 그 팀의 팀장인지. 대표진은 쓰지 않는다. 권한과는 관계없다
@@ -344,10 +344,12 @@ CREATE TABLE admin_group_leader (
   UNIQUE (group_id)                                        -- 그룹당 리더 1명
 );
 
--- 팀을 만들거나 팀장을 바꾸면 그 팀의 리더 계정을 새 팀장의 운영진 계정으로 바꾼다(계정이 없으면 비운다).
+-- 이번 반기 팀을 만들거나 팀장을 바꾸면 그 팀의 리더 계정을 새 팀장의 운영진 계정으로 바꾼다(계정이 없으면 비운다).
+-- 지난 반기·다음 반기 팀은 맡은 그룹으로 붙이지 않는다(운영진 계정이 생길 때 붙이는 트리거와 같은 기준).
 CREATE TRIGGER trg_admin_group_leader_on_team_insert
 AFTER INSERT ON teams
 WHEN NEW.group_type IN ('ADV', 'STUDY')
+ AND NEW.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)
 BEGIN
   INSERT INTO admin_group_leader (admin_id, group_id)
   SELECT a.id, NEW.id FROM admin a WHERE a.user_id = NEW.leader_id;
@@ -359,7 +361,9 @@ WHEN NEW.group_type IN ('ADV', 'STUDY') AND NEW.leader_id IS NOT OLD.leader_id
 BEGIN
   DELETE FROM admin_group_leader WHERE group_id = NEW.id;
   INSERT INTO admin_group_leader (admin_id, group_id)
-  SELECT a.id, NEW.id FROM admin a WHERE a.user_id = NEW.leader_id;
+  SELECT a.id, NEW.id FROM admin a
+   WHERE a.user_id = NEW.leader_id
+     AND NEW.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1);
 END;
 
 -- 이번 반기 팀의 팀장인 회원에게 운영진 계정이 생기면 그 팀들을 맡은 그룹으로 붙인다.

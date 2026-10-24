@@ -328,73 +328,43 @@ test('계정 통합 목록은 운영진 계정과 HOST 계정을 회원 단위�
   expectApiError(() => call('GET', '/api/v1/admin/account-holders'), 403, 'FORBIDDEN');
 });
 
-test('운영진으로 정해졌지만 계정이 없는 사람에게 아이디·초기 비밀번호를 발급한다', async () => {
-  const { call, loginAs } = await setup();
-  // 35번(디자인팀 27기)은 시드에서 운영진으로만 정해지고 계정은 아직 없다.
-  const pending = call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === 35)!;
-  assert.equal(pending.username, null);
-  expectApiError(
-    () => call('PATCH', '/api/v1/admin/accounts/35/password', { newPassword: 'x' }),
-    409,
-    'CREDENTIALS_NOT_ISSUED',
+test('모든 운영진 계정에는 아이디가 있다(시드 35~40번 포함)', async () => {
+  const { call } = await setup();
+  const accounts = call<AdminAccount[]>('GET', '/api/v1/admin/accounts');
+  assert.deepEqual(
+    accounts.filter((account) => typeof account.username !== 'string' || !account.username),
+    [],
   );
-
-  // 비밀번호 규칙은 백엔드에 맡기므로 임시 API는 짧은 비밀번호도 받는다.
-  const issued = call<AdminAccount>('PUT', '/api/v1/admin/accounts/35/credentials', {
-    username: 'boaz_design_4',
-    password: 'abc',
-  });
-  assert.equal(issued.username, 'boaz_design_4');
-
-  expectApiError(
-    () =>
-      call('PUT', '/api/v1/admin/accounts/35/credentials', {
-        username: 'boaz_design_x',
-        password: 'abc',
-      }),
-    409,
-    'CREDENTIALS_ALREADY_ISSUED',
-  );
-  // 다른 운영진이 쓰는 아이디는 줄 수 없다.
-  expectApiError(
-    () =>
-      call('PUT', '/api/v1/admin/accounts/36/credentials', {
-        username: 'boaz_design_4',
-        password: 'abc',
-      }),
-    409,
-    'DUPLICATE_USERNAME',
-  );
-
-  loginAs(5); // 서비스운영팀: 계정 생성·삭제 권한 없음
-  expectApiError(
-    () =>
-      call('PUT', '/api/v1/admin/accounts/36/credentials', {
-        username: 'boaz_design_5',
-        password: 'abc',
-      }),
-    403,
-    'FORBIDDEN',
-  );
+  const usernameOf = (id: number) => accounts.find((account) => account.id === id)?.username;
+  assert.deepEqual([35, 36, 37, 38, 39, 40].map(usernameOf), [
+    'boaz_design_4',
+    'boaz_design_5',
+    'boaz_design_6',
+    'boaz_plan_4',
+    'boaz_plan_5',
+    'boaz_plan_6',
+  ]);
+  assert.equal(new Set(accounts.map((account) => account.username)).size, accounts.length);
 });
 
-test('운영진 추가는 아이디·초기 비밀번호 없이도 되고, 둘 중 하나만 보내면 400이다', async () => {
+test('운영진 추가(POST)는 아이디·초기 비밀번호가 모두 있어야 하고, 없거나 하나만 있으면 400이다', async () => {
   const { call } = await setup();
-  const added = call<AdminAccount>('POST', '/api/v1/admin/accounts', {
-    userId: 'u_28_11',
-    role: 'TEAM',
-    teamName: '기획팀',
-  });
-  assert.equal(added.username, null);
-
+  // 아이디·비밀번호만 뺀 요청.
+  const withoutCredentials = Object.fromEntries(
+    Object.entries(NEW_ACCOUNT).filter(([key]) => key !== 'username' && key !== 'password'),
+  );
   expectApiError(
-    () =>
-      call('POST', '/api/v1/admin/accounts', {
-        userId: 'u_28_12',
-        username: 'boaz_half',
-        role: 'TEAM',
-        teamName: '기획팀',
-      }),
+    () => call('POST', '/api/v1/admin/accounts', withoutCredentials),
+    400,
+    'INCOMPLETE_CREDENTIALS',
+  );
+  expectApiError(
+    () => call('POST', '/api/v1/admin/accounts', { ...withoutCredentials, username: 'boaz_half' }),
+    400,
+    'INCOMPLETE_CREDENTIALS',
+  );
+  expectApiError(
+    () => call('POST', '/api/v1/admin/accounts', { ...withoutCredentials, password: 'Boaz!2027' }),
     400,
     'INCOMPLETE_CREDENTIALS',
   );
@@ -444,97 +414,316 @@ test('팀 이름의 앞뒤 공백은 지우고, 공백만 있으면 400이다', 
   );
 });
 
-const operatorsOf = (accounts: readonly AdminAccount[], teamName: string) =>
-  accounts
-    .filter((account) => account.teamName === teamName)
-    .map((account) => account.userId)
-    .sort();
-
 const clubRoleOf = (db: Awaited<ReturnType<typeof setup>>['db'], userId: string) =>
   db.exec('SELECT club_role FROM users WHERE id = ?', [userId])[0]?.values[0]?.[0];
 
-test('팀 운영진 일괄 지정은 새 회원을 더하고, 다른 팀에서 옮기고, 빠진 사람은 운영진에서 뺀다', async () => {
-  const { db, call } = await setup();
-  const before = call<AdminAccount[]>('GET', '/api/v1/admin/accounts');
-  const research = operatorsOf(before, '자료연구팀');
-  const removed = research[0];
-  // 박지훈(u_28_11)은 운영진이 아니고, 김대현(u_26_23)은 서비스운영팀 운영진이다.
-  const userIds = [...research.slice(1), 'u_28_11', 'u_26_23'];
-
-  const team = call<AdminAccount[]>(
-    'PUT',
-    `/api/v1/admin/operator-teams/${encodeURIComponent('자료연구팀')}`,
-    { userIds },
+const accountOf = (call: Awaited<ReturnType<typeof setup>>['call'], userId: string) =>
+  call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find(
+    (account) => account.userId === userId,
   );
-  assert.deepEqual(team.map((account) => account.userId).sort(), [...userIds].sort());
 
-  const added = team.find((account) => account.userId === 'u_28_11')!;
-  assert.equal(added.username, null);
+// 새 운영진 지정에 보내는 아이디·초기 비밀번호.
+const NEW_CREDENTIALS = { username: 'boaz_plan_7', password: 'Boaz!2027' };
+
+test('한 명의 운영진 지정은 새 운영진에게 보낸 아이디로 계정을 만들고, 팀을 옮기고, null이면 운영진에서 뺀다', async () => {
+  const { db, call } = await setup();
+
+  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: '기획팀', ...NEW_CREDENTIALS });
+  const added = accountOf(call, 'u_28_11')!;
+  assert.equal(added.teamName, '기획팀');
+  assert.equal(added.username, NEW_CREDENTIALS.username);
   assert.equal(added.role, 'TEAM');
   assert.equal(clubRoleOf(db, 'u_28_11'), 'OPERATOR');
 
-  const moved = team.find((account) => account.userId === 'u_26_23')!;
-  assert.equal(moved.baseSetKey, 'otherTeam');
+  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: ' 디자인팀 ' });
+  assert.equal(accountOf(call, 'u_28_11')?.teamName, '디자인팀');
+
+  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: null });
+  assert.equal(accountOf(call, 'u_28_11'), undefined);
+  assert.equal(clubRoleOf(db, 'u_28_11'), 'MEMBER');
+});
+
+test('새 운영진 지정의 아이디는 앞뒤 공백을 지우고 저장한다', async () => {
+  const { call } = await setup();
+  call('PUT', '/api/v1/admin/operators/u_28_11', {
+    teamName: '기획팀',
+    username: ' boaz_trim_1 ',
+    password: 'Boaz!2027',
+  });
+  assert.equal(accountOf(call, 'u_28_11')?.username, 'boaz_trim_1');
+});
+
+test('새 운영진 지정에 아이디·초기 비밀번호가 없거나 하나만 있으면 400 INCOMPLETE_CREDENTIALS이고 운영진이 되지 않는다', async () => {
+  const { db, call } = await setup();
+  const assign = (body: Record<string, unknown>) =>
+    call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: '기획팀', ...body });
+
+  expectApiError(() => assign({}), 400, 'INCOMPLETE_CREDENTIALS');
+  expectApiError(() => assign({ username: 'boaz_half' }), 400, 'INCOMPLETE_CREDENTIALS');
+  expectApiError(() => assign({ password: 'Boaz!2027' }), 400, 'INCOMPLETE_CREDENTIALS');
+  expectApiError(
+    () => assign({ username: '   ', password: 'Boaz!2027' }),
+    400,
+    'INCOMPLETE_CREDENTIALS',
+  );
+
+  assert.equal(accountOf(call, 'u_28_11'), undefined);
+  assert.equal(clubRoleOf(db, 'u_28_11'), 'MEMBER');
+});
+
+test('새 운영진 지정에 다른 운영진이 쓰는 아이디를 보내면 409 DUPLICATE_USERNAME', async () => {
+  const { call } = await setup();
+  const assignWith = (username: string) =>
+    call('PUT', '/api/v1/admin/operators/u_28_11', {
+      teamName: '기획팀',
+      username,
+      password: 'Boaz!2027',
+    });
+  expectApiError(() => assignWith('boaz_plan_1'), 409, 'DUPLICATE_USERNAME');
+  // 시드 35~40번에 준 아이디도 이미 쓰는 아이디다.
+  expectApiError(() => assignWith('boaz_design_4'), 409, 'DUPLICATE_USERNAME');
+  assert.equal(accountOf(call, 'u_28_11'), undefined);
+});
+
+// 6번(김민정, u_26_17)은 기획팀 운영진이고 아이디는 boaz_plan_1, 권한 예외 CONTENT_WRITE가 있다.
+test('이미 운영진이면 팀·아이디를 한 요청으로 함께 바꾼다', async () => {
+  const { call } = await setup();
+  call('PUT', '/api/v1/admin/operators/u_26_17', {
+    teamName: '디자인팀',
+    username: ' boaz_design_9 ',
+    password: 'Changed!2027',
+  });
+  const moved = accountOf(call, 'u_26_17')!;
+  assert.equal(moved.id, 6);
+  assert.equal(moved.teamName, '디자인팀');
+  assert.equal(moved.username, 'boaz_design_9');
+  assert.deepEqual(moved.overrides, {});
+});
+
+test('이미 운영진이고 팀이 같으면 아이디만 바꾸고, 팀과 권한 예외는 그대로다', async () => {
+  const { call } = await setup();
+  call('PUT', '/api/v1/admin/operators/u_26_17', {
+    teamName: '기획팀',
+    username: 'boaz_plan_renamed',
+  });
+  const kept = accountOf(call, 'u_26_17')!;
+  assert.equal(kept.username, 'boaz_plan_renamed');
+  assert.equal(kept.teamName, '기획팀');
+  assert.deepEqual(kept.overrides, { CONTENT_WRITE: true });
+});
+
+test('이미 운영진이고 같은 팀·같은 아이디를 보내면 아무것도 바뀌지 않는다', async () => {
+  const { call } = await setup();
+  const before = accountOf(call, 'u_26_17')!;
+  call('PUT', '/api/v1/admin/operators/u_26_17', { teamName: '기획팀', username: 'boaz_plan_1' });
+  // 자기 아이디는 겹침으로 보지 않는다(앞뒤 공백이 있어도).
+  call('PUT', '/api/v1/admin/operators/u_26_17', {
+    teamName: '기획팀',
+    username: ' boaz_plan_1 ',
+  });
+  assert.deepEqual(accountOf(call, 'u_26_17'), before);
+});
+
+test('이미 운영진의 아이디를 다른 운영진·HOST 아이디로 바꾸면 409, 빈 아이디는 400이고 아무것도 바뀌지 않는다', async () => {
+  const { call } = await setup();
+  const before = accountOf(call, 'u_26_17')!;
+  const change = (body: Record<string, unknown>) =>
+    call('PUT', '/api/v1/admin/operators/u_26_17', body);
+
+  expectApiError(
+    () => change({ teamName: '디자인팀', username: 'boaz_plan_2', password: 'Changed!2027' }),
+    409,
+    'DUPLICATE_USERNAME',
+  );
+  expectApiError(
+    () => change({ teamName: '디자인팀', username: 'host_a' }),
+    409,
+    'DUPLICATE_USERNAME',
+  );
+  expectApiError(
+    () => change({ teamName: '디자인팀', username: '   ', password: 'Changed!2027' }),
+    400,
+    'INCOMPLETE_CREDENTIALS',
+  );
+  expectApiError(() => change({ teamName: '기획팀', username: '' }), 400, 'INCOMPLETE_CREDENTIALS');
+
+  // 검사에 걸리면 팀도 옮기지 않는다(셋은 함께 저장된다).
+  assert.deepEqual(accountOf(call, 'u_26_17'), before);
+});
+
+test('다른 팀 운영진을 옮기면 기본 권한 세트가 새 팀 기준이 되고 권한 예외가 지워진다', async () => {
+  const { call } = await setup();
+  // 6번(기획팀)은 시드에서 CONTENT_WRITE 예외가 있다.
+  assert.deepEqual(accountOf(call, 'u_26_17')?.overrides, { CONTENT_WRITE: true });
+
+  call('PUT', '/api/v1/admin/operators/u_26_17', { teamName: '서비스운영팀' });
+  const moved = accountOf(call, 'u_26_17')!;
+  assert.equal(moved.baseSetKey, 'serviceTeam');
   assert.deepEqual(moved.overrides, {});
 
-  const after = call<AdminAccount[]>('GET', '/api/v1/admin/accounts');
-  assert.equal(
-    after.some((account) => account.userId === removed),
-    false,
-  );
-  assert.equal(clubRoleOf(db, removed), 'MEMBER');
-  assert.equal(operatorsOf(after, '서비스운영팀').includes('u_26_23'), false);
+  // 서비스운영팀(u_26_23)에서 자료연구팀으로 옮기면 기타 운영진 세트를 받는다.
+  call('PUT', '/api/v1/admin/operators/u_26_23', { teamName: '자료연구팀' });
+  const other = accountOf(call, 'u_26_23')!;
+  assert.equal(other.teamName, '자료연구팀');
+  assert.equal(other.baseSetKey, 'otherTeam');
+  assert.deepEqual(other.overrides, {});
 });
 
 test('대표진으로 지정하면 대표진 역할(SUPER)을 받는다', async () => {
   const { call } = await setup();
-  const presidents = operatorsOf(call<AdminAccount[]>('GET', '/api/v1/admin/accounts'), '대표진');
-  const team = call<AdminAccount[]>(
-    'PUT',
-    `/api/v1/admin/operator-teams/${encodeURIComponent('대표진')}`,
-    {
-      userIds: [...presidents, 'u_28_11'],
-    },
-  );
-  assert.equal(team.find((account) => account.userId === 'u_28_11')?.role, 'SUPER');
+  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: '대표진', ...NEW_CREDENTIALS });
+  assert.equal(accountOf(call, 'u_28_11')?.role, 'SUPER');
+
+  // 이미 운영진인 사람을 대표진으로 옮겨도 SUPER가 된다.
+  call('PUT', '/api/v1/admin/operators/u_26_17', { teamName: '대표진' });
+  assert.equal(accountOf(call, 'u_26_17')?.role, 'SUPER');
 });
 
-test('운영진 지정은 본인·서비스운영팀장을 빼지 못하고, 권한이 없으면 403이다', async () => {
-  const { call, loginAs } = await setup();
-  const service = operatorsOf(
-    call<AdminAccount[]>('GET', '/api/v1/admin/accounts'),
-    '서비스운영팀',
-  );
-  // 1번(로그인한 서비스운영팀장)을 빼려 하면 거부한다.
+test('운영진 지정은 본인·서비스운영팀장(MASTER)을 빼거나 옮기지 못하고, 권한이 없으면 403이다', async () => {
+  const { db, call, loginAs } = await setup();
+  // 1번(로그인한 서비스운영팀장 본인)
   expectApiError(
-    () =>
-      call('PUT', `/api/v1/admin/operator-teams/${encodeURIComponent('서비스운영팀')}`, {
-        userIds: service.filter((userId) => userId !== 'u_26_01'),
-      }),
+    () => call('PUT', '/api/v1/admin/operators/u_26_01', { teamName: null }),
+    400,
+    'CANNOT_MODIFY_OWN_ROLE',
+  );
+  expectApiError(
+    () => call('PUT', '/api/v1/admin/operators/u_26_01', { teamName: '기획팀' }),
     400,
     'CANNOT_MODIFY_OWN_ROLE',
   );
 
+  // 대표진(2번)에게 계정 생성·삭제를 주고 MASTER(1번)를 빼려 하면 거부한다.
+  execute(
+    db,
+    `INSERT INTO admin_permission_override (admin_id, permission, effect, granted_by, created_at) VALUES
+       (2, 'ADMIN_ACCOUNT_CREATE_DELETE', 'GRANT', 1, '2026-10-24 10:00:00')`,
+  );
+  loginAs(2);
+  expectApiError(
+    () => call('PUT', '/api/v1/admin/operators/u_26_01', { teamName: null }),
+    400,
+    'CANNOT_MOVE_MASTER',
+  );
+  assert.equal(accountOf(call, 'u_26_01')?.role, 'MASTER');
+
   loginAs(5); // 서비스운영팀: 계정 생성·삭제 권한 없음
   expectApiError(
-    () => call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: '기획팀' }),
+    () =>
+      call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: '기획팀', ...NEW_CREDENTIALS }),
     403,
     'FORBIDDEN',
   );
 });
 
-test('한 명의 운영진 지정은 팀을 정하거나 옮기고, null이면 운영진에서 뺀다', async () => {
-  const { db, call } = await setup();
-  const teamOf = (userId: string) =>
-    call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find(
-      (account) => account.userId === userId,
-    )?.teamName;
+// 본인·MASTER의 아이디·비밀번호 변경을 막을 때의 오류 코드. 팀도 함께 바꾸면 팀 검사(CANNOT_MODIFY_OWN_ROLE·CANNOT_MOVE_MASTER)가 먼저 난다.
+const OWN_CREDENTIALS_CODE = 'CANNOT_MODIFY_OWN_CREDENTIALS';
+const MASTER_CREDENTIALS_CODE = 'CANNOT_MODIFY_MASTER_CREDENTIALS';
 
-  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: '기획팀' });
-  assert.equal(teamOf('u_28_11'), '기획팀');
-  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: ' 디자인팀 ' });
-  assert.equal(teamOf('u_28_11'), '디자인팀');
-  call('PUT', '/api/v1/admin/operators/u_28_11', { teamName: null });
-  assert.equal(teamOf('u_28_11'), undefined);
-  assert.equal(clubRoleOf(db, 'u_28_11'), 'MEMBER');
+const credentialsOf = (db: Awaited<ReturnType<typeof setup>>['db'], id: number) =>
+  db.exec('SELECT username, password FROM admin WHERE id = ?', [id])[0]?.values[0];
+
+test('운영진 지정으로 본인(1번 MASTER)의 아이디·비밀번호는 바꿀 수 없고, 같은 아이디만 보내면 통과한다', async () => {
+  const { db, call } = await setup();
+  const before = accountOf(call, 'u_26_01');
+  const beforeCredentials = credentialsOf(db, 1);
+  const change = (body: Record<string, unknown>) =>
+    call('PUT', '/api/v1/admin/operators/u_26_01', { teamName: '서비스운영팀', ...body });
+
+  expectApiError(() => change({ username: 'boaz_master_2' }), 400, OWN_CREDENTIALS_CODE);
+  expectApiError(() => change({ password: 'Changed!2027' }), 400, OWN_CREDENTIALS_CODE);
+  expectApiError(
+    () => change({ username: 'boaz_master_2', password: 'Changed!2027' }),
+    400,
+    OWN_CREDENTIALS_CODE,
+  );
+  assert.deepEqual(accountOf(call, 'u_26_01'), before);
+  assert.deepEqual(credentialsOf(db, 1), beforeCredentials);
+
+  // 아이디가 그대로이고 비밀번호를 보내지 않으면 막지 않는다(바뀌는 것도 없다).
+  change({ username: 'boaz_master' });
+  change({});
+  assert.deepEqual(accountOf(call, 'u_26_01'), before);
+  assert.deepEqual(credentialsOf(db, 1), beforeCredentials);
+});
+
+test('다른 계정으로 로그인해도 MASTER의 아이디·비밀번호는 운영진 지정으로 바꿀 수 없다', async () => {
+  const { db, call, loginAs } = await setup();
+  // 대표진(2번)에게 계정 생성·삭제를 준다.
+  execute(
+    db,
+    `INSERT INTO admin_permission_override (admin_id, permission, effect, granted_by, created_at) VALUES
+       (2, 'ADMIN_ACCOUNT_CREATE_DELETE', 'GRANT', 1, '2026-10-24 10:00:00')`,
+  );
+  loginAs(2);
+  const before = accountOf(call, 'u_26_01');
+  const beforeCredentials = credentialsOf(db, 1);
+  const change = (body: Record<string, unknown>) =>
+    call('PUT', '/api/v1/admin/operators/u_26_01', { teamName: '서비스운영팀', ...body });
+
+  expectApiError(() => change({ username: 'boaz_master_2' }), 400, MASTER_CREDENTIALS_CODE);
+  expectApiError(() => change({ password: 'Changed!2027' }), 400, MASTER_CREDENTIALS_CODE);
+  expectApiError(
+    () => change({ username: 'boaz_master_2', password: 'Changed!2027' }),
+    400,
+    MASTER_CREDENTIALS_CODE,
+  );
+  assert.deepEqual(accountOf(call, 'u_26_01'), before);
+  assert.deepEqual(credentialsOf(db, 1), beforeCredentials);
+
+  change({ username: ' boaz_master ' });
+  assert.deepEqual(accountOf(call, 'u_26_01'), before);
+  assert.deepEqual(credentialsOf(db, 1), beforeCredentials);
+
+  // MASTER가 아닌 다른 계정(6번)은 2번이 바꿀 수 있다.
+  call('PUT', '/api/v1/admin/operators/u_26_17', { teamName: '기획팀', password: 'Changed!2027' });
+  assert.equal(credentialsOf(db, 6)?.[1], 'Changed!2027');
+});
+
+test('운영진 계정을 삭제하면 운영진에서도 빠져 회원 역할이 MEMBER가 된다', async () => {
+  const { db, call } = await setup();
+  // 7번(디자인팀 운영진, u_26_14)
+  assert.equal(clubRoleOf(db, 'u_26_14'), 'OPERATOR');
+  call('DELETE', '/api/v1/admin/accounts/7');
+
+  assert.equal(accountOf(call, 'u_26_14'), undefined);
+  assert.equal(clubRoleOf(db, 'u_26_14'), 'MEMBER');
+  assert.equal(
+    db.exec("SELECT id FROM admin WHERE user_id = 'u_26_14'").length,
+    0,
+    '운영진 명단(admin)에 행이 남으면 안 된다',
+  );
+});
+
+test('지운 경로(계정 발급·팀 일괄 지정)는 더 이상 없다', async () => {
+  const { call } = await setup();
+  expectApiError(
+    () =>
+      call('PUT', '/api/v1/admin/accounts/35/credentials', {
+        username: 'boaz_x',
+        password: 'abc',
+      }),
+    404,
+  );
+  expectApiError(
+    () =>
+      call('PUT', `/api/v1/admin/operator-teams/${encodeURIComponent('기획팀')}`, {
+        userIds: [],
+      }),
+    404,
+  );
+});
+
+test('없는 회원을 운영진으로 지정하면 404 USER_NOT_FOUND', async () => {
+  const { call } = await setup();
+  expectApiError(
+    () =>
+      call('PUT', '/api/v1/admin/operators/u_none', {
+        teamName: '기획팀',
+        username: 'boaz_none',
+        password: 'Boaz!2026',
+      }),
+    404,
+    'USER_NOT_FOUND',
+  );
 });

@@ -6,6 +6,12 @@ import type {
   PermissionGroup,
   PermissionOverrides,
 } from './permissions';
+import {
+  NEXT_PRESIDENT_TEAM,
+  OPERATIONS_SUPPORT_TEAM,
+  PRESIDENT_TEAM,
+  SERVICE_OPERATIONS_TEAM,
+} from './teams';
 
 export const ADMIN_ROLES = ['MASTER', 'SUPER', 'TEAM'] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
@@ -13,19 +19,20 @@ export type AdminRole = (typeof ADMIN_ROLES)[number];
 /**
  * 운영진 팀(자리) 목록. 새 팀이 생기면 여기에 더한다. 이름으로 정한 기본 권한 세트가 없는 팀은
  * 기타 운영진(TEAM 폴백) 권한을 받으므로 권한 표는 고치지 않는다.
- * 가나다순으로 둔다(계정 발급 팝업의 팀 선택 순서). 운영진 계정 관리의 팀 목록은 화면에서 따로 가나다순으로 정렬한다.
+ * 가나다순으로 둔다. 화면 순서(고정 팀 → 가나다순)는 teams.ts의 compareTeamNames를 따른다.
+ * 이 목록과 DB의 팀 이름을 합치는 곳은 권한 카탈로그 API(GET /api/v1/admin/permissions) 한 곳이다.
  * 차기대표진은 팀이 아니라 대표진 안의 자리지만, 권한 세트가 달라 따로 둔다.
  */
-export const ADMIN_TEAM_NAMES = [
+export const ADMIN_TEAM_NAMES: readonly string[] = [
   '기획팀',
   '대외협력팀',
-  '대표진',
+  PRESIDENT_TEAM,
   '디자인팀',
-  '서비스운영팀',
-  '운영지원팀',
+  SERVICE_OPERATIONS_TEAM,
+  OPERATIONS_SUPPORT_TEAM,
   '자료연구팀',
-  '차기대표진',
-] as const;
+  NEXT_PRESIDENT_TEAM,
+];
 
 /**
  * 운영진 계정의 응답(AdminAccountResponse 확장안). 권한 화면에 필요한 기본 권한 세트·맡은 그룹·예외·유효 권한을 함께 싣는다.
@@ -35,8 +42,8 @@ export interface AdminAccount {
   id: number;
   /** 계정 주인(회원) id. 운영진은 모두 회원이며 이름·기수·부문은 회원 정보에서 온다. */
   userId: string;
-  /** 로그인 아이디. 운영진으로 정해졌지만 계정을 아직 발급하지 않았으면 null이다(백엔드 협의 필요). */
-  username: string | null;
+  /** 로그인 아이디. 운영진이면 반드시 있다. */
+  username: string;
   /** 회원 이름(users.name). */
   name: string;
   role: AdminRole;
