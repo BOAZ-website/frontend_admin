@@ -344,10 +344,12 @@ CREATE TABLE admin_group_leader (
   UNIQUE (group_id)                                        -- 그룹당 리더 1명
 );
 
--- 팀을 만들거나 팀장을 바꾸면 그 팀의 리더 계정을 새 팀장의 운영진 계정으로 바꾼다(계정이 없으면 비운다).
+-- 이번 반기 팀을 만들거나 팀장을 바꾸면 그 팀의 리더 계정을 새 팀장의 운영진 계정으로 바꾼다(계정이 없으면 비운다).
+-- 지난 반기·다음 반기 팀은 맡은 그룹으로 붙이지 않는다(운영진 계정이 생길 때 붙이는 트리거와 같은 기준).
 CREATE TRIGGER trg_admin_group_leader_on_team_insert
 AFTER INSERT ON teams
 WHEN NEW.group_type IN ('ADV', 'STUDY')
+ AND NEW.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)
 BEGIN
   INSERT INTO admin_group_leader (admin_id, group_id)
   SELECT a.id, NEW.id FROM admin a WHERE a.user_id = NEW.leader_id;
@@ -359,7 +361,9 @@ WHEN NEW.group_type IN ('ADV', 'STUDY') AND NEW.leader_id IS NOT OLD.leader_id
 BEGIN
   DELETE FROM admin_group_leader WHERE group_id = NEW.id;
   INSERT INTO admin_group_leader (admin_id, group_id)
-  SELECT a.id, NEW.id FROM admin a WHERE a.user_id = NEW.leader_id;
+  SELECT a.id, NEW.id FROM admin a
+   WHERE a.user_id = NEW.leader_id
+     AND NEW.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1);
 END;
 
 -- 이번 반기 팀의 팀장인 회원에게 운영진 계정이 생기면 그 팀들을 맡은 그룹으로 붙인다.
