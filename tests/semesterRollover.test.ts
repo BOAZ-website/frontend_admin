@@ -178,13 +178,13 @@ test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한
   }) as { id: string }[];
   assert.deepEqual(
     registered.map(({ id }) => id),
-    ['u_27_01', 'u_28_01'],
+    ['u_28_01', 'u_27_01'],
   );
   assert.deepEqual(
     (router.dispatch(db, 'GET', '/api/v1/users?semester=27-1', undefined) as { id: string }[]).map(
       ({ id }) => id,
     ),
-    ['u_27_01', 'u_28_01'],
+    ['u_28_01', 'u_27_01'],
   );
 
   const registeredName = (

@@ -31,5 +31,6 @@ yarn-error.log*
 .serena/
 
 # local docs
-/docs
+CLAUDE.local.md
+/docs/personal_ms/
 /references

@@ -1,226 +1,170 @@
-import { useState } from 'react';
-import { LogIn, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 
-import type { HostAccount } from '@/entities/host-account/model/types';
-import type { StudyTeamInfo } from '@/entities/study-team/model/types';
-import type { UserRole } from '@/entities/user/model/types';
+import { login } from '@/entities/auth/api/authApi';
+import type { AuthSession } from '@/entities/auth/model/types';
+import { MODAL_PRIMARY_BTN } from '@/shared/ui/modalStyles';
 
-export function LoginModal({
-  onClose,
-  onLoginSuccess,
-  hosts,
-  studyTeams,
-  advTeams,
-}: {
+interface LoginModalProps {
   onClose: () => void;
-  onLoginSuccess: (role: UserRole, hostTeam?: string, username?: string) => void;
-  hosts: HostAccount[];
-  studyTeams: StudyTeamInfo[];
-  advTeams: StudyTeamInfo[];
-}) {
+  /** 로그인에 성공하면 서버가 돌려준 세션을 그대로 넘긴다. 역할 대응은 부르는 쪽(App)이 한다. */
+  onLoginSuccess: (session: AuthSession) => void;
+}
+
+/**
+ * 임시 DB 시드(db/seed.sql)에 들어 있는 예시 계정. 누르면 입력칸을 채운다(로그인은 서버가 판정한다).
+ * 시드 값이 바뀌면 함께 바꾼다. 개발 모드(npm run dev)에서만 두고, 배포 빌드에서는 빈 목록이라 화면에도 코드에도 남지 않는다.
+ */
+const EXAMPLE_ACCOUNTS: readonly { label: string; username: string; password: string }[] =
+  import.meta.env.DEV
+    ? [
+        { label: '서비스운영팀장', username: 'boaz_master', password: 'Boaz!2026' },
+        { label: '대표진', username: 'boaz_president_1', password: 'Boaz!2026' },
+        { label: '운영지원팀', username: 'boaz_ops_1', password: 'Boaz!2026' },
+        { label: '서비스운영팀', username: 'boaz_service_1', password: 'Boaz!2026' },
+        { label: '스터디장(HOST)', username: 'host_a', password: 'boaz2026!a' },
+        { label: 'ADV 팀장(HOST)', username: 'host_adv_ana1', password: 'boaz2026!adv1' },
+      ]
+    : [];
+
+const FIELD_LABEL = 'mb-1 block text-xs font-semibold text-slate-600';
+const FIELD_INPUT =
+  'h-9 w-full rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400';
+const CLOSE_BTN =
+  'rounded-sm p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer';
+
+/**
+ * 콘솔 로그인 창. 아이디·비밀번호를 로그인 API(POST /api/v1/auth/login)로 보내고, 성공하면 세션을 넘긴다.
+ * 운영진 계정과 HOST 계정 판정은 서버가 한다. 실패하면 서버가 돌려준 사유를 보인다.
+ * Escape나 바깥을 누르면 닫는다.
+ */
+export function LoginModal({ onClose, onLoginSuccess }: LoginModalProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [selectedQuickHostTeam, setSelectedQuickHostTeam] = useState(studyTeams[0]?.id ?? '');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const usernameRef = useRef<HTMLInputElement>(null);
 
-  function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setErrorMsg('');
+  useEffect(() => {
+    usernameRef.current?.focus();
+  }, []);
 
-    const u = username.trim();
-    const p = password.trim();
-
-    if (!u || !p) {
-      setErrorMsg('아이디와 비밀번호를 모두 입력해 주세요.');
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || !password) {
+      setErrorMessage('아이디와 비밀번호를 모두 입력해 주세요.');
       return;
     }
-
-    // 0. 최고 관리자 (SUPER)
-    if (u === 'super' && (p === 'super1234' || p === '1234')) {
-      onLoginSuccess('SUPER', undefined, 'super');
+    setErrorMessage('');
+    setIsSubmitting(true);
+    try {
+      const session = await login({ username: trimmedUsername, password });
+      onLoginSuccess(session);
       onClose();
-      return;
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '로그인하지 못했습니다.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // 1. 운영지원팀 마스터 계정 (TEAM)
-    if (u === 'admin' && (p === 'admin1234' || p === '1234')) {
-      onLoginSuccess('TEAM', undefined, 'admin');
-      onClose();
-      return;
-    }
-
-    // 2. 서비스운영팀(콘텐츠) 계정
-    if (u === 'content' && (p === 'content1234' || p === '1234')) {
-      onLoginSuccess('CONTENT_ADMIN', undefined, 'content');
-      onClose();
-      return;
-    }
-
-    // 3. HOST (스터디장) 발급 계정 대조
-    const foundHost = hosts.find(
-      (h) => h.username === u && (h.initialPassword === p || p === 'boaz2026!a' || p === '1234'),
-    );
-    if (foundHost) {
-      if (!foundHost.active) {
-        setErrorMsg('해당 HOST 계정은 현재 회수(잠금) 상태입니다. 운영지원팀에 문의하세요.');
-        return;
-      }
-      onLoginSuccess('HOST', foundHost.teamId ?? foundHost.team, foundHost.username);
-      onClose();
-      return;
-    }
-
-    // 4. ADV 팀장 계정 테스트 지원 (host_adv1, adv1 등)
-    if (
-      (u === 'host_adv' || u === 'host_adv1' || u === 'adv1') &&
-      (p === 'boaz2026!a' || p === '1234')
-    ) {
-      onLoginSuccess('HOST', '분석 1팀', u);
-      onClose();
-      return;
-    }
-
-    setErrorMsg('아이디 또는 비밀번호가 일치하지 않습니다. (아래 퀵 로그인 버튼을 이용해 보세요)');
-  }
-
-  const currentSelectedHost = hosts.find((h) => h.teamId === selectedQuickHostTeam);
-  const selectedTeam = [...studyTeams, ...advTeams].find(
-    (team) => team.id === selectedQuickHostTeam,
-  );
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-70 flex items-center justify-center p-4 backdrop-blur-xs">
-      <div className="w-full max-w-md rounded-2xl overflow-hidden p-6 space-y-5 bg-white border border-slate-200 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <LogIn size={18} className="text-blue-600" />
-            <h3 className="text-sm font-bold text-slate-900">BOAZ 콘솔 로그인</h3>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 cursor-pointer">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="login-title"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose();
+      }}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-70 flex items-center justify-center bg-slate-900/40 p-4"
+    >
+      <div className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-lg">
+        <div className="flex items-center justify-between">
+          <h3 id="login-title" className="text-base font-bold text-slate-900">
+            로그인
+          </h3>
+          <button type="button" onClick={onClose} aria-label="창 닫기" className={CLOSE_BTN}>
             <X size={16} />
           </button>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
+        <form onSubmit={(event) => void handleLogin(event)} className="space-y-4">
           <div>
-            <label className="text-slate-700 block mb-1 font-semibold">로그인 아이디 (ID)</label>
+            <label htmlFor="login-username" className={FIELD_LABEL}>
+              아이디
+            </label>
             <input
+              id="login-username"
+              ref={usernameRef}
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="예: super, admin, host_a"
-              className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 font-mono"
+              onChange={(event) => setUsername(event.target.value)}
+              autoComplete="username"
+              spellCheck={false}
+              className={FIELD_INPUT}
             />
           </div>
-
           <div>
-            <label className="text-slate-700 block mb-1 font-semibold">비밀번호 (Password)</label>
+            <label htmlFor="login-password" className={FIELD_LABEL}>
+              비밀번호
+            </label>
             <input
+              id="login-password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호를 입력하세요"
-              className="w-full px-3 py-2 rounded-xl outline-none bg-slate-50 border border-slate-200 text-slate-900 font-mono"
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              className={FIELD_INPUT}
             />
           </div>
 
-          {errorMsg && (
-            <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-600">
-              {errorMsg}
-            </div>
+          {errorMessage && (
+            <p
+              role="alert"
+              className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600"
+            >
+              {errorMessage}
+            </p>
           )}
 
           <button
             type="submit"
-            className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all cursor-pointer shadow-xs"
+            disabled={isSubmitting}
+            className={`h-9 w-full cursor-pointer rounded-sm text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${MODAL_PRIMARY_BTN}`}
           >
-            로그인
+            {isSubmitting ? '로그인 중' : '로그인'}
           </button>
         </form>
 
-        <div className="pt-3 border-t border-slate-100 space-y-2">
-          <p className="text-[11px] text-slate-500 font-semibold">빠른 역할 전환 테스트 계정</p>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
-            <button
-              onClick={() => {
-                onLoginSuccess('SUPER', undefined, 'super');
-                onClose();
-              }}
-              className="p-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-left cursor-pointer transition-colors"
-            >
-              <p className="font-bold">차기대표진 (SUPER)</p>
-              <p className="text-[10px] text-purple-600 font-mono">전 부문 권한 · 승격 전권</p>
-            </button>
-            <button
-              onClick={() => {
-                onLoginSuccess('TEAM', undefined, 'admin');
-                onClose();
-              }}
-              className="p-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-left cursor-pointer transition-colors"
-            >
-              <p className="font-bold">운영지원팀 (출결)</p>
-              <p className="text-[10px] text-blue-600 font-mono">admin / admin1234</p>
-            </button>
-            <button
-              onClick={() => {
-                const targetTeam = selectedQuickHostTeam;
-                const h = hosts.find((item) => item.teamId === targetTeam);
-                if (!h?.active) {
-                  setErrorMsg('선택한 팀의 활성 HOST 계정이 없습니다.');
-                  return;
-                }
-                const isAdvTarget = advTeams.some((team) => team.id === targetTeam);
-                onLoginSuccess(
-                  'HOST',
-                  targetTeam,
-                  h?.username || (isAdvTarget ? 'host_adv1' : `host_${targetTeam.toLowerCase()}`),
-                );
-                onClose();
-              }}
-              className="p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-left cursor-pointer transition-colors"
-            >
-              <div className="flex items-center justify-between gap-1">
-                <p className="font-bold truncate">{selectedTeam?.teamName ?? '팀 선택'} 팀장</p>
-                <select
-                  value={selectedQuickHostTeam}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    setSelectedQuickHostTeam(e.target.value);
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[10px] bg-white border border-emerald-300 rounded px-1 py-0.5 font-sans shrink-0"
-                >
-                  <optgroup label="스터디 팀">
-                    {studyTeams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.teamName}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="ADV 프로젝트 팀">
-                    {advTeams.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.teamName}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-              <p className="text-[10px] text-emerald-600 font-mono">
-                {currentSelectedHost?.username || '계정 미발급'} (HOST)
-              </p>
-            </button>
-            <button
-              onClick={() => {
-                onLoginSuccess('CONTENT_ADMIN', undefined, 'content');
-                onClose();
-              }}
-              className="p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-left cursor-pointer transition-colors"
-            >
-              <p className="font-bold">서비스운영팀 (콘텐츠)</p>
-              <p className="text-[10px] text-amber-600 font-mono">content / content1234</p>
-            </button>
+        {/* 임시 DB의 예시 계정(개발 모드에서만). 누르면 입력칸을 채운다. */}
+        {EXAMPLE_ACCOUNTS.length > 0 && (
+          <div className="space-y-2 border-t border-slate-200 pt-4">
+            <p className="text-xs font-semibold text-slate-600">예시 계정</p>
+            <ul className="divide-y divide-slate-100 text-xs">
+              {EXAMPLE_ACCOUNTS.map((account) => (
+                <li key={account.username}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsername(account.username);
+                      setPassword(account.password);
+                      setErrorMessage('');
+                    }}
+                    className="flex w-full cursor-pointer items-center justify-between gap-4 py-2 text-left transition-colors hover:text-slate-900"
+                  >
+                    <span className="text-slate-500">{account.label}</span>
+                    <span className="text-slate-800">
+                      {account.username} / {account.password}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
