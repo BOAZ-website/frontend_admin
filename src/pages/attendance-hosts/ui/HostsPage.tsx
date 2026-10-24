@@ -13,6 +13,7 @@ import {
 } from '@/pages/attendance-hosts/model/accountLookup';
 import { resolveConfiguredTeam } from '@/pages/attendance-hosts/model/teamSelection';
 import { useHostsPageData } from '@/pages/attendance-hosts/model/useHostsPageData';
+import { buildAccountDelivery } from '@/shared/config/accountDeliveryMessages';
 import { alertApiError } from '@/shared/lib/alertApiError';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
@@ -288,13 +289,11 @@ export function HostsPage({
       await resetPassword(passwordResetTarget.id, newPassword);
       setDeliveryModal({
         host: { ...passwordResetTarget, initialPassword: newPassword },
-        title: `${passwordResetTarget.hostName || passwordResetTarget.username} 비밀번호 재설정`,
-        text: `[BOAZ 그룹리더 계정 비밀번호 재설정 안내]
-
-• 로그인 아이디: ${passwordResetTarget.username}
-• 새 비밀번호: ${newPassword}
-
-로그인 후 새 비밀번호로 접속해 주세요.`,
+        ...buildAccountDelivery('hostPasswordReset', {
+          name: owner,
+          username: passwordResetTarget.username,
+          password: newPassword,
+        }),
       });
       setPasswordResetTarget(null);
       setNewPassword('');
@@ -386,33 +385,6 @@ export function HostsPage({
     setFormPassword('');
   };
 
-  // 전달문 텍스트 생성 헬퍼 (역할: 그룹리더 반영, 기수/부문 포함)
-  const buildDeliveryText = (
-    groupType: string,
-    teamName: string,
-    hostName: string,
-    generation: string,
-    track: string,
-    username: string,
-    pw: string,
-  ) => {
-    return `[BOAZ 그룹리더 HOST 전용 계정 안내]
-
-안녕하세요, ${hostName}님!
-BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정이 발급되었습니다.
-
-• 역할(Role): HOST (그룹리더)
-• 담당 구분: [${groupType}] ${teamName}
-• 로그인 아이디: ${username}
-• 초기 비밀번호: ${pw}
-• 접속 URL: https://attendance.boaz.org/host
-
-[안내 사항]
-• 로그인 후 배정된 팀의 출결 입력과 제출을 진행해 주시기 바랍니다.
-• 최초 접속 후 본인 계정 정보 및 비밀번호를 안전하게 변경해 주시기 바랍니다.
-• 겸직 중인 다른 그룹(ADV/스터디)이 있으신 경우 본 단일 계정으로 통합 관리됩니다.`;
-  };
-
   const handleAddPermission = async () => {
     if (accountLookup.status !== 'found' || isAccountReady) return;
 
@@ -443,19 +415,15 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
     const teamTitle = configuredTeams.find((team) => team.id === formTeamId)?.title ?? finalTeam;
     setDeliveryModal({
       host: updatedAccount,
-      title: `${formGeneration} ${formTrack} ${leaderName} ${targetPermissionLabel} 권한 추가`,
-      text: `[BOAZ 그룹리더 계정 권한 추가 안내]
-
-안녕하세요, ${leaderName}님!
-지금 쓰고 계신 계정에 ${targetPermissionLabel} 출결 접근 권한을 추가해 두었습니다.
-새 계정을 따로 만들 필요 없이, 이전에 받으신 아이디와 비밀번호로 그대로 로그인하시면 됩니다.
-
-• 담당 팀: [${targetPermissionLabel}] ${teamTitle}
-• 로그인 아이디: ${existingAccount.username}
-• 비밀번호: 이전에 받으신 비밀번호 그대로
-• 접속 URL: https://attendance.boaz.org/host
-
-로그인한 뒤 ${targetPermissionLabel === 'ADV' ? 'ADV Term 출결 입력' : '스터디 출결 입력'} 메뉴에서 담당 팀의 출결을 입력해 주세요.`,
+      ...buildAccountDelivery('hostPermissionAdd', {
+        name: leaderName,
+        generation: formGeneration,
+        track: formTrack,
+        permission: targetPermissionLabel,
+        teamName: teamTitle,
+        username: existingAccount.username,
+        menuName: targetPermissionLabel === 'ADV' ? 'ADV Term 출결 입력' : '스터디 출결 입력',
+      }),
     });
     setShowIssueCard(false);
   };
@@ -513,20 +481,17 @@ BOAZ ${generation} [${track}] 출결 관리를 위한 그룹리더(HOST) 계정�
       return;
     }
 
-    const delivery = buildDeliveryText(
-      finalType,
-      finalTeam,
-      leaderClean,
-      formGeneration.trim() || '27기',
-      formTrack.trim() || '분석',
-      username,
-      password,
-    );
-
     setDeliveryModal({
       host: newHostAccount,
-      title: `${formGeneration} ${formTrack} ${leaderClean}`,
-      text: delivery,
+      ...buildAccountDelivery('hostIssue', {
+        name: leaderClean,
+        generation: formGeneration.trim() || '27기',
+        track: formTrack.trim() || '분석',
+        groupType: finalType,
+        teamName: finalTeam,
+        username,
+        password,
+      }),
     });
 
     setShowIssueCard(false);
