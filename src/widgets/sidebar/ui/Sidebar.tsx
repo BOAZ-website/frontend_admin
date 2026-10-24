@@ -283,7 +283,6 @@ export function Sidebar({
     <aside
       style={{
         width: `${sidebarWidth}px`,
-        fontFamily: "'Pretendard', 'Noto Sans KR', -apple-system, sans-serif",
       }}
       className={`relative shrink-0 h-full flex flex-col bg-white border-r border-slate-200/40 shadow-[0_0_15px_rgba(0,0,0,0.02)] select-none z-20 transition-[width] ${
         isResizing ? 'transition-none' : 'duration-75'

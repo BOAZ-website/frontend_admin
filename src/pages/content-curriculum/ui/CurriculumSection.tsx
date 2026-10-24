@@ -418,10 +418,7 @@ export function CurriculumSection() {
   }, [dirtyTracks]);
 
   return (
-    <div
-      className="space-y-5"
-      style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}
-    >
+    <div className="space-y-5">
       {/* ─── Top Track Selector & Save Button ─── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
