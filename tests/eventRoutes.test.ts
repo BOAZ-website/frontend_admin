@@ -100,14 +100,14 @@ test('기타 행사의 출결 값이 {code, label} 배열이 아니면 400', asy
 
 test('행사 기수 목록은 행사 DB의 참가자 기수를 중복 없이 큰 기수부터 돌려준다', async () => {
   const { db, router } = await setup();
-  // 컨퍼런스 예시: 28·27기(현재 활동기수 시트) + 26기(활동기수 외 회원) + 외부 참석자(기수 없음)
+  // 컨퍼런스 예시: 27기(현재 활동기수 시트) + 26기 + 외부 참석자(기수 없음)
   assert.deepEqual(
     router.dispatch(db, 'GET', '/api/v1/events/evt_ex_conference/terms', undefined),
-    [28, 27, 26],
+    [27, 26],
   );
   assert.deepEqual(
     router.dispatch(db, 'GET', '/api/v1/events/evt_ex_newcomer/terms', undefined),
-    [28],
+    [27],
   );
   // 회원 DB에 없는 이전 기수도 행사 DB에 있으면 목록에 들어간다.
   router.dispatch(db, 'PUT', '/api/v1/events/evt_ex_newcomer/attendees', [
@@ -154,7 +154,7 @@ test('참가자 부분 저장은 그 사람의 보낸 칸만 바꾸고 다른 �
   assert.equal(list.find((a) => a.id === 'att_ex_nc1')?.status, 'present');
   const second = list.find((a) => a.id === 'att_ex_nc2');
   assert.equal(second?.customAnswers?.['뒤풀이 비용'], 'O');
-  assert.equal(second?.customAnswers?.['기수'], '28기');
+  assert.equal(second?.customAnswers?.['기수'], '27기');
 });
 
 test('참가자 부분 저장은 바꿀 수 없는 칸·잘못된 값·없는 참가자를 거절한다', async () => {

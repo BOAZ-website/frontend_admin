@@ -1,6 +1,6 @@
 /**
  * 회원(users) API. 반기 출결 명단 기준의 회원 검색·이름 검증(팀원·팀장 선택)과
- * users 테이블의 기수 목록(동아리원 관리의 기수 필터)을 내려준다.
+ * users 테이블의 기수 목록(동아리원 명단의 기수 필터)을 내려준다.
  */
 import { listSemesterUsers, listUserTerms } from '@/entities/user/api/usersRepository';
 
@@ -45,7 +45,7 @@ export const userRoutes: MockRoute[] = [
     method: 'GET',
     pattern: '/api/v1/users/terms',
     summary:
-      '회원(users)에 있는 기수 목록(중복 없이 큰 기수부터). 동아리원 관리의 기수 필터 선택지로 쓴다',
+      '회원(users)에 있는 기수 목록(중복 없이 큰 기수부터). 동아리원 명단의 기수 필터 선택지로 쓴다',
     handler: ({ db }) => listUserTerms(db),
   },
 ];

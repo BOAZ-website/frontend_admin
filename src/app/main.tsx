@@ -1,11 +1,13 @@
 import { Component } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ErrorInfo, ReactNode } from 'react';
-import { AlertCircle, RotateCcw } from 'lucide-react';
 
 import App from './App.tsx';
 
 import './styles/index.css';
+
+/** 오류로 새로고침한 직후인지 표시하는 키. 새로고침해도 같은 오류가 나면 다시 새로고침하지 않는다. */
+const ERROR_RELOAD_KEY = 'boaz_error_reloaded';
 
 interface Props {
   children?: ReactNode;
@@ -13,87 +15,54 @@ interface Props {
 
 interface State {
   hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
 }
 
+/** 화면에서 처리하지 못한 오류를 브라우저 기본 알림창으로 알리고 새로고침한다. */
 class GlobalErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null,
-    errorInfo: null,
-  };
+  public state: State = { hasError: false };
 
-  public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null };
+  public static getDerivedStateFromError(): State {
+    return { hasError: true };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught React Error:', error, errorInfo);
-    this.setState({ errorInfo });
+    window.alert('오류가 발생했습니다.\n문제가 계속되면 서비스운영팀에 문의해 주세요.');
+    void this.resetAndReload();
+  }
+
+  /** 화면 상태를 저장한 값과 캐시를 지우고 새로고침한다. 방금 이렇게 새로고침했으면 다시 하지 않는다. */
+  private async resetAndReload() {
+    try {
+      if (sessionStorage.getItem(ERROR_RELOAD_KEY)) return;
+      sessionStorage.setItem(ERROR_RELOAD_KEY, '1');
+      localStorage.removeItem('boaz_sidebar_open_v2');
+      localStorage.removeItem('boaz_sidebar_open');
+      localStorage.removeItem('boaz_sidebar_expanded_sections');
+      localStorage.removeItem('boaz_active_page');
+      if ('caches' in window) {
+        const cacheNames = await window.caches.keys();
+        await Promise.all(cacheNames.map((cacheName) => window.caches.delete(cacheName)));
+      }
+    } catch {
+      // 저장소를 쓸 수 없어도 새로고침은 한다.
+    }
+    window.location.reload();
   }
 
   public render() {
-    if (this.state.hasError) {
-      return (
-        <div
-          className="min-h-screen bg-slate-50 flex items-center justify-center p-6 select-none"
-          style={{
-            fontFamily:
-              "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-          }}
-        >
-          <div className="max-w-sm w-full bg-white rounded-2xl p-7 border border-slate-200/80 shadow-[0_12px_36px_rgba(0,0,0,0.04)] text-center space-y-5 animate-in fade-in zoom-in-95 duration-200">
-            {/* Soft Pastel Badge Icon */}
-            <div className="w-12 h-12 rounded-2xl bg-rose-50/80 border border-rose-100/80 flex items-center justify-center text-rose-400 mx-auto shadow-2xs">
-              <AlertCircle size={22} strokeWidth={1.8} />
-            </div>
-
-            {/* Title & Description */}
-            <div className="space-y-1.5">
-              <h2 className="text-base font-bold text-slate-800 tracking-tight">
-                일시적인 오류가 발생했습니다
-              </h2>
-              <p className="text-xs text-slate-500 font-normal leading-relaxed">
-                여기서 문제가 지속될 경우 서비스운영팀에 문의해주세요.
-              </p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="space-y-2 pt-1">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    localStorage.removeItem('boaz_sidebar_open_v2');
-                    localStorage.removeItem('boaz_sidebar_open');
-                    localStorage.removeItem('boaz_sidebar_expanded_sections');
-                    localStorage.removeItem('boaz_active_page');
-                    await Promise.all(
-                      'caches' in window
-                        ? (await window.caches.keys()).map((cacheName) =>
-                            window.caches.delete(cacheName),
-                          )
-                        : [],
-                    );
-                  } finally {
-                    window.location.reload();
-                  }
-                }}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-sky-500 hover:bg-sky-600 active:scale-[0.99] transition-all cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
-              >
-                <RotateCcw size={13} />
-                <span>페이지 새로고침</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
+    return this.state.hasError ? null : this.props.children;
   }
 }
+
+// 오류 없이 화면을 그렸으면 다음 오류 때 다시 새로고침할 수 있게 표시를 지운다.
+window.setTimeout(() => {
+  try {
+    sessionStorage.removeItem(ERROR_RELOAD_KEY);
+  } catch {
+    // 저장소를 쓸 수 없으면 표시도 남지 않는다.
+  }
+}, 5000);
 
 createRoot(document.getElementById('root')!).render(
   <GlobalErrorBoundary>

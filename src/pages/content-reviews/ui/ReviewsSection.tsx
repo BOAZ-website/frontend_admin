@@ -122,10 +122,7 @@ export function ReviewsSection() {
   }
 
   return (
-    <div
-      className="space-y-4"
-      style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}
-    >
+    <div className="space-y-4">
       {/* ─── Top Filter Bar ─── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5 flex-1 min-w-[320px]">
