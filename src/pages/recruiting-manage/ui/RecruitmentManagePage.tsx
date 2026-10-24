@@ -811,7 +811,7 @@ export function RecruitmentManagePage({
                 onClick={() => handleTabClick(tab.id as any)}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                   isActive
-                    ? 'bg-white text-slate-950 shadow-xs font-bold'
+                    ? 'bg-white text-slate-950 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/40'
                 }`}
               >

@@ -563,7 +563,6 @@ export default function App() {
           {/* 1. Recruiting Management */}
           {isRecruiting && (
             <RecruitmentManagePage
-              key={activePage}
               initialTab={
                 activePage === 'recruiting-questions'
                   ? 'questions'
