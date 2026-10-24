@@ -58,8 +58,8 @@ CREATE TABLE users (
   birth_date TEXT,
   graduation_date TEXT CHECK (graduation_date IS NULL OR graduation_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
   grad_school_plan INTEGER NOT NULL DEFAULT 0 CHECK (grad_school_plan IN (0, 1)),
-  -- 동아리원 관리 화면에서 고치는 값: 활동 상태(활동 중·수료·비활동), 동아리 역할
-  club_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (club_status IN ('ACTIVE', 'ALUMNI', 'INACTIVE')),
+  -- 동아리원 관리 화면에서 고치는 값: 활동 상태(ACTIVE 활동기수, ALUMNI 수료, WITHDRAWN 탈퇴), 동아리 역할
+  club_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (club_status IN ('ACTIVE', 'ALUMNI', 'WITHDRAWN')),
   club_role   TEXT NOT NULL DEFAULT 'MEMBER' CHECK (club_role IN ('MEMBER', 'OPERATOR', 'PRESIDENT')),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -302,3 +302,77 @@ CREATE TABLE host_concurrent_roles (
   role     TEXT    NOT NULL,
   PRIMARY KEY (host_id, position)
 );
+
+-- ─────────────────────────── 운영진 계정·권한 ───────────────────────────
+-- 운영진(관리자) 계정. HOST 계정은 위 host_accounts가 따로 맡는다.
+-- 운영진은 모두 회원(users)이다. 계정은 user_id로 회원 한 명을 가리키고, 이름·기수·부문은 users에서 읽는다
+-- (계정에 따로 저장하지 않아 동아리원 관리에서 고친 값이 그대로 반영된다).
+-- 권한은 (role, team_name) 조합의 기본 권한 세트(코드) + 계정별 예외(admin_permission_override)
+-- + 맡은 그룹에서 계산되는 권한(admin_group_leader)으로 정해진다. docs/spec/06-system.md §3.
+CREATE TABLE admin (
+  id         INTEGER PRIMARY KEY,
+  user_id    TEXT    NOT NULL UNIQUE REFERENCES users (id) ON DELETE RESTRICT, -- 계정 주인(회원). 회원 한 명에 계정 하나, 계정이 있는 회원은 지울 수 없다
+  username   TEXT    NOT NULL UNIQUE,                      -- 로그인 아이디. 운영진이면 반드시 계정이 있다(운영진 지정 때 함께 만든다)
+  password   TEXT    NOT NULL,                             -- 임시 DB 전용 평문(실제 서버는 해시)
+  role       TEXT    NOT NULL CHECK (role IN ('MASTER', 'SUPER', 'TEAM')),
+  team_name  TEXT    NOT NULL,                             -- 운영진의 자리(대표진·서비스운영팀 등). 새 팀이 생길 수 있어 값을 제한하지 않는다
+  is_team_lead INTEGER NOT NULL DEFAULT 0 CHECK (is_team_lead IN (0, 1)), -- 그 팀의 팀장인지. 대표진은 쓰지 않는다. 권한과는 관계없다
+  created_by INTEGER REFERENCES admin (id) ON DELETE SET NULL,
+  created_at TEXT    NOT NULL,
+  updated_at TEXT    NOT NULL
+);
+
+-- 계정별 권한 예외. 기본 권한 세트 대비 더한 것(GRANT)·뺀 것(REVOKE)만 저장한다.
+-- 권한 하나에 행이 최대 하나라 같은 권한에 GRANT와 REVOKE가 함께 걸리지 않는다.
+CREATE TABLE admin_permission_override (
+  id         INTEGER PRIMARY KEY,
+  admin_id   INTEGER NOT NULL REFERENCES admin (id) ON DELETE CASCADE,
+  permission TEXT    NOT NULL,
+  effect     TEXT    NOT NULL CHECK (effect IN ('GRANT', 'REVOKE')),
+  granted_by INTEGER NOT NULL,
+  created_at TEXT    NOT NULL,
+  UNIQUE (admin_id, permission)
+);
+
+-- 운영진이 맡은 그룹(ADV 팀·스터디). 백엔드의 activity_group 자리를 teams가 대신한다.
+-- 맡은 그룹의 종류(ADV·STUDY)에 따라 출결 입력 권한(_OWN_GROUP_)이 매 요청 계산된다.
+-- 행은 직접 넣지 않는다. 팀장(teams.leader_id)이 바뀌거나 팀장인 회원에게 계정이 생기면 아래 트리거가 맞춘다.
+CREATE TABLE admin_group_leader (
+  id       INTEGER PRIMARY KEY,
+  admin_id INTEGER NOT NULL REFERENCES admin (id) ON DELETE CASCADE,
+  group_id TEXT    NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
+  UNIQUE (group_id)                                        -- 그룹당 리더 1명
+);
+
+-- 이번 반기 팀을 만들거나 팀장을 바꾸면 그 팀의 리더 계정을 새 팀장의 운영진 계정으로 바꾼다(계정이 없으면 비운다).
+-- 지난 반기·다음 반기 팀은 맡은 그룹으로 붙이지 않는다(운영진 계정이 생길 때 붙이는 트리거와 같은 기준).
+CREATE TRIGGER trg_admin_group_leader_on_team_insert
+AFTER INSERT ON teams
+WHEN NEW.group_type IN ('ADV', 'STUDY')
+ AND NEW.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)
+BEGIN
+  INSERT INTO admin_group_leader (admin_id, group_id)
+  SELECT a.id, NEW.id FROM admin a WHERE a.user_id = NEW.leader_id;
+END;
+
+CREATE TRIGGER trg_admin_group_leader_on_leader_change
+AFTER UPDATE OF leader_id ON teams
+WHEN NEW.group_type IN ('ADV', 'STUDY') AND NEW.leader_id IS NOT OLD.leader_id
+BEGIN
+  DELETE FROM admin_group_leader WHERE group_id = NEW.id;
+  INSERT INTO admin_group_leader (admin_id, group_id)
+  SELECT a.id, NEW.id FROM admin a
+   WHERE a.user_id = NEW.leader_id
+     AND NEW.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1);
+END;
+
+-- 이번 반기 팀의 팀장인 회원에게 운영진 계정이 생기면 그 팀들을 맡은 그룹으로 붙인다.
+CREATE TRIGGER trg_admin_group_leader_on_admin_insert
+AFTER INSERT ON admin
+BEGIN
+  INSERT INTO admin_group_leader (admin_id, group_id)
+  SELECT NEW.id, t.id FROM teams t
+   WHERE t.leader_id = NEW.user_id
+     AND t.group_type IN ('ADV', 'STUDY')
+     AND t.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1);
+END;
