@@ -43,9 +43,11 @@ import {
   type AdminRole,
   type PermissionCatalog,
 } from '@/entities/admin-account/model/types';
+import type { AuthSession } from '@/entities/auth/model/types';
 
 import { notFound } from '../queries';
 import { ApiError, type MockRoute } from '../router';
+import { currentSession, setSession } from '../session';
 import {
   type Body,
   oneOf,
@@ -54,6 +56,7 @@ import {
   requiredString,
   stringArray,
 } from '../validate';
+import { restoreByUsername } from './authRoutes';
 
 const badRequest = (code: string, message: string) => new ApiError(400, code, message);
 const conflict = (code: string, message: string) => new ApiError(409, code, message);
@@ -62,11 +65,16 @@ const conflict = (code: string, message: string) => new ApiError(409, code, mess
 
 // ─── 로그인 흉내(임시 API 전용) ───
 /** DB마다 로그인한 계정 id. 새로고침하면 DB와 함께 첫 서비스운영팀장 계정으로 돌아간다. */
-const sessions = new WeakMap<Database, number>();
-const DEFAULT_ACTOR_ID = 1;
-
+/**
+ * 지금 로그인한 운영진 계정. 세션의 계정이 지워졌으면 첫 계정으로 본다.
+ * HOST 세션은 운영진 계정 API를 쓸 수 없어 403이다(내 계정 정보 /me 포함).
+ */
 function actorOf(db: Database): AdminRow {
-  const actor = findAdminRow(db, sessions.get(db) ?? DEFAULT_ACTOR_ID) ?? listAdminRows(db)[0];
+  const session = currentSession(db);
+  if (session.kind === 'HOST') {
+    throw new ApiError(403, 'FORBIDDEN', 'HOST 계정으로는 운영진 계정 기능을 쓸 수 없습니다.');
+  }
+  const actor = findAdminRow(db, session.adminId) ?? listAdminRows(db)[0];
   if (!actor) throw new ApiError(401, 'UNAUTHORIZED', '로그인한 계정이 없습니다.');
   return actor;
 }
@@ -458,14 +466,16 @@ export const adminAccountRoutes: MockRoute[] = [
     method: 'PUT',
     pattern: '/api/v1/mock/admin-session',
     summary:
-      '[임시 API 전용] 고른 계정으로 로그인한 것처럼 바꾼다. 권한별 동작을 확인하는 테스트에서 쓴다',
-    handler: ({ db, body }): AdminAccount => {
-      const accountId = readBody(body).accountId;
-      if (typeof accountId !== 'number') {
-        throw badRequest('BAD_REQUEST', 'accountId 값은 정수여야 합니다.');
+      '[임시 API 전용] 세션을 바꾼다. { username }이면 그 계정(운영진·HOST)으로 세션을 되살려 AuthSession을, { accountId }면 그 운영진 계정으로 바꿔 계정 정보를 돌려준다. 새로고침 뒤 세션 복원과 테스트에서 쓴다',
+    handler: ({ db, body }): AuthSession | AdminAccount => {
+      const data = readBody(body);
+      if (typeof data.username === 'string') return restoreByUsername(db, data.username.trim());
+      if (typeof data.accountId !== 'number') {
+        throw badRequest('BAD_REQUEST', 'username 또는 accountId(정수) 값이 필요합니다.');
       }
-      const row = findTarget(db, String(accountId));
-      sessions.set(db, row.id);
+      const row = findAdminRow(db, data.accountId);
+      if (!row) throw notFound('운영진 계정을 찾을 수 없습니다.');
+      setSession(db, { kind: 'ADMIN', adminId: row.id });
       return toAdminAccount(db, row);
     },
   },
