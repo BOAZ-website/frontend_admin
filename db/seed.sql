@@ -31,7 +31,7 @@ SELECT cohort, cohort FROM cohorts;
 
 -- ── users ──────────────────────────────────────────────
 INSERT INTO users (id, name, term, track) VALUES
-  ('u_26_01', '남민서', 26, '분석'),
+  ('u_26_01', '남민서', 26, '엔지니어링'),
   ('u_26_02', '박서연', 26, '분석'),
   ('u_26_03', '최지우', 26, '시각화'),
   ('u_26_04', '김도현', 26, '엔지니어링'),
@@ -1676,8 +1676,6 @@ INSERT INTO admin (id, user_id, username, password, role, team_name, created_by,
 -- 팀장: 팀마다 한 명. 서비스운영팀은 서비스운영팀장(1번)이다. 대표진에는 팀장을 두지 않는다.
 UPDATE admin SET is_team_lead = 1 WHERE id IN (1, 4, 6, 7, 14, 24);
 
--- 실제 명단에 맞춰 남민서의 부문을 고친다.
-UPDATE users SET track = '엔지니어링' WHERE id = 'u_26_01';
 
 -- 운영진 계정(admin 행)이 있는 회원은 동아리원 관리에서도 운영진 역할로 보이게 맞춘다.
 -- 역할은 admin 행이 있는지로만 정한다(admin 행 없이 OPERATOR인 회원을 두지 않는다). 대표(PRESIDENT)는 그대로 둔다.
