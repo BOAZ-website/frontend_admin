@@ -112,14 +112,14 @@ const SIDEBAR_NAV = [
   },
   {
     id: 'system',
-    label: '시스템·계정',
+    label: '시스템 및 계정',
     icon: Settings,
     permission: 'ACCOUNT_MANAGE',
     groups: [
       {
         title: '계정 및 권한',
         pages: [
-          { id: 'system-members', label: '동아리원 관리' },
+          { id: 'system-members', label: '동아리원 명단' },
           { id: 'system-accounts', label: '권한 관리' },
         ],
       },

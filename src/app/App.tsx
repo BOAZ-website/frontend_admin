@@ -25,6 +25,7 @@ import { useCurrentTeams } from '@/entities/study-team/model/useCurrentTeams';
 import { useHosts } from '@/entities/host-account/model/useHosts';
 import { changeAdminPassword, fetchMyAccount } from '@/entities/admin-account/api/adminAccountApi';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
+import { SERVICE_OPERATIONS_TEAM } from '@/entities/admin-account/model/teams';
 import { logout, restoreSession } from '@/entities/auth/api/authApi';
 import type { AuthSession } from '@/entities/auth/model/types';
 import type { SemesterAttendanceKind, SemesterDto } from '@/entities/cohort/model/dto';
@@ -78,7 +79,7 @@ const USERNAME_KEY = 'boaz_username';
 function userRoleOf(session: AuthSession): UserRole {
   if (session.role === 'HOST') return 'HOST';
   if (session.role === 'TEAM')
-    return session.teamName === '서비스운영팀' ? 'CONTENT_ADMIN' : 'TEAM';
+    return session.teamName === SERVICE_OPERATIONS_TEAM ? 'CONTENT_ADMIN' : 'TEAM';
   return 'SUPER';
 }
 

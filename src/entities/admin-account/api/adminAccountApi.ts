@@ -7,7 +7,6 @@ import { api } from '@/shared/api/client';
 import type {
   AdminPasswordRequest,
   OperatorAssignRequest,
-  OperatorTeamRequest,
   AdminPermissionsRequest,
 } from '../model/dto';
 import type { AccountHolder, AdminAccount, PermissionCatalog } from '../model/types';
@@ -25,16 +24,6 @@ export function fetchMyAccount(): Promise<AdminAccount> {
 
 export function fetchAdminAccounts(): Promise<AdminAccount[]> {
   return api.get('/api/v1/admin/accounts');
-}
-
-/**
- * 팀 운영진 일괄 지정. 동아리원 명단 화면을 바꾸기 전(#30)까지만 남겨 둔다.
- */
-export function setOperatorTeamMembers(
-  teamName: string,
-  request: OperatorTeamRequest,
-): Promise<AdminAccount[]> {
-  return api.put(`/api/v1/admin/operator-teams/${encodeURIComponent(teamName)}`, request);
 }
 
 /** 한 명의 운영진 팀을 정하거나(teamName), 운영진에서 뺀다(null). 새 운영진이면 아이디·초기 비밀번호를 함께 보낸다. */

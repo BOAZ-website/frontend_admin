@@ -1,18 +1,11 @@
 import { useEffect, useState } from 'react';
 
 import { fetchPermissionCatalog } from '@/entities/admin-account/api/adminAccountApi';
+import { compareTeamNames } from '@/entities/admin-account/model/teams';
 
-/** 운영진 팀 목록에서 맨 위에 이 순서로 두는 팀. 나머지는 가나다순이다. */
-const PINNED_TEAMS: readonly string[] = ['대표진', '차기대표진'];
-
-const rankOf = (teamName: string): number => {
-  const index = PINNED_TEAMS.indexOf(teamName);
-  return index === -1 ? PINNED_TEAMS.length : index;
-};
-
-/** 팀 이름을 화면 순서로 정렬한 새 배열. */
+/** 팀 이름을 화면 순서(대표진·차기대표진 고정 → 가나다순)로 정렬한 새 배열. 규칙은 entities의 teams.ts. */
 export const sortOperatorTeams = (teamNames: Iterable<string>): string[] =>
-  [...new Set(teamNames)].sort((a, b) => rankOf(a) - rankOf(b) || a.localeCompare(b, 'ko'));
+  [...new Set(teamNames)].sort(compareTeamNames);
 
 /**
  * 운영진으로 정할 수 있는 팀 목록. 권한 카탈로그 API(GET /api/v1/admin/permissions)의 팀 목록을 쓴다.
