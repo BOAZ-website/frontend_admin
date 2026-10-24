@@ -14,6 +14,7 @@ import { ReviewsSection } from '@/pages/content-reviews/ui/ReviewsSection';
 import { EvaluationManagePage } from '@/pages/recruiting-evaluation/ui/EvaluationManagePage';
 import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentManagePage';
 import { MemberManagementPage } from '@/pages/member-management/ui/MemberManagementPage';
+import { AuditLogPage } from '@/pages/system-audit/ui/AuditLogPage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
@@ -699,6 +700,28 @@ export default function App() {
 
           {/* 5. System Section */}
           {activePage === 'system-members' && <MemberManagementPage />}
+          {activePage === 'system-audit' && (
+            <AuditLogPage
+              onOpenMember={(userId) => {
+                // 동아리원 관리는 주소 '#system-members/member/<회원 id>'로 그 사람의 행을 찾아 보여 준다.
+                window.history.replaceState(
+                  null,
+                  '',
+                  `#system-members/member/${encodeURIComponent(userId)}`,
+                );
+                setActivePage('system-members');
+              }}
+              onOpenPermissions={(userId) => {
+                // 권한 관리 화면은 주소 '#system-accounts/<회원 id>'로 그 사람의 권한 편집 창을 연 채 시작한다.
+                window.history.replaceState(
+                  null,
+                  '',
+                  `#system-accounts/${encodeURIComponent(userId)}`,
+                );
+                setActivePage('system-accounts');
+              }}
+            />
+          )}
           {(activePage === 'system' || activePage === 'system-accounts') && <SystemAccountsPage />}
         </main>
       </div>
