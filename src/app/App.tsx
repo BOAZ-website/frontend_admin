@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronRight, KeyRound, PanelLeft, ShieldCheck, User, X } from 'lucide-react';
+import { ChevronRight, PanelLeft, User, X } from 'lucide-react';
 
 import { EventAttendanceContainer } from '@/pages/attendance-events/ui/EventAttendanceContainer';
 import { HostsPage } from '@/pages/attendance-hosts/ui/HostsPage';
@@ -23,6 +23,11 @@ import boazLogo from '@/shared/assets/boaz-logo.png';
 import { useAttendanceMeta } from '@/entities/attendance/model/useAttendanceMeta';
 import { useCurrentTeams } from '@/entities/study-team/model/useCurrentTeams';
 import { useHosts } from '@/entities/host-account/model/useHosts';
+import { changeAdminPassword, fetchMyAccount } from '@/entities/admin-account/api/adminAccountApi';
+import type { AdminAccount } from '@/entities/admin-account/model/types';
+import { SERVICE_OPERATIONS_TEAM } from '@/entities/admin-account/model/teams';
+import { logout, restoreSession } from '@/entities/auth/api/authApi';
+import type { AuthSession } from '@/entities/auth/model/types';
 import type { SemesterAttendanceKind, SemesterDto } from '@/entities/cohort/model/dto';
 import { createSemester, updateSemester } from '@/entities/cohort/api/semesterApi';
 import type { WeekInfo } from '@/entities/attendance/model/week';
@@ -40,9 +45,24 @@ const NO_SEMESTERS: SemesterDto[] = [];
 const NO_TRACKS: UserTrack[] = [];
 const NO_WEEKS: WeekInfo[] = [];
 
+/**
+ * 주소(#)의 화면 이름. '#system-accounts/u_26_08'처럼 '/' 뒤에 화면 안의 위치(고른 계정 등)를 붙일 수 있어,
+ * '/' 앞부분만 화면 이름으로 읽는다.
+ */
+const pageOfHash = (): string => window.location.hash.replace(/^#/, '').split('/')[0];
+
 function getInitialActivePage(): ActivePage {
   try {
-    const hash = window.location.hash.replace(/^#/, '');
+    const hash = pageOfHash();
+    // 권한 설정 화면은 권한 관리 화면의 권한 편집 창으로 합쳤다. 예전 주소는 같은 사람을 연 채 권한 관리로 옮긴다.
+    if (hash === 'system-permissions') {
+      window.history.replaceState(
+        null,
+        '',
+        window.location.hash.replace(/^#system-permissions/, '#system-accounts'),
+      );
+      return 'system-accounts';
+    }
     if (isActivePage(hash)) return hash;
     const saved = localStorage.getItem('boaz_active_page');
     if (saved && isActivePage(saved)) return saved;
@@ -50,6 +70,31 @@ function getInitialActivePage(): ActivePage {
     // ignore
   }
   return 'recruiting-posts';
+}
+
+/** 브라우저에 남기는 로그인 아이디(새로고침 뒤 세션을 되살리는 데만 쓴다). */
+const USERNAME_KEY = 'boaz_username';
+
+/** 로그인 세션의 등급을 화면 진입 역할로 바꾼다. 서비스운영팀 운영진은 콘텐츠 화면으로 들어간다. */
+function userRoleOf(session: AuthSession): UserRole {
+  if (session.role === 'HOST') return 'HOST';
+  if (session.role === 'TEAM')
+    return session.teamName === SERVICE_OPERATIONS_TEAM ? 'CONTENT_ADMIN' : 'TEAM';
+  return 'SUPER';
+}
+
+/** 저장한 아이디 없이 처음 열었을 때, 임시 API의 기본 세션(내 운영진 계정)을 로그인 세션 모양으로 바꾼다. */
+function sessionOfAccount(account: AdminAccount): AuthSession {
+  return {
+    kind: 'ADMIN',
+    name: account.name,
+    username: account.username ?? '',
+    role: account.role,
+    teamName: account.teamName,
+    accountId: account.id,
+    hostId: null,
+    hostTeamId: null,
+  };
 }
 
 export default function App() {
@@ -64,7 +109,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('boaz_active_page', activePage);
-      if (window.location.hash.replace(/^#/, '') !== activePage) {
+      if (pageOfHash() !== activePage) {
         window.history.replaceState(null, '', `#${activePage}`);
       }
     } catch {
@@ -74,7 +119,7 @@ export default function App() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace(/^#/, '');
+      const hash = pageOfHash();
       if (isActivePage(hash)) setActivePage(hash);
     };
     window.addEventListener('hashchange', handleHashChange);
@@ -212,49 +257,9 @@ export default function App() {
   // 로그인할 때 담당 팀을 찾는 데 쓰는 HOST 계정 목록(API). HOST 관리 화면은 자기 데이터를 따로 읽는다.
   const { hosts: hostRows, error: hostDbError, reload: reloadHosts } = useHosts();
   const hosts = hostRows ?? NO_HOSTS;
-  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
-    try {
-      const saved = localStorage.getItem('boaz_user_role');
-      if (saved && ['TEAM', 'HOST', 'CONTENT_ADMIN', 'SUPER'].includes(saved)) {
-        return saved as UserRole;
-      }
-    } catch {}
-    return 'SUPER';
-  });
-
-  const [loggedHostTeam, setLoggedHostTeam] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('boaz_host_team');
-      if (saved) return saved;
-    } catch {}
-    return '';
-  });
-
-  const [loggedUsername, setLoggedUsername] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('boaz_username');
-      if (saved) return saved;
-    } catch {}
-    return 'super';
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('boaz_user_role', currentRole);
-    } catch {}
-  }, [currentRole]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('boaz_host_team', loggedHostTeam);
-    } catch {}
-  }, [loggedHostTeam]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('boaz_username', loggedUsername);
-    } catch {}
-  }, [loggedUsername]);
+  // 로그인 세션은 임시 API(DB의 admin·host_accounts)가 원본이다. 브라우저에는 아이디와 로그인 여부만 남기고,
+  // 새로고침하면(임시 DB가 새로 만들어져 세션이 사라진다) 남긴 아이디로 세션을 되살린다. 비밀번호는 저장하지 않는다.
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     try {
       return localStorage.getItem('boaz_is_logged_in') !== 'false';
@@ -262,31 +267,72 @@ export default function App() {
       return true;
     }
   });
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const currentRole: UserRole = session ? userRoleOf(session) : 'SUPER';
+  const loggedHostTeam = session?.hostTeamId ?? '';
+  const loggedUsername = session?.username ?? '';
+  const displayName = session?.name ?? '';
 
-  const displayName = useMemo(() => {
-    if (currentRole === 'HOST') {
-      return loggedUsername || `${loggedHostTeam} 팀장`;
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let isCancelled = false;
+    let savedUsername: string | null = null;
+    try {
+      savedUsername = localStorage.getItem(USERNAME_KEY);
+    } catch {
+      // 저장소를 못 읽으면 기본 세션으로 연다.
     }
-    return '남민서';
-  }, [currentRole, loggedHostTeam, loggedUsername]);
+    // 저장한 아이디가 없으면(처음 연 경우) 임시 API의 기본 세션(첫 서비스운영팀장 계정)을 그대로 쓴다.
+    const load = savedUsername
+      ? restoreSession(savedUsername)
+      : fetchMyAccount().then(sessionOfAccount);
+    load
+      .then((restored) => {
+        if (!isCancelled) setSession(restored);
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        // 저장한 아이디의 계정이 없어졌다(삭제·회수, 또는 새로고침으로 임시 DB가 시드 상태로 돌아가
+        // 화면에서 만든 계정이 사라짐). 저장한 아이디를 지워 다음 새로고침부터는 같은 실패를 되풀이하지 않게 하고,
+        // 이번에만 다시 로그인하게 한다.
+        try {
+          localStorage.setItem('boaz_is_logged_in', 'false');
+          localStorage.removeItem(USERNAME_KEY);
+        } catch {
+          // 저장소를 못 쓰면 다음 새로고침 때 다시 묻는다.
+        }
+        setIsLoggedIn(false);
+        setLoginModalOpen(true);
+      });
+    return () => {
+      isCancelled = true;
+    };
+    // 처음 한 번만 되살린다. 로그인·로그아웃은 아래 함수가 세션을 직접 바꾼다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  function handleLogout() {
-    if (window.confirm('로그아웃 하시겠습니까?')) {
-      setIsLoggedIn(false);
-      try {
-        localStorage.setItem('boaz_is_logged_in', 'false');
-      } catch {}
-      setLoginModalOpen(true);
+  async function handleLogout() {
+    if (!window.confirm('로그아웃 하시겠습니까?')) return;
+    try {
+      await logout();
+    } catch {
+      // 임시 API 세션 정리에 실패해도 화면은 로그아웃한다.
     }
+    setSession(null);
+    setIsLoggedIn(false);
+    try {
+      localStorage.setItem('boaz_is_logged_in', 'false');
+      localStorage.removeItem(USERNAME_KEY);
+    } catch {}
+    setLoginModalOpen(true);
   }
 
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [myCurrentPw, setMyCurrentPw] = useState('');
   const [myNewPw, setMyNewPw] = useState('');
   const [myConfirmPw, setMyConfirmPw] = useState('');
-  const [masterPassword, setMasterPassword] = useState('super1234');
   const [myPwError, setMyPwError] = useState('');
+  const [isSavingMyPw, setIsSavingMyPw] = useState(false);
 
   /** 팀 id 또는 팀 이름(호스트 계정에 적힌 값)으로 팀 id를 찾는다. 이름은 부문이 다르면 겹칠 수 있어 처음 일치하는 팀을 쓴다. */
   function resolveTeamId(idOrName?: string): string {
@@ -309,72 +355,58 @@ export default function App() {
     return mine ?? resolveTeamId(loggedHostTeam);
   }
 
-  function handleToggleRole() {
-    if (currentRole === 'SUPER') {
-      setCurrentRole('TEAM');
-      setLoggedUsername('admin');
-      setActivePage('att-study');
-    } else if (currentRole === 'TEAM') {
-      setCurrentRole('HOST');
-      setLoggedHostTeam(studyTeams[0]?.id ?? '');
-      setLoggedUsername('host_a');
-      setActivePage('att-input');
-    } else if (currentRole === 'HOST') {
-      setCurrentRole('CONTENT_ADMIN');
-      setLoggedUsername('content');
-      setActivePage('content-archive');
-    } else {
-      setCurrentRole('SUPER');
-      setLoggedUsername('super');
-      setActivePage('recruiting');
-    }
-  }
-
-  function handleLoginSuccess(role: UserRole, hostTeam?: string, username?: string) {
+  function handleLoginSuccess(next: AuthSession) {
+    setSession(next);
     setIsLoggedIn(true);
     try {
       localStorage.setItem('boaz_is_logged_in', 'true');
+      localStorage.setItem(USERNAME_KEY, next.username);
     } catch {}
-    setCurrentRole(role);
+    const role = userRoleOf(next);
     if (role === 'HOST') {
-      const chosenTeamId = resolveTeamId(hostTeam) || studyTeams[0]?.id || '';
-      setLoggedHostTeam(chosenTeamId);
-      setLoggedUsername(username || 'host_a');
-      const isAdvTeam = advTeams.some((team) => team.id === chosenTeamId);
+      const isAdvTeam = advTeams.some((team) => team.id === next.hostTeamId);
       setActivePage(isAdvTeam ? 'att-input-adv' : 'att-input-study');
     } else if (role === 'CONTENT_ADMIN') {
-      setLoggedUsername('content');
       setActivePage('content-archive');
     } else if (role === 'SUPER') {
-      setLoggedUsername('super');
       setActivePage('recruiting');
     } else {
-      setLoggedUsername('admin');
       setActivePage('att-study');
     }
   }
 
-  function handleSaveMyPassword() {
+  function closeMyProfile() {
+    setShowMyProfileModal(false);
+    setMyCurrentPw('');
+    setMyNewPw('');
+    setMyConfirmPw('');
     setMyPwError('');
+  }
 
+  /** 본인 비밀번호를 바꾼다(운영진 계정만). 현재 비밀번호는 서버가 확인한다. */
+  async function handleSaveMyPassword() {
+    setMyPwError('');
+    if (!session?.accountId) return;
     if (!myCurrentPw.trim() || !myNewPw.trim() || !myConfirmPw.trim()) {
       setMyPwError('모든 항목을 입력해 주세요.');
-      return;
-    }
-    if (myCurrentPw !== masterPassword) {
-      setMyPwError('현재 비밀번호가 일치하지 않습니다.');
       return;
     }
     if (myNewPw !== myConfirmPw) {
       setMyPwError('새 비밀번호와 비밀번호 확인이 일치하지 않습니다.');
       return;
     }
-
-    setMasterPassword(myNewPw);
-    setMyCurrentPw('');
-    setMyNewPw('');
-    setMyConfirmPw('');
-    setShowMyProfileModal(false);
+    setIsSavingMyPw(true);
+    try {
+      await changeAdminPassword(session.accountId, {
+        currentPassword: myCurrentPw,
+        newPassword: myNewPw,
+      });
+      closeMyProfile();
+    } catch (error) {
+      setMyPwError(error instanceof Error ? error.message : '비밀번호를 바꾸지 못했습니다.');
+    } finally {
+      setIsSavingMyPw(false);
+    }
   }
 
   const isRecruiting = Boolean(activePage?.startsWith('recruiting'));
@@ -418,7 +450,6 @@ export default function App() {
           } catch {}
         }}
         currentRole={currentRole}
-        onToggleRole={handleToggleRole}
         onOpenLogin={() => setLoginModalOpen(true)}
         loggedHostTeam={loggedHostTeam}
         loggedUsername={loggedUsername}
@@ -668,125 +699,129 @@ export default function App() {
 
           {/* 5. System Section */}
           {activePage === 'system-members' && <MemberManagementPage />}
-          {(activePage === 'system' ||
-            activePage === 'system-accounts' ||
-            activePage === 'system-permissions' ||
-            activePage === 'system-audit') && (
-            <SystemAccountsPage
-              initialSubTab={
-                activePage === 'system-permissions'
-                  ? 'permissions'
-                  : activePage === 'system-audit'
-                    ? 'audit'
-                    : 'accounts'
-              }
-            />
-          )}
+          {(activePage === 'system' || activePage === 'system-accounts') && <SystemAccountsPage />}
         </main>
       </div>
 
-      {/* Global My Profile & Password Change Modal */}
-      {showMyProfileModal && (
-        <div className="fixed inset-0 bg-black/85 z-90 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl overflow-hidden p-6 space-y-4 bg-white border border-slate-200 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-purple-400" />
-                <h3 className="text-base font-bold text-foreground">
-                  내 계정 정보 & 비밀번호 변경
+      {/* 내 계정 정보와 비밀번호 변경 */}
+      {showMyProfileModal && session && (
+        <div
+          className="fixed inset-0 z-90 flex items-center justify-center bg-slate-900/40 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeMyProfile();
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="my-profile-title"
+            className="w-full max-w-sm rounded-lg bg-white shadow-lg"
+          >
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h3 id="my-profile-title" className="text-base font-bold text-slate-900">
+                  내 계정
                 </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  {session.name} · {session.username}
+                </p>
               </div>
-              <button
-                onClick={() => setShowMyProfileModal(false)}
-                className="text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-100 space-y-2 text-xs font-mono">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">로그인 아이디:</span>
-                <span className="text-foreground font-bold">@boaz_service_lead</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">성명 / 역할:</span>
-                <span className="text-purple-300 font-sans font-bold">
-                  남민서 (MASTER · 서비스운영팀장)
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">소속 트랙 / 기수:</span>
-                <span className="text-[#8ba5ff]">ANALYSIS · 28기</span>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <p className="font-bold text-foreground flex items-center gap-1.5">
-                <KeyRound size={13} className="text-[#8ba5ff]" />
-                <span>비밀번호 변경 (PATCH /api/v1/admin/accounts/{'{id}'}/password)</span>
-              </p>
-
-              <div>
-                <label className="text-muted-foreground block mb-1 font-semibold">
-                  현재 비밀번호 (current_password) <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={myCurrentPw}
-                  onChange={(e) => setMyCurrentPw(e.target.value)}
-                  placeholder="현재 사용 중인 비밀번호"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-foreground font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-muted-foreground block mb-1 font-semibold">
-                  새 비밀번호 (new_password) <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={myNewPw}
-                  onChange={(e) => setMyNewPw(e.target.value)}
-                  placeholder="8자 이상 + 영문/숫자/특수문자(!@#$%^&*)"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-foreground font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="text-muted-foreground block mb-1 font-semibold">
-                  새 비밀번호 확인 <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={myConfirmPw}
-                  onChange={(e) => setMyConfirmPw(e.target.value)}
-                  placeholder="새 비밀번호 다시 입력"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-foreground font-mono"
-                />
-              </div>
-
-              {myPwError && (
-                <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-600">
-                  {myPwError}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
               <button
                 type="button"
-                onClick={() => setShowMyProfileModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground bg-slate-100 hover:bg-slate-100 cursor-pointer"
+                onClick={closeMyProfile}
+                aria-label="닫기"
+                className="cursor-pointer rounded-sm p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
-                취소
+                <X size={16} aria-hidden="true" />
               </button>
-              <button
-                onClick={handleSaveMyPassword}
-                className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 cursor-pointer shadow-lg shadow-purple-950/40"
-              >
-                비밀번호 변경 확정
-              </button>
+            </div>
+
+            <div className="space-y-4 px-6 py-4">
+              <dl className="space-y-2 text-sm">
+                <div className="flex gap-4">
+                  <dt className="w-20 shrink-0 text-xs leading-5 text-slate-500">등급</dt>
+                  <dd className="leading-5 text-slate-900">{session.role}</dd>
+                </div>
+                {session.teamName && (
+                  <div className="flex gap-4">
+                    <dt className="w-20 shrink-0 text-xs leading-5 text-slate-500">팀</dt>
+                    <dd className="leading-5 text-slate-900">{session.teamName}</dd>
+                  </div>
+                )}
+              </dl>
+
+              {session.kind === 'HOST' ? (
+                <p className="border-t border-slate-200 pt-4 text-xs text-slate-500">
+                  그룹 리더(HOST) 계정의 비밀번호는 출결의 HOST 화면에서 바꿉니다.
+                </p>
+              ) : (
+                <form
+                  className="space-y-3 border-t border-slate-200 pt-4"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleSaveMyPassword();
+                  }}
+                >
+                  {[
+                    {
+                      id: 'my-current-pw',
+                      label: '현재 비밀번호',
+                      value: myCurrentPw,
+                      onChange: setMyCurrentPw,
+                      autoComplete: 'current-password',
+                    },
+                    {
+                      id: 'my-new-pw',
+                      label: '새 비밀번호',
+                      value: myNewPw,
+                      onChange: setMyNewPw,
+                      autoComplete: 'new-password',
+                    },
+                    {
+                      id: 'my-confirm-pw',
+                      label: '새 비밀번호 확인',
+                      value: myConfirmPw,
+                      onChange: setMyConfirmPw,
+                      autoComplete: 'new-password',
+                    },
+                  ].map((field) => (
+                    <div key={field.id}>
+                      <label htmlFor={field.id} className="mb-1 block text-xs text-slate-500">
+                        {field.label}
+                      </label>
+                      <input
+                        id={field.id}
+                        type="password"
+                        autoComplete={field.autoComplete}
+                        value={field.value}
+                        onChange={(event) => field.onChange(event.target.value)}
+                        className="h-10 w-full rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none hover:border-slate-300 focus:border-slate-400"
+                      />
+                    </div>
+                  ))}
+                  {myPwError && (
+                    <p role="alert" className="text-xs text-red-600">
+                      {myPwError}
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={closeMyProfile}
+                      className="h-9 cursor-pointer rounded-sm px-4 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingMyPw}
+                      className="h-9 cursor-pointer rounded-sm bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      비밀번호 변경
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>
@@ -794,13 +829,7 @@ export default function App() {
 
       {/* Login Modal */}
       {loginModalOpen && (
-        <LoginModal
-          onClose={() => setLoginModalOpen(false)}
-          onLoginSuccess={handleLoginSuccess}
-          hosts={hosts}
-          studyTeams={studyTeams}
-          advTeams={advTeams}
-        />
+        <LoginModal onClose={() => setLoginModalOpen(false)} onLoginSuccess={handleLoginSuccess} />
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import test from 'node:test';
 
 import initSqlJs from 'sql.js';
 
-import type { ClubMember } from '../src/entities/club-member/model/types';
+import type { ClubMember, ClubMemberTermPage } from '../src/entities/club-member/model/types';
 import { ApiError } from '../src/shared/api/apiError';
 import { createRouter } from '../src/shared/api/mock/router';
 import { clubMemberRoutes } from '../src/shared/api/mock/routes/clubMemberRoutes';
@@ -13,12 +13,13 @@ import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
 
 const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
 const seed = readFileSync(new URL('../db/seed.sql', import.meta.url), 'utf8');
+const BY_TERM = '/api/v1/club-members/by-term';
 
 async function setup() {
   const SQL = await initSqlJs();
   const db = createDatabase(SQL, schema, seed);
   const router = createRouter([...clubMemberRoutes, ...userRoutes]);
-  const call = <T>(method: 'GET' | 'POST' | 'PATCH', path: string, body?: unknown) =>
+  const call = <T>(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown) =>
     router.dispatch(db, method, path, body) as T;
   return { db, call };
 }
@@ -27,31 +28,78 @@ function expectApiError(work: () => unknown, status: number) {
   assert.throws(work, (error: unknown) => error instanceof ApiError && error.status === status);
 }
 
-test('동아리원 목록은 임시 DB users 테이블 전체를 최신 기수 순으로 돌려준다', async () => {
+test('동아리원 목록은 임시 DB users 테이블 전체를 활동 상태 → 부문 → 이름 가나다순으로 돌려준다', async () => {
   const { db, call } = await setup();
   const members = call<ClubMember[]>('GET', '/api/v1/club-members');
   const userCount = queryAll<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM users')[0].n;
 
   assert.equal(members.length, userCount);
-  assert.ok(members.every((member, i) => i === 0 || members[i - 1].term >= member.term));
+  const STATUS_ORDER = ['ACTIVE', 'ALUMNI', 'WITHDRAWN'];
+  const TRACK_ORDER = ['분석', '시각화', '엔지니어링'];
+  assert.ok(
+    members.every((member, i) => {
+      if (i === 0) return true;
+      const prev = members[i - 1];
+      const byStatus = STATUS_ORDER.indexOf(prev.status) - STATUS_ORDER.indexOf(member.status);
+      const byTrack = TRACK_ORDER.indexOf(prev.track) - TRACK_ORDER.indexOf(member.track);
+      if (byStatus !== 0) return byStatus < 0;
+      // 탈퇴한 사람은 최신 기수부터다.
+      if (member.status === 'WITHDRAWN' && prev.term !== member.term)
+        return prev.term > member.term;
+      return byTrack < 0 || (byTrack === 0 && prev.name <= member.name);
+    }),
+  );
   assert.equal(members.find((member) => member.id === 'u_27_01')?.role, 'PRESIDENT');
   assert.ok(members.filter((member) => member.term <= 25).every((m) => m.status === 'ALUMNI'));
 });
 
-test('동아리원 등록 API는 없다(등록은 합격자 승격으로 한다)', async () => {
-  const { call } = await setup();
+test('동아리원을 추가하면 일반 회원으로 들어가고 활동 명단(members) 행도 생긴다', async () => {
+  const { db, call } = await setup();
+  const created = call<ClubMember>('POST', '/api/v1/club-members', {
+    name: '홍길동',
+    email: 'gildong@example.com',
+    phone: '010-0000-0000',
+    university: '',
+    major: '',
+    term: 20,
+    track: '시각화',
+    status: 'ALUMNI',
+  });
 
-  expectApiError(() => call('POST', '/api/v1/club-members', { name: '홍길동', term: 28 }), 405);
+  assert.equal(created.role, 'MEMBER');
+  assert.equal(created.status, 'ALUMNI');
+  assert.equal(created.operatorTeam, null);
+  assert.ok(call<ClubMember[]>('GET', '/api/v1/club-members').some((m) => m.id === created.id));
+  assert.equal(
+    queryAll<{ n: number }>(
+      db,
+      'SELECT COUNT(*) AS n FROM members WHERE user_id = ? AND term = 20 AND track = ?',
+      [created.id, '시각화'],
+    )[0].n,
+    1,
+  );
+});
+
+test('추가할 때 필수 값이 없거나 같은 기수에 같은 이름이 있으면 거절한다', async () => {
+  const { call } = await setup();
+  const base = { name: '홍길동', email: 'g@example.com', phone: '010', term: 20, track: '분석' };
+  const post = (body: unknown) => () => call('POST', '/api/v1/club-members', body);
+
+  expectApiError(post({ ...base, name: '' }), 400);
+  expectApiError(post({ ...base, email: 'not-an-email' }), 400);
+  expectApiError(post({ ...base, term: 0 }), 400);
+  expectApiError(post({ ...base, track: 'AI' }), 400);
+  expectApiError(post({ ...base, name: '김서하', term: 27 }), 409);
 });
 
 test('수정은 보낸 값만 바꾼다', async () => {
   const { call } = await setup();
   const updated = call<ClubMember>('PATCH', '/api/v1/club-members/u_28_01', {
-    status: 'INACTIVE',
+    status: 'WITHDRAWN',
     role: 'OPERATOR',
   });
 
-  assert.equal(updated.status, 'INACTIVE');
+  assert.equal(updated.status, 'WITHDRAWN');
   assert.equal(updated.role, 'OPERATOR');
   assert.equal(updated.name, '김서하');
   assert.equal(updated.email, 'seoha.k@yonsei.ac.kr');
@@ -93,7 +141,416 @@ test('같은 기수에 같은 이름이 있으면 409, 형식이 틀리면 400, 
 test('기수 목록 API는 users 테이블의 기수를 큰 기수부터 돌려주고, 기수 변경을 반영한다', async () => {
   const { call } = await setup();
 
+  assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [27, 26, 25]);
+  call('PATCH', '/api/v1/club-members/u_25_01', { term: 28 });
   assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [28, 27, 26, 25]);
-  call('PATCH', '/api/v1/club-members/u_25_01', { term: 29 });
-  assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [29, 28, 27, 26, 25]);
+});
+
+test('운영진 배지는 역할만 보내 달고 떼며, 다른 정보는 그대로 둔다', async () => {
+  const { call } = await setup();
+  const before = call<ClubMember[]>('GET', '/api/v1/club-members').find(
+    (member) => member.role === 'MEMBER',
+  )!;
+
+  const badged = call<ClubMember>('PATCH', `/api/v1/club-members/${before.id}`, {
+    role: 'OPERATOR',
+  });
+  assert.equal(badged.role, 'OPERATOR');
+  assert.deepEqual({ ...badged, role: before.role }, before);
+
+  const removed = call<ClubMember>('PATCH', `/api/v1/club-members/${before.id}`, {
+    role: 'MEMBER',
+  });
+  assert.equal(removed.role, 'MEMBER');
+});
+
+function expectApiErrorCode(work: () => unknown, status: number, code: string) {
+  assert.throws(
+    work,
+    (error: unknown) => error instanceof ApiError && error.status === status && error.code === code,
+  );
+}
+
+/** 탈퇴 처리해도 남아야 하는 행 수(반기 명단·팀 소속·팀장 칸·출결 기록). */
+function linkedRowCounts(db: Awaited<ReturnType<typeof setup>>['db'], id: string) {
+  const count = (sql: string) => queryAll<{ n: number }>(db, sql, [id])[0].n;
+  return {
+    semesterMembers: count('SELECT COUNT(*) AS n FROM semester_members WHERE user_id = ?'),
+    teamMembers: count('SELECT COUNT(*) AS n FROM team_members WHERE user_id = ?'),
+    leaderOf: count('SELECT COUNT(*) AS n FROM teams WHERE leader_id = ?'),
+    attendance: count(
+      `SELECT COUNT(*) AS n FROM attendance_records r
+         JOIN team_members tm ON tm.id = r.member_id WHERE tm.user_id = ?`,
+    ),
+  };
+}
+
+/** 운영진이 아니면서 팀장인 활동 회원(팀 소속·출결 기록도 있는 사람). */
+function activeLeaderId(db: Awaited<ReturnType<typeof setup>>['db']): string {
+  return queryAll<{ id: string }>(
+    db,
+    `SELECT t.leader_id AS id FROM teams t JOIN users u ON u.id = t.leader_id
+      WHERE u.club_status = 'ACTIVE'
+        AND NOT EXISTS (SELECT 1 FROM admin a WHERE a.user_id = t.leader_id)
+      LIMIT 1`,
+  )[0].id;
+}
+
+test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 바꾼 회원을 돌려준다', async () => {
+  const { db, call } = await setup();
+  const target = activeLeaderId(db);
+  const before = linkedRowCounts(db, target);
+  assert.ok(before.semesterMembers > 0 && before.teamMembers > 0 && before.leaderOf > 0);
+  assert.ok(before.attendance > 0, '출결 기록이 있는 사람이어야 한다');
+  const original = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === target);
+
+  const withdrawn = call<ClubMember>('DELETE', `/api/v1/club-members/${target}`);
+
+  assert.equal(withdrawn.id, target);
+  assert.equal(withdrawn.status, 'WITHDRAWN');
+  assert.deepEqual({ ...withdrawn, status: original?.status }, original);
+  const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === target);
+  assert.equal(listed?.status, 'WITHDRAWN');
+  assert.deepEqual(linkedRowCounts(db, target), before);
+});
+
+test('탈퇴 처리한 사람은 기수별 활동 페이지와 부문 페이지에서 빠진다', async () => {
+  const { db, call } = await setup();
+  const target = activeLeaderId(db);
+  const { term, track } = queryAll<{ term: number; track: string }>(
+    db,
+    'SELECT term, track FROM users WHERE id = ?',
+    [target],
+  )[0];
+  const pageOf = (query: string) =>
+    call<ClubMemberTermPage>('GET', `${BY_TERM}?${query}&term=${term}`).members.map((m) => m.id);
+  const trackQueryOf = `track=${encodeURIComponent(track)}`;
+  assert.ok(pageOf('status=ACTIVE').includes(target));
+  assert.ok(pageOf(trackQueryOf).includes(target));
+
+  call('DELETE', `/api/v1/club-members/${target}`);
+
+  assert.ok(!pageOf('status=ACTIVE').includes(target));
+  assert.ok(!pageOf('status=ALUMNI').includes(target));
+  assert.ok(!pageOf(trackQueryOf).includes(target));
+  assert.ok(!pageOf(`status=ACTIVE&${trackQueryOf}`).includes(target));
+});
+
+test('수료 회원도 탈퇴 처리하면 수료 페이지에서 빠진다', async () => {
+  const { db, call } = await setup();
+  const alumniId = queryAll<{ id: string }>(
+    db,
+    "SELECT id FROM users WHERE club_status = 'ALUMNI' AND term = 25 AND id NOT IN (SELECT user_id FROM admin) LIMIT 1",
+  )[0].id;
+
+  assert.equal(call<ClubMember>('DELETE', `/api/v1/club-members/${alumniId}`).status, 'WITHDRAWN');
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=25`);
+  assert.ok(!page.members.some((m) => m.id === alumniId));
+});
+
+test('탈퇴 처리: 없는 회원은 404, 이미 탈퇴한 회원은 409 ALREADY_WITHDRAWN', async () => {
+  const { db, call } = await setup();
+  const target = activeLeaderId(db);
+
+  expectApiError(() => call('DELETE', '/api/v1/club-members/u_none'), 404);
+  call('DELETE', `/api/v1/club-members/${target}`);
+  expectApiErrorCode(
+    () => call('DELETE', `/api/v1/club-members/${target}`),
+    409,
+    'ALREADY_WITHDRAWN',
+  );
+  // 시드의 탈퇴자(u_27_07)도 같다.
+  expectApiErrorCode(
+    () => call('DELETE', '/api/v1/club-members/u_27_07'),
+    409,
+    'ALREADY_WITHDRAWN',
+  );
+});
+
+test('운영진은 탈퇴 처리할 수 없다(409 MEMBER_IS_OPERATOR)', async () => {
+  const { db, call } = await setup();
+  const operatorId = queryAll<{ user_id: string }>(db, 'SELECT user_id FROM admin LIMIT 1')[0]
+    .user_id;
+
+  expectApiErrorCode(
+    () => call('DELETE', `/api/v1/club-members/${operatorId}`),
+    409,
+    'MEMBER_IS_OPERATOR',
+  );
+  const operator = call<ClubMember[]>('GET', '/api/v1/club-members').find(
+    (m) => m.id === operatorId,
+  );
+  assert.ok(operator);
+  assert.notEqual(operator.status, 'WITHDRAWN');
+});
+
+// ── GET /api/v1/club-members/by-term (한 페이지 = 한 기수) ──────────────────
+
+const TRACK_ORDER = ['분석', '시각화', '엔지니어링'];
+
+function isTrackThenNameOrder(members: readonly ClubMember[]): boolean {
+  return members.every((member, i) => {
+    if (i === 0) return true;
+    const prev = members[i - 1];
+    const byTrack = TRACK_ORDER.indexOf(prev.track) - TRACK_ORDER.indexOf(member.track);
+    if (byTrack !== 0) return byTrack < 0;
+    if (prev.name !== member.name) return prev.name < member.name;
+    return prev.id <= member.id;
+  });
+}
+
+test('기수별 명단: term 없이 ACTIVE를 읽으면 가장 큰 활동 기수 한 페이지와 활동 기수 전체 목록을 준다', async () => {
+  const { db, call } = await setup();
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE`);
+  const activeTerms = queryAll<{ term: number }>(
+    db,
+    "SELECT DISTINCT term FROM users WHERE club_status = 'ACTIVE' ORDER BY term DESC",
+  ).map((row) => row.term);
+  const expectedCount = queryAll<{ n: number }>(
+    db,
+    "SELECT COUNT(*) AS n FROM users WHERE club_status = 'ACTIVE' AND term = ?",
+    [activeTerms[0]],
+  )[0].n;
+
+  assert.equal(page.status, 'ACTIVE');
+  assert.equal(page.term, activeTerms[0]);
+  assert.deepEqual(page.terms, activeTerms);
+  assert.equal(page.members.length, expectedCount);
+  assert.ok(page.members.length > 0);
+  assert.ok(page.members.every((m) => m.term === page.term && m.status === 'ACTIVE'));
+  assert.ok(isTrackThenNameOrder(page.members));
+});
+
+test('기수별 명단: ALUMNI와 수료 기수(25기)를 보내면 그 기수 수료자만 부문 → 이름 순으로 준다', async () => {
+  const { db, call } = await setup();
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=25`);
+  const expectedIds = queryAll<{ id: string }>(
+    db,
+    "SELECT id FROM users WHERE club_status = 'ALUMNI' AND term = 25",
+  ).map((row) => row.id);
+
+  assert.equal(page.status, 'ALUMNI');
+  assert.equal(page.term, 25);
+  assert.ok(page.terms.includes(25));
+  assert.ok(page.members.length > 0);
+  assert.deepEqual(page.members.map((m) => m.id).sort(), [...expectedIds].sort());
+  assert.ok(page.members.every((m) => m.term === 25 && m.status === 'ALUMNI'));
+  assert.ok(isTrackThenNameOrder(page.members));
+});
+
+test('기수별 명단: 탈퇴자와 다른 기수 사람은 섞이지 않는다', async () => {
+  const { call } = await setup();
+  // 시드에서 u_27_07·u_28_14는 27기 탈퇴다.
+  const page27 = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=27`);
+  const page26 = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=26`);
+
+  assert.equal(page27.term, 27);
+  assert.ok(!page27.members.some((m) => m.id === 'u_27_07' || m.id === 'u_28_14'));
+  assert.ok(page27.members.every((m) => m.term === 27 && m.status === 'ACTIVE'));
+  assert.ok(page26.members.every((m) => m.term === 26 && m.status === 'ACTIVE'));
+  assert.ok(!page27.members.some((m) => page26.members.some((o) => o.id === m.id)));
+});
+
+test('기수별 명단: 그 상태인 사람이 없는 기수를 보내면 term은 그대로, members는 빈 배열이다', async () => {
+  const { call } = await setup();
+  const activeEmpty = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=25`);
+  const alumniEmpty = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=20`);
+
+  assert.equal(activeEmpty.term, 25);
+  assert.deepEqual(activeEmpty.members, []);
+  assert.ok(!activeEmpty.terms.includes(25));
+  assert.equal(alumniEmpty.term, 20);
+  assert.deepEqual(alumniEmpty.members, []);
+});
+
+test('기수별 명단: status가 없거나 ACTIVE·ALUMNI가 아니거나 term이 1 이상 정수가 아니면 400', async () => {
+  const { call } = await setup();
+  const get = (query: string) => () => call('GET', `${BY_TERM}${query}`);
+
+  expectApiError(get(''), 400);
+  expectApiError(get('?term=28'), 400);
+  expectApiError(get('?status=WITHDRAWN'), 400);
+  expectApiError(get('?status=ACTIVE&term=0'), 400);
+  expectApiError(get('?status=ACTIVE&term=abc'), 400);
+  expectApiError(get('?status=ACTIVE&term=1.5'), 400);
+});
+
+test('기수별 명단: 동아리원을 추가하면 그 기수 페이지에 나타난다', async () => {
+  const { call } = await setup();
+  const created = call<ClubMember>('POST', '/api/v1/club-members', {
+    name: '홍길동',
+    email: 'gildong@example.com',
+    phone: '010-0000-0000',
+    university: '',
+    major: '',
+    term: 20,
+    track: '시각화',
+    status: 'ALUMNI',
+  });
+
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=20`);
+  assert.ok(page.members.some((m) => m.id === created.id));
+  assert.ok(page.terms.includes(20));
+});
+
+test('기수별 명단: 활동 상태를 ALUMNI로 바꾸면 ACTIVE 페이지에서 빠지고 ALUMNI 페이지에 나타난다', async () => {
+  const { call } = await setup();
+  call('PATCH', '/api/v1/club-members/u_28_01', { status: 'ALUMNI' });
+
+  const active = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=27`);
+  const alumni = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=27`);
+
+  assert.ok(!active.members.some((m) => m.id === 'u_28_01'));
+  assert.ok(alumni.members.some((m) => m.id === 'u_28_01'));
+  assert.ok(alumni.terms.includes(27));
+});
+
+// ── by-term의 track 조건 (2026-10-22 변경 계약) ──────────────────────────────
+
+const STATUS_ORDER = ['ACTIVE', 'ALUMNI'];
+
+/** 활동 상태(활동 → 수료) → 부문 → 이름 → id 순인지 본다. */
+function isStatusTrackNameOrder(members: readonly ClubMember[]): boolean {
+  return members.every((member, i) => {
+    if (i === 0) return true;
+    const prev = members[i - 1];
+    const byStatus = STATUS_ORDER.indexOf(prev.status) - STATUS_ORDER.indexOf(member.status);
+    if (byStatus !== 0) return byStatus < 0;
+    const byTrack = TRACK_ORDER.indexOf(prev.track) - TRACK_ORDER.indexOf(member.track);
+    if (byTrack !== 0) return byTrack < 0;
+    if (prev.name !== member.name) return prev.name < member.name;
+    return prev.id <= member.id;
+  });
+}
+
+const trackQuery = (track: string) => `track=${encodeURIComponent(track)}`;
+
+test('기수별 명단(track): status 없이 track=분석만 보내면 분석 부문의 활동·수료자만 활동 → 수료 → 이름 순으로 준다', async () => {
+  const { db, call } = await setup();
+  // 시드의 27기 분석은 모두 활동이라, 한 명을 수료로 바꿔 같은 기수에 활동·수료가 섞이게 한다.
+  const activeAnalysts = queryAll<{ id: string }>(
+    db,
+    "SELECT id FROM users WHERE track = '분석' AND term = 27 AND club_status = 'ACTIVE' ORDER BY name DESC",
+  );
+  const toAlumni = activeAnalysts[0].id;
+  call('PATCH', `/api/v1/club-members/${toAlumni}`, { status: 'ALUMNI' });
+  const withdrawnIds = queryAll<{ id: string }>(
+    db,
+    "SELECT id FROM users WHERE track = '분석' AND term = 27 AND club_status = 'WITHDRAWN'",
+  ).map((row) => row.id);
+  const expectedIds = queryAll<{ id: string }>(
+    db,
+    "SELECT id FROM users WHERE track = '분석' AND term = 27 AND club_status IN ('ACTIVE', 'ALUMNI')",
+  ).map((row) => row.id);
+
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?${trackQuery('분석')}&term=27`);
+
+  assert.equal(page.status, null);
+  assert.equal(page.track, '분석');
+  assert.equal(page.term, 27);
+  assert.ok(withdrawnIds.length > 0, '시드에 27기 분석 탈퇴자가 있어야 한다');
+  assert.ok(!page.members.some((m) => withdrawnIds.includes(m.id)));
+  assert.ok(page.members.every((m) => m.track === '분석' && m.term === 27));
+  assert.ok(page.members.every((m) => m.status === 'ACTIVE' || m.status === 'ALUMNI'));
+  assert.deepEqual(page.members.map((m) => m.id).sort(), [...expectedIds].sort());
+  assert.ok(isStatusTrackNameOrder(page.members));
+  // 수료로 바꾼 사람은 이름이 가장 뒤가 아니어도 활동자 뒤에 온다.
+  assert.equal(page.members.at(-1)?.id, toAlumni);
+  assert.equal(page.members.at(-1)?.status, 'ALUMNI');
+});
+
+test('기수별 명단(track): track만 보내면 terms는 그 부문 활동·수료자가 있는 기수 전체 큰 순, term이 없으면 terms[0] 페이지다', async () => {
+  const { db, call } = await setup();
+  // 20기 분석 탈퇴자, 19기 시각화 수료자를 넣는다. 분석 terms에는 둘 다 들어가면 안 된다.
+  const base = { phone: '010-0000-0000', university: '', major: '' };
+  call('POST', '/api/v1/club-members', {
+    ...base,
+    email: 'w20@example.com',
+    name: '탈퇴분석',
+    term: 20,
+    track: '분석',
+    status: 'WITHDRAWN',
+  });
+  call('POST', '/api/v1/club-members', {
+    ...base,
+    email: 'a19@example.com',
+    name: '수료시각화',
+    term: 19,
+    track: '시각화',
+    status: 'ALUMNI',
+  });
+  const expectedTerms = queryAll<{ term: number }>(
+    db,
+    "SELECT DISTINCT term FROM users WHERE track = '분석' AND club_status IN ('ACTIVE', 'ALUMNI') ORDER BY term DESC",
+  ).map((row) => row.term);
+
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?${trackQuery('분석')}`);
+
+  assert.deepEqual(page.terms, expectedTerms);
+  assert.ok(!page.terms.includes(20));
+  assert.ok(!page.terms.includes(19));
+  assert.ok(page.terms.includes(25), '분석 25기 수료자가 있으므로 25기가 들어간다');
+  assert.equal(page.term, expectedTerms[0]);
+  assert.ok(page.members.length > 0);
+  assert.ok(page.members.every((m) => m.term === expectedTerms[0] && m.track === '분석'));
+
+  const visual = call<ClubMemberTermPage>('GET', `${BY_TERM}?${trackQuery('시각화')}`);
+  assert.ok(visual.terms.includes(19));
+});
+
+test('기수별 명단(track): status와 track을 함께 보내면 두 조건을 모두 만족하는 사람만 준다', async () => {
+  const { db, call } = await setup();
+  const expectedIds = queryAll<{ id: string }>(
+    db,
+    "SELECT id FROM users WHERE track = '시각화' AND term = 26 AND club_status = 'ACTIVE'",
+  ).map((row) => row.id);
+  const expectedTerms = queryAll<{ term: number }>(
+    db,
+    "SELECT DISTINCT term FROM users WHERE track = '시각화' AND club_status = 'ACTIVE' ORDER BY term DESC",
+  ).map((row) => row.term);
+
+  const page = call<ClubMemberTermPage>(
+    'GET',
+    `${BY_TERM}?status=ACTIVE&${trackQuery('시각화')}&term=26`,
+  );
+
+  assert.equal(page.status, 'ACTIVE');
+  assert.equal(page.track, '시각화');
+  assert.equal(page.term, 26);
+  assert.deepEqual(page.terms, expectedTerms);
+  assert.ok(expectedIds.length > 0);
+  assert.deepEqual(page.members.map((m) => m.id).sort(), [...expectedIds].sort());
+  assert.ok(page.members.every((m) => m.status === 'ACTIVE' && m.track === '시각화'));
+  assert.ok(isStatusTrackNameOrder(page.members));
+
+  // 수료 + 엔지니어링: term이 없으면 그 조건의 가장 큰 기수(25기)다.
+  const alumni = call<ClubMemberTermPage>(
+    'GET',
+    `${BY_TERM}?status=ALUMNI&${trackQuery('엔지니어링')}`,
+  );
+  assert.equal(alumni.term, 25);
+  assert.deepEqual(alumni.terms, [25]);
+  assert.ok(alumni.members.length > 0);
+  assert.ok(alumni.members.every((m) => m.status === 'ALUMNI' && m.track === '엔지니어링'));
+});
+
+test('기수별 명단(track): status만 보내면 응답의 track은 null이다', async () => {
+  const { call } = await setup();
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE`);
+
+  assert.equal(page.status, 'ACTIVE');
+  assert.equal(page.track, null);
+});
+
+test('기수별 명단(track): status·track이 둘 다 없거나 track이 세 부문이 아니면 400', async () => {
+  const { call } = await setup();
+  const get = (query: string) => () => call('GET', `${BY_TERM}${query}`);
+
+  expectApiError(get(''), 400);
+  expectApiError(get('?term=27'), 400);
+  expectApiError(get(`?${trackQuery('기획')}`), 400);
+  expectApiError(get('?track=ANALYSIS'), 400);
+  expectApiError(get(`?status=ACTIVE&${trackQuery('기획')}`), 400);
+  expectApiError(get(`?status=WITHDRAWN&${trackQuery('분석')}`), 400);
+  expectApiError(get(`?${trackQuery('분석')}&term=0`), 400);
 });
