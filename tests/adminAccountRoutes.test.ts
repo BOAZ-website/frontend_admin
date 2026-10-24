@@ -349,7 +349,10 @@ test('모든 운영진 계정에는 아이디가 있다(시드 35~40번 포함)'
 
 test('운영진 추가(POST)는 아이디·초기 비밀번호가 모두 있어야 하고, 없거나 하나만 있으면 400이다', async () => {
   const { call } = await setup();
-  const { username: _username, password: _password, ...withoutCredentials } = NEW_ACCOUNT;
+  // 아이디·비밀번호만 뺀 요청.
+  const withoutCredentials = Object.fromEntries(
+    Object.entries(NEW_ACCOUNT).filter(([key]) => key !== 'username' && key !== 'password'),
+  );
   expectApiError(
     () => call('POST', '/api/v1/admin/accounts', withoutCredentials),
     400,
