@@ -710,3 +710,17 @@ test('지운 경로(계정 발급·팀 일괄 지정)는 더 이상 없다', asy
     404,
   );
 });
+
+test('없는 회원을 운영진으로 지정하면 404 USER_NOT_FOUND', async () => {
+  const { call } = await setup();
+  expectApiError(
+    () =>
+      call('PUT', '/api/v1/admin/operators/u_none', {
+        teamName: '기획팀',
+        username: 'boaz_none',
+        password: 'Boaz!2026',
+      }),
+    404,
+    'USER_NOT_FOUND',
+  );
+});

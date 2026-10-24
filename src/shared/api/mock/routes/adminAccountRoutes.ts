@@ -321,8 +321,9 @@ function addOperator(
   teamName: string,
   data: Body,
 ): void {
+  // 주소의 회원(:userId)이 없으면 다른 API처럼 404다.
   if (!userExists(db, userId))
-    throw badRequest('USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
+    throw new ApiError(404, 'USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
   const role = roleForTeam(teamName);
   requireValidCombination(role, teamName);
   const { username, password } = readCredentials(db, data);
