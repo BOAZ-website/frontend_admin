@@ -31,7 +31,7 @@ SELECT cohort, cohort FROM cohorts;
 
 -- ── users ──────────────────────────────────────────────
 INSERT INTO users (id, name, term, track) VALUES
-  ('u_26_01', '남민서', 26, '분석'),
+  ('u_26_01', '남민서', 26, '엔지니어링'),
   ('u_26_02', '박서연', 26, '분석'),
   ('u_26_03', '최지우', 26, '시각화'),
   ('u_26_04', '김도현', 26, '엔지니어링'),
@@ -44,33 +44,75 @@ INSERT INTO users (id, name, term, track) VALUES
   ('u_27_07', '노유진', 27, '시각화'),
   ('u_27_08', '서진우', 27, '시각화'),
   ('u_27_09', '이지호', 27, '엔지니어링'),
-  ('u_28_01', '김서하', 28, '분석'),
-  ('u_28_02', '정채원', 28, '분석'),
-  ('u_28_03', '오승현', 28, '분석'),
-  ('u_28_04', '강태양', 28, '엔지니어링'),
-  ('u_28_05', '이도현', 28, '엔지니어링'),
-  ('u_28_06', '임수진', 28, '엔지니어링'),
-  ('u_28_07', '백민혁', 28, '엔지니어링'),
-  ('u_28_08', '최민혁', 28, '시각화'),
-  ('u_28_09', '한예린', 28, '시각화'),
-  ('u_28_10', '윤재혁', 28, '시각화'),
-  ('u_28_11', '박지훈', 28, '분석'),
-  ('u_28_12', '장나연', 28, '시각화'),
-  ('u_28_13', '이민준', 28, '분석'),
-  ('u_28_14', '마지원', 28, '분석'),
-  ('u_28_15', '신유진', 28, '분석'),
-  ('u_28_16', '안서연', 28, '분석'),
-  ('u_28_17', '조민규', 28, '분석'),
-  ('u_28_18', '원승민', 28, '시각화'),
-  ('u_28_19', '배준호', 28, '시각화'),
-  ('u_28_20', '권나현', 28, '시각화'),
-  ('u_28_21', '하예원', 28, '시각화'),
-  ('u_28_22', '박성훈', 28, '엔지니어링'),
-  ('u_28_23', '류현우', 28, '엔지니어링'),
-  ('u_28_24', '조영준', 28, '엔지니어링'),
-  ('u_28_25', '황지수', 28, '엔지니어링'),
-  ('u_28_26', '김민재', 28, '엔지니어링'),
-  ('u_28_27', '최현우', 28, '엔지니어링');
+  ('u_28_01', '김서하', 27, '분석'),
+  ('u_28_02', '정채원', 27, '분석'),
+  ('u_28_03', '오승현', 27, '분석'),
+  ('u_28_04', '강태양', 27, '엔지니어링'),
+  ('u_28_05', '이도현', 27, '엔지니어링'),
+  ('u_28_06', '임수진', 27, '엔지니어링'),
+  ('u_28_07', '백민혁', 27, '엔지니어링'),
+  ('u_28_08', '최민혁', 27, '시각화'),
+  ('u_28_09', '한예린', 27, '시각화'),
+  ('u_28_10', '윤재혁', 27, '시각화'),
+  ('u_28_11', '박지훈', 27, '분석'),
+  ('u_28_12', '장나연', 27, '시각화'),
+  ('u_28_13', '이민준', 27, '분석'),
+  ('u_28_14', '마지원', 27, '분석'),
+  ('u_28_15', '신유진', 27, '분석'),
+  ('u_28_16', '안서연', 27, '분석'),
+  ('u_28_17', '조민규', 27, '분석'),
+  ('u_28_18', '원승민', 27, '시각화'),
+  ('u_28_19', '배준호', 27, '시각화'),
+  ('u_28_20', '권나현', 27, '시각화'),
+  ('u_28_21', '하예원', 27, '시각화'),
+  ('u_28_22', '박성훈', 27, '엔지니어링'),
+  ('u_28_23', '류현우', 27, '엔지니어링'),
+  ('u_28_24', '조영준', 27, '엔지니어링'),
+  ('u_28_25', '황지수', 27, '엔지니어링'),
+  ('u_28_26', '김민재', 27, '엔지니어링'),
+  ('u_28_27', '최현우', 27, '엔지니어링'),
+  -- 운영진 실제 명단(26·27기)에 있는 회원. 남민서(u_26_01)는 위에 이미 있다.
+  ('u_26_05', '김윤서', 26, '분석'),
+  ('u_26_06', '엄서희', 26, '시각화'),
+  ('u_26_07', '강민석', 26, '엔지니어링'),
+  ('u_26_08', '유현선', 26, '분석'),
+  ('u_26_09', '임혜진', 26, '시각화'),
+  ('u_26_10', '이주영', 26, '엔지니어링'),
+  ('u_26_11', '김채우', 26, '분석'),
+  ('u_26_12', '윤택한', 26, '시각화'),
+  ('u_26_13', '손채민', 26, '엔지니어링'),
+  ('u_26_14', '성유민', 26, '분석'),
+  ('u_26_15', '정나리', 26, '시각화'),
+  ('u_26_16', '박시은', 26, '시각화'),
+  ('u_26_17', '김민정', 26, '시각화'),
+  ('u_26_18', '양어진', 26, '분석'),
+  ('u_26_19', '유하진', 26, '분석'),
+  ('u_26_20', '장민주', 26, '엔지니어링'),
+  ('u_26_21', '윤희원', 26, '시각화'),
+  ('u_26_22', '문유하', 26, '분석'),
+  ('u_26_23', '김대현', 26, '엔지니어링'),
+  ('u_27_10', '진소현', 27, '시각화'),
+  ('u_27_11', '박소현', 27, '엔지니어링'),
+  ('u_27_12', '최효원', 27, '분석'),
+  ('u_27_13', '이수빈', 27, '시각화'),
+  ('u_27_14', '강신욱', 27, '엔지니어링'),
+  ('u_27_15', '염지인', 27, '엔지니어링'),
+  ('u_27_16', '유제명', 27, '시각화'),
+  ('u_27_17', '정재훈', 27, '분석'),
+  ('u_27_18', '최우성', 27, '엔지니어링'),
+  ('u_27_19', '권준희', 27, '엔지니어링'),
+  -- 대표진(25기).
+  ('u_25_07', '문혁준', 25, '엔지니어링'),
+  ('u_25_08', '우은비', 25, '시각화'),
+  ('u_25_09', '최윤혁', 25, '분석'),
+  -- 디자인팀·기획팀 27기. 황희수는 명단에 부문이 비어 있어 임시로 분석으로 둔다.
+  ('u_27_20', '윤다정', 27, '시각화'),
+  ('u_27_21', '진수영', 27, '시각화'),
+  ('u_27_22', '신민아', 27, '시각화'),
+  ('u_27_23', '홍예진', 27, '분석'),
+  ('u_27_24', '황희수', 27, '분석'),
+  ('u_27_25', '형지원', 27, '분석'),
+  ('u_27_26', '전혜린', 27, '분석');
 
 -- 행사 예시에서 쓰는 내부 회원 연락처도 users를 단일 원본으로 삼는다.
 UPDATE users SET affiliation = '연세대학교', email = 'seoha.k@yonsei.ac.kr', phone = '010-5519-8821' WHERE id = 'u_28_01';
@@ -139,7 +181,7 @@ INSERT INTO teams (id, group_type, track, team_name, study_name, leader_id, sche
   ('study_b', 'STUDY', '엔지니어링', '테라폼 스터디', '테라폼 스터디', 'u_28_04', '매주 목요일 19:30', '방학', 'GENERAL', '테라폼(IaC) 기반 클라우드 인프라 자동화 실습', '2026-08-01'),
   ('study_c', 'STUDY', '시각화', '태블로 & D3.js 스터디', '태블로 & D3.js 스터디', 'u_27_01', '매주 수요일 20:00', '학기', 'GENERAL', '인터랙티브 웹 데이터 시각화 & 대시보드', '2026-08-01'),
   ('study_d', 'STUDY', '분석', 'LLM Agent & RAG 스터디', 'LLM Agent & RAG 스터디', 'u_27_02', '매주 토요일 14:00', '학기', 'GENERAL', 'LangChain & LlamaIndex 기반 프로덕션 RAG', '2026-08-01'),
-  ('study_e', 'STUDY', '엔지니어링', '쿠버네티스 스터디', '쿠버네티스 스터디', 'u_26_04', '매주 금요일 19:00', '방학', 'GENERAL', '컨테이너 오케스트레이션과 쿠버네티스 클러스터 운영 실습', '2026-08-01');
+  ('study_e', 'STUDY', '엔지니어링', '쿠버네티스 스터디', '쿠버네티스 스터디', 'u_28_04', '매주 금요일 19:00', '방학', 'GENERAL', '컨테이너 오케스트레이션과 쿠버네티스 클러스터 운영 실습', '2026-08-01');
 
 -- ADV 프로젝트 팀 (group_type=ADV). 팀장(leader_id)은 반드시 아래 team_members에 있는 그 팀의 팀원이어야 한다.
 INSERT INTO teams (id, group_type, track, team_name, study_name, leader_id, schedule, period, kind, description, created_at) VALUES
@@ -214,7 +256,9 @@ INSERT INTO team_members (id, team_id, user_id, sort_order) VALUES
   ('e1', 'study_e', 'u_26_04', 0),
   ('e2', 'study_e', 'u_27_09', 1),
   ('e3', 'study_e', 'u_27_03', 2),
-  ('e4', 'study_e', 'u_28_06', 3);
+  ('e4', 'study_e', 'u_28_06', 3),
+  -- 강태양은 테라폼 스터디장이면서 쿠버네티스 스터디장도 맡는다(스터디 여러 개를 맡은 예시).
+  ('e5', 'study_e', 'u_28_04', 4);
 
 -- ── images ─────────────────────────────────────────────
 INSERT INTO images (id, path, url, original_name, size_label) VALUES
@@ -1522,7 +1566,7 @@ SELECT (SELECT cohort FROM cohorts WHERE is_current = 1), id, name, term, track 
 -- ─────────────────────────── HOST 계정 (mock 데이터) ───────────────────────────
 -- ADV·스터디 팀장을 겸하는 경우:
 --   · 고준서: ADV 분석 1팀 + LLM Agent & RAG 스터디. 계정(host_adv_ana1)이 두 권한을 모두 가진다.
---   · 강태양: ADV 엔지 1팀 + 테라폼 스터디. 계정(host_adv_eng1)은 ADV 권한만 있다(스터디 권한 추가 흐름 확인용).
+--   · 강태양: ADV 엔지 1팀 + 테라폼 스터디 + 쿠버네티스 스터디. 계정(host_adv_eng1)은 ADV 권한만 있다(스터디 권한 추가 흐름 확인용).
 --   · 송하늘: B조 스터디 + ADV 지리공간 맵핑. 계정(host_b)은 스터디 권한만 있다(ADV 권한 추가 흐름 확인용).
 
 INSERT INTO host_accounts (id, username, initial_password, user_id, host_name, generation, track, role, team_id,
@@ -1560,6 +1604,16 @@ INSERT INTO host_concurrent_roles (host_id, position, role) VALUES
   ('h_adv1', 1, 'LLM Agent & RAG 스터디');
 
 -- ── 동아리원 관리 화면 예시 값 ─────────────────────────────
+-- 탈퇴 명단 쪽 넘김(한 쪽 7명)을 볼 수 있게 탈퇴 회원을 더 넣는다. 팀·반기 명단·출결에는 넣지 않는다.
+-- 25기 이하는 모두 수료로 두므로 26기로 넣는다.
+INSERT INTO users (id, name, term, track) VALUES
+  ('u_26_24', '김도윤', 26, '분석'),
+  ('u_26_25', '서예린', 26, '시각화'),
+  ('u_26_26', '임하준', 26, '엔지니어링'),
+  ('u_26_27', '정유나', 26, '분석'),
+  ('u_26_28', '홍지후', 26, '시각화'),
+  ('u_26_29', '강서우', 26, '엔지니어링'),
+  ('u_26_30', '문채원', 26, '분석');
 -- 연락처가 없는 예시 회원에는 형식만 맞춘 임시 이메일·전화번호를 채운다.
 UPDATE users SET email = 'boaz.' || substr(id, 3) || '@example.com' WHERE email = '';
 UPDATE users SET phone = printf('010-0%03d-%04d', term, rowid) WHERE phone = '';
@@ -1579,6 +1633,107 @@ UPDATE users SET major = CASE id
   ELSE major
 END;
 UPDATE users SET club_status = 'ALUMNI' WHERE term <= 25;
-UPDATE users SET club_status = 'INACTIVE' WHERE id IN ('u_27_07', 'u_28_14');
+UPDATE users SET club_status = 'WITHDRAWN' WHERE id IN (
+  'u_27_07', 'u_28_14',
+  'u_26_24', 'u_26_25', 'u_26_26', 'u_26_27', 'u_26_28', 'u_26_29', 'u_26_30'
+);
 UPDATE users SET club_role = 'PRESIDENT' WHERE id = 'u_27_01';
-UPDATE users SET club_role = 'OPERATOR' WHERE id IN ('u_26_01', 'u_27_02', 'u_28_01');
+
+-- ─────────────────────────── 운영진 계정·권한 ───────────────────────────
+-- 운영진 계정은 모두 회원(users)을 가리킨다. 이름·기수·부문은 users에서 읽는다.
+-- 운영진 실제 명단(26·27기) 기준이다. 임시 비밀번호는 모두 'Boaz!2026'이다.
+-- 대표진 3(25기) · 차기대표진 3(26기) · 운영지원팀 6 · 대외협력팀 6 · 디자인팀 6 · 기획팀 6 · 자료연구팀 6 · 서비스운영팀 4명.
+-- 8번(전혜린)은 운영지원팀 운영진이다. 운영진이면서 스터디장·ADV 팀장인 경우는 테스트에서 팀장 데이터를 바꿔 만든다.
+INSERT INTO admin (id, user_id, username, password, role, team_name, created_by, created_at, updated_at) VALUES
+  (1, 'u_26_01', 'boaz_master', 'Boaz!2026', 'MASTER', '서비스운영팀', NULL, '2026-07-01 10:00:00', '2026-07-01 10:00:00'),
+  (2, 'u_25_09', 'boaz_president_1', 'Boaz!2026', 'SUPER', '대표진', 1, '2026-07-01 11:00:00', '2026-07-01 11:00:00'),
+  (3, 'u_25_08', 'boaz_president_2', 'Boaz!2026', 'SUPER', '대표진', 1, '2026-07-01 12:00:00', '2026-07-01 12:00:00'),
+  (4, 'u_26_08', 'boaz_ops_1', 'Boaz!2026', 'TEAM', '운영지원팀', 1, '2026-07-01 13:00:00', '2026-07-01 13:00:00'),
+  (5, 'u_26_23', 'boaz_service_1', 'Boaz!2026', 'TEAM', '서비스운영팀', 1, '2026-07-01 14:00:00', '2026-07-01 14:00:00'),
+  (6, 'u_26_17', 'boaz_plan_1', 'Boaz!2026', 'TEAM', '기획팀', 1, '2026-07-01 15:00:00', '2026-07-01 15:00:00'),
+  (7, 'u_26_14', 'boaz_design_1', 'Boaz!2026', 'TEAM', '디자인팀', 1, '2026-07-01 16:00:00', '2026-07-01 16:00:00'),
+  (8, 'u_27_26', 'boaz_ops_2', 'Boaz!2026', 'TEAM', '운영지원팀', 1, '2026-07-01 17:00:00', '2026-07-01 17:00:00'),
+  (9, 'u_25_07', 'boaz_president_3', 'Boaz!2026', 'SUPER', '대표진', 1, '2026-07-01 18:00:00', '2026-07-01 18:00:00'),
+  (10, 'u_26_09', 'boaz_ops_3', 'Boaz!2026', 'TEAM', '운영지원팀', 1, '2026-07-02 09:00:00', '2026-07-02 09:00:00'),
+  (11, 'u_26_10', 'boaz_ops_4', 'Boaz!2026', 'TEAM', '운영지원팀', 1, '2026-07-02 10:00:00', '2026-07-02 10:00:00'),
+  (12, 'u_27_10', 'boaz_ops_5', 'Boaz!2026', 'TEAM', '운영지원팀', 1, '2026-07-02 11:00:00', '2026-07-02 11:00:00'),
+  (13, 'u_27_11', 'boaz_ops_6', 'Boaz!2026', 'TEAM', '운영지원팀', 1, '2026-07-02 12:00:00', '2026-07-02 12:00:00'),
+  (14, 'u_26_11', 'boaz_partner_1', 'Boaz!2026', 'TEAM', '대외협력팀', 1, '2026-07-02 13:00:00', '2026-07-02 13:00:00'),
+  (15, 'u_26_12', 'boaz_partner_2', 'Boaz!2026', 'TEAM', '대외협력팀', 1, '2026-07-02 14:00:00', '2026-07-02 14:00:00'),
+  (16, 'u_26_13', 'boaz_partner_3', 'Boaz!2026', 'TEAM', '대외협력팀', 1, '2026-07-02 15:00:00', '2026-07-02 15:00:00'),
+  (17, 'u_27_12', 'boaz_partner_4', 'Boaz!2026', 'TEAM', '대외협력팀', 1, '2026-07-02 16:00:00', '2026-07-02 16:00:00'),
+  (18, 'u_27_13', 'boaz_partner_5', 'Boaz!2026', 'TEAM', '대외협력팀', 1, '2026-07-02 17:00:00', '2026-07-02 17:00:00'),
+  (19, 'u_27_14', 'boaz_partner_6', 'Boaz!2026', 'TEAM', '대외협력팀', 1, '2026-07-02 18:00:00', '2026-07-02 18:00:00'),
+  (20, 'u_26_15', 'boaz_design_2', 'Boaz!2026', 'TEAM', '디자인팀', 1, '2026-07-03 09:00:00', '2026-07-03 09:00:00'),
+  (21, 'u_26_16', 'boaz_design_3', 'Boaz!2026', 'TEAM', '디자인팀', 1, '2026-07-03 10:00:00', '2026-07-03 10:00:00'),
+  (22, 'u_26_18', 'boaz_plan_2', 'Boaz!2026', 'TEAM', '기획팀', 1, '2026-07-03 11:00:00', '2026-07-03 11:00:00'),
+  (23, 'u_26_19', 'boaz_plan_3', 'Boaz!2026', 'TEAM', '기획팀', 1, '2026-07-03 12:00:00', '2026-07-03 12:00:00'),
+  (24, 'u_26_20', 'boaz_research_1', 'Boaz!2026', 'TEAM', '자료연구팀', 1, '2026-07-03 13:00:00', '2026-07-03 13:00:00'),
+  (25, 'u_26_21', 'boaz_research_2', 'Boaz!2026', 'TEAM', '자료연구팀', 1, '2026-07-03 14:00:00', '2026-07-03 14:00:00'),
+  (26, 'u_26_22', 'boaz_research_3', 'Boaz!2026', 'TEAM', '자료연구팀', 1, '2026-07-03 15:00:00', '2026-07-03 15:00:00'),
+  (27, 'u_27_15', 'boaz_research_4', 'Boaz!2026', 'TEAM', '자료연구팀', 1, '2026-07-03 16:00:00', '2026-07-03 16:00:00'),
+  (28, 'u_27_16', 'boaz_research_5', 'Boaz!2026', 'TEAM', '자료연구팀', 1, '2026-07-03 17:00:00', '2026-07-03 17:00:00'),
+  (29, 'u_27_17', 'boaz_research_6', 'Boaz!2026', 'TEAM', '자료연구팀', 1, '2026-07-03 18:00:00', '2026-07-03 18:00:00'),
+  (30, 'u_27_18', 'boaz_service_2', 'Boaz!2026', 'TEAM', '서비스운영팀', 1, '2026-07-04 09:00:00', '2026-07-04 09:00:00'),
+  (31, 'u_27_19', 'boaz_service_3', 'Boaz!2026', 'TEAM', '서비스운영팀', 1, '2026-07-04 10:00:00', '2026-07-04 10:00:00'),
+  (32, 'u_26_05', 'boaz_next_president_1', 'Boaz!2026', 'SUPER', '차기대표진', 1, '2026-07-04 11:00:00', '2026-07-04 11:00:00'),
+  (33, 'u_26_06', 'boaz_next_president_2', 'Boaz!2026', 'SUPER', '차기대표진', 1, '2026-07-04 12:00:00', '2026-07-04 12:00:00'),
+  (34, 'u_26_07', 'boaz_next_president_3', 'Boaz!2026', 'SUPER', '차기대표진', 1, '2026-07-04 13:00:00', '2026-07-04 13:00:00'),
+  (35, 'u_27_20', 'boaz_design_4', 'Boaz!2026', 'TEAM', '디자인팀', 1, '2026-07-04 14:00:00', '2026-07-04 14:00:00'),
+  (36, 'u_27_21', 'boaz_design_5', 'Boaz!2026', 'TEAM', '디자인팀', 1, '2026-07-04 15:00:00', '2026-07-04 15:00:00'),
+  (37, 'u_27_22', 'boaz_design_6', 'Boaz!2026', 'TEAM', '디자인팀', 1, '2026-07-04 16:00:00', '2026-07-04 16:00:00'),
+  (38, 'u_27_23', 'boaz_plan_4', 'Boaz!2026', 'TEAM', '기획팀', 1, '2026-07-04 17:00:00', '2026-07-04 17:00:00'),
+  (39, 'u_27_24', 'boaz_plan_5', 'Boaz!2026', 'TEAM', '기획팀', 1, '2026-07-04 18:00:00', '2026-07-04 18:00:00'),
+  (40, 'u_27_25', 'boaz_plan_6', 'Boaz!2026', 'TEAM', '기획팀', 1, '2026-07-04 19:00:00', '2026-07-04 19:00:00');
+
+-- 팀장: 팀마다 한 명. 서비스운영팀은 서비스운영팀장(1번)이다. 대표진에는 팀장을 두지 않는다.
+UPDATE admin SET is_team_lead = 1 WHERE id IN (1, 4, 6, 7, 14, 24);
+
+
+-- 운영진 계정(admin 행)이 있는 회원은 동아리원 관리에서도 운영진 역할로 보이게 맞춘다.
+-- 역할은 admin 행이 있는지로만 정한다(admin 행 없이 OPERATOR인 회원을 두지 않는다). 대표(PRESIDENT)는 그대로 둔다.
+UPDATE users SET club_role = 'OPERATOR'
+ WHERE id IN (SELECT user_id FROM admin) AND club_role <> 'PRESIDENT';
+
+-- 기획팀장에게 콘텐츠 CUD를 열어 준 예외 한 건(기타 운영진 기본 세트에는 없다).
+INSERT INTO admin_permission_override (id, admin_id, permission, effect, granted_by, created_at) VALUES
+  (1, 6, 'CONTENT_WRITE', 'GRANT', 1, '2026-08-01 10:00:00');
+
+-- 감사 로그 예시. 콘텐츠·리크루팅·평가 화면은 아직 API에 연결되지 않아, 그 기록은 이 예시로만 보인다.
+-- 콘텐츠의 첨부 파일(files: 이름과 올린 주소)도 예시 값이다. 사진 주소는 아카이빙 화면의 예시 사진과 같다.
+-- 콘텐츠 API가 붙으면 그 API가 파일을 올린 뒤 받은 주소(S3 URL)를 같은 모양으로 기록에 남긴다.
+-- API 경로(api_method·api_path)는 임시 API에 있는 경로만 적고, 아직 API가 없는 화면의 기록은 NULL로 둔다.
+-- 수행자는 위 운영진 계정(admin.id), 대상은 위 시드 데이터의 id다.
+INSERT INTO audit_log (occurred_at, actor_admin_id, action, target_type, target_ids, api_method, api_path, detail, ip) VALUES
+  ('2026-08-25 14:02:11', 9, 'RECRUITMENT_CREATE', 'RECRUITMENT', '["recruit-28"]', NULL, NULL, '{"label":"28기 신입 모집"}', '10.0.12.31'),
+  ('2026-09-01 10:15:42', 6, 'RECRUITMENT_UPDATE', 'RECRUITMENT', '["recruit-28"]', NULL, NULL, '{"label":"28기 신입 모집","fields":["deadline"]}', '10.0.12.44'),
+  ('2026-09-07 23:59:59', 9, 'RECRUITMENT_CLOSE', 'RECRUITMENT', '["recruit-28"]', NULL, NULL, '{"label":"28기 신입 모집"}', '10.0.12.31'),
+  ('2026-09-12 18:20:05', 2, 'DECISION_CONFIRM', 'RECRUITMENT', '["recruit-28"]', NULL, NULL, '{"label":"28기 신입 모집","term":28}', '10.0.12.18'),
+  ('2026-09-13 11:04:37', 2, 'PROMOTION', 'USER', '["u_28_01","u_28_02","u_28_03","u_28_04","u_28_05"]', NULL, NULL, '{"term":28,"applicationIds":["app-2801","app-2802","app-2803","app-2804","app-2805"]}', '10.0.12.18'),
+  ('2026-09-20 09:30:00', 9, 'APPLICATION_DELETE', 'APPLICATION', '["recruit-28"]', NULL, NULL, '{"label":"28기 지원서 전체","term":28}', '10.0.12.31'),
+  ('2026-09-15 16:48:12', 1, 'ADMIN_ACCOUNT_CREATE', 'ADMIN', '["10"]', 'POST', '/api/v1/admin/accounts', '{"role":"TEAM","teamName":"운영지원팀","permissions":["ADMIN_ACCOUNT_SELF_WRITE","ATTENDANCE_BASE_WRITE","ATTENDANCE_BASE_READ","ATTENDANCE_ADV_WRITE","ATTENDANCE_ADV_READ","ATTENDANCE_STUDY_WRITE","ATTENDANCE_STUDY_READ","ATTENDANCE_EVENT_WRITE","ATTENDANCE_EVENT_READ","ATTENDANCE_SCORE_WRITE","ATTENDANCE_SCORE_READ","ATTENDANCE_ADV_ENTRY_WRITE","ATTENDANCE_ADV_ENTRY_READ","ATTENDANCE_STUDY_ENTRY_WRITE","ATTENDANCE_STUDY_ENTRY_READ","HOST_ACCOUNT_WRITE","HOST_ACCOUNT_READ","SCORE_RULE_WRITE","SCORE_RULE_READ","EVALUATION_OWN_TRACK_WRITE","FINAL_DECISION_READ"],"request":{"userId":"u_26_09","role":"TEAM","teamName":"운영지원팀","username":"boaz_ops_3","password":"(비공개)"}}', '10.0.12.7'),
+  ('2026-09-15 16:50:40', 1, 'PERMISSION_CHANGE', 'ADMIN', '["6"]', 'PUT', '/api/v1/admin/accounts/6/permissions', '{"added":["CONTENT_WRITE"],"request":{"permissions":["ADMIN_ACCOUNT_SELF_WRITE","CONTENT_WRITE","EVALUATION_OWN_TRACK_WRITE","FINAL_DECISION_READ"]}}', '10.0.12.7'),
+  ('2026-09-16 13:22:09', 5, 'ADMIN_PASSWORD_RESET', 'ADMIN', '["7"]', 'PATCH', '/api/v1/admin/accounts/7/password', '{"request":{"newPassword":"(비공개)"}}', '10.0.12.52'),
+  ('2026-09-18 20:11:33', 4, 'TEAM_CREATE', 'TEAM', '["study_d"]', 'POST', '/api/v1/study-teams', '{"group":"STUDY","label":"LLM Agent & RAG 스터디","request":{"name":"(비공개)","track":"분석","studyKind":"GENERAL","period":"학기","memberIds":["u_27_02","u_27_03","u_28_11","u_28_12"],"leaderId":"u_27_02"}}', '10.0.12.60'),
+  ('2026-09-18 20:14:02', 4, 'TEAM_MEMBER_ADD', 'TEAM', '["study_d"]', 'POST', '/api/v1/study-teams/study_d/members', '{"group":"STUDY","userId":"u_27_05","label":"LLM Agent & RAG 스터디","request":{"userId":"u_27_05"}}', '10.0.12.60'),
+  ('2026-09-19 10:02:51', 8, 'TEAM_CREATE', 'TEAM', '["study_e"]', 'POST', '/api/v1/study-teams', '{"group":"STUDY","label":"쿠버네티스 스터디","request":{"name":"(비공개)","track":"엔지니어링","studyKind":"GENERAL","period":"방학","memberIds":["u_26_04","u_27_09","u_27_03","u_28_06","u_28_04"],"leaderId":"u_28_04"}}', '10.0.12.63'),
+  ('2026-09-22 21:40:18', 4, 'ATTENDANCE_EDIT', 'TEAM', '["study_a"]', 'PUT', '/api/v1/study-teams/study_a/weeks/3/attendance', '{"group":"STUDY","week":3,"label":"A조","request":{"records":[{"memberId":"a1","subType":"","status":"absent","memo":"개인 일정으로 인한 결석"},{"memberId":"a2","subType":"","status":"present"},{"memberId":"a3","subType":"","status":"present"},{"memberId":"a4","subType":"","status":"present"}]}}', '10.0.12.60'),
+  ('2026-09-22 21:41:02', 4, 'ATTENDANCE_SUBMIT', 'TEAM', '["study_a"]', 'POST', '/api/v1/study-teams/study_a/weeks/3/submit', '{"group":"STUDY","week":3,"label":"A조","request":{"records":[{"memberId":"a1","subType":"","status":"absent","memo":"개인 일정으로 인한 결석"},{"memberId":"a2","subType":"","status":"present"},{"memberId":"a3","subType":"","status":"present"},{"memberId":"a4","subType":"","status":"present"}]}}', '10.0.12.60'),
+  ('2026-09-24 15:05:27', 3, 'SCORE_RULE_UPDATE', 'SCORE_RULE', '["rule-27"]', 'PATCH', '/api/v1/score-rules/rule-27', '{"fields":["unexcusedAbsent"],"label":"Version 3","request":{"unexcusedAbsentPenalty":-4}}', '10.0.12.25'),
+  ('2026-09-26 11:12:44', 6, 'CONTENT_CREATE', 'CONTENT', '["archive-112"]', 'POST', '/api/v1/admin/archiving/projects', '{"kind":"ARCHIVE","label":"26기 분석 컨퍼런스 프로젝트","files":[{"name":"대표이미지.jpg","url":"https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80"},{"name":"발표자료.pdf","url":null},{"name":"결과보고서.pdf","url":null}],"request":{"title":"26기 분석 컨퍼런스 프로젝트","teamName":"수요예측팀","term":26,"track":"ANALYSIS","contentDate":"2026-09-20","links":{"github":"https://github.com/boaz-bigdata/26th-analysis-conference","slideshare":"https://www.slideshare.net/boaz/26th-analysis-conference"},"visible":true,"files":[{"name":"대표이미지.jpg","url":"https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80"},{"name":"발표자료.pdf","url":null},{"name":"결과보고서.pdf","url":null}]}}', '10.0.12.44'),
+  ('2026-09-27 17:33:09', 6, 'CONTENT_UPDATE', 'CONTENT', '["review-48"]', 'PATCH', '/api/v1/admin/reviews/review-48', '{"kind":"REVIEW","label":"26기 수료자 후기","fields":["body"],"request":{"content":"6개월 동안 분석 트랙에서 실제 기업 데이터로 수요 예측 프로젝트를 진행했습니다. 매주 세션과 스터디로 기초를 다지고, 컨퍼런스 발표까지 마치며 팀으로 문제를 끝까지 푸는 경험을 했습니다."}}', '10.0.12.44'),
+  ('2026-09-30 09:58:16', 7, 'CONTENT_CREATE', 'CONTENT', '["faq-21"]', 'POST', '/api/v1/admin/faqs', '{"kind":"FAQ","label":"면접은 어떻게 진행되나요?","request":{"category":"RECRUITMENT","question":"면접은 어떻게 진행되나요?","answer":"서류 합격자를 대상으로 대면 면접을 진행합니다. 지원서 내용과 지원 트랙의 기초 지식을 바탕으로 20분 내외로 질의응답을 합니다. 일정은 서류 결과 발표 때 함께 안내합니다.","orderNum":3,"visible":true}}', '10.0.12.71'),
+  ('2026-10-02 14:27:35', 6, 'CONTENT_DELETE', 'CONTENT', '["archive-87"]', 'DELETE', '/api/v1/admin/archiving/activities/archive-87', '{"kind":"ARCHIVE","label":"24기 시각화 프로젝트 사진","files":[{"name":"발표회_01.jpg","url":"https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&fit=crop&q=80"},{"name":"발표회_02.jpg","url":"https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800&auto=format&fit=crop&q=80"}]}', '10.0.12.44'),
+  ('2026-10-04 19:03:58', 5, 'MEMBER_UPDATE', 'USER', '["u_27_07"]', 'PATCH', '/api/v1/club-members/u_27_07', '{"fields":["status"],"request":{"status":"WITHDRAWN"}}', '10.0.12.52'),
+  ('2026-10-06 10:44:20', 1, 'OPERATOR_ASSIGN', 'USER', '["u_27_11"]', 'PUT', '/api/v1/admin/operators/u_27_11', '{"teamName":"운영지원팀","previousTeamName":null,"request":{"teamName":"운영지원팀"}}', '10.0.12.7'),
+  ('2026-10-08 22:15:47', 8, 'ATTENDANCE_EDIT', 'TEAM', '["study_e"]', 'PUT', '/api/v1/study-teams/study_e/weeks/5/attendance', '{"group":"STUDY","week":5,"label":"쿠버네티스 스터디","request":{"records":[{"memberId":"e1","subType":"","status":"present"},{"memberId":"e2","subType":"","status":"present"},{"memberId":"e3","subType":"","status":"late","memo":"20분 지각"},{"memberId":"e4","subType":"","status":"present"},{"memberId":"e5","subType":"","status":"present"}]}}', '10.0.12.63'),
+  ('2026-10-11 13:09:30', 4, 'EVENT_CREATE', 'EVENT', '["event-27-mt"]', 'POST', '/api/v1/events', '{"label":"27기 MT","request":{"id":"event-27-mt","title":"27기 MT","status":"UPCOMING","date":"2026-11-07","startTime":"14:00","endTime":"22:00","location":"미정","description":"27기 MT","allowExternal":false,"checkinMethod":"MANUAL","checkinCode":"","customFields":[],"attendanceFormat":"GENERAL","targetTerms":[27],"targetTracks":[],"totalTargetCount":0,"internalAttendedCount":0,"externalAttendedCount":0,"createdAt":"2026-10-11"}}', '10.0.12.60'),
+  ('2026-10-12 16:21:03', 7, 'CONTENT_CREATE', 'CONTENT', '["curriculum-27-adv"]', 'POST', '/api/v1/admin/curriculums', '{"kind":"CURRICULUM","label":"27기 ADV 커리큘럼","files":[{"name":"27기_ADV_커리큘럼.pdf","url":null}],"request":{"title":"27기 ADV 커리큘럼","term":27,"description":"27기 ADV 세션의 주차별 주제와 과제 안내","visible":true,"files":[{"name":"27기_ADV_커리큘럼.pdf","url":null}]}}', '10.0.12.71'),
+  ('2026-10-14 11:36:52', 3, 'SCORE_RULE_ACTIVATE', 'SCORE_RULE', '["rule-27"]', 'POST', '/api/v1/score-rules/rule-27/activate', '{"label":"Version 3"}', '10.0.12.25'),
+  ('2026-10-17 18:02:26', 1, 'HOST_ACCOUNT_UPDATE', 'HOST', '["h1"]', 'PATCH', '/api/v1/hosts/h1', '{"fields":["permissions"],"label":"host_a","request":{"permissions":["STUDY"]}}', '10.0.12.7');
+
+-- HOST(그룹 계정)가 한 기록과, 지금은 운영진 계정이 지워진 사람(admin.id 99)이 한 기록.
+-- 수행자 회원 id와 등급을 함께 남긴다(위 예시는 비워 두어, 조회할 때 지금 계정에서 찾는다).
+INSERT INTO audit_log (occurred_at, actor_admin_id, actor_user_id, actor_role, action, target_type, target_ids, api_method, api_path, detail, ip) VALUES
+  ('2026-08-20 17:42:05', 99, 'u_25_03', 'TEAM', 'CONTENT_UPDATE', 'CONTENT', '["faq-12"]', 'PATCH', '/api/v1/admin/faqs/faq-12', '{"kind":"FAQ","label":"지원 자격이 있나요?","fields":["body"],"request":{"answer":"BOAZ에 지원하려면 대학생 또는 대학원생이어야 하며, 전공은 상관없습니다. 활동 기간(1년) 동안 매주 세션에 참여할 수 있어야 합니다."}}', '10.0.12.39'),
+  ('2026-09-23 22:05:13', NULL, 'u_27_01', 'HOST', 'ATTENDANCE_SUBMIT', 'TEAM', '["study_c"]', 'POST', '/api/v1/study-teams/study_c/weeks/3/submit', '{"group":"STUDY","week":3,"label":"태블로 & D3.js 스터디","request":{"records":[{"memberId":"c1","subType":"","status":"absent","memo":"개인 일정으로 인한 결석"},{"memberId":"c2","subType":"","status":"present"},{"memberId":"c3","subType":"","status":"present"},{"memberId":"c4","subType":"","status":"present"}]}}', '10.0.12.88');

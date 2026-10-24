@@ -80,7 +80,7 @@ const SIDEBAR_NAV = [
   },
   {
     id: 'attendance',
-    label: '출결 & 점수 시스템',
+    label: '출결 및 점수 시스템',
     icon: ClipboardList,
     permission: 'ATTENDANCE_*',
     groups: [
@@ -112,21 +112,20 @@ const SIDEBAR_NAV = [
   },
   {
     id: 'system',
-    label: '시스템·계정',
+    label: '시스템 및 계정',
     icon: Settings,
     permission: 'ACCOUNT_MANAGE',
     groups: [
       {
         title: '계정 및 권한',
         pages: [
-          { id: 'system-members', label: '동아리원 관리' },
-          { id: 'system-accounts', label: '운영진 계정 관리 (CRUD)' },
-          { id: 'system-permissions', label: '권한 매트릭스' },
+          { id: 'system-members', label: '동아리원 명단' },
+          { id: 'system-accounts', label: '권한 관리' },
         ],
       },
       {
         title: '보안',
-        pages: [{ id: 'system-audit', label: '보안 감사 로그' }],
+        pages: [{ id: 'system-audit', label: '감사 로그' }],
       },
     ],
   },
@@ -378,7 +377,8 @@ export function Sidebar({
                           {grp.title}
                         </p>
                       )}
-                      <div className="space-y-0.5">
+                      {/* 페이지는 그룹 제목보다 한 단계 안쪽에 두어, 제목 아래에 딸린 메뉴로 읽히게 한다. */}
+                      <div className={`space-y-0.5 ${grp.title ? 'pl-3' : ''}`}>
                         {grp.pages.map((page) => {
                           const isActive = activePage === page.id;
                           return (

@@ -11,6 +11,7 @@ import { execute } from '@/shared/db/createDatabase';
 import { managedTeamIds, teamIdsOfSemester } from '../hostCleanup';
 import { findTeam, notFound, resolveSemester } from '../queries';
 import { ApiError, type MockRoute } from '../router';
+import { requireUnusedLoginUsername } from './authRoutes';
 import {
   type Body,
   oneOf,
@@ -162,6 +163,7 @@ export const hostRoutes: MockRoute[] = [
         active: true,
       };
       const host = applyHostBody(db, draft, input);
+      requireUnusedLoginUsername(db, host.username);
       persistHosts(db, [], [host]);
       return linkLeaderIfRequested(db, host.id, input);
     },
@@ -185,6 +187,8 @@ export const hostRoutes: MockRoute[] = [
       const current = findHost(db, params.hostId);
       const next = applyHostBody(db, current, input);
       if (!next.username) throw new ApiError(400, 'BAD_REQUEST', 'username 값이 필요합니다.');
+      if (next.username !== current.username)
+        requireUnusedLoginUsername(db, next.username, current.id);
       persistHosts(db, [current], [next]);
       return linkLeaderIfRequested(db, current.id, input);
     },

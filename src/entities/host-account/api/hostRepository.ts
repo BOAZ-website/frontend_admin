@@ -6,6 +6,7 @@
  */
 import type { Database } from 'sql.js';
 
+import { CLUB_MEMBER_TRACKS } from '@/entities/club-member/model/types';
 import { execute, inTransaction, queryAll } from '@/shared/db/createDatabase';
 
 import type { AssignedGroup, HostAccount } from '../model/types';
@@ -162,7 +163,7 @@ function resolveOrCreateUserId(db: Database, host: HostAccount): string | null {
   if (matched) return matched.id;
 
   const id = `u_host_${host.id}`;
-  const track = ['분석', '시각화', '엔지니어링'].includes(host.track ?? '')
+  const track = (CLUB_MEMBER_TRACKS as readonly string[]).includes(host.track ?? '')
     ? (host.track as string)
     : '분석';
   execute(db, 'INSERT INTO users (id, name, term, track) VALUES (?, ?, ?, ?)', [
