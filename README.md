@@ -50,16 +50,15 @@ git switch -c 'feat/#12-attendance-export'
 
 - 다른 작업 브랜치 위에 작업 브랜치를 만들지 않습니다. 앞 작업이 꼭 필요하면 앞 PR이 `dev`에 병합된 뒤 최신 `dev`에서 새로 만듭니다.
 - PR 하나에는 이슈 하나의 변경만 담습니다. 다른 이슈의 커밋이 PR에 섞이지 않게 합니다.
-- 작업 브랜치를 최신 `dev`에 맞출 때는 `dev`를 병합하지 않고 rebase로 내 커밋을 최신 `dev` 위에 다시 올립니다. 이미 푸시한 브랜치는 `--force-with-lease`로 올립니다. 강제 푸시는 혼자 쓰는 작업 브랜치에서만 하고, `main`·`dev`에는 하지 않습니다.
+- 작업 중에 `dev`가 바뀌면, 최신 `dev`를 내 작업 브랜치로 pull 받아 병합하고 충돌을 푼 뒤 이어서 작업합니다. 강제 푸시는 하지 않습니다.
 - 리뷰를 반영할 때는 그 PR 브랜치에 커밋을 더합니다. 그 변경을 다른 작업 브랜치에 병합하지 않습니다.
 - 병합이 끝난 작업 브랜치는 지웁니다.
 
 ```sh
-git fetch origin
 git switch 'feat/#12-attendance-export'
-git rebase origin/dev
-# 충돌이 나면 파일을 고친 뒤: git add <파일> && git rebase --continue
-git push --force-with-lease
+git pull origin dev
+# 충돌이 나면 파일을 고친 뒤: git add <파일> && git commit
+git push
 ```
 
 ## 이슈와 PR
