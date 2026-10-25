@@ -316,6 +316,31 @@ test('계정 수정·비밀번호 재설정으로도 다른 계정이 MASTER를 
   call('PATCH', '/api/v1/admin/accounts/5/password', { newPassword: 'Changed!1' });
 });
 
+test('현재 반기가 바뀌면 맡은 그룹을 새 현재 반기 팀 기준으로 다시 만든다', async () => {
+  const { db, call } = await setup();
+  const leadershipOf = (accountId: number) =>
+    call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === accountId)!
+      .leadership;
+  const setCurrent = (cohort: number) => {
+    execute(db, 'UPDATE cohorts SET is_current = 0 WHERE is_current = 1');
+    execute(db, 'UPDATE cohorts SET is_current = 1 WHERE cohort = ?', [cohort]);
+  };
+  const current = Number(
+    db.exec('SELECT cohort FROM cohorts WHERE is_current = 1')[0].values[0][0],
+  );
+
+  makeDualLeader(db);
+  assert.deepEqual(leadershipOf(8), ['ADV', 'STUDY']);
+
+  // 지난 반기로 넘기면 이번 반기 팀의 연결이 남지 않는다.
+  setCurrent(current - 1);
+  assert.deepEqual(leadershipOf(8), []);
+
+  // 다시 현재 반기로 돌리면, 현재 반기가 아닐 때 팀장이 정해진 팀도 연결된다.
+  setCurrent(current);
+  assert.deepEqual(leadershipOf(8), ['ADV', 'STUDY']);
+});
+
 test('권한 저장은 없는 권한 키를 400으로, 권한 부여 권한이 없으면 403으로 거부한다', async () => {
   const { call, loginAs } = await setup();
   expectApiError(
