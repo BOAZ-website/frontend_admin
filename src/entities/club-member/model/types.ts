@@ -30,6 +30,11 @@ export interface ClubMember {
    * 현재 반기 팀장은 탈퇴 처리할 수 없다(출결 화면에서 팀장을 바꾼 뒤 탈퇴한다). 지난 반기 팀장은 막지 않는다.
    */
   leaderTeams: string | null;
+  /**
+   * 연결된 HOST 계정 아이디(여러 개면 ', '로 이음). 없으면 null.
+   * HOST 계정이 있으면 탈퇴 처리할 수 없다(그룹 계정 관리에서 계정을 먼저 삭제한다).
+   */
+  hostUsernames: string | null;
 }
 
 export const CLUB_MEMBER_TRACKS: readonly ClubMemberTrack[] = ['분석', '시각화', '엔지니어링'];

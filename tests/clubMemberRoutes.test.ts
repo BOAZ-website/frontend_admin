@@ -236,7 +236,7 @@ function linkedRowCounts(db: Awaited<ReturnType<typeof setup>>['db'], id: string
 const CURRENT_TEAM = 'semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)';
 
 /**
- * 탈퇴 처리할 수 있는 활동 회원(운영진도 현재 반기 팀장도 아닌 사람). 팀 소속·출결 기록이 있는 사람을 고른다.
+ * 탈퇴 처리할 수 있는 활동 회원(운영진·HOST 계정이 없고 현재 반기 팀장도 아닌 사람). 팀 소속·출결 기록이 있는 사람을 고른다.
  */
 function activeLeaderId(db: Awaited<ReturnType<typeof setup>>['db']): string {
   return queryAll<{ id: string }>(
@@ -244,6 +244,7 @@ function activeLeaderId(db: Awaited<ReturnType<typeof setup>>['db']): string {
     `SELECT tm.user_id AS id FROM team_members tm JOIN users u ON u.id = tm.user_id
       WHERE u.club_status = 'ACTIVE'
         AND NOT EXISTS (SELECT 1 FROM admin a WHERE a.user_id = tm.user_id)
+        AND NOT EXISTS (SELECT 1 FROM host_accounts h WHERE h.user_id = tm.user_id)
         AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.leader_id = tm.user_id AND t.${CURRENT_TEAM})
         AND EXISTS (SELECT 1 FROM attendance_records r WHERE r.member_id = tm.id)
       LIMIT 1`,
@@ -267,6 +268,7 @@ test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
   assert.ok(leader);
+  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
   const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find(
     (m) => m.id === leader.userId,
   );
@@ -292,6 +294,7 @@ test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸
 test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
+  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
   // 반기를 넘겨 지금 팀이 지난 반기 팀이 되게 한다.
   const current = queryAll<{ cohort: number }>(
     db,
@@ -335,25 +338,43 @@ test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAW
   assert.deepEqual(linkedRowCounts(db, target), before);
 });
 
-test('탈퇴 처리하면 연결된 HOST 계정을 지우고, 출결 기록은 남긴다', async () => {
+test('HOST 계정이 있으면 탈퇴 처리할 수 없고(409), 계정을 지우면 탈퇴 처리된다', async () => {
   const { db, call } = await setup();
-  const host = queryAll<{ id: string; user_id: string }>(
-    db,
-    `SELECT h.id, h.user_id FROM host_accounts h
-      WHERE h.user_id IS NOT NULL AND h.user_id NOT IN (SELECT user_id FROM admin)
-      LIMIT 1`,
-  )[0];
-  assert.ok(host);
-  // 팀장이면 먼저 팀장을 비운다(현재 반기 팀장은 탈퇴 처리할 수 없다).
-  execute(db, 'UPDATE teams SET leader_id = NULL WHERE leader_id = ?', [host.user_id]);
-  const before = linkedRowCounts(db, host.user_id);
+  // 시드의 HOST 계정 host_c(계정 주인 u_27_01). 팀장 사유는 따로 보므로 팀장을 먼저 비운다.
+  execute(db, 'UPDATE teams SET leader_id = NULL WHERE leader_id = ?', ['u_27_01']);
+  const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === 'u_27_01');
+  assert.equal(listed?.hostUsernames, 'host_c');
 
-  call('DELETE', `/api/v1/club-members/${host.user_id}`);
-  const remaining = queryAll(db, 'SELECT id FROM host_accounts WHERE user_id = ?', [host.user_id]);
-  assert.equal(remaining.length, 0);
-  const groups = queryAll(db, 'SELECT 1 FROM host_assigned_groups WHERE host_id = ?', [host.id]);
-  assert.equal(groups.length, 0);
-  assert.equal(linkedRowCounts(db, host.user_id).attendance, before.attendance);
+  expectApiErrorCode(
+    () => call('DELETE', '/api/v1/club-members/u_27_01'),
+    409,
+    'MEMBER_HAS_HOST_ACCOUNT',
+  );
+  // 계정은 그대로이고 활동 상태도 바뀌지 않는다.
+  assert.equal(queryAll(db, "SELECT 1 FROM host_accounts WHERE username = 'host_c'").length, 1);
+
+  execute(db, "DELETE FROM host_accounts WHERE username = 'host_c'");
+  assert.equal(call<ClubMember>('DELETE', '/api/v1/club-members/u_27_01').status, 'WITHDRAWN');
+});
+
+test('막는 사유가 여럿이면 409 메시지에 모두 담고, 먼저 할 일을 알린다', async () => {
+  const { db, call } = await setup();
+  const leader = currentLeaderOf(db);
+  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
+  execute(
+    db,
+    "INSERT INTO host_accounts (id, username, initial_password, user_id, created_at) VALUES ('h_t', 'host_t', 'x', ?, '2026-10-25 10:00')",
+    [leader.userId],
+  );
+  assert.throws(
+    () => call('DELETE', `/api/v1/club-members/${leader.userId}`),
+    (error: unknown) =>
+      error instanceof ApiError &&
+      error.status === 409 &&
+      error.code === 'MEMBER_HAS_HOST_ACCOUNT' &&
+      error.message.includes('그룹 계정 관리에서 계정을 먼저 삭제') &&
+      error.message.includes('팀장을 먼저 바꿔'),
+  );
 });
 
 test('탈퇴 처리한 사람은 기수별 활동 페이지와 부문 페이지에서 빠진다', async () => {

@@ -95,6 +95,7 @@ test('운영진 필터로 팀별 운영진이나 운영진이 아닌 동아리�
     ...member,
     operatorTeam: member.id === 'member-3' ? '운영지원팀' : null,
     leaderTeams: null,
+    hostUsernames: null,
   }));
   const base = { query: '', term: 'ALL', track: 'ALL', status: 'ALL' } as const;
 
