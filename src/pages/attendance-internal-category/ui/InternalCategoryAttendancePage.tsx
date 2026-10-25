@@ -66,6 +66,7 @@ import { cohortLabelOf, cohortsOf, isPastCohort } from '@/entities/cohort/model/
 import type { SemesterDto } from '@/entities/cohort/model/dto';
 import { buildStudyView } from '../model/studyView';
 import { buildBaseTrackTeams } from '../model/baseAttendanceCreate';
+import { CATEGORY_TITLES } from '../model/categoryTitles';
 import { BaseAttendanceCreateModal } from './BaseAttendanceCreateModal';
 import { CohortSelect } from './CohortSelect';
 import { StudyMemberPicker } from './StudyMemberPicker';
@@ -157,7 +158,7 @@ const CATEGORY_CONFIG: Record<
   }
 > = {
   SESSION: {
-    title: 'BASE Term 출결 관리',
+    title: CATEGORY_TITLES.SESSION,
     subTitle: '분석, 시각화, 엔지니어링 3개 트랙별 BASE 출석 현황을 실시간으로 관리합니다.',
     icon: Calendar,
     themeColor: '#0f172a',
@@ -169,7 +170,7 @@ const CATEGORY_CONFIG: Record<
     initialAttendees: [],
   },
   STUDY: {
-    title: '스터디 출결 관리',
+    title: CATEGORY_TITLES.STUDY,
     subTitle: '멘멘 스터디와 일반 스터디의 주차별 출석 및 인증 내역을 관리합니다.',
     icon: BookOpen,
     themeColor: '#0f172a',
@@ -181,7 +182,7 @@ const CATEGORY_CONFIG: Record<
     initialAttendees: [],
   },
   ADV: {
-    title: 'ADV Term 출결 관리',
+    title: CATEGORY_TITLES.ADV,
     subTitle: '산학 연계 및 실무 프로젝트 어드브 팀별 마일스톤 및 멘토링 출결을 관리합니다.',
     icon: Rocket,
     themeColor: '#0f172a',

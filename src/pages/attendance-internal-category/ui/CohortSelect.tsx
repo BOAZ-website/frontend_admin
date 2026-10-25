@@ -76,7 +76,7 @@ export function CohortSelect({
               onClick={async () => {
                 if (
                   !window.confirm(
-                    '새 반기를 시작할까요?\n다음 반기가 현재 반기가 됩니다. 출결·점수 시스템의 HOST 계정만 정리되며 다른 관리 탭의 데이터는 유지됩니다.',
+                    '새 반기를 시작할까요?\n다음 반기가 현재 반기가 됩니다. 출결 및 점수 시스템의 HOST 계정만 정리되며 다른 관리 탭의 데이터는 유지됩니다.',
                   )
                 )
                   return;

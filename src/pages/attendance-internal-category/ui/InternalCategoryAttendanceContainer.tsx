@@ -1,7 +1,10 @@
 import type { ComponentProps } from 'react';
 
+import { PageLoadingState } from '@/widgets/page-loading/ui/PageLoadingState';
+
 import type { SemesterDto } from '@/entities/cohort/model/dto';
 
+import { CATEGORY_TITLES } from '../model/categoryTitles';
 import { useCategoryAttendanceData } from '../model/useCategoryAttendanceData';
 import { InternalCategoryAttendancePage } from './InternalCategoryAttendancePage';
 
@@ -38,18 +41,19 @@ export function InternalCategoryAttendanceContainer({
 
   if (data.status !== 'ready') {
     return (
-      <p
-        role="status"
-        className={`rounded-md border px-4 py-3 text-xs ${
-          data.status === 'error'
-            ? 'border-red-200 bg-red-50 text-red-600'
-            : 'border-slate-200 bg-white text-slate-500'
-        }`}
-      >
-        {data.status === 'error'
-          ? `출결 정보를 불러오지 못했습니다. (${data.error?.message ?? '알 수 없는 오류'})`
-          : '출결 정보를 불러오는 중입니다.'}
-      </p>
+      <PageLoadingState
+        className="flex flex-col flex-1 h-full min-h-0 space-y-3 w-full"
+        header={
+          <div className="flex min-h-7.5 items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-3 shrink-0">
+            <h2 className="text-slate-950 font-black text-lg sm:text-xl tracking-tight">
+              {CATEGORY_TITLES[pageProps.category]}
+            </h2>
+          </div>
+        }
+        error={data.status === 'error' ? data.error : null}
+        loadingMessage="출결 정보를 불러오는 중입니다."
+        errorMessage="출결 정보를 불러오지 못했습니다."
+      />
     );
   }
 
