@@ -46,12 +46,28 @@ git pull --ff-only origin dev
 git switch -c 'feat/#12-attendance-export'
 ```
 
+브랜치는 `main` ← `dev` ← 작업 브랜치 한 층으로만 둡니다.
+
+- 다른 작업 브랜치 위에 작업 브랜치를 만들지 않습니다. 앞 작업이 꼭 필요하면 앞 PR이 `dev`에 병합된 뒤 최신 `dev`에서 새로 만듭니다.
+- PR 하나에는 이슈 하나의 변경만 담습니다. 다른 이슈의 커밋이 PR에 섞이지 않게 합니다.
+- 작업 브랜치를 최신 `dev`에 맞출 때는 `dev`를 병합하지 않고 rebase로 내 커밋을 최신 `dev` 위에 다시 올립니다. 이미 푸시한 브랜치는 `--force-with-lease`로 올립니다. 강제 푸시는 혼자 쓰는 작업 브랜치에서만 하고, `main`·`dev`에는 하지 않습니다.
+- 리뷰를 반영할 때는 그 PR 브랜치에 커밋을 더합니다. 그 변경을 다른 작업 브랜치에 병합하지 않습니다.
+- 병합이 끝난 작업 브랜치는 지웁니다.
+
+```sh
+git fetch origin
+git switch 'feat/#12-attendance-export'
+git rebase origin/dev
+# 충돌이 나면 파일을 고친 뒤: git add <파일> && git rebase --continue
+git push --force-with-lease
+```
+
 ## 이슈와 PR
 
 - 이슈와 PR은 템플릿(`.github/ISSUE_TEMPLATE/task.md`, `.github/PULL_REQUEST_TEMPLATE.md`)의 섹션 이름과 순서를 그대로 지킵니다.
 - 일반 PR은 `dev`를 대상으로 만듭니다. `main` 대상 PR은 릴리즈(`dev` → `main`)와 긴급 수정만 만듭니다.
 - 이슈의 일부만 처리하면 `Refs #번호`, 이슈를 모두 끝내면 `Closes #번호`로 연결합니다.
-- `dev`에 병합해도 이슈가 자동으로 닫히지 않습니다. 작업이 끝나면 이슈를 직접 닫습니다.
+- 기본 브랜치가 `dev`이므로, `Closes #번호`로 연결한 PR이 `dev`에 병합되면 이슈가 자동으로 닫힙니다. `dev`가 아닌 브랜치로 병합한 PR은 이슈가 닫히지 않으니 직접 닫습니다.
 
 ## PR 전 로컬 검사
 
