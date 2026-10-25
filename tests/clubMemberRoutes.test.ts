@@ -338,7 +338,7 @@ test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAW
   assert.deepEqual(linkedRowCounts(db, target), before);
 });
 
-test('HOST 계정이 있으면 탈퇴 처리할 수 없고(409), 계정을 지우면 탈퇴 처리된다', async () => {
+test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(409), 계정을 지우면 탈퇴 처리된다', async () => {
   const { db, call } = await setup();
   // 시드의 HOST 계정 host_c(계정 주인 u_27_01). 팀장 사유는 따로 보므로 팀장을 먼저 비운다.
   execute(db, 'UPDATE teams SET leader_id = NULL WHERE leader_id = ?', ['u_27_01']);
@@ -357,7 +357,7 @@ test('HOST 계정이 있으면 탈퇴 처리할 수 없고(409), 계정을 지�
   assert.equal(call<ClubMember>('DELETE', '/api/v1/club-members/u_27_01').status, 'WITHDRAWN');
 });
 
-test('막는 사유가 여럿이면 409 메시지에 모두 담고, 먼저 할 일을 알린다', async () => {
+test('HOST 계정이 있는 현재 반기 팀장은 팀장 사유 하나로 409를 받고, 팀장을 바꾸라고 알린다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
   execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
@@ -371,9 +371,10 @@ test('막는 사유가 여럿이면 409 메시지에 모두 담고, 먼저 할 �
     (error: unknown) =>
       error instanceof ApiError &&
       error.status === 409 &&
-      error.code === 'MEMBER_HAS_HOST_ACCOUNT' &&
-      error.message.includes('그룹 계정 관리에서 계정을 먼저 삭제') &&
-      error.message.includes('팀장을 먼저 바꿔'),
+      error.code === 'MEMBER_IS_TEAM_LEADER' &&
+      error.message.includes('HOST 계정 host_t') &&
+      error.message.includes('팀장을 먼저 바꿔') &&
+      !error.message.includes('그룹 계정 관리'),
   );
 });
 
