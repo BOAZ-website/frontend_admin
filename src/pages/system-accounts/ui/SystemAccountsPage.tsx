@@ -136,6 +136,10 @@ export function SystemAccountsPage({ view = 'accounts', onViewChange }: SystemAc
     isSelf(account) ? canWriteSelf : canWriteOthers;
   const actions: AccountActions = {
     passwordResetBlockReason: (account) => {
+      // 서버도 400 CANNOT_MODIFY_MASTER_CREDENTIALS로 막는다. 비밀번호를 입력하기 전에 버튼에서 알린다.
+      if (account.role === 'MASTER' && !isSelf(account)) {
+        return '서비스운영팀장(MASTER) 계정의 비밀번호는 본인만 바꿀 수 있습니다.';
+      }
       if (!canChangePassword(account)) return '다른 운영진의 비밀번호를 재설정할 권한이 없습니다.';
       return null;
     },
