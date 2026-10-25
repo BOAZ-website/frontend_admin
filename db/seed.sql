@@ -1031,7 +1031,16 @@ INSERT INTO attendance_records (team_id, week_id, member_id, sub_type, status, m
   ('study_e', 'w8', 'e1', '', 'unmarked', NULL),
   ('study_e', 'w8', 'e2', '', 'unmarked', NULL),
   ('study_e', 'w8', 'e3', '', 'unmarked', NULL),
-  ('study_e', 'w8', 'e4', '', 'unmarked', NULL);
+  ('study_e', 'w8', 'e4', '', 'unmarked', NULL),
+  -- e5(강태양)는 나중에 팀원으로 들어온 예시라 실제 출결 값이 없다. 팀원 추가 쓰기 경로처럼 모든 주차를 미입력으로 둔다.
+  ('study_e', 'w1', 'e5', '', 'unmarked', NULL),
+  ('study_e', 'w2', 'e5', '', 'unmarked', NULL),
+  ('study_e', 'w3', 'e5', '', 'unmarked', NULL),
+  ('study_e', 'w4', 'e5', '', 'unmarked', NULL),
+  ('study_e', 'w5', 'e5', '', 'unmarked', NULL),
+  ('study_e', 'w6', 'e5', '', 'unmarked', NULL),
+  ('study_e', 'w7', 'e5', '', 'unmarked', NULL),
+  ('study_e', 'w8', 'e5', '', 'unmarked', NULL);
 
 -- ── 멘멘 스터디 PDF 첨부 목 데이터 ─────────────────────
 -- 제출이 끝난 1·2주차에 샘플 PDF(public/files/study)를 붙인다. 3주차는 비워 두어 업로드를 확인할 수 있다.
