@@ -8,6 +8,7 @@ import type { Database } from 'sql.js';
 import type { SubmitWeekResponse } from '@/entities/attendance/model/dto';
 import type { AttendanceStatus } from '@/entities/attendance/model/types';
 import { execute, queryAll } from '@/shared/db/createDatabase';
+import { localDateTime } from '@/shared/lib/date';
 import { toFilePath } from '@/shared/lib/file';
 import { toImagePath } from '@/shared/lib/imagePath';
 
@@ -38,9 +39,7 @@ import {
 
 /** 화면에 보이는 형식(YYYY-MM-DD HH:MM)의 현재 시각. 시드 데이터와 같은 형식이다. */
 export function nowStamp(): string {
-  const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  return localDateTime().slice(0, 16);
 }
 
 interface RecordInput {
