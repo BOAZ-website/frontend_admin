@@ -2161,10 +2161,6 @@ export function EventAttendanceManagePage({
       // 시트 탭이 있으면 화면 높이를 채우고 아래 여백을 없애, 시트 탭 막대가 화면 맨 아래까지 닿게 한다
       // (헤더 3.5rem + 본문 위 여백 1.75rem을 뺀 높이).
       className={`space-y-6 w-full ${hasSheetTabs ? '-mb-7 flex min-h-[calc(100dvh-5.25rem)] flex-col' : ''}`}
-      style={{
-        fontFamily:
-          "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-      }}
     >
       {/* ─── 1. Top Breadcrumb & Navigation Bar ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">

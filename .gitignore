@@ -29,8 +29,11 @@ yarn-error.log*
 .CLAUDE.md
 .omc/
 .serena/
+.claude/
 
 # local docs
 /docs/frontend/
 /docs/personal/
+/docs/personal_ms/
+CLAUDE.local.md
 /references

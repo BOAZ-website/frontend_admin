@@ -38,7 +38,7 @@ localStorage 키는 `boaz_score_rules`, `boaz_delivery_template`, `boaz_custom_n
 
 ### 역할(Role) 처리
 
-`UserRole`은 `"SUPER" | "TEAM" | "HOST" | "CONTENT_ADMIN"`입니다. 역할은 **로그인 후 진입 페이지를 결정하는 용도로만** 쓰이며, 사이드바는 역할과 무관하게 모든 메뉴를 보여줍니다. `SIDEBAR_NAV`의 `permission` 필드는 백엔드 권한 이름을 기록해 둔 메타데이터일 뿐, 현재 필터링에 사용되지 않습니다. 권한별 메뉴 노출을 구현한다면 이 필드가 출발점입니다.
+`UserRole`은 `"SUPER" | "TEAM" | "HOST" | "CONTENT_ADMIN"`입니다. 역할은 로그인 후 진입 페이지와 사이드바 메뉴 범위를 정합니다. `src/widgets/sidebar/ui/Sidebar.tsx`의 `filteredNav`가 `HOST`에게는 출결 섹션의 "출결 입력" 그룹만, `CONTENT_ADMIN`에게는 콘텐츠 섹션만 보여 주고, 나머지 역할에는 모든 메뉴를 보여 줍니다. 이 제한은 사이드바에만 걸려 있어 주소 해시로 다른 화면에 들어가는 것은 막지 않습니다. `SIDEBAR_NAV`의 `permission` 필드는 백엔드 권한 이름을 기록해 둔 메타데이터일 뿐, 현재 필터링에 사용되지 않습니다. permission 기반 게이팅(SYS-GATE)을 구현한다면 이 필드가 출발점입니다.
 
 ### FSD 레이어와 경로 별칭
 
@@ -75,6 +75,9 @@ Tailwind CSS v4를 `@tailwindcss/vite` 플러그인으로 사용합니다. `post
 
 - UI 문구와 커밋 메시지는 한국어를 사용하고, 식별자와 타입 이름은 영어를 사용합니다.
 - 커밋 메시지는 `feat:`, `refactor:` 접두사를 사용하는 Conventional Commits 형식입니다.
+- WBS 티켓 작업을 끝내면 같은 PR에서 `docs/03-wbs-fe.md` 진행 현황표의 그 티켓 행을 고칩니다. `현재 상태`를 바뀐 단계로 바꾸고, 완료 기준을 채웠으면 `완료`로 적습니다. GitHub 이슈 칸이 비어 있으면 이슈 번호도 적습니다.
+  - 화면 티켓의 완료: 티켓 What의 핵심 기능마다 화면이 있음. 데이터가 목업·임시 API여도 됨(실제 API 연동은 별도)
+  - 플랫폼 기반(PLT) 티켓의 완료: 티켓 Acceptance를 모두 충족함
 - `tsconfig.app.json`에 `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`, `erasableSyntaxOnly`가 켜져 있습니다. 사용하지 않는 매개변수는 기존 코드처럼 `_onToggleRole`, `_sIdx`와 같이 밑줄 접두사를 붙여 처리하고, 타입 임포트는 반드시 `import type`으로 작성해야 합니다.
 
 ## 문서 작성 규칙

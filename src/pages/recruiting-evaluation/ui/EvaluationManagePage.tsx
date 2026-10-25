@@ -800,10 +800,7 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
   }
 
   return (
-    <div
-      className="space-y-4"
-      style={{ fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif" }}
-    >
+    <div className="space-y-4">
       {/* ─── Top Main Header Bar ─── */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-3">
         <div className="flex items-center gap-4">

@@ -584,12 +584,7 @@ export function ArchivingSection() {
   };
 
   return (
-    <div
-      className="space-y-4"
-      style={{
-        fontFamily: "'Pretendard Variable', Pretendard, -apple-system, sans-serif",
-      }}
-    >
+    <div className="space-y-4">
       {/* ─── Top Tabs (프로젝트 | 기술블로그 | 활동사진) ─── */}
       <div className="flex items-center justify-between border-b border-slate-200 px-1">
         <div className="flex items-center gap-8">
