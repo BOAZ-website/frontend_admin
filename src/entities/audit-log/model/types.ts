@@ -150,7 +150,8 @@ export interface AuditLogEntry {
   /** 호출한 API. API 연결 전 예시 기록이면 null. */
   api: { method: string; path: string } | null;
   /**
-   * 요청 본문(API Body). 기록 때 남긴 detail.request 그대로이며, 개인정보 값(이름·연락처·이메일·비밀번호)은 '(비공개)'로 가려져 있다.
+   * 요청 본문(API Body). 기록 때 남긴 detail.request 그대로이며, 개인정보 값(이름·연락처·이메일·비밀번호)은 안쪽 배열·객체까지 '(비공개)'로 가려져 있다.
+   * 본문 전체가 배열인 요청(행사 참가자 명단 저장)은 { itemCount, ids }(인원 수와 ID 목록)만 남는다.
    * 보낸 값이 없으면(GET·DELETE, 보낸 값 없는 예시 기록) null.
    * 파일을 올린 요청은 files에 파일 목록이 있다: 문자열이면 이름, { name, url }이면 이름과 올린 주소(사진이 아니면 url null).
    */

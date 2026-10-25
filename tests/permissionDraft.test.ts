@@ -102,3 +102,13 @@ test('"타 계정 정보 수정" 권한은 본인과 마지막 보유자에게�
   assert.equal(lockReasonOf(write, holder, { id: 1 }, [holder, other]), null);
   assert.equal(lockReasonOf(permissionOf('CONTENT_WRITE'), holder, { id: 6 }, [holder]), null);
 });
+
+test('"권한 부여" 권한도 본인과 마지막 보유자에게서 풀 수 없다', () => {
+  const holder = accountOf({ ADMIN_PERMISSION_WRITE: true });
+  const other = accountOf({ ADMIN_PERMISSION_WRITE: true }, { id: 7 });
+  const grant = permissionOf('ADMIN_PERMISSION_WRITE');
+
+  assert.match(lockReasonOf(grant, holder, { id: 6 }, [holder, other]) ?? '', /본인/);
+  assert.match(lockReasonOf(grant, holder, { id: 1 }, [holder]) ?? '', /마지막/);
+  assert.equal(lockReasonOf(grant, holder, { id: 1 }, [holder, other]), null);
+});

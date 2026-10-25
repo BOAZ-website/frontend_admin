@@ -19,7 +19,7 @@ export const ACCOUNT_DELIVERY_TEMPLATES = {
     title: '{name} 계정 발급',
     body: `[BOAZ 운영진 계정 발급 안내]
 
-• 로그인 아이디: {username}
+• 로그인 아이디: {username}오
 • 초기 비밀번호: {password}
 
 로그인 후 비밀번호를 바꿔 주세요.`,
@@ -130,12 +130,12 @@ export type DeliveryValues = Readonly<Record<string, string | null | undefined>>
 
 const PLACEHOLDER = /\{(\w+)\}/g;
 
-/** 한 줄의 자리를 채운다. 값이 없는 자리가 있으면 null(그 줄을 뺀다). */
+/** 한 줄의 자리를 채운다. 값이 없는 자리(null·undefined·빈 문자열·공백뿐)가 있으면 null(그 줄을 뺀다). */
 const fillLine = (line: string, values: DeliveryValues): string | null => {
   let isMissing = false;
   const filled = line.replace(PLACEHOLDER, (_match, key: string) => {
     const value = values[key];
-    if (value === null || value === undefined) {
+    if (value === null || value === undefined || value.trim() === '') {
       isMissing = true;
       return '';
     }

@@ -114,7 +114,10 @@ const labelOptions = <T extends string>(labels: Record<T, string>) =>
 
 const TRACK_OPTIONS = CLUB_MEMBER_TRACKS.map((track) => ({ value: track, label: track }));
 const STATUS_OPTIONS = labelOptions(STATUS_LABELS);
-/** 부문 명단의 활동 상태 필터 선택지(활동기수·수료). 탈퇴한 사람은 탈퇴 명단에만 있으므로 뺀다. */
+/**
+ * 탈퇴를 뺀 활동 상태 선택지(활동기수·수료). 부문 명단의 필터(탈퇴한 사람은 탈퇴 명단에만 있다)와
+ * 추가·수정 팝업(탈퇴는 탈퇴 처리 버튼으로만 한다)에 쓴다.
+ */
 const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
 /** 왼쪽 "전체 동아리원" 묶음: 분석·시각화·엔지니어링을 모두 담은 활동기수·수료기수 목록. */
 const ALL_TRACK_SHEETS = MEMBER_SHEETS.filter(
@@ -302,6 +305,8 @@ export function MemberManagementPage() {
    * 이미 운영진인 사람은 팀만 옮기므로 필요 없다.
    */
   const needsCredentials = !editingMember?.operatorTeam && formTeam !== NOT_OPERATOR;
+  /** 탈퇴한 사람의 정보 수정인지. 운영진 지정을 막고, 활동 상태 선택지에 탈퇴를 남긴다(되돌리기는 된다). */
+  const isEditingWithdrawn = editingMember?.status === 'WITHDRAWN';
   const hasCredentials = !needsCredentials || Boolean(formUsername.trim() && formPassword);
   const canSave =
     !isSaving &&
@@ -941,13 +946,20 @@ export function MemberManagementPage() {
               </div>
               <div>
                 <span className={FIELD_LABEL}>운영진</span>
-                <SelectDropdown
-                  ariaLabel="운영진"
-                  value={formTeam}
-                  options={teamOptions}
-                  onChange={changeFormTeam}
-                  buttonClassName={FIELD_SELECT}
-                />
+                {/* 탈퇴한 사람에게는 운영진 계정을 만들지 않는다(서버도 409로 막는다). */}
+                {isEditingWithdrawn ? (
+                  <p className="flex h-9 items-center text-xs text-slate-500">
+                    탈퇴한 동아리원은 지정할 수 없습니다
+                  </p>
+                ) : (
+                  <SelectDropdown
+                    ariaLabel="운영진"
+                    value={formTeam}
+                    options={teamOptions}
+                    onChange={changeFormTeam}
+                    buttonClassName={FIELD_SELECT}
+                  />
+                )}
               </div>
               {needsCredentials && (
                 <div className="grid gap-x-4 gap-y-5 sm:col-span-2 sm:grid-cols-2">
@@ -989,7 +1001,7 @@ export function MemberManagementPage() {
                 <SelectDropdown<ClubMemberStatus>
                   ariaLabel="활동 상태"
                   value={form.status}
-                  options={STATUS_OPTIONS}
+                  options={isEditingWithdrawn ? STATUS_OPTIONS : TRACK_STATUS_OPTIONS}
                   onChange={(status) => updateForm({ status })}
                   buttonClassName={FIELD_SELECT}
                 />

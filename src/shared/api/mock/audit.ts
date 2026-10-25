@@ -22,32 +22,56 @@ const MOCK_IP = '127.0.0.1';
 type Detail = Record<string, unknown>;
 
 /**
- * 개인정보라 값을 기록에 남기지 않는 항목. 보낸 값과 바뀌기 전·후 값 모두 HIDDEN_VALUE로 바꾼다.
- * 이름은 대상 이름으로 따로 보이므로(지금 DB에서 찾는다) 값은 남기지 않는다.
+ * 개인정보라 값을 기록에 남기지 않는 항목(키 이름을 소문자로 바꾸고 `_`·`-`를 뺀 모양).
+ * 보낸 값과 바뀌기 전·후 값 모두 HIDDEN_VALUE로 바꾼다. 이름은 대상 이름으로 따로 보이므로(지금 DB에서 찾는다) 값은 남기지 않는다.
+ * 실제 백엔드 계약이 snake_case(new_password)여도 같은 키로 본다.
  */
-const SENSITIVE_KEYS: ReadonlySet<string> = new Set([
-  'name',
-  'phone',
-  'email',
-  'password',
-  'initialPassword',
-  'newPassword',
-  'currentPassword',
-  'birth',
-  'address',
-]);
+const SENSITIVE_KEYS: ReadonlySet<string> = new Set(['name', 'phone', 'email', 'birth', 'address']);
+/** 이 글자가 이름에 들어간 키는 목록에 없어도 가린다(initialPassword, access_token 등). */
+const SENSITIVE_KEY_PARTS: readonly string[] = ['password', 'token', 'secret'];
 export const HIDDEN_VALUE = '(비공개)';
 
-const maskValue = (key: string, value: unknown): unknown =>
-  SENSITIVE_KEYS.has(key) ? HIDDEN_VALUE : value;
+const normalizeKey = (key: string) => key.toLowerCase().replace(/[_-]/g, '');
 
-/** 요청 본문을 기록할 모양으로 바꾼다. 개인정보 값은 가린다. 본문이 없으면 빈 값이다. */
+const isSensitiveKey = (key: string): boolean => {
+  const normalized = normalizeKey(key);
+  return (
+    SENSITIVE_KEYS.has(normalized) || SENSITIVE_KEY_PARTS.some((part) => normalized.includes(part))
+  );
+};
+
+/**
+ * 값을 기록할 모양으로 바꾼다. 개인정보 키의 값은 가리고, 배열·객체는 안쪽까지 같은 규칙으로 가린다
+ * (예: 행사 참가자 명단 배열의 각 참가자 name·phone).
+ */
+function maskDeep(value: unknown, key?: string): unknown {
+  if (key !== undefined && isSensitiveKey(key)) return HIDDEN_VALUE;
+  if (Array.isArray(value)) return value.map((item) => maskDeep(item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, child]) => [childKey, maskDeep(child, childKey)]),
+    );
+  }
+  return value;
+}
+
+/**
+ * 요청 본문을 기록할 모양으로 바꾼다. 개인정보 값은 안쪽까지 가린다. 본문이 없거나 비었으면 빈 값이다.
+ * 본문 전체가 배열인 요청(행사 참가자 명단 저장 등)은 명단 전체를 기록마다 복제하지 않도록 인원 수와 ID 목록만 남긴다.
+ */
 function requestSummary(request: MockRequest): Detail {
+  const { body } = request;
+  if (Array.isArray(body)) {
+    const ids = body.flatMap((item: unknown) =>
+      item && typeof item === 'object' && typeof (item as Detail).id === 'string'
+        ? [(item as Detail).id]
+        : [],
+    );
+    return { request: { itemCount: body.length, ids } };
+  }
   const entries = Object.entries(bodyOf(request));
   if (entries.length === 0) return {};
-  return {
-    request: Object.fromEntries(entries.map(([key, value]) => [key, maskValue(key, value)])),
-  };
+  return { request: maskDeep(bodyOf(request)) };
 }
 
 const snakeOf = (key: string) => key.replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`);
@@ -71,7 +95,7 @@ function rowChanges(before: Detail, after: Detail): Detail {
   const changes = Object.fromEntries(
     Object.keys(before)
       .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
-      .map((key) => [key, [maskValue(key, before[key]), maskValue(key, after[key] ?? null)]]),
+      .map((key) => [key, [maskDeep(before[key], key), maskDeep(after[key] ?? null, key)]]),
   );
   return Object.keys(changes).length > 0 ? { changes } : {};
 }
@@ -95,8 +119,11 @@ interface DetailContext {
   targetIds: readonly string[];
 }
 
+/** 객체 본문. 배열 본문(명단 저장 등)과 본문 없음은 빈 객체다(배열은 requestSummary가 따로 다룬다). */
 const bodyOf = (request: MockRequest): Detail =>
-  request.body && typeof request.body === 'object' ? (request.body as Detail) : {};
+  request.body && typeof request.body === 'object' && !Array.isArray(request.body)
+    ? (request.body as Detail)
+    : {};
 
 /** 경로 값 하나를 대상 ID로 쓴다. */
 const param =
@@ -513,11 +540,13 @@ function nonPersonLabel(db: Database, type: AuditTargetType, id: string): string
 /**
  * 요청한 계정과 그 회원 id·등급. 계정이 나중에 지워지거나 등급이 바뀌어도 기록에는 그때 값이 남는다.
  * HOST 세션이면 운영진 계정 id는 없고(null), 회원 id는 HOST 계정 주인, 등급은 HOST다.
+ * 세션이 없으면(로그인 전에 부른 임시 API) 수행자를 모두 비운다.
  */
 function actorSnapshot(
   db: Database,
 ): Pick<AuditLogInsert, 'actorId' | 'actorUserId' | 'actorRole'> {
   const session = currentSession(db);
+  if (!session) return { actorId: null, actorUserId: null, actorRole: null };
   if (session.kind === 'HOST') {
     const userId = queryAll<{ user_id: string | null }>(
       db,

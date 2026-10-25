@@ -1,7 +1,8 @@
 /**
  * 한 명의 운영진 지정(PUT /api/v1/admin/operators/:userId). teamName이 null이면 운영진에서 뺀다.
  * 운영진이 아닌 회원을 팀으로 정할 때는 username·password가 필수다(그 값으로 계정을 만든다).
- * 이미 운영진이면 팀만 옮기고 username·password는 무시한다.
+ * 이미 운영진이면 teamName이 다를 때 팀을 옮기고, username이 지금 아이디와 다르면 아이디를 바꾸며
+ * (빈 값은 400, 다른 계정과 겹치면 409), password를 보내면 비밀번호를 바꾼다.
  */
 export interface OperatorAssignRequest {
   teamName: string | null;

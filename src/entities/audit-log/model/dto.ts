@@ -6,7 +6,10 @@ export interface AuditLogQuery {
   action?: AuditAction;
   /** 권한 매트릭스의 권한 이름. 'NONE'이면 매트릭스에 항목이 없는 작업. */
   permission?: string;
+  /** 수행자 운영진 계정 id. HOST가 한 기록은 운영진 계정이 없어 이 조건으로는 찾을 수 없다. */
   actorId?: number;
+  /** 수행자 회원 id. 운영진·HOST 모두 이 조건으로 찾는다. */
+  actorUserId?: string;
   /** 'YYYY-MM-DD'. 그날 0시부터. */
   from?: string;
   /** 'YYYY-MM-DD'. 그날 끝까지. */
@@ -26,10 +29,15 @@ export interface AuditLogPage {
   size: number;
 }
 
-/** 수행자 필터 선택지. 기록에 한 번이라도 나온 계정이다. */
+/** 수행자 필터 선택지. 기록에 한 번이라도 나온 사람이다(운영진·HOST). */
 export interface AuditActorOption {
-  id: number;
-  /** 계정이 지워졌으면 null. */
+  /** 운영진 계정 id. HOST로만 기록에 나온 사람이면 null. */
+  id: number | null;
+  /** 회원 id. actorUserId 조건에 쓴다. 회원을 찾을 수 없으면 null. */
+  userId: string | null;
+  /** 기록할 때의 등급(MASTER·SUPER·TEAM·HOST). 예시 기록처럼 남지 않았으면 null. */
+  role: string | null;
+  /** 회원이 지워졌으면 null. */
   name: string | null;
   teamName: string | null;
 }

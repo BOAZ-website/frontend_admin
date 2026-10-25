@@ -60,6 +60,7 @@ function queryOf(query: URLSearchParams): AuditLogQuery {
     action,
     permission,
     actorId: positiveInt(query.get('actorId'), 'actorId'),
+    actorUserId: query.get('actorUserId')?.trim() || undefined,
     from: dateOf(query.get('from'), 'from'),
     to: dateOf(query.get('to'), 'to'),
     q: query.get('q') ?? undefined,
@@ -73,7 +74,7 @@ export const auditLogRoutes: MockRoute[] = [
     method: 'GET',
     pattern: '/api/v1/admin/audit-logs',
     summary:
-      '감사 로그 목록(최신 기록부터, 한 쪽씩). 분류(category)·액션(action)·권한(permission, NONE이면 매트릭스에 없는 작업)·수행자(actorId)·기간(from·to)·검색어(q)로 거른다',
+      '감사 로그 목록(최신 기록부터, 한 쪽씩). 분류(category)·액션(action)·권한(permission, NONE이면 매트릭스에 없는 작업)·수행자(운영진 계정 actorId, 운영진·HOST 모두 회원 actorUserId)·기간(from·to)·검색어(q)로 거른다',
     handler: ({ db, query }) => {
       requireAny(db, 'AUDIT_LOG_READ');
       return listAuditLogs(db, queryOf(query));
@@ -82,7 +83,8 @@ export const auditLogRoutes: MockRoute[] = [
   {
     method: 'GET',
     pattern: '/api/v1/admin/audit-logs/actors',
-    summary: '감사 로그의 수행자 필터 선택지(기록에 나온 계정, 지워진 계정 포함)',
+    summary:
+      '감사 로그의 수행자 필터 선택지(기록에 나온 운영진·HOST, 지워진 계정 포함). userId를 actorUserId 조건에 쓴다',
     handler: ({ db }) => {
       requireAny(db, 'AUDIT_LOG_READ');
       return listAuditActors(db);

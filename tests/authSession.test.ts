@@ -68,6 +68,8 @@ async function setup() {
     )[0];
   /** 감사 기록을 남기는 평범한 쓰기 요청(동아리원 전공 수정). */
   const write = (major: string) => call('PATCH', '/api/v1/club-members/u_28_01', { major });
+  // 임시 API는 세션이 없으면 요청자가 없다(운영진 계정 API는 401). 시험은 1번 계정으로 로그인한 채 시작한다.
+  call('PUT', '/api/v1/mock/admin-session', { accountId: 1 });
   return { db, call, login, logCount, latestRow, write };
 }
 
@@ -237,13 +239,16 @@ test('세션: HOST 세션에서 /admin/accounts/me는 403', async () => {
   expectApiError(() => call('GET', '/api/v1/admin/accounts/me'), 403);
 });
 
-test('로그아웃하면 세션이 지워져 1번 계정으로 보고, admin-session {username}으로 세션을 되살린다', async () => {
+test('로그아웃하면 세션이 지워져 요청자가 없고(운영진 API 401), admin-session {username}으로 세션을 되살린다', async () => {
   const { call, login, latestRow, write } = await setup();
   login(PLANNER.username, PLANNER.password);
   call('POST', '/api/v1/auth/logout');
 
+  // 1번 계정으로 보지 않는다. 운영진 계정 API는 401이고, 세션 없이 한 쓰기는 수행자가 비어 기록된다.
+  expectApiError(() => call('GET', '/api/v1/admin/accounts/me'), 401, 'UNAUTHORIZED');
   write('통계학과');
-  assert.equal(latestRow().actor_admin_id, 1);
+  assert.equal(latestRow().actor_admin_id, null);
+  assert.equal(latestRow().actor_role, null);
 
   call('PUT', '/api/v1/mock/admin-session', { username: PLANNER.username });
   write('경영학과');
@@ -284,6 +289,8 @@ test('감사 기록 어디에도 비밀번호가 남지 않는다(로그인·계
   expectApiError(() => login(PLANNER.username, 'wrong-pass-1'), 401);
   login(HOST_A.username, HOST_A.password);
   call('POST', '/api/v1/auth/logout');
+  // 로그아웃 뒤에는 운영진 계정 API가 401이므로, 계정 작업은 서비스운영팀장으로 다시 로그인해서 한다.
+  login('boaz_master', 'Boaz!2026');
   call('POST', '/api/v1/admin/accounts', {
     userId: 'u_28_11',
     username: 'boaz_new_1',

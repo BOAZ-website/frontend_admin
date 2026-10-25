@@ -95,12 +95,12 @@ test('추가할 때 필수 값이 없거나 같은 기수에 같은 이름이 �
 test('수정은 보낸 값만 바꾼다', async () => {
   const { call } = await setup();
   const updated = call<ClubMember>('PATCH', '/api/v1/club-members/u_28_01', {
-    status: 'WITHDRAWN',
-    role: 'OPERATOR',
+    status: 'ALUMNI',
+    role: 'PRESIDENT',
   });
 
-  assert.equal(updated.status, 'WITHDRAWN');
-  assert.equal(updated.role, 'OPERATOR');
+  assert.equal(updated.status, 'ALUMNI');
+  assert.equal(updated.role, 'PRESIDENT');
   assert.equal(updated.name, '김서하');
   assert.equal(updated.email, 'seoha.k@yonsei.ac.kr');
   assert.equal(updated.university, '연세대학교');
@@ -146,22 +146,55 @@ test('기수 목록 API는 users 테이블의 기수를 큰 기수부터 돌려�
   assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [28, 27, 26, 25]);
 });
 
-test('운영진 배지는 역할만 보내 달고 떼며, 다른 정보는 그대로 둔다', async () => {
+test('운영진 역할은 정보 수정으로 달거나 뗄 수 없고, 대표 역할과 지금과 같은 역할만 받는다', async () => {
   const { call } = await setup();
-  const before = call<ClubMember[]>('GET', '/api/v1/club-members').find(
-    (member) => member.role === 'MEMBER',
-  )!;
+  const members = call<ClubMember[]>('GET', '/api/v1/club-members');
+  const member = members.find((m) => m.role === 'MEMBER' && m.status !== 'WITHDRAWN')!;
+  const operator = members.find((m) => m.role === 'OPERATOR')!;
 
-  const badged = call<ClubMember>('PATCH', `/api/v1/club-members/${before.id}`, {
-    role: 'OPERATOR',
-  });
-  assert.equal(badged.role, 'OPERATOR');
-  assert.deepEqual({ ...badged, role: before.role }, before);
+  // 운영진 계정이 없는 회원을 OPERATOR로, 운영진을 MEMBER로 바꾸는 요청은 400이다.
+  expectApiErrorCode(
+    () => call('PATCH', `/api/v1/club-members/${member.id}`, { role: 'OPERATOR' }),
+    400,
+    'ROLE_FOLLOWS_OPERATOR',
+  );
+  expectApiErrorCode(
+    () => call('PATCH', `/api/v1/club-members/${operator.id}`, { role: 'MEMBER' }),
+    400,
+    'ROLE_FOLLOWS_OPERATOR',
+  );
 
-  const removed = call<ClubMember>('PATCH', `/api/v1/club-members/${before.id}`, {
-    role: 'MEMBER',
+  // 수정 팝업은 지금 역할을 그대로 보낸다. 이 값은 받고, 다른 정보도 그대로다.
+  const same = call<ClubMember>('PATCH', `/api/v1/club-members/${member.id}`, { role: 'MEMBER' });
+  assert.deepEqual(same, member);
+
+  // 대표 역할은 운영진 지정과 따로 정하므로 받는다.
+  const president = call<ClubMember>('PATCH', `/api/v1/club-members/${member.id}`, {
+    role: 'PRESIDENT',
   });
-  assert.equal(removed.role, 'MEMBER');
+  assert.equal(president.role, 'PRESIDENT');
+});
+
+test('정보 수정으로는 탈퇴로 바꿀 수 없다(탈퇴는 탈퇴 처리로만)', async () => {
+  const { call } = await setup();
+  const members = call<ClubMember[]>('GET', '/api/v1/club-members');
+  const operator = members.find((m) => m.role === 'OPERATOR')!;
+  const member = members.find((m) => m.role === 'MEMBER' && m.status === 'ACTIVE')!;
+
+  for (const target of [operator, member]) {
+    expectApiErrorCode(
+      () => call('PATCH', `/api/v1/club-members/${target.id}`, { status: 'WITHDRAWN' }),
+      400,
+      'WITHDRAW_BY_DELETE',
+    );
+  }
+  // 이미 탈퇴한 사람은 지금 상태(탈퇴)를 그대로 보내 다른 정보를 고칠 수 있다.
+  const withdrawn = members.find((m) => m.status === 'WITHDRAWN')!;
+  const edited = call<ClubMember>('PATCH', `/api/v1/club-members/${withdrawn.id}`, {
+    status: 'WITHDRAWN',
+    major: '통계학',
+  });
+  assert.equal(edited.major, '통계학');
 });
 
 function expectApiErrorCode(work: () => unknown, status: number, code: string) {
@@ -212,6 +245,24 @@ test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAW
   const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === target);
   assert.equal(listed?.status, 'WITHDRAWN');
   assert.deepEqual(linkedRowCounts(db, target), before);
+});
+
+test('탈퇴 처리하면 연결된 HOST 계정은 지우지 않고 사용 중지한다', async () => {
+  const { db, call } = await setup();
+  const host = queryAll<{ id: string; user_id: string }>(
+    db,
+    `SELECT h.id, h.user_id FROM host_accounts h
+      WHERE h.active = 1 AND h.user_id IS NOT NULL
+        AND h.user_id NOT IN (SELECT user_id FROM admin)
+      LIMIT 1`,
+  )[0];
+  assert.ok(host);
+
+  call('DELETE', `/api/v1/club-members/${host.user_id}`);
+  const after = queryAll<{ active: number }>(db, 'SELECT active FROM host_accounts WHERE id = ?', [
+    host.id,
+  ]);
+  assert.deepEqual(after, [{ active: 0 }]);
 });
 
 test('탈퇴 처리한 사람은 기수별 활동 페이지와 부문 페이지에서 빠진다', async () => {

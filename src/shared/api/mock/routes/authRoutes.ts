@@ -90,7 +90,7 @@ export const authRoutes: MockRoute[] = [
   {
     method: 'POST',
     pattern: '/api/v1/auth/logout',
-    summary: '로그아웃. 세션을 지운다(임시 API는 세션이 없으면 1번 운영진 계정으로 본다)',
+    summary: '로그아웃. 세션을 지운다(이후 요청자가 필요한 API는 401)',
     handler: ({ db }) => {
       clearSession(db);
       return undefined;
