@@ -849,7 +849,7 @@ export function HostsPage({
                               </thead>
                               <tbody>
                                 <tr>
-                                  <td className="truncate px-3.5 py-3 font-mono text-sm font-semibold text-slate-900">
+                                  <td className="truncate px-3.5 py-3 font-code text-sm font-semibold text-slate-900">
                                     {accountLookup.account.username}
                                   </td>
                                   <td className="border-l border-slate-200 px-3.5 py-3">
@@ -899,7 +899,7 @@ export function HostsPage({
                                   placeholder="예: host_study_c"
                                   value={formUsername}
                                   onChange={(e) => setFormUsername(e.target.value)}
-                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-mono text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
+                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-code text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
                                 />
                                 {showRequiredErrors && !formUsername.trim() && (
                                   <span className="mt-1 block text-[10px] text-rose-600">
@@ -917,7 +917,7 @@ export function HostsPage({
                                   placeholder="비밀번호 입력"
                                   value={formPassword}
                                   onChange={(e) => setFormPassword(e.target.value)}
-                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-mono text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
+                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-code text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
                                 />
                                 {showRequiredErrors && !formPassword.trim() && (
                                   <span className="mt-1 block text-[10px] text-rose-600">

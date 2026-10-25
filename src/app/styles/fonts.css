@@ -1,18 +1,11 @@
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
-* {
-  font-family:
-    'Pretendard Variable',
-    Pretendard,
-    -apple-system,
-    BlinkMacSystemFont,
-    system-ui,
-    Roboto,
-    'Helvetica Neue',
-    'Segoe UI',
-    'Apple SD Gothic Neo',
-    'Malgun Gothic',
-    sans-serif;
-  letter-spacing: -0.015em;
+/*
+ * 기본 글꼴과 자간. @layer base 안에 두어야 Tailwind 유틸리티(font-mono, font-sans, tracking-*)가 이 규칙을 덮을 수 있다.
+ * 레이어 밖에 두면 모든 유틸리티보다 우선해서 font-mono·tracking-*이 적용되지 않는다.
+ * 입력칸·버튼은 Tailwind preflight의 `font: inherit; letter-spacing: inherit;`로 부모 값(이 규칙)을 그대로 받는다.
+ */
+@layer base {
+  * {
+    font-family: var(--font-sans);
+    letter-spacing: -0.015em;
+  }
 }

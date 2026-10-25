@@ -946,13 +946,7 @@ export function InputPage({
   }, [colWidths, isMentoringTeam]);
 
   return (
-    <div
-      className="flex flex-col flex-1 h-full min-h-0 space-y-3 w-full"
-      style={{
-        fontFamily:
-          "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-      }}
-    >
+    <div className="flex flex-col flex-1 h-full min-h-0 space-y-3 w-full">
       {/* ─── 1. Top Header & Global Actions (InternalCategoryAttendancePage 스타일 통일) ─── */}
       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3 flex-wrap gap-3 shrink-0">
         <div className="flex items-center gap-3.5">

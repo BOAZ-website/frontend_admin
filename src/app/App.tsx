@@ -464,13 +464,7 @@ export default function App() {
   const currentRole = userRoleOf(session);
 
   return (
-    <div
-      className="flex h-screen overflow-hidden bg-[#f8fafc]"
-      style={{
-        fontFamily:
-          "'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-      }}
-    >
+    <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
       <Sidebar
         activePage={activePage}
         onChange={(page) => {
@@ -598,7 +592,6 @@ export default function App() {
           {/* 1. Recruiting Management */}
           {isRecruiting && (
             <RecruitmentManagePage
-              key={activePage}
               initialTab={
                 activePage === 'recruiting-questions'
                   ? 'questions'
