@@ -2,8 +2,9 @@
  * 동아리원 관리 API. 동아리원 한 명은 임시 DB users 테이블의 한 행이며,
  * 추가·수정 시 그 기수·부문의 활동 명단(members) 행이 없으면 함께 만든다.
  * 새 기수는 보통 서류 평가의 합격자 승격으로 들어오고, 추가 API는 그 밖의 사람(예: 예전 수료 기수)을 넣을 때 쓴다.
- * 삭제(DELETE)는 행을 지우지 않고 탈퇴 처리(활동 상태 WITHDRAWN)다. 반기 명단·팀 소속·출결 기록은 그대로 남는다
- * (운영진은 운영진에서 먼저 빼야 하고, 이미 탈퇴한 사람은 다시 처리하지 않는다).
+ * 삭제(DELETE)는 행을 지우지 않고 탈퇴 처리(활동 상태 WITHDRAWN)다. 반기 명단·팀 소속·출결 기록은 그대로 남고,
+ * 연결된 HOST 계정은 사용 중지한다(운영진은 운영진에서 먼저 빼야 하고, 이미 탈퇴한 사람은 다시 처리하지 않는다).
+ * 탈퇴는 이 경로로만 한다. 정보 수정(PATCH)으로 활동 상태를 탈퇴로 바꾸면 400이다.
  */
 import type { Database } from 'sql.js';
 
@@ -24,6 +25,7 @@ import {
   CLUB_MEMBER_STATUSES,
   CLUB_MEMBER_TRACKS,
   type ClubMember,
+  type ClubMemberRole,
   type ClubMemberTermPage,
   type ClubMemberTermScope,
 } from '@/entities/club-member/model/types';
@@ -51,9 +53,39 @@ function findMember(db: Database, memberId: string): ClubMember {
   return member;
 }
 
-/** 본문에 있는 값만 기존 동아리원 위에 덮어쓴다. 없는 키는 기존 값을 유지한다. */
-function applyMemberBody(base: ClubMember, body: Body): ClubMember {
+/**
+ * 수정 요청의 역할. 대표(PRESIDENT)는 따로 정하므로 그대로 받는다.
+ * 운영진(OPERATOR)인지는 운영진 계정(admin 행)이 정하므로, 그 밖의 값은 admin 행과 맞을 때만 받는다(아니면 400).
+ * 운영진으로 정하거나 빼는 것은 운영진 지정 API(PUT /admin/operators/:userId)로 한다.
+ */
+function roleOf(db: Database, base: ClubMember, body: Body): ClubMemberRole {
+  const requested = oneOf(optionalString(body, 'role'), CLUB_MEMBER_ROLES, 'role');
+  if (requested === undefined || requested === 'PRESIDENT') return requested ?? base.role;
+  const derived: ClubMemberRole = isOperator(db, base.id) ? 'OPERATOR' : 'MEMBER';
+  if (requested !== derived) {
+    throw new ApiError(
+      400,
+      'ROLE_FOLLOWS_OPERATOR',
+      '운영진 여부는 운영진 지정으로만 바꿀 수 있습니다.',
+    );
+  }
+  return derived;
+}
+
+/**
+ * 본문에 있는 값만 기존 동아리원 위에 덮어쓴다. 없는 키는 기존 값을 유지한다.
+ * 탈퇴(WITHDRAWN)로 바꾸는 것은 탈퇴 처리(DELETE)로만 한다. 운영진 확인·HOST 계정 정지를 그 경로가 맡기 때문이다.
+ */
+function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember {
   const text = (key: string) => optionalString(body, key);
+  const status = oneOf(text('status'), CLUB_MEMBER_STATUSES, 'status') ?? base.status;
+  if (status === 'WITHDRAWN' && base.status !== 'WITHDRAWN') {
+    throw new ApiError(
+      400,
+      'WITHDRAW_BY_DELETE',
+      '탈퇴는 정보 수정이 아니라 탈퇴 처리로만 할 수 있습니다.',
+    );
+  }
   return {
     ...base,
     name: text('name') ?? base.name,
@@ -63,8 +95,8 @@ function applyMemberBody(base: ClubMember, body: Body): ClubMember {
     major: text('major') ?? base.major,
     term: optionalNumber(body, 'term') ?? base.term,
     track: oneOf(text('track'), CLUB_MEMBER_TRACKS, 'track') ?? base.track,
-    status: oneOf(text('status'), CLUB_MEMBER_STATUSES, 'status') ?? base.status,
-    role: oneOf(text('role'), CLUB_MEMBER_ROLES, 'role') ?? base.role,
+    status,
+    role: roleOf(db, base, body),
   };
 }
 
@@ -155,10 +187,11 @@ export const clubMemberRoutes: MockRoute[] = [
   {
     method: 'PATCH',
     pattern: '/api/v1/club-members/:memberId',
-    summary: '동아리원 정보 수정(보낸 값만 바뀐다)',
+    summary:
+      '동아리원 정보 수정(보낸 값만 바뀐다). 탈퇴로 바꾸면 400 WITHDRAW_BY_DELETE(탈퇴는 DELETE로만), role은 PRESIDENT이거나 운영진 계정 여부와 맞을 때만 받는다(아니면 400 ROLE_FOLLOWS_OPERATOR)',
     handler: ({ db, params, body }) => {
       const current = findMember(db, params.memberId);
-      const member = applyMemberBody(current, readBody(body));
+      const member = applyMemberBody(db, current, readBody(body));
       validateMember(db, member);
       updateClubMember(db, member);
       ensureMemberProfile(db, member.id, member.term, member.track, member.name);
@@ -169,7 +202,7 @@ export const clubMemberRoutes: MockRoute[] = [
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     summary:
-      '동아리원 탈퇴 처리. 행은 지우지 않고 활동 상태를 탈퇴(WITHDRAWN)로 바꿔 바뀐 회원을 돌려준다. 반기 명단·팀 소속·출결 기록은 남는다. 운영진이거나 이미 탈퇴했으면 409',
+      '동아리원 탈퇴 처리. 행은 지우지 않고 활동 상태를 탈퇴(WITHDRAWN)로 바꿔 바뀐 회원을 돌려준다. 반기 명단·팀 소속·출결 기록은 남고, 연결된 HOST 계정은 사용 중지되어 로그인할 수 없다. 운영진이거나 이미 탈퇴했으면 409',
     handler: ({ db, params }) => {
       const member = findMember(db, params.memberId);
       if (isOperator(db, member.id)) {
