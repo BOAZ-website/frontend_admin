@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { ChevronRight, PanelLeft, User, X } from 'lucide-react';
 
 import { EventAttendanceContainer } from '@/pages/attendance-events/ui/EventAttendanceContainer';
@@ -16,6 +17,7 @@ import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentM
 import { MemberManagementPage } from '@/pages/member-management/ui/MemberManagementPage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
+import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
 
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
@@ -80,6 +82,33 @@ function userRoleOf(session: AuthSession): UserRole {
   if (session.role === 'TEAM')
     return session.teamName === '서비스운영팀' ? 'CONTENT_ADMIN' : 'TEAM';
   return 'SUPER';
+}
+
+/**
+ * 내 계정 창의 판. 열리면 첫 입력칸(없으면 닫기 버튼)으로 포커스를 옮기고, 닫히면 열기 전 요소로 되돌린다.
+ * Escape는 창 안 어디서든 받고, Tab 포커스는 창 안에서만 돈다(useDialogKeyboard).
+ */
+function MyProfilePanel({ onEscape, children }: { onEscape: () => void; children: ReactNode }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogKeyboard(panelRef, onEscape);
+  useEffect(() => {
+    const previous = document.activeElement;
+    panelRef.current?.querySelector<HTMLElement>('input, button')?.focus();
+    return () => {
+      if (previous instanceof HTMLElement) previous.focus();
+    };
+  }, []);
+  return (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="my-profile-title"
+      className="w-full max-w-sm rounded-lg bg-white shadow-lg"
+    >
+      {children}
+    </div>
+  );
 }
 
 /** 개발 모드에서 저장한 아이디 없이 처음 열었을 때 받은 첫 운영진 계정을 로그인 세션 모양으로 바꾼다. */
@@ -710,12 +739,7 @@ export default function App() {
             if (event.target === event.currentTarget) closeMyProfile();
           }}
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="my-profile-title"
-            className="w-full max-w-sm rounded-lg bg-white shadow-lg"
-          >
+          <MyProfilePanel onEscape={closeMyProfile}>
             <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
               <div>
                 <h3 id="my-profile-title" className="text-base font-bold text-slate-900">
@@ -822,7 +846,7 @@ export default function App() {
                 </form>
               )}
             </div>
-          </div>
+          </MyProfilePanel>
         </div>
       )}
 
