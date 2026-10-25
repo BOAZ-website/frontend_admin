@@ -27,6 +27,8 @@ async function setup() {
     router.dispatch(db, method, path, body) as T;
   const loginAs = (accountId: number) =>
     call<AdminAccount>('PUT', '/api/v1/mock/admin-session', { accountId });
+  // 임시 API는 세션이 없으면 401이다. 시험은 1번 계정(서비스운영팀장)으로 로그인한 채 시작한다.
+  loginAs(1);
   return { db, call, loginAs };
 }
 
@@ -55,6 +57,18 @@ const NEW_ACCOUNT = {
   role: 'TEAM',
   teamName: '홍보팀',
 };
+
+test('세션이 없으면 운영진 계정 API는 1번 계정으로 보지 않고 401이다', async () => {
+  const SQL = await initSqlJs();
+  const db = createDatabase(SQL, schema, seed);
+  const router = createRouter(adminAccountRoutes);
+  expectApiError(
+    () => router.dispatch(db, 'GET', '/api/v1/admin/accounts/me'),
+    401,
+    'UNAUTHORIZED',
+  );
+  expectApiError(() => router.dispatch(db, 'GET', '/api/v1/admin/accounts'), 401, 'UNAUTHORIZED');
+});
 
 test('계정 목록은 기본 권한 세트·맡은 그룹·예외·유효 권한을 함께 돌려준다', async () => {
   const { db, call } = await setup();

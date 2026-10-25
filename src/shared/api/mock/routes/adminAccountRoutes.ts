@@ -65,16 +65,16 @@ const conflict = (code: string, message: string) => new ApiError(409, code, mess
 
 // ─── 요청자(임시 API 세션) ───
 /**
- * 지금 로그인한 운영진 계정. 세션의 계정이 지워졌으면 첫 계정으로 본다.
+ * 지금 로그인한 운영진 계정. 세션이 없거나 세션의 계정이 지워졌으면 401이다.
  * HOST 세션은 운영진 계정 API를 쓸 수 없어 403이다(내 계정 정보 /me 포함).
  */
 function actorOf(db: Database): AdminRow {
   const session = currentSession(db);
-  if (session.kind === 'HOST') {
+  if (session?.kind === 'HOST') {
     throw new ApiError(403, 'FORBIDDEN', 'HOST 계정으로는 운영진 계정 기능을 쓸 수 없습니다.');
   }
-  const actor = findAdminRow(db, session.adminId) ?? listAdminRows(db)[0];
-  if (!actor) throw new ApiError(401, 'UNAUTHORIZED', '로그인한 계정이 없습니다.');
+  const actor = session ? findAdminRow(db, session.adminId) : undefined;
+  if (!actor) throw new ApiError(401, 'UNAUTHORIZED', '로그인해 주세요.');
   return actor;
 }
 
@@ -338,6 +338,30 @@ function addOperator(
   syncOperatorRole(db, userId, true);
 }
 
+/**
+ * 비밀번호 없이 세션을 바꾸는 경로는 개발 서버(npm run dev)와 시험에서만 둔다.
+ * 배포 빌드(PROD)에 두면 브라우저 저장소의 아이디만 바꿔 다른 계정 세션이 되므로 등록하지 않는다.
+ */
+const MOCK_SESSION_SWITCH_ENABLED = import.meta.env?.PROD !== true;
+
+const mockSessionSwitchRoute: MockRoute = {
+  method: 'PUT',
+  pattern: '/api/v1/mock/admin-session',
+  summary:
+    '[임시 API 전용·개발 모드] 세션을 바꾼다. { username }이면 그 계정(운영진·HOST)으로 세션을 되살려 AuthSession을, { accountId }면 그 운영진 계정으로 바꿔 계정 정보를 돌려준다. 새로고침 뒤 세션 복원과 테스트에서 쓴다',
+  handler: ({ db, body }): AuthSession | AdminAccount => {
+    const data = readBody(body);
+    if (typeof data.username === 'string') return restoreByUsername(db, data.username.trim());
+    if (typeof data.accountId !== 'number') {
+      throw badRequest('BAD_REQUEST', 'username 또는 accountId(정수) 값이 필요합니다.');
+    }
+    const row = findAdminRow(db, data.accountId);
+    if (!row) throw notFound('운영진 계정을 찾을 수 없습니다.');
+    setSession(db, { kind: 'ADMIN', adminId: row.id });
+    return toAdminAccount(db, row);
+  },
+};
+
 export const adminAccountRoutes: MockRoute[] = [
   {
     method: 'GET',
@@ -491,23 +515,7 @@ export const adminAccountRoutes: MockRoute[] = [
       return toAdminAccount(db, target);
     },
   },
-  {
-    method: 'PUT',
-    pattern: '/api/v1/mock/admin-session',
-    summary:
-      '[임시 API 전용] 세션을 바꾼다. { username }이면 그 계정(운영진·HOST)으로 세션을 되살려 AuthSession을, { accountId }면 그 운영진 계정으로 바꿔 계정 정보를 돌려준다. 새로고침 뒤 세션 복원과 테스트에서 쓴다',
-    handler: ({ db, body }): AuthSession | AdminAccount => {
-      const data = readBody(body);
-      if (typeof data.username === 'string') return restoreByUsername(db, data.username.trim());
-      if (typeof data.accountId !== 'number') {
-        throw badRequest('BAD_REQUEST', 'username 또는 accountId(정수) 값이 필요합니다.');
-      }
-      const row = findAdminRow(db, data.accountId);
-      if (!row) throw notFound('운영진 계정을 찾을 수 없습니다.');
-      setSession(db, { kind: 'ADMIN', adminId: row.id });
-      return toAdminAccount(db, row);
-    },
-  },
+  ...(MOCK_SESSION_SWITCH_ENABLED ? [mockSessionSwitchRoute] : []),
   {
     method: 'PUT',
     pattern: '/api/v1/admin/operators/:userId',
