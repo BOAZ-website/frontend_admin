@@ -2,9 +2,12 @@ import type { ClubMember } from './types';
 
 /**
  * 동아리원 정보 수정 팝업의 입력값. 동아리원 행에서 id, 운영진 팀(운영진 지정에서 바꿈),
- * 팀장인 팀(출결 화면에서 바꿈)을 뺀 값이다.
+ * 팀장인 팀(출결 화면에서 바꿈), HOST 계정(그룹 계정 관리에서 바꿈)을 뺀 값이다.
  */
-export type ClubMemberForm = Omit<ClubMember, 'id' | 'operatorTeam' | 'leaderTeams'>;
+export type ClubMemberForm = Omit<
+  ClubMember,
+  'id' | 'operatorTeam' | 'leaderTeams' | 'hostUsernames'
+>;
 
 /** 동아리원 수정(PATCH) 요청. 보낸 값만 바뀐다. */
 export type ClubMemberUpdateRequest = Partial<ClubMemberForm>;
