@@ -179,6 +179,16 @@ function valueChanges(before: Detail, after: Detail, keys: readonly string[]): D
 const firstTarget = (_request: MockRequest, targetIds: readonly string[]) => targetIds[0];
 
 /** 동아리원 한 명의 활동 상태(users.club_status). 회원이 없으면 빈 값이다. */
+/** 회원에게 연결된 HOST 계정 아이디(탈퇴 처리 때 함께 지워진다). */
+function hostUsernamesOf(request: MockRequest, userId: string | undefined): string[] {
+  if (userId === undefined) return [];
+  return queryAll<{ username: string }>(
+    request.db,
+    'SELECT username FROM host_accounts WHERE user_id = ? ORDER BY username',
+    [userId],
+  ).map((row) => row.username);
+}
+
 function memberStatus(request: MockRequest, userId: string | undefined): Detail {
   if (userId === undefined) return {};
   const row = queryAll<{ club_status: string }>(
@@ -384,10 +394,15 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     action: 'MEMBER_DELETE',
     targetType: 'USER',
     targets: param('memberId'),
-    // 처리 전 활동 상태를 읽어 두고, 처리 뒤 상태와 함께 [전, 후]로 남긴다.
-    before: (r, ids) => memberStatus(r, ids[0]),
-    detail: (r, { before, targetIds }) =>
-      valueChanges(before, memberStatus(r, targetIds[0]), ['status']),
+    // 처리 전 활동 상태와 연결된 HOST 계정을 읽어 두고, 상태는 [전, 후]로, 함께 지운 HOST 계정은 아이디로 남긴다.
+    before: (r, ids) => ({ ...memberStatus(r, ids[0]), hostUsernames: hostUsernamesOf(r, ids[0]) }),
+    detail: (r, { before, targetIds }) => {
+      const hostUsernames = before.hostUsernames as string[];
+      return {
+        ...valueChanges(before, memberStatus(r, targetIds[0]), ['status']),
+        ...(hostUsernames.length > 0 ? { deletedHostAccounts: hostUsernames } : {}),
+      };
+    },
   },
 
   // 출결: 행사·점수 규칙·반기
