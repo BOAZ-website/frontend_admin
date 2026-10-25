@@ -368,6 +368,74 @@ test('응답 항목에는 지운 필드(targets·detailItems·attachments)가 �
 
 // ── requestBody: 기록에 남긴 보낸 값(2026-10-22 감사 로그 API Body 계약) ──
 
+test('배열 본문(행사 참가자 명단)은 명단을 복제하지 않고 인원 수와 ID 목록만 남긴다', async () => {
+  // 행사 참가자는 행사 DB에 있다. 이 시험만 유저 DB와 행사 DB를 함께 올린다(앱과 같은 순서).
+  const read = (file: string) => readFileSync(new URL(`../db/${file}`, import.meta.url), 'utf8');
+  const SQL = await initSqlJs();
+  const db = createDatabase(
+    SQL,
+    `${schema}\n${read('event-schema.sql')}`,
+    `${seed}\n${read('event-seed.sql')}`,
+  );
+  const router = createRouter(MOCK_ROUTES, { aroundWrite: recordWrite });
+  const call = <T>(method: 'GET' | 'PUT', path: string, body?: unknown) =>
+    router.dispatch(db, method, path, body) as T;
+  call('PUT', '/api/v1/mock/admin-session', { accountId: 1 });
+  const latest = () => call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=1').items[0];
+  const attendeesOf = (eventId: string) =>
+    call<Record<string, unknown>[]>('GET', `/api/v1/event-attendees?eventId=${eventId}`);
+  const eventId = call<{ id: string }[]>('GET', '/api/v1/events')
+    .map((event) => event.id)
+    .find((id) => attendeesOf(id).length > 0)!;
+  const attendees = attendeesOf(eventId);
+  assert.ok(attendees.length > 0);
+
+  call('PUT', `/api/v1/events/${eventId}/attendees`, attendees);
+  const entry = latest();
+  assert.equal(entry.action, 'EVENT_ATTENDEES_UPDATE');
+  assert.deepEqual(entry.requestBody, {
+    itemCount: attendees.length,
+    ids: attendees.map((attendee) => attendee.id),
+  });
+  const text = JSON.stringify(entry.requestBody);
+  for (const attendee of attendees) assert.ok(!text.includes(String(attendee.name)));
+});
+
+test('객체 본문 안의 배열·객체에 든 이름·연락처도 (비공개)로 가린다', async () => {
+  const { call, latest } = await setup();
+  call('PATCH', '/api/v1/club-members/u_28_01', {
+    major: '통계학과',
+    contacts: [{ name: '홍길동', phone: '010-1234-5678', relation: '보호자' }],
+    profile: { email: 'gildong@example.com', hobby: '등산' },
+  });
+  assert.deepEqual(latest().requestBody, {
+    major: '통계학과',
+    contacts: [{ name: '(비공개)', phone: '(비공개)', relation: '보호자' }],
+    profile: { email: '(비공개)', hobby: '등산' },
+  });
+});
+
+test('키 이름이 snake_case이거나 password·token이 들어가면 목록에 없어도 (비공개)로 가린다', async () => {
+  const { call, latest } = await setup();
+  call('PATCH', '/api/v1/club-members/u_28_01', {
+    major: '통계학과',
+    new_password: 'Plain!2027',
+    initial_password: 'Plain!2028',
+    access_token: 'tok-123',
+    phone_number: '010-0000-0000',
+    PHONE: '010-1111-1111',
+  });
+  const entry = latest();
+  assert.deepEqual(entry.requestBody, {
+    major: '통계학과',
+    new_password: '(비공개)',
+    initial_password: '(비공개)',
+    access_token: '(비공개)',
+    phone_number: '010-0000-0000',
+    PHONE: '(비공개)',
+  });
+});
+
 test('POST 기록의 requestBody는 보낸 값 그대로이고, 이름·연락처·이메일은 (비공개)로 가린다', async () => {
   const { call, latest } = await setup();
   const body = {
