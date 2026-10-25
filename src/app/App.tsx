@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { ChevronRight, PanelLeft, User, X } from 'lucide-react';
 
 import { EventAttendanceContainer } from '@/pages/attendance-events/ui/EventAttendanceContainer';
@@ -16,6 +17,7 @@ import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentM
 import { MemberManagementPage } from '@/pages/member-management/ui/MemberManagementPage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
+import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
 
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
@@ -45,7 +47,7 @@ const NO_TRACKS: UserTrack[] = [];
 const NO_WEEKS: WeekInfo[] = [];
 
 /**
- * 주소(#)의 화면 이름. '#system-permissions/u_26_08'처럼 '/' 뒤에 화면 안의 위치(고른 계정 등)를 붙일 수 있어,
+ * 주소(#)의 화면 이름. '#system-accounts/u_26_08'처럼 '/' 뒤에 화면 안의 위치(고른 계정 등)를 붙일 수 있어,
  * '/' 앞부분만 화면 이름으로 읽는다.
  */
 const pageOfHash = (): string => window.location.hash.replace(/^#/, '').split('/')[0];
@@ -53,6 +55,15 @@ const pageOfHash = (): string => window.location.hash.replace(/^#/, '').split('/
 function getInitialActivePage(): ActivePage {
   try {
     const hash = pageOfHash();
+    // 권한 설정 화면은 권한 관리 화면의 권한 편집 창으로 합쳤다. 예전 주소는 같은 사람을 연 채 권한 관리로 옮긴다.
+    if (hash === 'system-permissions') {
+      window.history.replaceState(
+        null,
+        '',
+        window.location.hash.replace(/^#system-permissions/, '#system-accounts'),
+      );
+      return 'system-accounts';
+    }
     if (isActivePage(hash)) return hash;
     const saved = localStorage.getItem('boaz_active_page');
     if (saved && isActivePage(saved)) return saved;
@@ -71,6 +82,33 @@ function userRoleOf(session: AuthSession): UserRole {
   if (session.role === 'TEAM')
     return session.teamName === '서비스운영팀' ? 'CONTENT_ADMIN' : 'TEAM';
   return 'SUPER';
+}
+
+/**
+ * 내 계정 창의 판. 열리면 첫 입력칸(없으면 닫기 버튼)으로 포커스를 옮기고, 닫히면 열기 전 요소로 되돌린다.
+ * Escape는 창 안 어디서든 받고, Tab 포커스는 창 안에서만 돈다(useDialogKeyboard).
+ */
+function MyProfilePanel({ onEscape, children }: { onEscape: () => void; children: ReactNode }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogKeyboard(panelRef, onEscape);
+  useEffect(() => {
+    const previous = document.activeElement;
+    panelRef.current?.querySelector<HTMLElement>('input, button')?.focus();
+    return () => {
+      if (previous instanceof HTMLElement) previous.focus();
+    };
+  }, []);
+  return (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="my-profile-title"
+      className="w-full max-w-sm rounded-lg bg-white shadow-lg"
+    >
+      {children}
+    </div>
+  );
 }
 
 /** 개발 모드에서 저장한 아이디 없이 처음 열었을 때 받은 첫 운영진 계정을 로그인 세션 모양으로 바꾼다. */
@@ -689,16 +727,7 @@ export default function App() {
 
           {/* 5. System Section */}
           {activePage === 'system-members' && <MemberManagementPage />}
-          {(activePage === 'system' ||
-            activePage === 'system-accounts' ||
-            activePage === 'system-permissions') && (
-            <SystemAccountsPage
-              view={activePage === 'system-permissions' ? 'permissions' : 'accounts'}
-              onViewChange={(view) =>
-                setActivePage(view === 'permissions' ? 'system-permissions' : 'system-accounts')
-              }
-            />
-          )}
+          {(activePage === 'system' || activePage === 'system-accounts') && <SystemAccountsPage />}
         </main>
       </div>
 
@@ -710,12 +739,7 @@ export default function App() {
             if (event.target === event.currentTarget) closeMyProfile();
           }}
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="my-profile-title"
-            className="w-full max-w-sm rounded-lg bg-white shadow-lg"
-          >
+          <MyProfilePanel onEscape={closeMyProfile}>
             <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
               <div>
                 <h3 id="my-profile-title" className="text-base font-bold text-slate-900">
@@ -822,7 +846,7 @@ export default function App() {
                 </form>
               )}
             </div>
-          </div>
+          </MyProfilePanel>
         </div>
       )}
 

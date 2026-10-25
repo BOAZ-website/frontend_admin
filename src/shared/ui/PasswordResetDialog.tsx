@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { X } from 'lucide-react';
+
+import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 
 interface PasswordResetDialogProps {
   onClose: () => void;
@@ -14,6 +16,9 @@ interface PasswordResetDialogProps {
  */
 export function PasswordResetDialog({ onClose, onSubmit }: PasswordResetDialogProps) {
   const [newPassword, setNewPassword] = useState('');
+  // Escape는 창 안 빈 곳을 눌러 포커스가 빠져도 받고, Tab 포커스는 창 안에서만 돈다.
+  const panelRef = useRef<HTMLFormElement>(null);
+  useDialogKeyboard(panelRef, onClose);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -26,12 +31,10 @@ export function PasswordResetDialog({ onClose, onSubmit }: PasswordResetDialogPr
       role="dialog"
       aria-modal="true"
       aria-labelledby="password-reset-title"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
-      }}
       className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs animate-in fade-in duration-150"
     >
       <form
+        ref={panelRef}
         onSubmit={submit}
         className="w-full max-w-sm overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]"
       >
