@@ -107,13 +107,15 @@ test('반기 API가 다음 반기의 등록 여부를 내려주고 등록 뒤에
   assert.equal(after.nextSemester.semester, before.nextSemester.semester);
 });
 
-test('반기 전환은 출결 HOST 테이블 외의 데이터는 변경하지 않는다', async () => {
+test('반기 전환은 출결 HOST 테이블과 운영진의 맡은 그룹 외의 데이터는 변경하지 않는다', async () => {
   const db = await freshDb();
+  // 맡은 그룹(admin_group_leader)은 현재 반기 팀 기준이라 반기를 넘기면 다시 만들어진다.
   const hostTables = new Set([
     'host_accounts',
     'host_permissions',
     'host_assigned_groups',
     'host_concurrent_roles',
+    'admin_group_leader',
   ]);
   const tables = queryAll<{ name: string }>(
     db,
@@ -154,6 +156,11 @@ test('반기 전환은 출결 HOST 테이블 외의 데이터는 변경하지 �
   assert.deepEqual(countsAfterRollover, countsAfterCreation);
   assert.ok(Object.keys(countsBefore).length > 0);
   assert.equal(loadHosts(db).length, 0);
+  // 새 반기에는 아직 팀이 없어 지난 반기 팀의 맡은 그룹 연결이 남지 않는다.
+  assert.equal(
+    queryAll<{ count: number }>(db, 'SELECT COUNT(*) AS count FROM admin_group_leader')[0].count,
+    0,
+  );
 });
 
 test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한 회원만 조회한다', async () => {
