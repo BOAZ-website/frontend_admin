@@ -7,7 +7,7 @@
 import type { Database } from 'sql.js';
 
 import { listAccountHolders } from '@/entities/admin-account/api/accountHolderRepository';
-import { syncOperatorRole } from '@/entities/club-member/api/clubMemberRepository';
+import { isWithdrawn, syncOperatorRole } from '@/entities/club-member/api/clubMemberRepository';
 import {
   deleteAdmin,
   findAdminRow,
@@ -323,6 +323,13 @@ function updateOperator(
   if (nextPassword !== null) updateAdminPassword(db, row.id, nextPassword);
 }
 
+/** 탈퇴한 회원에게는 로그인할 수 있는 운영진 계정을 만들지 않는다(409). */
+function requireNotWithdrawn(db: Database, userId: string): void {
+  if (isWithdrawn(db, userId)) {
+    throw conflict('MEMBER_WITHDRAWN', '탈퇴한 동아리원은 운영진으로 지정할 수 없습니다.');
+  }
+}
+
 /** 운영진이 아닌 회원을 그 팀 운영진으로 정하고, 받은 아이디·비밀번호로 계정을 만든다. */
 function addOperator(
   db: Database,
@@ -334,6 +341,7 @@ function addOperator(
   // 주소의 회원(:userId)이 없으면 다른 API처럼 404다.
   if (!userExists(db, userId))
     throw new ApiError(404, 'USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
+  requireNotWithdrawn(db, userId);
   const role = roleForTeam(teamName);
   requireValidCombination(role, teamName);
   const { username, password } = readCredentials(db, data);
@@ -403,7 +411,7 @@ export const adminAccountRoutes: MockRoute[] = [
     method: 'POST',
     pattern: '/api/v1/admin/accounts',
     summary:
-      '운영진 추가. 계정 주인은 회원(userId)으로 고르고, 아이디·초기 비밀번호는 필수다(없으면 400). 정해지지 않은 역할·부서 조합은 400, 같은 아이디·이미 운영진인 회원은 409',
+      '운영진 추가. 계정 주인은 회원(userId)으로 고르고, 아이디·초기 비밀번호는 필수다(없으면 400). 정해지지 않은 역할·부서 조합은 400, 같은 아이디·이미 운영진인 회원·탈퇴한 회원은 409',
     handler: ({ db, body }) => {
       const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
       const data = readBody(body);
@@ -413,6 +421,7 @@ export const adminAccountRoutes: MockRoute[] = [
       if (!userExists(db, userId)) {
         throw badRequest('USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
       }
+      requireNotWithdrawn(db, userId);
       if (hasAdminAccount(db, userId)) {
         throw conflict('DUPLICATE_ADMIN_USER', '이 회원은 이미 운영진 계정이 있습니다.');
       }
@@ -543,7 +552,7 @@ export const adminAccountRoutes: MockRoute[] = [
     method: 'PUT',
     pattern: '/api/v1/admin/operators/:userId',
     summary:
-      '한 명의 운영진 지정(동아리원 명단). 운영진이 아닌 회원을 팀으로 정하면 아이디·초기 비밀번호가 필수이고(없으면 400, 겹치면 409) 그 값으로 계정을 만든다. 이미 운영진이면 teamName이 다를 때 팀을 옮기고, username이 지금과 다르면 아이디를(빈 값 400, 겹치면 409), password를 보내면 비밀번호를 함께 바꾼다. null이면 운영진에서 뺀다(운영진 계정도 함께 삭제)',
+      '한 명의 운영진 지정(동아리원 명단). 운영진이 아닌 회원을 팀으로 정하면 아이디·초기 비밀번호가 필수이고(없으면 400, 겹치면 409, 탈퇴한 회원이면 409) 그 값으로 계정을 만든다. 이미 운영진이면 teamName이 다를 때 팀을 옮기고, username이 지금과 다르면 아이디를(빈 값 400, 겹치면 409), password를 보내면 비밀번호를 함께 바꾼다. null이면 운영진에서 뺀다(운영진 계정도 함께 삭제)',
     handler: ({ db, params, body }) => {
       const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
       const data = readBody(body);

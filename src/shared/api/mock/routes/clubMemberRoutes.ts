@@ -2,25 +2,37 @@
  * 동아리원 관리 API. 동아리원 한 명은 임시 DB users 테이블의 한 행이며,
  * 추가·수정 시 그 기수·부문의 활동 명단(members) 행이 없으면 함께 만든다.
  * 새 기수는 보통 서류 평가의 합격자 승격으로 들어오고, 추가 API는 그 밖의 사람(예: 예전 수료 기수)을 넣을 때 쓴다.
- * 삭제하면 그 사람의 반기 명단·팀 소속·출결 기록도 함께 지워진다(운영진은 운영진에서 먼저 빼야 한다).
+ * 삭제(DELETE)는 행을 지우지 않고 탈퇴 처리(활동 상태 WITHDRAWN)다. 반기 명단·팀 소속·출결 기록은 그대로 남고,
+ * 로그인 계정이 있는 사람(운영진·HOST)과 현재 반기 팀장은 먼저 해지해야 탈퇴할 수 있다(이미 탈퇴한 사람은 다시 처리하지 않는다).
+ * 탈퇴는 이 경로로만 한다. 정보 수정(PATCH)으로 활동 상태를 탈퇴로 바꾸면 400이다.
  */
 import type { Database } from 'sql.js';
 
 import {
-  deleteClubMember,
   findClubMember,
   hasNameConflict,
   insertClubMember,
   isOperator,
   listClubMembers,
+  listClubMembersByTerm,
+  listClubMemberTerms,
   updateClubMember,
+  withdrawClubMember,
 } from '@/entities/club-member/api/clubMemberRepository';
 import {
+  CLUB_MEMBER_PAGED_STATUSES,
   CLUB_MEMBER_ROLES,
   CLUB_MEMBER_STATUSES,
   CLUB_MEMBER_TRACKS,
   type ClubMember,
+  type ClubMemberRole,
+  type ClubMemberTermPage,
+  type ClubMemberTermScope,
 } from '@/entities/club-member/model/types';
+import {
+  withdrawBlockMessageOf,
+  withdrawBlocksOf,
+} from '@/entities/club-member/model/withdrawBlock';
 import { ensureMemberProfile } from '@/entities/study-team/api/teamRepository';
 
 import { notFound } from '../queries';
@@ -30,6 +42,7 @@ import {
   oneOf,
   optionalNumber,
   optionalString,
+  parsePositiveInt,
   readBody,
   requiredString,
 } from '../validate';
@@ -44,9 +57,39 @@ function findMember(db: Database, memberId: string): ClubMember {
   return member;
 }
 
-/** 본문에 있는 값만 기존 동아리원 위에 덮어쓴다. 없는 키는 기존 값을 유지한다. */
-function applyMemberBody(base: ClubMember, body: Body): ClubMember {
+/**
+ * 수정 요청의 역할. 대표(PRESIDENT)는 따로 정하므로 그대로 받는다.
+ * 운영진(OPERATOR)인지는 운영진 계정(admin 행)이 정하므로, 그 밖의 값은 admin 행과 맞을 때만 받는다(아니면 400).
+ * 운영진으로 정하거나 빼는 것은 운영진 지정 API(PUT /admin/operators/:userId)로 한다.
+ */
+function roleOf(db: Database, base: ClubMember, body: Body): ClubMemberRole {
+  const requested = oneOf(optionalString(body, 'role'), CLUB_MEMBER_ROLES, 'role');
+  if (requested === undefined || requested === 'PRESIDENT') return requested ?? base.role;
+  const derived: ClubMemberRole = isOperator(db, base.id) ? 'OPERATOR' : 'MEMBER';
+  if (requested !== derived) {
+    throw new ApiError(
+      400,
+      'ROLE_FOLLOWS_OPERATOR',
+      '운영진 여부는 운영진 지정으로만 바꿀 수 있습니다.',
+    );
+  }
+  return derived;
+}
+
+/**
+ * 본문에 있는 값만 기존 동아리원 위에 덮어쓴다. 없는 키는 기존 값을 유지한다.
+ * 탈퇴(WITHDRAWN)로 바꾸는 것은 탈퇴 처리(DELETE)로만 한다. 운영진 확인·HOST 계정 정지를 그 경로가 맡기 때문이다.
+ */
+function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember {
   const text = (key: string) => optionalString(body, key);
+  const status = oneOf(text('status'), CLUB_MEMBER_STATUSES, 'status') ?? base.status;
+  if (status === 'WITHDRAWN' && base.status !== 'WITHDRAWN') {
+    throw new ApiError(
+      400,
+      'WITHDRAW_BY_DELETE',
+      '탈퇴는 정보 수정이 아니라 탈퇴 처리로만 할 수 있습니다.',
+    );
+  }
   return {
     ...base,
     name: text('name') ?? base.name,
@@ -56,12 +99,25 @@ function applyMemberBody(base: ClubMember, body: Body): ClubMember {
     major: text('major') ?? base.major,
     term: optionalNumber(body, 'term') ?? base.term,
     track: oneOf(text('track'), CLUB_MEMBER_TRACKS, 'track') ?? base.track,
-    status: oneOf(text('status'), CLUB_MEMBER_STATUSES, 'status') ?? base.status,
-    role: oneOf(text('role'), CLUB_MEMBER_ROLES, 'role') ?? base.role,
+    status,
+    role: roleOf(db, base, body),
   };
 }
 
 /** 추가 요청을 동아리원 한 명으로 만든다. 활동 상태를 보내지 않으면 활동(ACTIVE)이다. */
+/** 추가할 때의 활동 상태. 없으면 활동기수다. 처음부터 탈퇴로 만들 수는 없다(탈퇴는 탈퇴 처리로만). */
+function newMemberStatusOf(body: Body): ClubMember['status'] {
+  const status = oneOf(optionalString(body, 'status'), CLUB_MEMBER_STATUSES, 'status') ?? 'ACTIVE';
+  if (status === 'WITHDRAWN') {
+    throw new ApiError(
+      400,
+      'WITHDRAW_BY_DELETE',
+      '탈퇴는 동아리원 추가가 아니라 탈퇴 처리로만 할 수 있습니다.',
+    );
+  }
+  return status;
+}
+
 function newMemberOf(body: Body): ClubMember {
   const term = optionalNumber(body, 'term');
   if (term === undefined || !Number.isInteger(term) || term <= 0) {
@@ -78,9 +134,11 @@ function newMemberOf(body: Body): ClubMember {
     major: (optionalString(body, 'major') ?? '').trim(),
     term,
     track,
-    status: oneOf(optionalString(body, 'status'), CLUB_MEMBER_STATUSES, 'status') ?? 'ACTIVE',
+    status: newMemberStatusOf(body),
     role: 'MEMBER',
     operatorTeam: null,
+    leaderTeams: null,
+    hostUsernames: null,
   };
 }
 
@@ -100,6 +158,23 @@ function validateMember(db: Database, member: ClubMember): void {
   }
 }
 
+/**
+ * 활동기수·수료기수 목록과 부문 명단의 한 페이지(한 기수). status·track 중 하나는 있어야 한다.
+ * status가 없으면 활동·수료인 사람(탈퇴 제외)이다. term이 없으면 조건에 맞는 가장 최근 기수를 준다.
+ * 보낸 기수에 조건에 맞는 사람이 없어도 오류가 아니라 빈 페이지다(탈퇴 처리 직후 빈 페이지가 될 수 있다).
+ */
+function termPageOf(db: Database, query: URLSearchParams): ClubMemberTermPage {
+  const status = oneOf(query.get('status') ?? undefined, CLUB_MEMBER_PAGED_STATUSES, 'status');
+  const track = oneOf(query.get('track') ?? undefined, CLUB_MEMBER_TRACKS, 'track');
+  if (!status && !track) throw badRequest('status 또는 track 값이 필요합니다.');
+  const requestedTerm = parsePositiveInt(query.get('term'), 'term');
+  const scope: ClubMemberTermScope = { status, track };
+  const terms = listClubMemberTerms(db, scope);
+  const term = requestedTerm ?? terms[0] ?? null;
+  const members = term === null ? [] : listClubMembersByTerm(db, scope, term);
+  return { status: status ?? null, track: track ?? null, term, terms, members };
+}
+
 export const clubMemberRoutes: MockRoute[] = [
   {
     method: 'GET',
@@ -107,6 +182,13 @@ export const clubMemberRoutes: MockRoute[] = [
     summary:
       '동아리원 전체 목록(활동 상태 → 부문 → 이름 순, 탈퇴는 최신 기수부터). 검색·필터는 화면에서 하고, 화면은 정렬하지 않는다',
     handler: ({ db }) => listClubMembers(db),
+  },
+  {
+    method: 'GET',
+    pattern: '/api/v1/club-members/by-term',
+    summary:
+      '활동기수·수료기수 목록과 부문 명단을 기수 하나씩 읽는다(status·track 중 하나 필수, status 없으면 활동·수료, term 없으면 가장 최근 기수). 활동 상태 → 부문 → 이름 순',
+    handler: ({ db, query }) => termPageOf(db, query),
   },
   {
     method: 'POST',
@@ -124,10 +206,11 @@ export const clubMemberRoutes: MockRoute[] = [
   {
     method: 'PATCH',
     pattern: '/api/v1/club-members/:memberId',
-    summary: '동아리원 정보 수정(보낸 값만 바뀐다)',
+    summary:
+      '동아리원 정보 수정(보낸 값만 바뀐다). 탈퇴로 바꾸면 400 WITHDRAW_BY_DELETE(탈퇴는 DELETE로만), role은 PRESIDENT이거나 운영진 계정 여부와 맞을 때만 받는다(아니면 400 ROLE_FOLLOWS_OPERATOR)',
     handler: ({ db, params, body }) => {
       const current = findMember(db, params.memberId);
-      const member = applyMemberBody(current, readBody(body));
+      const member = applyMemberBody(db, current, readBody(body));
       validateMember(db, member);
       updateClubMember(db, member);
       ensureMemberProfile(db, member.id, member.term, member.track, member.name);
@@ -138,18 +221,22 @@ export const clubMemberRoutes: MockRoute[] = [
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     summary:
-      '동아리원 삭제. 반기 명단·팀 소속·출결 기록도 함께 지운다. 운영진이면 409(운영진에서 먼저 빼야 한다)',
+      '동아리원 탈퇴 처리. 행은 지우지 않고 활동 상태를 탈퇴(WITHDRAWN)로 바꿔 바뀐 회원을 돌려준다. 반기 명단·팀 소속·출결 기록은 남는다. 운영진(MEMBER_IS_OPERATOR)·HOST 계정이 있음(MEMBER_HAS_HOST_ACCOUNT)·현재 반기 팀장(MEMBER_IS_TEAM_LEADER)이면 먼저 해지하라는 안내와 함께 409(사유가 여럿이면 메시지에 모두, 코드는 첫 사유), 이미 탈퇴했으면 409 ALREADY_WITHDRAWN',
     handler: ({ db, params }) => {
       const member = findMember(db, params.memberId);
-      if (isOperator(db, member.id)) {
+      // 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 먼저 해지해야 한다. 사유를 모두 모아 알린다.
+      const blocks = withdrawBlocksOf(member);
+      const message = withdrawBlockMessageOf(member.name, blocks);
+      if (message) throw new ApiError(409, blocks[0].code, message);
+      if (member.status === 'WITHDRAWN') {
         throw new ApiError(
           409,
-          'MEMBER_IS_OPERATOR',
-          `${member.name}님은 운영진입니다. 운영진에서 먼저 뺀 뒤 삭제해 주세요.`,
+          'ALREADY_WITHDRAWN',
+          `${member.name}님은 이미 탈퇴한 동아리원입니다.`,
         );
       }
-      deleteClubMember(db, member.id);
-      return null;
+      withdrawClubMember(db, member.id);
+      return findMember(db, member.id);
     },
   },
 ];

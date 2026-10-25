@@ -335,6 +335,29 @@ test('계정 수정·비밀번호 재설정으로도 다른 계정이 MASTER를 
   call('PATCH', '/api/v1/admin/accounts/5/password', { newPassword: 'Changed!1' });
 });
 
+test('탈퇴한 동아리원은 운영진 지정·운영진 추가 모두 409 MEMBER_WITHDRAWN이다', async () => {
+  const { db, call } = await setup();
+  execute(db, "UPDATE users SET club_status = 'WITHDRAWN' WHERE id = ?", [NEW_ACCOUNT.userId]);
+
+  expectApiError(
+    () =>
+      call('PUT', `/api/v1/admin/operators/${NEW_ACCOUNT.userId}`, {
+        teamName: '홍보팀',
+        username: 'boaz_withdrawn',
+        password: 'Boaz!2027',
+      }),
+    409,
+    'MEMBER_WITHDRAWN',
+  );
+  expectApiError(
+    () => call('POST', '/api/v1/admin/accounts', NEW_ACCOUNT),
+    409,
+    'MEMBER_WITHDRAWN',
+  );
+  const hasAccount = db.exec('SELECT 1 FROM admin WHERE user_id = ?', [NEW_ACCOUNT.userId]);
+  assert.equal(hasAccount.length, 0);
+});
+
 test('현재 반기가 바뀌면 맡은 그룹을 새 현재 반기 팀 기준으로 다시 만든다', async () => {
   const { db, call } = await setup();
   const leadershipOf = (accountId: number) =>

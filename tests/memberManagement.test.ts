@@ -5,7 +5,7 @@ import type { ClubMember } from '../src/entities/club-member/model/types';
 import {
   filterClubMembers,
   NOT_OPERATOR,
-  summarizeClubMembers,
+  termScopeOfSheet,
 } from '../src/pages/member-management/model/memberManagement';
 
 const ALL_FILTER = { query: '', term: 'ALL', track: 'ALL', status: 'ALL' } as const;
@@ -90,19 +90,12 @@ test('필터 결과는 원본을 바꾸지 않고, 정렬하지 않아 서버가
   );
 });
 
-test('전체·활동·수료·운영진 인원을 요약한다', () => {
-  assert.deepEqual(summarizeClubMembers(MEMBERS), {
-    total: 3,
-    active: 2,
-    alumni: 1,
-    operators: 1,
-  });
-});
-
 test('운영진 필터로 팀별 운영진이나 운영진이 아닌 동아리원을 고르고, 없으면 전체로 본다', () => {
   const members = MEMBERS.map((member) => ({
     ...member,
     operatorTeam: member.id === 'member-3' ? '운영지원팀' : null,
+    leaderTeams: null,
+    hostUsernames: null,
   }));
   const base = { query: '', term: 'ALL', track: 'ALL', status: 'ALL' } as const;
 
@@ -129,4 +122,14 @@ test('부문 명단은 그 부문에서 탈퇴하지 않은 사람, 탈퇴 명�
   // 활동기수·수료기수 목록은 부문과 관계없이 그 활동 상태인 사람이다.
   assert.deepEqual(idsOf('active'), ['member-1', 'member-3']);
   assert.deepEqual(idsOf('alumni'), ['member-2']);
+});
+
+test('기수 페이지 읽기 조건: 활동·수료 목록은 status, 부문 명단은 track, 탈퇴 명단과 닫힌 상태는 null이다', () => {
+  assert.deepEqual(termScopeOfSheet('active'), { status: 'ACTIVE' });
+  assert.deepEqual(termScopeOfSheet('alumni'), { status: 'ALUMNI' });
+  assert.deepEqual(termScopeOfSheet('analysis'), { track: '분석' });
+  assert.deepEqual(termScopeOfSheet('visualization'), { track: '시각화' });
+  assert.deepEqual(termScopeOfSheet('engineering'), { track: '엔지니어링' });
+  assert.equal(termScopeOfSheet('withdrawn'), null);
+  assert.equal(termScopeOfSheet(null), null);
 });

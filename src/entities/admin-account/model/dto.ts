@@ -20,8 +20,3 @@ export interface AdminPasswordRequest {
 export interface AdminPermissionsRequest {
   permissions: string[];
 }
-
-/** 팀 운영진 일괄 지정(PUT /operator-teams/:teamName). 동아리원 명단 화면을 바꾸기 전(#30)까지만 남겨 둔다. */
-export interface OperatorTeamRequest {
-  userIds: string[];
-}
