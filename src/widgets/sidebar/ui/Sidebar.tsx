@@ -123,6 +123,10 @@ const SIDEBAR_NAV = [
           { id: 'system-accounts', label: '권한 관리' },
         ],
       },
+      {
+        title: '보안',
+        pages: [{ id: 'system-audit', label: '감사 로그' }],
+      },
     ],
   },
 ];
