@@ -86,7 +86,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 | ATT-TL | 없음 | M5 |  |  | 티켓 전체(본문 What·Acceptance 참고) |
 | SYS-GATE | 일부 | M2 |  | 등록 | `/me` 권한 목록 기반 판정, 경로 가드, 403 화면, 버튼 단위 제한, 시안용 빠른 로그인·역할 전환 제거. HOST 메뉴 제한이 사이드바에만 있어 주소 해시로 다른 화면 진입 가능. |
 | SYS-ACC | 임시 API | M6 | #46 | 등록 | 실제 API 연동. 운영진 지정과 계정 발급을 한 요청으로 처리하는 방식은 백엔드 확인 필요 |
-| SYS-PERM | 임시 API | M6 | #47 | 등록 | 실제 API 연동, 동시 수정 시 덮어쓰기 방지(기대 버전 비교)를 백엔드와 협의 |
+| SYS-PERM | 완료 (임시 API) | M6 | #47 | 등록 | 실제 API 연동, 동시 수정 시 덮어쓰기 방지(기대 버전 비교)를 백엔드와 협의 |
 | SYS-MEM | 임시 API | M6 | (#30 닫힘) | 등록 | 승격 일시·처리자·출신 지원서 기수(MEM-02). MEM-03은 ATT-TL(M5) 뒤. 동아리원 API 권한 확인(#59) |
 | SYS-LOG | 임시 API (PR #61) | M7 이후 | #48 | 등록 | 실제 저장·보관 기간(SYS-A-2, BE 몫), 콘텐츠 API 연결 뒤 파일 주소 기록 |
 | CNT-FAQ | 완료 (목업) | M0 |  | 등록 | 드래그 순서 변경(명세). 실데이터 완주는 PLT-PILOT(M0)에서 진행 예정(미착수) |
@@ -562,7 +562,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 
 ### SYS-PERM 계정별 권한 관리
 
-- 규모 `한 주` · 현재 상태: 임시 API (`권한 관리` 화면의 표에서 여는 권한 편집 창 `AccountPermissionDialog.tsx`·`AccountPermissionEditor.tsx`, `PUT /api/v1/admin/accounts/:accountId/permissions`) · GitHub 이슈 #47 (#38에서 분할)
+- 규모 `한 주` · 현재 상태: 완료 (임시 API) (`권한 관리` 화면의 표에서 여는 권한 편집 창 `AccountPermissionDialog.tsx`·`AccountPermissionEditor.tsx`, `PUT /api/v1/admin/accounts/:accountId/permissions`) · GitHub 이슈 #47 (#38에서 분할)
 - **선행:** SYS-DSN · SYS-AUTH 5단계(권한 커스텀 API)
 - **Why:** 역할 기본 권한과 다른 권한이 필요한 운영진을 계정 단위로 조정한다.
 - **화면 구성(2026-10-22 결정, `spec/06-system.md` SYS-B-1):** SYS-ACC와 함께 사이드바 `권한 관리` 한 화면에 둔다. 계정별 권한은 운영진 계정 표의 이름·`권한` 버튼(또는 그룹 리더 계정 표의 이름)으로 여는 창이고, 역할별 기본 권한은 왼쪽 목록의 `권한 매트릭스`다.
