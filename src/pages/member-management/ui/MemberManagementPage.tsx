@@ -471,7 +471,8 @@ export function MemberManagementPage() {
     }
     if (
       !window.confirm(
-        `${member.name}님(${member.term}기 ${member.track})을 탈퇴 처리할까요? 출결 기록과 팀 소속은 그대로 남고 탈퇴 명단으로 옮겨집니다.`,
+        `${member.name}님(${member.term}기 ${member.track})을 정말 탈퇴 처리할까요?
+활동 상태만 탈퇴로 바뀌고, 출결 기록과 팀 소속은 그대로 남습니다.`,
       )
     ) {
       return;
