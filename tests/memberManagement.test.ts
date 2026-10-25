@@ -94,6 +94,7 @@ test('운영진 필터로 팀별 운영진이나 운영진이 아닌 동아리�
   const members = MEMBERS.map((member) => ({
     ...member,
     operatorTeam: member.id === 'member-3' ? '운영지원팀' : null,
+    leaderTeams: null,
   }));
   const base = { query: '', term: 'ALL', track: 'ALL', status: 'ALL' } as const;
 
