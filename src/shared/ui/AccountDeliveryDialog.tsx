@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, X } from 'lucide-react';
 
+import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
+
 /** 복사 완료 표시를 보여 주는 시간. */
 const COPIED_NOTICE_MS = 2000;
 
@@ -24,6 +26,9 @@ export function AccountDeliveryDialog({
   onClose,
 }: AccountDeliveryDialogProps) {
   const [isCopied, setIsCopied] = useState(false);
+  // Escape는 창 안 빈 곳을 눌러 포커스가 빠져도 받고, Tab 포커스는 창 안에서만 돈다.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogKeyboard(panelRef, onClose);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -51,12 +56,12 @@ export function AccountDeliveryDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="account-delivery-title"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
-      }}
       className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs animate-in fade-in duration-150"
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]">
+      <div
+        ref={panelRef}
+        className="w-full max-w-lg overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]"
+      >
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h3
             id="account-delivery-title"
