@@ -289,6 +289,33 @@ test('팀장이 바뀌면 맡은 그룹도 새 팀장의 운영진 계정으로 
   assert.equal(leaderAccountOf('study_d'), undefined);
 });
 
+test('계정 수정·비밀번호 재설정으로도 다른 계정이 MASTER를 바꾸거나 MASTER로 올릴 수 없다', async () => {
+  const { db, call, loginAs } = await setup();
+  execute(
+    db,
+    `INSERT INTO admin_permission_override (admin_id, permission, effect, granted_by, created_at) VALUES
+       (2, 'ADMIN_ACCOUNT_WRITE', 'GRANT', 1, '2026-10-17 10:00:00')`,
+  );
+  loginAs(2);
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/1', { teamName: '홍보팀' }),
+    400,
+    'CANNOT_MOVE_MASTER',
+  );
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/5', { role: 'MASTER' }),
+    400,
+    'CANNOT_MOVE_MASTER',
+  );
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/1/password', { newPassword: 'Changed!1' }),
+    400,
+    'CANNOT_MODIFY_MASTER_CREDENTIALS',
+  );
+  // 다른 계정의 비밀번호 재설정은 그대로 된다.
+  call('PATCH', '/api/v1/admin/accounts/5/password', { newPassword: 'Changed!1' });
+});
+
 test('권한 저장은 없는 권한 키를 400으로, 권한 부여 권한이 없으면 403으로 거부한다', async () => {
   const { call, loginAs } = await setup();
   expectApiError(

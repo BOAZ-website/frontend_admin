@@ -444,6 +444,13 @@ export const adminAccountRoutes: MockRoute[] = [
       }
       // 바뀐 것이 없으면 저장하지 않는다(수정 시각·권한 예외를 그대로 둔다).
       if (!isBaseChanged) return toAdminAccount(db, target);
+      // 운영진 지정(PUT /admin/operators)과 같이 MASTER는 옮길 수 없고, 다른 계정을 MASTER로 올릴 수도 없다.
+      if (target.role === 'MASTER' || next.role === 'MASTER') {
+        throw badRequest(
+          'CANNOT_MOVE_MASTER',
+          '서비스운영팀장(MASTER)의 역할·부서는 바꿀 수 없습니다.',
+        );
+      }
       requireValidCombination(next.role, next.team_name);
       guardLockout(db, actor, new Map([[target.id, { row: next, overrides: {} }]]));
       replaceOverrides(db, target.id, {}, actor.id);
@@ -461,6 +468,12 @@ export const adminAccountRoutes: MockRoute[] = [
 
       const data = readBody(body);
       const newPassword = requiredString(data, 'newPassword');
+      if (!isSelf && target.role === 'MASTER') {
+        throw badRequest(
+          'CANNOT_MODIFY_MASTER_CREDENTIALS',
+          '서비스운영팀장(MASTER) 계정의 비밀번호는 본인만 바꿀 수 있습니다.',
+        );
+      }
       if (isSelf && optionalString(data, 'currentPassword') !== target.password) {
         throw badRequest('INVALID_CURRENT_PASSWORD', '현재 비밀번호가 맞지 않습니다.');
       }
