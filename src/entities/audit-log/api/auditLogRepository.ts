@@ -287,6 +287,11 @@ export function listAuditLogs(db: Database, query: AuditLogQuery): AuditLogPage 
     where.push('actor_admin_id = ?');
     params.push(query.actorId);
   }
+  if (query.actorUserId !== undefined) {
+    // 회원 id가 남지 않은 예전 기록은 운영진 계정의 주인으로 찾는다.
+    where.push(`${ACTOR_USER_ID_SQL} = ?`);
+    params.push(query.actorUserId);
+  }
   if (query.from) {
     where.push('substr(occurred_at, 1, 10) >= ?');
     params.push(query.from);
@@ -321,15 +326,24 @@ export function listAuditLogs(db: Database, query: AuditLogQuery): AuditLogPage 
   };
 }
 
-/** 기록에 한 번이라도 나온 수행자. 운영진 계정 관리와 같은 순서(팀 → 이름)로, 지워진 계정은 맨 뒤에 둔다. */
+/** 기록의 수행자 회원 id. 회원 id가 남지 않은 예전 기록은 운영진 계정의 주인이다. */
+const ACTOR_USER_ID_SQL =
+  'COALESCE(actor_user_id, (SELECT user_id FROM admin WHERE admin.id = actor_admin_id))';
+
+/**
+ * 기록에 한 번이라도 나온 수행자(운영진·HOST). 운영진 계정 관리와 같은 순서(팀 → 이름)로,
+ * HOST로만 나온 사람은 운영진 뒤, 지워진 회원은 맨 뒤에 둔다. 한 사람은 한 번만 나온다.
+ */
 export function listAuditActors(db: Database): AuditActorOption[] {
-  return queryAll<{ id: number; name: string | null; teamName: string | null }>(
+  return queryAll<AuditActorOption & Record<string, unknown>>(
     db,
-    `SELECT DISTINCT l.actor_admin_id AS id, u.name AS name, a.team_name AS teamName
-       FROM audit_log l
-       LEFT JOIN admin a ON a.id = l.actor_admin_id
-       LEFT JOIN users u ON u.id = a.user_id
-      WHERE l.actor_admin_id IS NOT NULL
-      ORDER BY u.name IS NULL, a.team_name, u.name, l.actor_admin_id`,
+    `SELECT MAX(l.actor_admin_id) AS id, l.user_id AS userId, MAX(l.actor_role) AS role,
+            u.name AS name, a.team_name AS teamName
+       FROM (SELECT actor_admin_id, actor_role, ${ACTOR_USER_ID_SQL} AS user_id FROM audit_log) l
+       LEFT JOIN users u ON u.id = l.user_id
+       LEFT JOIN admin a ON a.user_id = l.user_id
+      WHERE l.user_id IS NOT NULL OR l.actor_admin_id IS NOT NULL
+      GROUP BY COALESCE(l.user_id, 'admin:' || l.actor_admin_id)
+      ORDER BY u.name IS NULL, a.team_name IS NULL, a.team_name, u.name`,
   );
 }

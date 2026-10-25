@@ -377,6 +377,18 @@ BEGIN
      AND t.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1);
 END;
 
+-- 현재 반기가 바뀌면 맡은 그룹을 새 현재 반기 기준으로 다시 만든다. 지난 반기 팀의 연결은 지우고,
+-- 현재 반기가 되기 전에 미리 만든 팀(다음 반기 ADV 팀 등)도 이때 팀장의 운영진 계정에 붙인다.
+CREATE TRIGGER trg_admin_group_leader_on_current_change
+AFTER UPDATE OF is_current ON cohorts
+WHEN NEW.is_current = 1 AND OLD.is_current = 0
+BEGIN
+  DELETE FROM admin_group_leader;
+  INSERT INTO admin_group_leader (admin_id, group_id)
+  SELECT a.id, t.id FROM teams t JOIN admin a ON a.user_id = t.leader_id
+   WHERE t.group_type IN ('ADV', 'STUDY') AND t.semester_cohort = NEW.cohort;
+END;
+
 -- ─────────────────────────── 보안 감사 로그 ───────────────────────────
 -- 관리자의 쓰기 작업 하나가 한 줄이다(docs/spec/04-evaluation.md §4.5 공용 감사 테이블, SYS-LOG가 조회).
 -- 대상이 지워져도 기록은 남아야 하므로 외래 키를 걸지 않는다. detail에는 식별자와 바꾼 항목 이름만 담고,

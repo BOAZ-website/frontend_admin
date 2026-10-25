@@ -127,7 +127,8 @@ export function isOperator(db: Database, userId: string): boolean {
 
 /**
  * 동아리원을 탈퇴 처리한다. 행을 지우지 않고 활동 상태만 탈퇴(WITHDRAWN)로 바꾼다.
- * 반기 명단·팀 소속·출결 기록·HOST 계정 연결은 그대로 남는다.
+ * 반기 명단·팀 소속·출결 기록은 그대로 남는다. 연결된 HOST 계정은 지우지 않고 사용 중지(active = 0)해
+ * 탈퇴한 사람이 HOST 계정으로 로그인하지 못하게 한다(다시 쓰려면 HOST 관리 화면에서 켠다).
  * 운영진이거나 이미 탈퇴한 회원은 부르는 쪽에서 먼저 막는다.
  */
 export function withdrawClubMember(db: Database, userId: string): void {
@@ -135,6 +136,15 @@ export function withdrawClubMember(db: Database, userId: string): void {
     'WITHDRAWN',
     userId,
   ]);
+  execute(db, 'UPDATE host_accounts SET active = 0 WHERE user_id = ?', [userId]);
+}
+
+/** 탈퇴한 동아리원인지. 없는 회원이면 false다(없는 회원은 부르는 쪽이 따로 404로 막는다). */
+export function isWithdrawn(db: Database, userId: string): boolean {
+  return (
+    queryAll(db, "SELECT 1 FROM users WHERE id = ? AND club_status = 'WITHDRAWN'", [userId])
+      .length > 0
+  );
 }
 
 /**
