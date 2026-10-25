@@ -3,7 +3,7 @@
  * 추가·수정 시 그 기수·부문의 활동 명단(members) 행이 없으면 함께 만든다.
  * 새 기수는 보통 서류 평가의 합격자 승격으로 들어오고, 추가 API는 그 밖의 사람(예: 예전 수료 기수)을 넣을 때 쓴다.
  * 삭제(DELETE)는 행을 지우지 않고 탈퇴 처리(활동 상태 WITHDRAWN)다. 반기 명단·팀 소속·출결 기록은 그대로 남고,
- * 연결된 HOST 계정은 지운다(운영진은 운영진에서, 현재 반기 팀장은 팀장에서 먼저 빼야 하고, 이미 탈퇴한 사람은 다시 처리하지 않는다).
+ * 로그인 계정이 있는 사람(운영진·HOST)과 현재 반기 팀장은 먼저 해지해야 탈퇴할 수 있다(이미 탈퇴한 사람은 다시 처리하지 않는다).
  * 탈퇴는 이 경로로만 한다. 정보 수정(PATCH)으로 활동 상태를 탈퇴로 바꾸면 400이다.
  */
 import type { Database } from 'sql.js';
@@ -17,7 +17,6 @@ import {
   listClubMembersByTerm,
   listClubMemberTerms,
   updateClubMember,
-  currentLeaderTeamsOf,
   withdrawClubMember,
 } from '@/entities/club-member/api/clubMemberRepository';
 import {
@@ -30,6 +29,10 @@ import {
   type ClubMemberTermPage,
   type ClubMemberTermScope,
 } from '@/entities/club-member/model/types';
+import {
+  withdrawBlockMessageOf,
+  withdrawBlocksOf,
+} from '@/entities/club-member/model/withdrawBlock';
 import { ensureMemberProfile } from '@/entities/study-team/api/teamRepository';
 
 import { notFound } from '../queries';
@@ -135,6 +138,7 @@ function newMemberOf(body: Body): ClubMember {
     role: 'MEMBER',
     operatorTeam: null,
     leaderTeams: null,
+    hostUsernames: null,
   };
 }
 
@@ -217,24 +221,13 @@ export const clubMemberRoutes: MockRoute[] = [
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     summary:
-      '동아리원 탈퇴 처리. 행은 지우지 않고 활동 상태를 탈퇴(WITHDRAWN)로 바꿔 바뀐 회원을 돌려준다. 반기 명단·팀 소속·출결 기록은 남고, 연결된 HOST 계정은 지운다. 운영진(MEMBER_IS_OPERATOR)·현재 반기 팀장(MEMBER_IS_TEAM_LEADER)·이미 탈퇴(ALREADY_WITHDRAWN)면 409',
+      '동아리원 탈퇴 처리. 행은 지우지 않고 활동 상태를 탈퇴(WITHDRAWN)로 바꿔 바뀐 회원을 돌려준다. 반기 명단·팀 소속·출결 기록은 남는다. 운영진(MEMBER_IS_OPERATOR)·HOST 계정이 있음(MEMBER_HAS_HOST_ACCOUNT)·현재 반기 팀장(MEMBER_IS_TEAM_LEADER)이면 먼저 해지하라는 안내와 함께 409(사유가 여럿이면 메시지에 모두, 코드는 첫 사유), 이미 탈퇴했으면 409 ALREADY_WITHDRAWN',
     handler: ({ db, params }) => {
       const member = findMember(db, params.memberId);
-      if (isOperator(db, member.id)) {
-        throw new ApiError(
-          409,
-          'MEMBER_IS_OPERATOR',
-          `${member.name}님은 운영진이라 명단에서 삭제할 수 없습니다.`,
-        );
-      }
-      const leaderTeams = currentLeaderTeamsOf(db, member.id);
-      if (leaderTeams.length > 0) {
-        throw new ApiError(
-          409,
-          'MEMBER_IS_TEAM_LEADER',
-          `${member.name}님은 현재 반기 ${leaderTeams.join(', ')}의 팀장이라 탈퇴 처리할 수 없습니다. 출결 화면에서 팀장을 바꾼 뒤 탈퇴 처리해 주세요.`,
-        );
-      }
+      // 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 먼저 해지해야 한다. 사유를 모두 모아 알린다.
+      const blocks = withdrawBlocksOf(member);
+      const message = withdrawBlockMessageOf(member.name, blocks);
+      if (message) throw new ApiError(409, blocks[0].code, message);
       if (member.status === 'WITHDRAWN') {
         throw new ApiError(
           409,
