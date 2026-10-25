@@ -6,7 +6,8 @@ import type { AuthSession } from '@/entities/auth/model/types';
 import { MODAL_PRIMARY_BTN } from '@/shared/ui/modalStyles';
 
 interface LoginModalProps {
-  onClose: () => void;
+  /** 없으면 닫을 수 없는 창이다(로그인 전 화면). Escape·바깥 누르기·닫기 버튼이 모두 빠진다. */
+  onClose?: () => void;
   /** 로그인에 성공하면 서버가 돌려준 세션을 그대로 넘긴다. 역할 대응은 부르는 쪽(App)이 한다. */
   onLoginSuccess: (session: AuthSession) => void;
 }
@@ -36,7 +37,7 @@ const CLOSE_BTN =
 /**
  * 콘솔 로그인 창. 아이디·비밀번호를 로그인 API(POST /api/v1/auth/login)로 보내고, 성공하면 세션을 넘긴다.
  * 운영진 계정과 HOST 계정 판정은 서버가 한다. 실패하면 서버가 돌려준 사유를 보인다.
- * Escape나 바깥을 누르면 닫는다.
+ * onClose를 넘기면 Escape나 바깥을 눌러 닫는다.
  */
 export function LoginModal({ onClose, onLoginSuccess }: LoginModalProps) {
   const [username, setUsername] = useState('');
@@ -61,7 +62,7 @@ export function LoginModal({ onClose, onLoginSuccess }: LoginModalProps) {
     try {
       const session = await login({ username: trimmedUsername, password });
       onLoginSuccess(session);
-      onClose();
+      onClose?.();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '로그인하지 못했습니다.');
     } finally {
@@ -75,10 +76,10 @@ export function LoginModal({ onClose, onLoginSuccess }: LoginModalProps) {
       aria-modal="true"
       aria-labelledby="login-title"
       onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
+        if (event.key === 'Escape') onClose?.();
       }}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) onClose?.();
       }}
       className="fixed inset-0 z-70 flex items-center justify-center bg-slate-900/40 p-4"
     >
@@ -87,9 +88,11 @@ export function LoginModal({ onClose, onLoginSuccess }: LoginModalProps) {
           <h3 id="login-title" className="text-base font-bold text-slate-900">
             로그인
           </h3>
-          <button type="button" onClick={onClose} aria-label="창 닫기" className={CLOSE_BTN}>
-            <X size={16} />
-          </button>
+          {onClose && (
+            <button type="button" onClick={onClose} aria-label="창 닫기" className={CLOSE_BTN}>
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         <form onSubmit={(event) => void handleLogin(event)} className="space-y-4">

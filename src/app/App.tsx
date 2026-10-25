@@ -23,10 +23,10 @@ import boazLogo from '@/shared/assets/boaz-logo.png';
 import { useAttendanceMeta } from '@/entities/attendance/model/useAttendanceMeta';
 import { useCurrentTeams } from '@/entities/study-team/model/useCurrentTeams';
 import { useHosts } from '@/entities/host-account/model/useHosts';
-import { changeAdminPassword, fetchMyAccount } from '@/entities/admin-account/api/adminAccountApi';
+import { changeAdminPassword } from '@/entities/admin-account/api/adminAccountApi';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { SERVICE_OPERATIONS_TEAM } from '@/entities/admin-account/model/teams';
-import { logout, restoreSession } from '@/entities/auth/api/authApi';
+import { logout, openDevDefaultSession, restoreSession } from '@/entities/auth/api/authApi';
 import type { AuthSession } from '@/entities/auth/model/types';
 import type { SemesterAttendanceKind, SemesterDto } from '@/entities/cohort/model/dto';
 import { createSemester, updateSemester } from '@/entities/cohort/api/semesterApi';
@@ -83,7 +83,7 @@ function userRoleOf(session: AuthSession): UserRole {
   return 'SUPER';
 }
 
-/** 저장한 아이디 없이 처음 열었을 때, 임시 API의 기본 세션(내 운영진 계정)을 로그인 세션 모양으로 바꾼다. */
+/** 개발 모드에서 저장한 아이디 없이 처음 열었을 때 받은 첫 운영진 계정을 로그인 세션 모양으로 바꾼다. */
 function sessionOfAccount(account: AdminAccount): AuthSession {
   return {
     kind: 'ADMIN',
@@ -257,10 +257,13 @@ export default function App() {
   // 로그인할 때 담당 팀을 찾는 데 쓰는 HOST 계정 목록(API). HOST 관리 화면은 자기 데이터를 따로 읽는다.
   const { hosts: hostRows, error: hostDbError, reload: reloadHosts } = useHosts();
   const hosts = hostRows ?? NO_HOSTS;
-  // 로그인 세션은 임시 API(DB의 admin·host_accounts)가 원본이다. 브라우저에는 아이디와 로그인 여부만 남기고,
-  // 새로고침하면(임시 DB가 새로 만들어져 세션이 사라진다) 남긴 아이디로 세션을 되살린다. 비밀번호는 저장하지 않는다.
+  // 로그인 세션은 임시 API(DB의 admin·host_accounts)가 원본이다. 세션이 없으면 로그인 창만 보여 준다.
+  // 브라우저에는 아이디와 로그인 여부만 남긴다. 비밀번호는 저장하지 않는다.
+  // 새로고침하면 임시 DB가 새로 만들어져 세션이 사라지는데, 비밀번호 없이 세션을 되살리는 경로는 개발 모드에만 있다.
+  // 그래서 개발 모드에서만 남긴 아이디(없으면 첫 운영진 계정)로 되살리고, 배포 빌드는 다시 로그인하게 한다.
   const [session, setSession] = useState<AuthSession | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(() => {
+    if (!import.meta.env.DEV) return false;
     try {
       return localStorage.getItem('boaz_is_logged_in') !== 'false';
     } catch {
@@ -268,24 +271,22 @@ export default function App() {
     }
   });
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const currentRole: UserRole = session ? userRoleOf(session) : 'SUPER';
   const loggedHostTeam = session?.hostTeamId ?? '';
   const loggedUsername = session?.username ?? '';
   const displayName = session?.name ?? '';
 
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isRestoringSession) return;
     let isCancelled = false;
     let savedUsername: string | null = null;
     try {
       savedUsername = localStorage.getItem(USERNAME_KEY);
     } catch {
-      // 저장소를 못 읽으면 기본 세션으로 연다.
+      // 저장소를 못 읽으면 첫 운영진 계정으로 연다.
     }
-    // 저장한 아이디가 없으면(처음 연 경우) 임시 API의 기본 세션(첫 서비스운영팀장 계정)을 그대로 쓴다.
     const load = savedUsername
       ? restoreSession(savedUsername)
-      : fetchMyAccount().then(sessionOfAccount);
+      : openDevDefaultSession().then(sessionOfAccount);
     load
       .then((restored) => {
         if (!isCancelled) setSession(restored);
@@ -293,16 +294,18 @@ export default function App() {
       .catch(() => {
         if (isCancelled) return;
         // 저장한 아이디의 계정이 없어졌다(삭제·회수, 또는 새로고침으로 임시 DB가 시드 상태로 돌아가
-        // 화면에서 만든 계정이 사라짐). 저장한 아이디를 지워 다음 새로고침부터는 같은 실패를 되풀이하지 않게 하고,
-        // 이번에만 다시 로그인하게 한다.
+        // 화면에서 만든 계정이 사라짐). 임시 세션과 저장한 아이디를 지워 다음 새로고침부터는 같은 실패를
+        // 되풀이하지 않게 하고, 다시 로그인하게 한다.
+        void logout().catch(() => {});
         try {
           localStorage.setItem('boaz_is_logged_in', 'false');
           localStorage.removeItem(USERNAME_KEY);
         } catch {
           // 저장소를 못 쓰면 다음 새로고침 때 다시 묻는다.
         }
-        setIsLoggedIn(false);
-        setLoginModalOpen(true);
+      })
+      .finally(() => {
+        if (!isCancelled) setIsRestoringSession(false);
       });
     return () => {
       isCancelled = true;
@@ -319,12 +322,11 @@ export default function App() {
       // 임시 API 세션 정리에 실패해도 화면은 로그아웃한다.
     }
     setSession(null);
-    setIsLoggedIn(false);
     try {
       localStorage.setItem('boaz_is_logged_in', 'false');
       localStorage.removeItem(USERNAME_KEY);
     } catch {}
-    setLoginModalOpen(true);
+    setShowMyProfileModal(false);
   }
 
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
@@ -357,7 +359,6 @@ export default function App() {
 
   function handleLoginSuccess(next: AuthSession) {
     setSession(next);
-    setIsLoggedIn(true);
     try {
       localStorage.setItem('boaz_is_logged_in', 'true');
       localStorage.setItem(USERNAME_KEY, next.username);
@@ -414,13 +415,23 @@ export default function App() {
   const isContentPage = Boolean(activePage?.startsWith('content'));
   const isAttendancePage = Boolean(activePage?.startsWith('att-'));
 
-  if ((!currentTeams && !teamDbError) || (!hostRows && !hostDbError)) {
+  if (isRestoringSession || (!currentTeams && !teamDbError) || (!hostRows && !hostDbError)) {
     return (
       <div className="flex h-screen items-center justify-center text-sm text-slate-500">
         데이터를 불러오는 중...
       </div>
     );
   }
+
+  // 로그인 전·로그아웃 뒤에는 어떤 화면도 열지 않고 로그인 창만 둔다(닫을 수 없다).
+  if (!session) {
+    return (
+      <div className="h-screen bg-[#f8fafc]">
+        <LoginModal onLoginSuccess={handleLoginSuccess} />
+      </div>
+    );
+  }
+  const currentRole = userRoleOf(session);
 
   return (
     <div
@@ -522,38 +533,27 @@ export default function App() {
 
           {/* Right User Auth Area (media_1789198942116 style) */}
           <div className="flex items-center">
-            {isLoggedIn ? (
-              <div className="flex items-center gap-4 text-sm select-none">
-                <button
-                  type="button"
-                  onClick={() => setShowMyProfileModal(true)}
-                  className="flex items-center gap-1.5 font-semibold text-slate-900 hover:text-slate-700 transition-colors cursor-pointer group"
-                  title="내 프로필 정보 확인"
-                >
-                  <User
-                    size={14}
-                    className="text-slate-800 fill-slate-800 group-hover:text-slate-950 group-hover:fill-slate-950 transition-colors"
-                  />
-                  <span>{displayName}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="text-sm text-slate-500 hover:text-slate-900 font-normal transition-colors cursor-pointer"
-                >
-                  로그아웃
-                </button>
-              </div>
-            ) : (
+            <div className="flex items-center gap-4 text-sm select-none">
               <button
                 type="button"
-                onClick={() => setLoginModalOpen(true)}
-                className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors cursor-pointer"
+                onClick={() => setShowMyProfileModal(true)}
+                className="flex items-center gap-1.5 font-semibold text-slate-900 hover:text-slate-700 transition-colors cursor-pointer group"
+                title="내 프로필 정보 확인"
               >
-                <User size={14} className="text-slate-700 fill-slate-700" />
-                <span>로그인</span>
+                <User
+                  size={14}
+                  className="text-slate-800 fill-slate-800 group-hover:text-slate-950 group-hover:fill-slate-950 transition-colors"
+                />
+                <span>{displayName}</span>
               </button>
-            )}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-sm text-slate-500 hover:text-slate-900 font-normal transition-colors cursor-pointer"
+              >
+                로그아웃
+              </button>
+            </div>
           </div>
         </header>
 

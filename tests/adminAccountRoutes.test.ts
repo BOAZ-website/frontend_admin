@@ -27,6 +27,8 @@ async function setup() {
     router.dispatch(db, method, path, body) as T;
   const loginAs = (accountId: number) =>
     call<AdminAccount>('PUT', '/api/v1/mock/admin-session', { accountId });
+  // 임시 API는 세션이 없으면 401이다. 시험은 1번 계정(서비스운영팀장)으로 로그인한 채 시작한다.
+  loginAs(1);
   return { db, call, loginAs };
 }
 
@@ -55,6 +57,18 @@ const NEW_ACCOUNT = {
   role: 'TEAM',
   teamName: '홍보팀',
 };
+
+test('세션이 없으면 운영진 계정 API는 1번 계정으로 보지 않고 401이다', async () => {
+  const SQL = await initSqlJs();
+  const db = createDatabase(SQL, schema, seed);
+  const router = createRouter(adminAccountRoutes);
+  expectApiError(
+    () => router.dispatch(db, 'GET', '/api/v1/admin/accounts/me'),
+    401,
+    'UNAUTHORIZED',
+  );
+  expectApiError(() => router.dispatch(db, 'GET', '/api/v1/admin/accounts'), 401, 'UNAUTHORIZED');
+});
 
 test('계정 목록은 기본 권한 세트·맡은 그룹·예외·유효 권한을 함께 돌려준다', async () => {
   const { db, call } = await setup();
@@ -167,6 +181,25 @@ test('"타 계정 정보 수정" 권한은 본인에게서, 또 마지막 보유
   assert.ok(!revoked.effectivePermissions.includes('ADMIN_ACCOUNT_WRITE'));
 });
 
+test('"권한 부여" 권한도 본인에게서, 또 마지막 보유자에게서 회수할 수 없다', async () => {
+  const { call, loginAs } = await setup();
+  const permissionsOf = (accountId: number) =>
+    call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === accountId)!
+      .effectivePermissions;
+  const save = (accountId: number, permissions: string[]) =>
+    call<AdminAccount>('PUT', `/api/v1/admin/accounts/${accountId}/permissions`, { permissions });
+  const withoutGrant = (accountId: number) =>
+    permissionsOf(accountId).filter((key) => key !== 'ADMIN_PERMISSION_WRITE');
+
+  expectApiError(() => save(1, withoutGrant(1)), 409, 'CANNOT_REVOKE_OWN_PERMISSION_WRITE');
+
+  // 5번에게 주고 5번으로 1번의 권한을 빼면, 이번에는 5번이 마지막 보유자라 본인 것을 뺄 수 없다.
+  save(5, [...permissionsOf(5), 'ADMIN_PERMISSION_WRITE']);
+  loginAs(5);
+  save(1, withoutGrant(1));
+  expectApiError(() => save(5, withoutGrant(5)), 409, 'CANNOT_REVOKE_OWN_PERMISSION_WRITE');
+});
+
 test('본인 비밀번호는 현재 비밀번호가 맞아야 바뀐다', async () => {
   const { call, loginAs } = await setup();
   loginAs(7);
@@ -273,6 +306,58 @@ test('팀장이 바뀌면 맡은 그룹도 새 팀장의 운영진 계정으로 
   execute(db, "UPDATE teams SET leader_id = 'u_28_13' WHERE id = 'study_d'");
   assert.deepEqual(leadershipOf(8), []);
   assert.equal(leaderAccountOf('study_d'), undefined);
+});
+
+test('계정 수정·비밀번호 재설정으로도 다른 계정이 MASTER를 바꾸거나 MASTER로 올릴 수 없다', async () => {
+  const { db, call, loginAs } = await setup();
+  execute(
+    db,
+    `INSERT INTO admin_permission_override (admin_id, permission, effect, granted_by, created_at) VALUES
+       (2, 'ADMIN_ACCOUNT_WRITE', 'GRANT', 1, '2026-10-17 10:00:00')`,
+  );
+  loginAs(2);
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/1', { teamName: '홍보팀' }),
+    400,
+    'CANNOT_MOVE_MASTER',
+  );
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/5', { role: 'MASTER' }),
+    400,
+    'CANNOT_MOVE_MASTER',
+  );
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/1/password', { newPassword: 'Changed!1' }),
+    400,
+    'CANNOT_MODIFY_MASTER_CREDENTIALS',
+  );
+  // 다른 계정의 비밀번호 재설정은 그대로 된다.
+  call('PATCH', '/api/v1/admin/accounts/5/password', { newPassword: 'Changed!1' });
+});
+
+test('현재 반기가 바뀌면 맡은 그룹을 새 현재 반기 팀 기준으로 다시 만든다', async () => {
+  const { db, call } = await setup();
+  const leadershipOf = (accountId: number) =>
+    call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === accountId)!
+      .leadership;
+  const setCurrent = (cohort: number) => {
+    execute(db, 'UPDATE cohorts SET is_current = 0 WHERE is_current = 1');
+    execute(db, 'UPDATE cohorts SET is_current = 1 WHERE cohort = ?', [cohort]);
+  };
+  const current = Number(
+    db.exec('SELECT cohort FROM cohorts WHERE is_current = 1')[0].values[0][0],
+  );
+
+  makeDualLeader(db);
+  assert.deepEqual(leadershipOf(8), ['ADV', 'STUDY']);
+
+  // 지난 반기로 넘기면 이번 반기 팀의 연결이 남지 않는다.
+  setCurrent(current - 1);
+  assert.deepEqual(leadershipOf(8), []);
+
+  // 다시 현재 반기로 돌리면, 현재 반기가 아닐 때 팀장이 정해진 팀도 연결된다.
+  setCurrent(current);
+  assert.deepEqual(leadershipOf(8), ['ADV', 'STUDY']);
 });
 
 test('권한 저장은 없는 권한 키를 400으로, 권한 부여 권한이 없으면 403으로 거부한다', async () => {

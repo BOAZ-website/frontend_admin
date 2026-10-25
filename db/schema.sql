@@ -376,3 +376,15 @@ BEGIN
      AND t.group_type IN ('ADV', 'STUDY')
      AND t.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1);
 END;
+
+-- 현재 반기가 바뀌면 맡은 그룹을 새 현재 반기 기준으로 다시 만든다. 지난 반기 팀의 연결은 지우고,
+-- 현재 반기가 되기 전에 미리 만든 팀(다음 반기 ADV 팀 등)도 이때 팀장의 운영진 계정에 붙인다.
+CREATE TRIGGER trg_admin_group_leader_on_current_change
+AFTER UPDATE OF is_current ON cohorts
+WHEN NEW.is_current = 1 AND OLD.is_current = 0
+BEGIN
+  DELETE FROM admin_group_leader;
+  INSERT INTO admin_group_leader (admin_id, group_id)
+  SELECT a.id, t.id FROM teams t JOIN admin a ON a.user_id = t.leader_id
+   WHERE t.group_type IN ('ADV', 'STUDY') AND t.semester_cohort = NEW.cohort;
+END;
