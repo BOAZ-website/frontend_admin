@@ -25,6 +25,11 @@ export interface ClubMember {
    * 동아리원 관리에서 정하면 운영진 계정 관리의 운영진 명단에 그대로 반영된다(새 운영진은 이때 계정도 함께 만든다).
    */
   operatorTeam: string | null;
+  /**
+   * 현재 반기에 팀장을 맡은 팀 이름(여러 개면 ', '로 이음). 없으면 null.
+   * 현재 반기 팀장은 탈퇴 처리할 수 없다(출결 화면에서 팀장을 바꾼 뒤 탈퇴한다). 지난 반기 팀장은 막지 않는다.
+   */
+  leaderTeams: string | null;
 }
 
 export const CLUB_MEMBER_TRACKS: readonly ClubMemberTrack[] = ['분석', '시각화', '엔지니어링'];
