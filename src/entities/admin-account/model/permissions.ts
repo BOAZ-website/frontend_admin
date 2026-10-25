@@ -205,8 +205,15 @@ export const PERMISSIONS: readonly PermissionDef[] = PERMISSION_GROUPS.flatMap(
   (group) => group.permissions,
 );
 
-/** 마지막 보유자와 본인에게서 회수할 수 없는 권한(락아웃 방지). */
-export const LOCKOUT_GUARDED_PERMISSION = 'ADMIN_ACCOUNT_WRITE';
+/**
+ * 마지막 보유자와 본인에게서 회수할 수 없는 권한(락아웃 방지). 둘 다 잃으면 화면에서 되돌릴 방법이 없다.
+ *   · 타 계정 정보 수정: 계정을 고치고 지울 사람이 없어진다.
+ *   · 권한 부여(커스텀): 빼앗긴 권한을 다시 줄 사람이 없어진다.
+ */
+export const LOCKOUT_GUARDED_PERMISSIONS: readonly string[] = [
+  'ADMIN_ACCOUNT_WRITE',
+  'ADMIN_PERMISSION_WRITE',
+];
 
 export const isInBaseSet = (permission: PermissionDef, key: BaseSetKey | null): boolean => {
   if (key === null) return false;

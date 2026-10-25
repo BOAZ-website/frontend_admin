@@ -181,6 +181,25 @@ test('"타 계정 정보 수정" 권한은 본인에게서, 또 마지막 보유
   assert.ok(!revoked.effectivePermissions.includes('ADMIN_ACCOUNT_WRITE'));
 });
 
+test('"권한 부여" 권한도 본인에게서, 또 마지막 보유자에게서 회수할 수 없다', async () => {
+  const { call, loginAs } = await setup();
+  const permissionsOf = (accountId: number) =>
+    call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === accountId)!
+      .effectivePermissions;
+  const save = (accountId: number, permissions: string[]) =>
+    call<AdminAccount>('PUT', `/api/v1/admin/accounts/${accountId}/permissions`, { permissions });
+  const withoutGrant = (accountId: number) =>
+    permissionsOf(accountId).filter((key) => key !== 'ADMIN_PERMISSION_WRITE');
+
+  expectApiError(() => save(1, withoutGrant(1)), 409, 'CANNOT_REVOKE_OWN_PERMISSION_WRITE');
+
+  // 5번에게 주고 5번으로 1번의 권한을 빼면, 이번에는 5번이 마지막 보유자라 본인 것을 뺄 수 없다.
+  save(5, [...permissionsOf(5), 'ADMIN_PERMISSION_WRITE']);
+  loginAs(5);
+  save(1, withoutGrant(1));
+  expectApiError(() => save(5, withoutGrant(5)), 409, 'CANNOT_REVOKE_OWN_PERMISSION_WRITE');
+});
+
 test('본인 비밀번호는 현재 비밀번호가 맞아야 바뀐다', async () => {
   const { call, loginAs } = await setup();
   loginAs(7);

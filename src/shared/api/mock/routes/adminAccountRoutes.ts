@@ -26,7 +26,7 @@ import {
 import {
   BASE_SET_COLUMNS,
   BASE_SET_RULES,
-  LOCKOUT_GUARDED_PERMISSION,
+  LOCKOUT_GUARDED_PERMISSIONS,
   PERMISSION_GROUPS,
   PERMISSIONS,
   baseSetKeyOf,
@@ -140,28 +140,38 @@ interface PendingChange {
   overrides?: PermissionOverrides;
 }
 
+/** 잠금 방지 권한마다 돌려줄 오류 코드. 본인 회수와 마지막 보유자를 나눈다. */
+const LOCKOUT_ERROR_CODES: Readonly<Record<string, { own: string; last: string }>> = {
+  ADMIN_ACCOUNT_WRITE: { own: 'CANNOT_REVOKE_OWN_ACCOUNT_WRITE', last: 'LAST_ACCOUNT_MANAGER' },
+  ADMIN_PERMISSION_WRITE: {
+    own: 'CANNOT_REVOKE_OWN_PERMISSION_WRITE',
+    last: 'LAST_PERMISSION_MANAGER',
+  },
+};
+
 /**
- * 바뀔 상태를 반영했을 때 "타 계정 정보 수정" 권한을 요청자 본인이 잃거나, 가진 계정이 하나도 남지 않으면 거부한다.
- * 역할 기준이 아니라 유효 권한 보유자 수로 센다.
+ * 바뀔 상태를 반영했을 때 잠금 방지 권한(LOCKOUT_GUARDED_PERMISSIONS)을 요청자 본인이 잃거나,
+ * 가진 계정이 하나도 남지 않으면 거부한다. 역할 기준이 아니라 유효 권한 보유자 수로 센다.
  */
 function guardLockout(db: Database, actor: AdminRow, pending: ReadonlyMap<number, PendingChange>) {
-  const holdsAfter = (row: AdminRow) => {
-    const change = pending.get(row.id);
-    if (change?.row === null) return false;
-    return hasPermission(db, change?.row ?? row, LOCKOUT_GUARDED_PERMISSION, change?.overrides);
-  };
-  const actorNow = hasPermission(db, actor, LOCKOUT_GUARDED_PERMISSION);
-  if (actorNow && pending.has(actor.id) && !holdsAfter(actor)) {
-    throw conflict(
-      'CANNOT_REVOKE_OWN_ACCOUNT_WRITE',
-      '본인 계정의 "타 계정 정보 수정" 권한은 회수할 수 없습니다.',
-    );
-  }
-  if (!listAdminRows(db).some(holdsAfter)) {
-    throw conflict(
-      'LAST_ACCOUNT_MANAGER',
-      '"타 계정 정보 수정" 권한을 가진 계정이 하나도 남지 않아 처리할 수 없습니다.',
-    );
+  for (const key of LOCKOUT_GUARDED_PERMISSIONS) {
+    const label = PERMISSIONS.find((p) => p.key === key)?.label ?? key;
+    const codes = LOCKOUT_ERROR_CODES[key];
+    const holdsAfter = (row: AdminRow) => {
+      const change = pending.get(row.id);
+      if (change?.row === null) return false;
+      return hasPermission(db, change?.row ?? row, key, change?.overrides);
+    };
+    const actorNow = hasPermission(db, actor, key);
+    if (actorNow && pending.has(actor.id) && !holdsAfter(actor)) {
+      throw conflict(codes.own, `본인 계정의 "${label}" 권한은 회수할 수 없습니다.`);
+    }
+    if (!listAdminRows(db).some(holdsAfter)) {
+      throw conflict(
+        codes.last,
+        `"${label}" 권한을 가진 계정이 하나도 남지 않아 처리할 수 없습니다.`,
+      );
+    }
   }
 }
 
