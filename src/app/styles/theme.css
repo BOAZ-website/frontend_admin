@@ -79,8 +79,10 @@
 }
 
 /*
- * 글꼴 스택. 고정폭 글꼴을 따로 두지 않고 Pretendard 하나를 쓴다.
+ * 글꼴 스택. 화면 글꼴은 Pretendard 하나를 쓴다.
  * font-mono도 font-sans와 같은 Pretendard 스택이다. 숫자 줄맞춤은 tabular-nums로 한다.
+ * font-code는 눈으로 읽어 옮겨 적는 아이디·초기 비밀번호 칸에만 쓴다. l/I/1, 0/O를 구분하려고
+ * 기기에 깔린 고정폭 글꼴을 쓴다(따로 내려받지 않는다).
  */
 @theme {
   --font-sans:
@@ -89,6 +91,7 @@
   --font-mono:
     'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
     'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 @theme inline {
