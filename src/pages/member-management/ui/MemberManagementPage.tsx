@@ -15,6 +15,10 @@ import {
   updateClubMember,
   withdrawClubMember,
 } from '@/entities/club-member/api/clubMemberApi';
+import {
+  withdrawBlockMessageOf,
+  withdrawBlocksOf,
+} from '@/entities/club-member/model/withdrawBlock';
 import type { ClubMemberForm } from '@/entities/club-member/model/dto';
 import {
   CLUB_MEMBER_TRACKS,
@@ -120,19 +124,6 @@ const STATUS_OPTIONS = labelOptions(STATUS_LABELS);
  */
 const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
 
-/**
- * 탈퇴 처리 버튼을 쓸 수 없는 사유. null이면 쓸 수 있다. 서버도 같은 경우를 409로 막는다.
- * 지난 반기 팀장은 막지 않는다(반기를 넘기면 지난 반기 팀의 HOST 계정·맡은 그룹이 정리된다).
- */
-const withdrawBlockReasonOf = (member: ClubMember): string | null => {
-  if (member.status === 'WITHDRAWN') return '이미 탈퇴한 동아리원입니다';
-  if (member.operatorTeam)
-    return "운영진입니다. 정보 수정에서 운영진을 '없음'으로 바꾼 뒤 탈퇴 처리해 주세요";
-  if (member.leaderTeams) {
-    return `현재 반기 ${member.leaderTeams}의 팀장입니다. 출결 화면에서 팀장을 바꾼 뒤 탈퇴 처리해 주세요`;
-  }
-  return null;
-};
 /** 왼쪽 "전체 동아리원" 묶음: 분석·시각화·엔지니어링을 모두 담은 활동기수·수료기수 목록. */
 const ALL_TRACK_SHEETS = MEMBER_SHEETS.filter(
   (item) => item.id === 'active' || item.id === 'alumni',
@@ -472,9 +463,15 @@ export function MemberManagementPage() {
    * 지금 보는 명단에서 빠져 탈퇴 명단으로 옮겨진다.
    */
   const withdrawMember = async (member: ClubMember) => {
+    // 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 이유와 먼저 할 일을 알리고 멈춘다(서버도 409로 막는다).
+    const blockMessage = withdrawBlockMessageOf(member.name, withdrawBlocksOf(member));
+    if (blockMessage) {
+      window.alert(blockMessage);
+      return;
+    }
     if (
       !window.confirm(
-        `${member.name}님(${member.term}기 ${member.track})을 탈퇴 처리할까요? 출결 기록과 팀 소속은 그대로 남고 탈퇴 명단으로 옮겨집니다. HOST 계정이 있으면 삭제됩니다.`,
+        `${member.name}님(${member.term}기 ${member.track})을 탈퇴 처리할까요? 출결 기록과 팀 소속은 그대로 남고 탈퇴 명단으로 옮겨집니다.`,
       )
     ) {
       return;
@@ -825,20 +822,21 @@ export function MemberManagementPage() {
                               <Pencil size={14} aria-hidden="true" />
                             </button>
                           </Tooltip>
-                          {/* 운영진은 운영진에서, 현재 반기 팀장은 팀장에서 먼저 빼야 탈퇴 처리할 수 있다
-                              (서버도 409로 막는다). 이미 탈퇴한 사람은 탈퇴 처리할 것이 없다. */}
-                          <Tooltip label={withdrawBlockReasonOf(member) ?? '탈퇴 처리'} align="end">
+                          {/* 운영진·HOST 계정이 있거나 현재 반기 팀장이면 눌렀을 때 이유와 먼저 할 일을 알린다.
+                              이미 탈퇴한 사람은 탈퇴 처리할 것이 없어 버튼을 끈다. */}
+                          <Tooltip
+                            label={
+                              member.status === 'WITHDRAWN'
+                                ? '이미 탈퇴한 동아리원입니다'
+                                : '탈퇴 처리'
+                            }
+                            align="end"
+                          >
                             <button
                               type="button"
                               onClick={() => withdrawMember(member)}
-                              disabled={
-                                withdrawBlockReasonOf(member) !== null || withdrawingId !== null
-                              }
-                              aria-label={
-                                withdrawBlockReasonOf(member)
-                                  ? `${member.name} 탈퇴 처리: ${withdrawBlockReasonOf(member)}`
-                                  : `${member.name} 탈퇴 처리`
-                              }
+                              disabled={member.status === 'WITHDRAWN' || withdrawingId !== null}
+                              aria-label={`${member.name} 탈퇴 처리`}
                               className={WITHDRAW_ICON_BTN}
                             >
                               <Trash2 size={14} aria-hidden="true" />

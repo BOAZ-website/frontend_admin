@@ -122,22 +122,8 @@ test('동아리원 탈퇴 처리는 "동아리원 탈퇴 처리"로 기록되고
   assert.deepEqual(entry.api, { method: 'DELETE', path: `/api/v1/club-members/${member.id}` });
   assert.deepEqual(targetIdsOf(entry.id), [member.id]);
   // 처리 전(ACTIVE) → 처리 후(WITHDRAWN)를 남긴다. 이름은 detail에 넣지 않는다.
-  // HOST 계정이 없는 사람이라 지운 계정 항목은 없다.
   assert.deepEqual(entry.detail, { changes: { status: [member.club_status, 'WITHDRAWN'] } });
   assert.ok(!JSON.stringify(entry.detail).includes(member.name));
-});
-
-test('탈퇴 처리로 함께 지운 HOST 계정은 감사 기록에 아이디로 남는다', async () => {
-  const { db, call, latest } = await setup();
-  // 시드의 HOST 계정 host_c(계정 주인 u_27_01). 현재 반기 팀장이면 탈퇴할 수 없으므로 팀장을 먼저 비운다.
-  db.run('UPDATE teams SET leader_id = NULL WHERE leader_id = ?', ['u_27_01']);
-  call('DELETE', '/api/v1/club-members/u_27_01');
-  const entry = latest();
-
-  assert.equal(entry.action, 'MEMBER_DELETE');
-  assert.deepEqual(entry.detail?.deletedHostAccounts, ['host_c']);
-  // 계정은 지워져도 수행자·대상은 회원 id로 남아 기록을 읽을 수 있다.
-  assert.equal(queryAll(db, "SELECT 1 FROM host_accounts WHERE username = 'host_c'").length, 0);
 });
 
 test('지운 팀은 기록할 때의 이름을 남긴다', async () => {
