@@ -101,6 +101,19 @@ function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember
 }
 
 /** 추가 요청을 동아리원 한 명으로 만든다. 활동 상태를 보내지 않으면 활동(ACTIVE)이다. */
+/** 추가할 때의 활동 상태. 없으면 활동기수다. 처음부터 탈퇴로 만들 수는 없다(탈퇴는 탈퇴 처리로만). */
+function newMemberStatusOf(body: Body): ClubMember['status'] {
+  const status = oneOf(optionalString(body, 'status'), CLUB_MEMBER_STATUSES, 'status') ?? 'ACTIVE';
+  if (status === 'WITHDRAWN') {
+    throw new ApiError(
+      400,
+      'WITHDRAW_BY_DELETE',
+      '탈퇴는 동아리원 추가가 아니라 탈퇴 처리로만 할 수 있습니다.',
+    );
+  }
+  return status;
+}
+
 function newMemberOf(body: Body): ClubMember {
   const term = optionalNumber(body, 'term');
   if (term === undefined || !Number.isInteger(term) || term <= 0) {
@@ -117,7 +130,7 @@ function newMemberOf(body: Body): ClubMember {
     major: (optionalString(body, 'major') ?? '').trim(),
     term,
     track,
-    status: oneOf(optionalString(body, 'status'), CLUB_MEMBER_STATUSES, 'status') ?? 'ACTIVE',
+    status: newMemberStatusOf(body),
     role: 'MEMBER',
     operatorTeam: null,
   };

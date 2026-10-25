@@ -181,6 +181,20 @@ test('정보 수정으로는 탈퇴로 바꿀 수 없다(탈퇴는 탈퇴 처리
   const operator = members.find((m) => m.role === 'OPERATOR')!;
   const member = members.find((m) => m.role === 'MEMBER' && m.status === 'ACTIVE')!;
 
+  // 처음부터 탈퇴로 추가할 수도 없다.
+  expectApiErrorCode(
+    () =>
+      call('POST', '/api/v1/club-members', {
+        name: '새회원',
+        email: 'new@example.com',
+        phone: '010-0000-0000',
+        term: 27,
+        track: '분석',
+        status: 'WITHDRAWN',
+      }),
+    400,
+    'WITHDRAW_BY_DELETE',
+  );
   for (const target of [operator, member]) {
     expectApiErrorCode(
       () => call('PATCH', `/api/v1/club-members/${target.id}`, { status: 'WITHDRAWN' }),
@@ -514,14 +528,15 @@ test('기수별 명단(track): track만 보내면 terms는 그 부문 활동·�
   const { db, call } = await setup();
   // 20기 분석 탈퇴자, 19기 시각화 수료자를 넣는다. 분석 terms에는 둘 다 들어가면 안 된다.
   const base = { phone: '010-0000-0000', university: '', major: '' };
-  call('POST', '/api/v1/club-members', {
+  // 탈퇴로 바로 추가할 수는 없으므로 추가한 뒤 탈퇴 처리한다.
+  const withdrawnId = call<ClubMember>('POST', '/api/v1/club-members', {
     ...base,
     email: 'w20@example.com',
     name: '탈퇴분석',
     term: 20,
     track: '분석',
-    status: 'WITHDRAWN',
-  });
+  }).id;
+  call('DELETE', `/api/v1/club-members/${withdrawnId}`);
   call('POST', '/api/v1/club-members', {
     ...base,
     email: 'a19@example.com',
