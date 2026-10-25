@@ -4,7 +4,7 @@
  */
 import { isInBaseOf, permissionsIn } from '@/entities/admin-account/model/catalog';
 import {
-  LOCKOUT_GUARDED_PERMISSION,
+  LOCKOUT_GUARDED_PERMISSIONS,
   type PermissionDef,
 } from '@/entities/admin-account/model/permissions';
 import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/model/types';
@@ -67,7 +67,7 @@ export const unsavedCountOf = (saved: readonly string[], checked: ReadonlySet<st
 
 /**
  * 체크를 풀 수 없는 권한의 사유. 서버의 잠금 방지 규칙(PERM-05)과 같고, 최종 판정은 서버가 한다.
- * "타 계정 정보 수정" 권한은 본인에게서, 또 그 권한을 가진 마지막 계정에게서 회수할 수 없다.
+ * "타 계정 정보 수정"·"권한 부여(커스텀)" 권한은 본인에게서, 또 그 권한을 가진 마지막 계정에게서 회수할 수 없다.
  */
 export const lockReasonOf = (
   permission: PermissionDef,
@@ -75,7 +75,7 @@ export const lockReasonOf = (
   me: Pick<AdminAccount, 'id'>,
   accounts: readonly AdminAccount[],
 ): string | null => {
-  if (permission.key !== LOCKOUT_GUARDED_PERMISSION) return null;
+  if (!LOCKOUT_GUARDED_PERMISSIONS.includes(permission.key)) return null;
   if (!account.effectivePermissions.includes(permission.key)) return null;
   if (account.id === me.id) return '본인 계정의 이 권한은 회수할 수 없습니다.';
   const holders = accounts.filter((other) => other.effectivePermissions.includes(permission.key));

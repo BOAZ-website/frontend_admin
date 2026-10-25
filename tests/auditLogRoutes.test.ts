@@ -25,6 +25,8 @@ async function setup() {
     path: string,
     body?: unknown,
   ) => router.dispatch(db, method, path, body) as T;
+  // 임시 API는 세션이 없으면 요청자가 없다(운영진 계정 API는 401). 시험은 1번 계정으로 로그인한 채 시작한다.
+  call('PUT', '/api/v1/mock/admin-session', { accountId: 1 });
   const logCount = () => queryAll<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM audit_log')[0].n;
   const latest = () => call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=1').items[0];
   /** 기록 행의 원본 값(DB). 응답에는 대상이 없어 target_ids는 DB에서 읽는다. */

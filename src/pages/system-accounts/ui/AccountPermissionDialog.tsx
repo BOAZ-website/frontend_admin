@@ -10,6 +10,7 @@ import { AccountPermissionEditor } from '@/pages/system-accounts/ui/AccountPermi
 import { HolderProfileTable } from '@/pages/system-accounts/ui/HolderProfileTable';
 import { MODAL_CLOSE_BTN, TABLE_BOX } from '@/pages/system-accounts/ui/systemStyles';
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
+import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 
 interface AccountPermissionDialogProps {
   catalog: PermissionCatalog;
@@ -67,6 +68,10 @@ export function AccountPermissionDialog({
   canLeaveRef.current = canLeave;
   useEffect(() => registerLeaveGuard(() => canLeaveRef.current()), []);
 
+  // Escape는 창 안 빈 곳을 눌러 포커스가 빠져도 받고, Tab 포커스는 창 안에서만 돈다.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogKeyboard(panelRef, requestClose);
+
   // 새로고침·탭 닫기: 브라우저가 직접 '사이트에서 나가시겠습니까?'를 묻는다(문구는 바꿀 수 없다).
   useEffect(() => {
     if (!isDirty) return undefined;
@@ -83,15 +88,15 @@ export function AccountPermissionDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="account-permission-title"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') requestClose();
-      }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) requestClose();
       }}
       className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 p-4"
     >
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+      <div
+        ref={panelRef}
+        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"
+      >
         <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
           <h3 id="account-permission-title" className="truncate text-base font-bold text-slate-900">
             {holder.name} 권한

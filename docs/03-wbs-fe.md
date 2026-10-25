@@ -87,7 +87,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 | SYS-GATE | 일부 | M2 |  | 등록 | `/me` 권한 목록 기반 판정, 경로 가드, 403 화면, 버튼 단위 제한, 시안용 빠른 로그인·역할 전환 제거. HOST 메뉴 제한이 사이드바에만 있어 주소 해시로 다른 화면 진입 가능. |
 | SYS-ACC | 임시 API | M6 | #46 | 등록 | 실제 API 연동. 운영진 지정과 계정 발급을 한 요청으로 처리하는 방식은 백엔드 확인 필요 |
 | SYS-PERM | 임시 API | M6 | #47 | 등록 | 실제 API 연동, 동시 수정 시 덮어쓰기 방지(기대 버전 비교)를 백엔드와 협의 |
-| SYS-MEM | 임시 API | M6 | (#30 닫힘) | 등록 | 승격 일시·처리자·출신 지원서 기수(MEM-02). MEM-03은 ATT-TL(M5) 뒤. 동아리원 API 권한 확인(#59) |
+| SYS-MEM | 임시 API | M6 | (#30 닫힘) | 등록 | 승격 일시·처리자·출신 지원서 기수(MEM-02). MEM-03은 ATT-TL(M5) 뒤. 동아리원 API 권한 확인(#59). 탈퇴 명단의 쪽 나눔을 서버에서 할지 백엔드 협의 |
 | SYS-LOG | 임시 API (PR #61) | M7 이후 | #48 | 등록 | 실제 저장·보관 기간(SYS-A-2, BE 몫), 콘텐츠 API 연결 뒤 파일 주소 기록 |
 | CNT-FAQ | 완료 (목업) | M0 |  | 등록 | 드래그 순서 변경(명세). 실데이터 완주는 PLT-PILOT(M0)에서 진행 예정(미착수) |
 | CNT-ARC | 완료 (목업) | M7 |  | 등록 | 삭제 확인을 브라우저 기본 창 대신 확인 모달로 교체(PLT-CONFIRM) |
@@ -550,7 +550,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 
 ### SYS-ACC 운영진 계정 관리
 
-- 규모 `한 주` · 현재 상태: 임시 API (`src/pages/system-accounts/ui/SystemAccountsPage.tsx`, `src/shared/api/mock/routes/adminAccountRoutes.ts`) · GitHub 이슈 #46 (#38에서 분할)
+- 규모 `한 주` · 현재 상태: 임시 API (`src/pages/system-accounts/ui/SystemAccountsPage.tsx`의 `운영진 계정` 표, `src/shared/api/mock/routes/adminAccountRoutes.ts`) · GitHub 이슈 #46 (#38에서 분할). 별도 메뉴 없이 사이드바 `권한 관리` 화면 안에 있다(2026-10-22 결정)
 - **선행:** SYS-DSN · SYS-AUTH · PLT-CONFIRM · PLT-ERRMSG. 확인 필요: SYS-API-1
 - **Why:** 운영진 계정 발급·수정·삭제를 DB 직접 수정 없이 화면에서 한다.
 - **What:** FE 기능 ID: ACC-01 계정 조회·지표·필터 · ACC-02 역할·권한 확인 · ACC-03 계정 발급 · ACC-04 계정 수정 — 오버라이드 삭제 경고, 본인 변경 차단 · ACC-05 비밀번호 변경 · ACC-06 계정 삭제 — 마지막 보유자 차단, 확인 모달
@@ -562,10 +562,11 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 
 ### SYS-PERM 계정별 권한 관리
 
-- 규모 `한 주` · 현재 상태: 임시 API (계정 목록에서 들어가는 `AccountPermissionEditor.tsx`, `PUT /api/v1/admin/accounts/:accountId/permissions`) · GitHub 이슈 #47 (#38에서 분할)
+- 규모 `한 주` · 현재 상태: 임시 API (`권한 관리` 화면의 표에서 여는 권한 편집 창 `AccountPermissionDialog.tsx`·`AccountPermissionEditor.tsx`, `PUT /api/v1/admin/accounts/:accountId/permissions`) · GitHub 이슈 #47 (#38에서 분할)
 - **선행:** SYS-DSN · SYS-AUTH 5단계(권한 커스텀 API)
 - **Why:** 역할 기본 권한과 다른 권한이 필요한 운영진을 계정 단위로 조정한다.
-- **What:** FE 기능 ID: PERM-01 서버 permission 목록으로 41개를 두 목록(가진 권한 / 추가할 수 있는 권한)·7묶음으로 렌더 · PERM-02 기본 세트가 시작값·변경 항목 표시 · PERM-03 담당 그룹 권한 읽기 전용 · PERM-04 최종 집합 저장 · PERM-05 자기 회수·마지막 보유자 회수 거부 사유 표시 · PERM-06 역할별 기본 권한 조회 전용 탭
+- **화면 구성(2026-10-22 결정, `spec/06-system.md` SYS-B-1):** SYS-ACC와 함께 사이드바 `권한 관리` 한 화면에 둔다. 계정별 권한은 운영진 계정 표의 이름·`권한` 버튼(또는 그룹 리더 계정 표의 이름)으로 여는 창이고, 역할별 기본 권한은 왼쪽 목록의 `권한 매트릭스`다.
+- **What:** FE 기능 ID: PERM-01 서버 permission 목록으로 41개를 두 목록(가진 권한 / 추가할 수 있는 권한)·7묶음으로 렌더 · PERM-02 기본 세트가 시작값·변경 항목 표시 · PERM-03 담당 그룹 권한 읽기 전용 · PERM-04 최종 집합 저장 · PERM-05 `ADMIN_ACCOUNT_WRITE`·`ADMIN_PERMISSION_WRITE`의 자기 회수·마지막 보유자 회수 거부 사유 표시 · PERM-06 역할별 기본 권한 조회 전용(`권한 매트릭스`)
 - **Acceptance:**
   - [ ] 권한 목록이 코드 하드코딩이 아니라 서버 응답에서 만들어진다
   - [ ] 저장 후 해당 계정 재로그인 시 메뉴가 바뀐다
@@ -583,6 +584,10 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
   - [ ] (M5 이후) 회원 상세에서 개인 출결 타임라인으로 이동한다
 
 > 현재 동아리원 관리 화면(#30)이 출결 명단과 회원 관리를 한 화면으로 쓰고 있다. ATT-ROSTER와 SYS-MEM으로 나눌지 SYS-DSN에서 정한다.
+
+> **백엔드 협의 항목 — 탈퇴 명단의 쪽 나눔.** 활동기수·수료기수 목록과 부문 명단은 기수별 페이지 API(`GET /api/v1/club-members/by-term`)로 서버가 한 기수씩 나눠 준다.
+> 탈퇴 명단은 기수 페이지가 없어, 화면이 전체 목록(`GET /api/v1/club-members`)을 받아 7명씩 나눠 보여 준다.
+> 실제 백엔드가 탈퇴 명단도 서버에서 나눠 준다면(쪽 번호·크기 요청, 전체 인원 응답) 화면의 탈퇴 명단 부분을 그 API에 맞춰 다시 짜야 한다. 요청·응답 형식을 백엔드와 정한다.
 
 ### SYS-LOG 보안 감사 로그
 

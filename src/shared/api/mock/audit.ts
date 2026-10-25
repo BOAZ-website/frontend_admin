@@ -513,11 +513,13 @@ function nonPersonLabel(db: Database, type: AuditTargetType, id: string): string
 /**
  * 요청한 계정과 그 회원 id·등급. 계정이 나중에 지워지거나 등급이 바뀌어도 기록에는 그때 값이 남는다.
  * HOST 세션이면 운영진 계정 id는 없고(null), 회원 id는 HOST 계정 주인, 등급은 HOST다.
+ * 세션이 없으면(로그인 전에 부른 임시 API) 수행자를 모두 비운다.
  */
 function actorSnapshot(
   db: Database,
 ): Pick<AuditLogInsert, 'actorId' | 'actorUserId' | 'actorRole'> {
   const session = currentSession(db);
+  if (!session) return { actorId: null, actorUserId: null, actorRole: null };
   if (session.kind === 'HOST') {
     const userId = queryAll<{ user_id: string | null }>(
       db,
