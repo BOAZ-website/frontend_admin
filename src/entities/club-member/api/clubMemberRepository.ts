@@ -7,11 +7,17 @@ import type { ClubMember, ClubMemberTermScope } from '../model/types';
 /** 부문 순서(분석 → 시각화 → 엔지니어링)는 tracks.sort_order를 따른다. 표에 없는 부문은 맨 뒤다. */
 const TRACK_ORDER = 'COALESCE((SELECT t.sort_order FROM tracks t WHERE t.name = users.track), 999)';
 
+/** 현재 반기 팀 중 이 회원이 팀장인 팀의 이름을 ', '로 이은 값. 없으면 NULL. */
+const CURRENT_LEADER_TEAMS = `(SELECT group_concat(t.team_name, ', ') FROM teams t
+   WHERE t.leader_id = users.id
+     AND t.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1))`;
+
 /** 운영진 팀은 운영진 명단(admin)에서 읽는다. 운영진 계정 관리와 같은 데이터다. */
 const SELECT_CLUB_MEMBERS = `
   SELECT id, name, email, phone, university, major, term, track,
          club_status AS status, club_role AS role,
-         (SELECT a.team_name FROM admin a WHERE a.user_id = users.id) AS operatorTeam
+         (SELECT a.team_name FROM admin a WHERE a.user_id = users.id) AS operatorTeam,
+         ${CURRENT_LEADER_TEAMS} AS leaderTeams
     FROM users`;
 
 /**
@@ -126,17 +132,32 @@ export function isOperator(db: Database, userId: string): boolean {
 }
 
 /**
- * 동아리원을 탈퇴 처리한다. 행을 지우지 않고 활동 상태만 탈퇴(WITHDRAWN)로 바꾼다.
- * 반기 명단·팀 소속·출결 기록은 그대로 남는다. 연결된 HOST 계정은 지우지 않고 사용 중지(active = 0)해
- * 탈퇴한 사람이 HOST 계정으로 로그인하지 못하게 한다(다시 쓰려면 HOST 관리 화면에서 켠다).
- * 운영진이거나 이미 탈퇴한 회원은 부르는 쪽에서 먼저 막는다.
+ * 동아리원을 탈퇴 처리한다. 회원 행은 지우지 않고 활동 상태만 탈퇴(WITHDRAWN)로 바꾼다.
+ * 반기 명단·팀 소속·출결 기록은 그대로 남는다. 로그인 계정은 정리한다: 연결된 HOST 계정은 지운다
+ * (권한·맡은 그룹·겸직 기록도 함께 지워진다). 누가 무엇을 했는지는 감사 로그에 회원 id로 남는다.
+ * 운영진, 현재 반기 팀장, 이미 탈퇴한 회원은 부르는 쪽에서 먼저 막는다. 지운 HOST 계정 id를 돌려준다.
  */
-export function withdrawClubMember(db: Database, userId: string): void {
+export function withdrawClubMember(db: Database, userId: string): string[] {
+  const hostIds = queryAll<{ id: string }>(db, 'SELECT id FROM host_accounts WHERE user_id = ?', [
+    userId,
+  ]).map((row) => row.id);
   execute(db, `UPDATE users SET club_status = ?, updated_at = datetime('now') WHERE id = ?`, [
     'WITHDRAWN',
     userId,
   ]);
-  execute(db, 'UPDATE host_accounts SET active = 0 WHERE user_id = ?', [userId]);
+  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [userId]);
+  return hostIds;
+}
+
+/** 현재 반기 팀 중 이 회원이 팀장인 팀 이름. 없으면 빈 배열. */
+export function currentLeaderTeamsOf(db: Database, userId: string): string[] {
+  return queryAll<{ name: string }>(
+    db,
+    `SELECT team_name AS name FROM teams
+      WHERE leader_id = ? AND semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)
+      ORDER BY team_name`,
+    [userId],
+  ).map((row) => row.name);
 }
 
 /** 탈퇴한 동아리원인지. 없는 회원이면 false다(없는 회원은 부르는 쪽이 따로 404로 막는다). */

@@ -9,7 +9,7 @@ import { ApiError } from '../src/shared/api/apiError';
 import { createRouter } from '../src/shared/api/mock/router';
 import { clubMemberRoutes } from '../src/shared/api/mock/routes/clubMemberRoutes';
 import { userRoutes } from '../src/shared/api/mock/routes/userRoutes';
-import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
+import { createDatabase, execute, queryAll } from '../src/shared/db/createDatabase';
 
 const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
 const seed = readFileSync(new URL('../db/seed.sql', import.meta.url), 'utf8');
@@ -232,22 +232,96 @@ function linkedRowCounts(db: Awaited<ReturnType<typeof setup>>['db'], id: string
   };
 }
 
-/** 운영진이 아니면서 팀장인 활동 회원(팀 소속·출결 기록도 있는 사람). */
+/** 현재 반기 팀 조건. 현재 반기 팀장은 탈퇴 처리할 수 없다. */
+const CURRENT_TEAM = 'semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)';
+
+/**
+ * 탈퇴 처리할 수 있는 활동 회원(운영진도 현재 반기 팀장도 아닌 사람). 팀 소속·출결 기록이 있는 사람을 고른다.
+ */
 function activeLeaderId(db: Awaited<ReturnType<typeof setup>>['db']): string {
   return queryAll<{ id: string }>(
     db,
-    `SELECT t.leader_id AS id FROM teams t JOIN users u ON u.id = t.leader_id
+    `SELECT tm.user_id AS id FROM team_members tm JOIN users u ON u.id = tm.user_id
       WHERE u.club_status = 'ACTIVE'
-        AND NOT EXISTS (SELECT 1 FROM admin a WHERE a.user_id = t.leader_id)
+        AND NOT EXISTS (SELECT 1 FROM admin a WHERE a.user_id = tm.user_id)
+        AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.leader_id = tm.user_id AND t.${CURRENT_TEAM})
+        AND EXISTS (SELECT 1 FROM attendance_records r WHERE r.member_id = tm.id)
       LIMIT 1`,
   )[0].id;
 }
+
+/** 운영진이 아닌 현재 반기 팀장(활동 회원)과 그 팀 id. */
+function currentLeaderOf(db: Awaited<ReturnType<typeof setup>>['db']) {
+  return queryAll<{ userId: string; teamId: string; teamName: string }>(
+    db,
+    `SELECT t.leader_id AS userId, t.id AS teamId, t.team_name AS teamName
+       FROM teams t JOIN users u ON u.id = t.leader_id
+      WHERE t.${CURRENT_TEAM} AND u.club_status = 'ACTIVE'
+        AND NOT EXISTS (SELECT 1 FROM admin a WHERE a.user_id = t.leader_id)
+        AND (SELECT COUNT(*) FROM teams x WHERE x.leader_id = t.leader_id AND x.${CURRENT_TEAM}) = 1
+      LIMIT 1`,
+  )[0];
+}
+
+test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸면 탈퇴 처리된다', async () => {
+  const { db, call } = await setup();
+  const leader = currentLeaderOf(db);
+  assert.ok(leader);
+  const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find(
+    (m) => m.id === leader.userId,
+  );
+  assert.equal(listed?.leaderTeams, leader.teamName);
+
+  expectApiErrorCode(
+    () => call('DELETE', `/api/v1/club-members/${leader.userId}`),
+    409,
+    'MEMBER_IS_TEAM_LEADER',
+  );
+  assert.equal(
+    call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === leader.userId)?.status,
+    'ACTIVE',
+  );
+
+  execute(db, 'UPDATE teams SET leader_id = NULL WHERE id = ?', [leader.teamId]);
+  assert.equal(
+    call<ClubMember>('DELETE', `/api/v1/club-members/${leader.userId}`).status,
+    'WITHDRAWN',
+  );
+});
+
+test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
+  const { db, call } = await setup();
+  const leader = currentLeaderOf(db);
+  // 반기를 넘겨 지금 팀이 지난 반기 팀이 되게 한다.
+  const current = queryAll<{ cohort: number }>(
+    db,
+    'SELECT cohort FROM cohorts WHERE is_current = 1',
+  )[0].cohort;
+  execute(db, 'UPDATE cohorts SET is_current = 0 WHERE is_current = 1');
+  execute(db, 'UPDATE cohorts SET is_current = 1 WHERE cohort = ?', [current - 1]);
+
+  const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find(
+    (m) => m.id === leader.userId,
+  );
+  assert.equal(listed?.leaderTeams, null);
+  assert.equal(
+    call<ClubMember>('DELETE', `/api/v1/club-members/${leader.userId}`).status,
+    'WITHDRAWN',
+  );
+  // 지난 반기 팀의 팀장 기록은 남는다.
+  const leaderOf = queryAll<{ n: number }>(
+    db,
+    'SELECT COUNT(*) AS n FROM teams WHERE leader_id = ?',
+    [leader.userId],
+  )[0].n;
+  assert.equal(leaderOf, 1);
+});
 
 test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 바꾼 회원을 돌려준다', async () => {
   const { db, call } = await setup();
   const target = activeLeaderId(db);
   const before = linkedRowCounts(db, target);
-  assert.ok(before.semesterMembers > 0 && before.teamMembers > 0 && before.leaderOf > 0);
+  assert.ok(before.semesterMembers > 0 && before.teamMembers > 0);
   assert.ok(before.attendance > 0, '출결 기록이 있는 사람이어야 한다');
   const original = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === target);
 
@@ -261,22 +335,25 @@ test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAW
   assert.deepEqual(linkedRowCounts(db, target), before);
 });
 
-test('탈퇴 처리하면 연결된 HOST 계정은 지우지 않고 사용 중지한다', async () => {
+test('탈퇴 처리하면 연결된 HOST 계정을 지우고, 출결 기록은 남긴다', async () => {
   const { db, call } = await setup();
   const host = queryAll<{ id: string; user_id: string }>(
     db,
     `SELECT h.id, h.user_id FROM host_accounts h
-      WHERE h.active = 1 AND h.user_id IS NOT NULL
-        AND h.user_id NOT IN (SELECT user_id FROM admin)
+      WHERE h.user_id IS NOT NULL AND h.user_id NOT IN (SELECT user_id FROM admin)
       LIMIT 1`,
   )[0];
   assert.ok(host);
+  // 팀장이면 먼저 팀장을 비운다(현재 반기 팀장은 탈퇴 처리할 수 없다).
+  execute(db, 'UPDATE teams SET leader_id = NULL WHERE leader_id = ?', [host.user_id]);
+  const before = linkedRowCounts(db, host.user_id);
 
   call('DELETE', `/api/v1/club-members/${host.user_id}`);
-  const after = queryAll<{ active: number }>(db, 'SELECT active FROM host_accounts WHERE id = ?', [
-    host.id,
-  ]);
-  assert.deepEqual(after, [{ active: 0 }]);
+  const remaining = queryAll(db, 'SELECT id FROM host_accounts WHERE user_id = ?', [host.user_id]);
+  assert.equal(remaining.length, 0);
+  const groups = queryAll(db, 'SELECT 1 FROM host_assigned_groups WHERE host_id = ?', [host.id]);
+  assert.equal(groups.length, 0);
+  assert.equal(linkedRowCounts(db, host.user_id).attendance, before.attendance);
 });
 
 test('탈퇴 처리한 사람은 기수별 활동 페이지와 부문 페이지에서 빠진다', async () => {
