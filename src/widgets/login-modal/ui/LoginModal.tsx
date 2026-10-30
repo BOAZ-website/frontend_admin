@@ -19,6 +19,7 @@ interface LoginModalProps {
 const EXAMPLE_ACCOUNTS: readonly { label: string; username: string; password: string }[] =
   import.meta.env.DEV
     ? [
+        { label: '테스트계정', username: 'boaz_dev_all', password: 'Boaz!2026' },
         { label: '서비스운영팀장', username: 'boaz_master', password: 'Boaz!2026' },
         { label: '대표진', username: 'boaz_president_1', password: 'Boaz!2026' },
         { label: '운영지원팀', username: 'boaz_ops_1', password: 'Boaz!2026' },
