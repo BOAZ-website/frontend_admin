@@ -28,7 +28,7 @@ import {
   MEMBER_IDENTITY_LABELS,
   withMemberIdentity,
 } from '@/entities/event/model/memberIdentity';
-import { CohortSelect } from '@/pages/attendance-internal-category/ui/CohortSelect';
+import { CohortSelect } from '@/entities/cohort/ui/CohortSelect';
 import { alertApiError } from '@/shared/lib/alertApiError';
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';

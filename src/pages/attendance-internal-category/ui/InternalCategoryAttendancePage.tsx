@@ -64,11 +64,11 @@ import { fetchAttendanceScores } from '@/entities/attendance/api/attendanceApi';
 import type { MemberScoreDto } from '@/entities/attendance/model/dto';
 import { cohortLabelOf, cohortsOf, isPastCohort } from '@/entities/cohort/model/lib';
 import type { SemesterDto } from '@/entities/cohort/model/dto';
+import { CohortSelect } from '@/entities/cohort/ui/CohortSelect';
 import { buildStudyView } from '../model/studyView';
 import { buildBaseTrackTeams } from '../model/baseAttendanceCreate';
 import { CATEGORY_TITLES } from '../model/categoryTitles';
 import { BaseAttendanceCreateModal } from './BaseAttendanceCreateModal';
-import { CohortSelect } from './CohortSelect';
 import { StudyMemberPicker } from './StudyMemberPicker';
 
 export type InternalCategory = 'SESSION' | 'STUDY' | 'ADV';
