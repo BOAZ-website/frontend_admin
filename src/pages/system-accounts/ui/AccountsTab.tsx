@@ -6,7 +6,7 @@ import type {
   AdminAccount,
   PermissionCatalog,
 } from '@/entities/admin-account/model/types';
-import { FilterDropdown } from '@/pages/attendance-events/ui/FilterDropdown';
+import { FilterDropdown } from '@/shared/ui/FilterDropdown';
 import { byLeadThenTermThenTrack, sortTeamNames } from '@/pages/system-accounts/model/teamOrder';
 import { GroupLeaderTable } from '@/pages/system-accounts/ui/GroupLeaderTable';
 import {
@@ -14,8 +14,8 @@ import {
   OperatorRosterTable,
 } from '@/pages/system-accounts/ui/OperatorRosterTable';
 import { PermissionMatrix } from '@/pages/system-accounts/ui/PermissionMatrix';
-import { SplitListItem, SplitView } from '@/pages/system-accounts/ui/SplitView';
-import { LIST_SECTION_TITLE } from '@/pages/system-accounts/ui/systemStyles';
+import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
+import { LIST_SECTION_TITLE } from '@/shared/ui/systemStyles';
 
 interface AccountsTabProps {
   catalog: PermissionCatalog;

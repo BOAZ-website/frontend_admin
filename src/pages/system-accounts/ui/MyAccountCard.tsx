@@ -2,7 +2,7 @@ import { KeyRound } from 'lucide-react';
 
 import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/model/types';
 import { PermissionChips } from '@/pages/system-accounts/ui/PermissionChips';
-import { TABLE_BOX } from '@/pages/system-accounts/ui/systemStyles';
+import { TABLE_BOX } from '@/shared/ui/systemStyles';
 
 interface MyAccountCardProps {
   catalog: PermissionCatalog;

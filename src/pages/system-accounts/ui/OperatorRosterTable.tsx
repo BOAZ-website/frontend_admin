@@ -3,7 +3,7 @@ import { KeyRound, ShieldCheck, Trash2 } from 'lucide-react';
 
 import { NEXT_PRESIDENT_TEAM, TEAMS_WITHOUT_LEAD } from '@/entities/admin-account/model/teams';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
-import { ICON_BTN, ID_CHIP } from '@/pages/system-accounts/ui/systemStyles';
+import { ICON_BTN, ID_CHIP } from '@/shared/ui/systemStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
 
 /**

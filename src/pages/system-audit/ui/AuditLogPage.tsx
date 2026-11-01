@@ -4,14 +4,14 @@ import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import {
   FilterDropdown,
   type FilterDropdownOption,
-} from '@/pages/attendance-events/ui/FilterDropdown';
-import { SplitListItem, SplitView } from '@/pages/system-accounts/ui/SplitView';
+} from '@/shared/ui/FilterDropdown';
+import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import {
   LIST_SECTION_TITLE,
   TABLE_BOX,
   TD_CLASS,
   TH_CLASS,
-} from '@/pages/system-accounts/ui/systemStyles';
+} from '@/shared/ui/systemStyles';
 
 import type { AuditLogQuery } from '@/entities/audit-log/model/dto';
 import { useAuditFilters } from '@/entities/audit-log/model/useAuditFilters';

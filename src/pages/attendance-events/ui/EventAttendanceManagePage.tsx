@@ -34,6 +34,7 @@ import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { CreateButton } from '@/shared/ui/CreateButton';
 import { Tooltip } from '@/shared/ui/Tooltip';
+import { FilterDropdown, type FilterDropdownOption } from '@/shared/ui/FilterDropdown';
 
 import {
   CONFERENCE_SHEETS,
@@ -92,7 +93,6 @@ import {
 import { NAME_REQUIRED_ERROR, quickAddFieldErrorOf } from '../model/quickAddValidation';
 import { AutoWidthInput } from './AutoWidthInput';
 import { ComboInput, type ComboInputOption } from './ComboInput';
-import { FilterDropdown, type FilterDropdownOption } from './FilterDropdown';
 import { InlineEditableCell } from './InlineEditableCell';
 import { NewEventRosterSection } from './NewEventRosterSection';
 import { withoutKeys } from '@/shared/lib/object';

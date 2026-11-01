@@ -1,5 +1,5 @@
 import type { AccountHolder, LeaderGroup } from '@/entities/admin-account/model/types';
-import { ID_CHIP, TABLE_BOX, TD_CLASS, TH_CLASS } from '@/pages/system-accounts/ui/systemStyles';
+import { ID_CHIP, TABLE_BOX, TD_CLASS, TH_CLASS } from '@/shared/ui/systemStyles';
 
 /** 값이 없을 때 표시. */
 const EMPTY = '-';

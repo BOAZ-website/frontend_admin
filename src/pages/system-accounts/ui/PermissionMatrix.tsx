@@ -3,7 +3,7 @@ import { Fragment } from 'react';
 import { isInBaseOf } from '@/entities/admin-account/model/catalog';
 import type { PermissionCatalog } from '@/entities/admin-account/model/types';
 import { PermissionLabel } from '@/pages/system-accounts/ui/PermissionLabel';
-import { O_MARK, TABLE_BOX, TH_CLASS } from '@/pages/system-accounts/ui/systemStyles';
+import { O_MARK, TABLE_BOX, TH_CLASS } from '@/shared/ui/systemStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
 
 /**
