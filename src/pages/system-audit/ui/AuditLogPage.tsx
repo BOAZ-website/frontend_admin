@@ -1,17 +1,9 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
-import {
-  FilterDropdown,
-  type FilterDropdownOption,
-} from '@/shared/ui/FilterDropdown';
+import { FilterDropdown, type FilterDropdownOption } from '@/shared/ui/FilterDropdown';
 import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
-import {
-  LIST_SECTION_TITLE,
-  TABLE_BOX,
-  TD_CLASS,
-  TH_CLASS,
-} from '@/shared/ui/systemStyles';
+import { LIST_SECTION_TITLE, TABLE_BOX, TD_CLASS, TH_CLASS } from '@/shared/ui/systemStyles';
 
 import type { AuditLogQuery } from '@/entities/audit-log/model/dto';
 import { useAuditFilters } from '@/entities/audit-log/model/useAuditFilters';
