@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 성격
 
-BOAZ 빅데이터 동아리 관리자 콘솔(`admin.bigdataboaz.com`)의 프론트엔드입니다. Figma Make로 생성된 코드 번들에서 출발했고, 아직 **백엔드가 연결되지 않은 UI 프로토타입**입니다. 모든 데이터는 `src/entities/*/model/constants.ts`에 하드코딩된 목 데이터이며, 일부 상태만 localStorage에 저장됩니다. 코드에 등장하는 `/api/v1/admin/...` 문자열은 실제 호출이 아니라, 향후 연동할 백엔드 계약을 화면과 주석에 명시해 둔 것입니다.
+BOAZ 빅데이터 동아리 관리자 콘솔(`admin.bigdataboaz.com`)의 프론트엔드입니다. Figma Make로 생성된 코드 번들에서 출발했고, 2026-10-31 기준 **백엔드가 연결되지 않은 UI 프로토타입**입니다.
+
+화면은 API 함수(`src/entities/*/api/*Api.ts`)로 데이터를 요청하고, API 함수는 `src/shared/api/client.ts`를 거칩니다. 서버 주소(`VITE_API_BASE_URL`)가 없으면 임시 API(`src/shared/api/mock/`)가 백엔드와 같은 경로(`/api/v1/...`)로 응답합니다. 임시 API는 브라우저 안에서 도는 SQLite(sql.js) 임시 DB를 읽고 씁니다. 스키마는 `db/schema.sql`, 초기 데이터는 `db/seed.sql`입니다.
+
+일부 화면은 파일 안에 정의한 목 데이터로 동작하고(아래 "출결 모델이 두 갈래로 나뉘어 있음" 절의 `InternalCategoryAttendancePage`), 일부 설정은 localStorage에 저장됩니다.
 
 ## 명령어
 
@@ -13,9 +17,19 @@ npm run dev          # Vite 개발 서버
 npm run build        # tsc -b && vite build (타입 체크 후 빌드)
 npm run check-types  # 타입 체크만 수행
 npm run preview      # 빌드 결과 미리보기
+npm run lint         # ESLint (경고 0개여야 통과)
+npm run lint:fix     # ESLint 자동 수정
+npm run format       # Prettier로 정리
+npm run format:check # Prettier 형식 검사
+npx tsx --test tests/*.test.ts  # 테스트 (node:test)
 ```
 
-테스트 프레임워크는 도입되어 있지 않습니다. `eslint`, `prettier`, `stylelint`, `lefthook`이 devDependencies에 들어 있지만 **설정 파일이 하나도 없어서 현재는 실행할 수 없습니다.** 따라서 변경 사항을 검증하는 유일한 자동 수단은 `npm run check-types`입니다. 린트를 실행해야 한다면 설정 파일을 먼저 만들어야 하며, 이는 별도 작업으로 다루어야 합니다.
+검증 수단은 다섯 가지입니다.
+
+- ESLint(`eslint.config.js`), Prettier(`.prettierrc.json`), 타입 체크, 빌드: `main`·`dev` 대상 PR에서 CI가 실행합니다(`lint.yml`, `format-check.yml`, `typecheck.yml`, `build-check.yml`). Node 버전은 `.nvmrc`를 따릅니다.
+- 테스트: `tests/*.test.ts`에 `node:test`와 `node:assert/strict`로 작성합니다. 임시 API 라우트, 임시 DB 함수, `model/`의 계산 함수를 검사합니다. **CI가 테스트를 실행하지 않으므로** PR 전에 로컬에서 실행합니다. 화면(컴포넌트) 테스트 도구는 없습니다.
+
+`stylelint`, `lefthook`은 devDependencies에 들어 있지만 설정 파일이 없어서 실행되지 않습니다.
 
 ## 아키텍처
 
@@ -38,11 +52,11 @@ localStorage 키는 `boaz_score_rules`, `boaz_delivery_template`, `boaz_custom_n
 
 ### 역할(Role) 처리
 
-`UserRole`은 `"SUPER" | "TEAM" | "HOST" | "CONTENT_ADMIN"`입니다. 역할은 로그인 후 진입 페이지와 사이드바 메뉴 범위를 정합니다. `src/widgets/sidebar/ui/Sidebar.tsx`의 `filteredNav`가 `HOST`에게는 출결 섹션의 "출결 입력" 그룹만, `CONTENT_ADMIN`에게는 콘텐츠 섹션만 보여 주고, 나머지 역할에는 모든 메뉴를 보여 줍니다. 이 제한은 사이드바에만 걸려 있어 주소 해시로 다른 화면에 들어가는 것은 막지 않습니다. `SIDEBAR_NAV`의 `permission` 필드는 백엔드 권한 이름을 기록해 둔 메타데이터일 뿐, 현재 필터링에 사용되지 않습니다. permission 기반 게이팅(SYS-GATE)을 구현한다면 이 필드가 출발점입니다.
+`UserRole`은 `"SUPER" | "TEAM" | "HOST" | "CONTENT_ADMIN"`입니다. 역할은 로그인 후 진입 페이지와 사이드바 메뉴 범위를 정합니다. `src/widgets/sidebar/ui/Sidebar.tsx`의 `filteredNav`가 `HOST`에게는 출결 섹션의 "출결 입력" 그룹만, `CONTENT_ADMIN`에게는 콘텐츠 섹션만 보여 주고, 나머지 역할에는 모든 메뉴를 보여 줍니다. 이 제한은 사이드바에만 걸려 있어 주소 해시로 다른 화면에 들어가는 것은 막지 않습니다. `SIDEBAR_NAV`의 `permission` 필드는 백엔드 권한 이름을 기록해 둔 메타데이터일 뿐, 2026-10-31 기준 필터링에 사용되지 않습니다. permission 기반 게이팅(SYS-GATE)을 구현한다면 이 필드가 출발점입니다.
 
 ### FSD 레이어와 경로 별칭
 
-`src/{app,pages,widgets,features,entities,shared}` 구조이며 `@/pages/...`처럼 별칭으로 임포트합니다. 별칭은 `vite.config.ts`와 `tsconfig.json`·`tsconfig.app.json`에 **중복 정의되어 있으므로**, 별칭을 추가하거나 변경할 때 세 파일을 모두 손대야 합니다. `features/`는 아직 비어 있습니다(`.gitkeep`).
+`src/{app,pages,widgets,features,entities,shared}` 구조이며 `@/pages/...`처럼 별칭으로 임포트합니다. 별칭은 `vite.config.ts`와 `tsconfig.json`·`tsconfig.app.json`에 **중복 정의되어 있으므로**, 별칭을 추가하거나 변경할 때 세 파일을 모두 손대야 합니다. `features/`는 2026-10-31 기준 비어 있습니다(`.gitkeep`만 있음).
 
 레이어 규칙이 엄격하게 지켜지지는 않았습니다. 페이지 컴포넌트가 한 파일에 1,000~6,000줄 규모로 몰려 있고, 자체 타입과 상수, 서브 컴포넌트를 파일 안에 함께 정의합니다. `src/shared/ui`의 `Btn`, `SectionCard`, `Tag`, `CardHeader`는 출결 계열 5개 파일에서만 쓰이고, 나머지 페이지는 Tailwind 클래스를 직접 씁니다. 기존 파일을 수정할 때는 그 파일의 지역 관례를 따르고, 전면적인 구조 정리는 별도 요청으로 처리하는 편이 안전합니다.
 
@@ -69,7 +83,9 @@ Tailwind CSS v4를 `@tailwindcss/vite` 플러그인으로 사용합니다. `post
 
 ## 참고 문서
 
-`src/imports/pasted_text/`에 설계 근거 문서가 들어 있습니다. `admin-ia.md`는 확정된 IA 트리, `admin-ia-strategy.md`는 그 판단 기준, `recruitment-dashboard.md`는 기능 범위와 요구 사항입니다. 메뉴 구조나 권한 체계를 바꿀 때는 이 문서들을 먼저 확인하는 것이 좋습니다. `guidelines/Guidelines.md`는 Figma가 넣어 둔 빈 템플릿이므로 참고 가치가 없습니다.
+설계·스펙·화면 정의 문서는 `docs/`에 있습니다. 어떤 문서가 무엇에 답하는지와 읽는 순서는 `docs/README.md`의 문서 지도를 따릅니다. 메뉴 구조를 바꿀 때는 `docs/ia/01-ia-strategy.md`, 권한을 다룰 때는 `docs/spec/06-system.md`(권한 정본)를 먼저 확인합니다.
+
+`src/imports/pasted_text/`의 설계 근거 문서는 `docs/`로 옮겨졌습니다. `admin-ia.md`는 `docs/ia/02-ia-tree.md`, `admin-ia-strategy.md`는 `docs/ia/01-ia-strategy.md`, `recruitment-dashboard.md`는 `docs/spec/01-attendance-system.md`의 원본입니다. `recruitment-dashboard-1.md`는 `recruitment-dashboard.md`와 같은 파일입니다. 폴더는 Git에 남아 있지만 판단 근거로는 `docs/`의 문서를 씁니다. `guidelines/Guidelines.md`는 Figma가 넣어 둔 빈 템플릿이므로 참고 가치가 없습니다.
 
 ## 작성 관례
 
