@@ -2,7 +2,7 @@
 
 | 기준 커밋 | 최종 갱신 | 운영 주체 | 표기 규칙 |
 | --- | --- | --- | --- |
-| `dev` 브랜치 2026-10-31 시점 | 2026-11-02 | 프론트엔드 담당 | 이 문서의 "표기" 절 |
+| `da42df2` | 2026-11-02 | 프론트엔드 담당 | 이 문서의 "표기" 절 |
 
 ## 이 문서의 목적
 
@@ -12,7 +12,7 @@
 - 다른 문서와의 관계
     - 프로젝트 `CLAUDE.md`: 저장소 구조와 작업 관례. 이 문서와 다르면 이 문서를 따르고 차이를 프론트엔드 담당에게 알림
     - `docs/spec/`: 화면이 어떻게 동작해야 하는지(목표 동작을 정한 기능 명세). 이 문서는 코드를 어떻게 쓰는지만 정함
-- 숫자(위반 건수 등)와 코드 현황 서술은 따로 적지 않으면 상단 표의 기준 커밋(`dev` 브랜치 2026-10-31 시점) 기준임. "(회의록 기준)"이라고 적은 숫자는 [2026-10-28 프론트엔드 회의록](https://app.notion.com/p/FE-3a26710199ab8010b85ec421865f172d?p=4076710199ab80ffab35ce2cd4fb098d&pm=s)에서 옮긴 값임
+- 숫자(위반 건수 등)와 코드 현황 서술은 따로 적지 않으면 상단 표의 기준 커밋(2026-10-31 `dev`) 기준임. "(회의록 기준)"이라고 적은 숫자는 [2026-10-28 프론트엔드 회의록](https://app.notion.com/p/FE-3a26710199ab8010b85ec421865f172d?p=4076710199ab80ffab35ce2cd4fb098d&pm=s)에서 옮긴 값임
 
 ### 표기
 
@@ -90,7 +90,7 @@
 | TypeScript | 5.9 | `package.json` |
 | Vite | 6.3.5 | `package.json` |
 | Tailwind CSS | 4.1.12 (`@tailwindcss/vite`) | `package.json` |
-| ESLint / Prettier | 9 / 3 | `eslint.config.js`, `.prettierrc.json` |
+| ESLint / Prettier | 9 / 3 | `eslint.config.js`, `eslint-suppressions.json`, `.prettierrc.json` |
 - 경로 별칭 `@/`는 `vite.config.ts`, `tsconfig.json`, `tsconfig.app.json` 세 곳에 따로 정의되어 있음. 별칭을 바꾸면 세 파일을 모두 고침
 - Prettier 설정: 작은따옴표, 세미콜론 사용, 끝 쉼표 `all`, 들여쓰기 2칸, 줄 길이 100자, 줄 끝 LF
 - `stylelint`, `lefthook`은 설치만 되어 있고 설정 파일이 없어 쓰지 않음
@@ -106,8 +106,9 @@
 | R0-3 | 기존 위반(부록 A)은 예외로 둠. 예외 목록은 줄어들기만 함. **금지**: 새 예외를 만드는 것 |
 | R0-4 | 한 파일 안에서 옛 코드와 새 규칙이 섞여 읽기 어려워지면 그 파일만 규칙에 맞춰 정리할 수 있음. 바뀌는 줄이 많으면 기능 변경과 다른 PR로 나눔 |
 | R0-5 | 같은 파일 안에서 이 문서가 정하지 않은 것은 그 파일의 지역 관례를 따름 |
-- 근거: 큰 페이지 파일(최대 5,716줄)을 한 번에 고치면 열린 PR과 충돌하고 리뷰가 어려움. 새 코드부터 막으면 위반은 늘지 않고 고칠 때마다 줄어듦
-- 다시 볼 때: 부록 A가 비면 R0-3을 지움
+| R0-6 | **금지**: `eslint-suppressions.json`에 항목을 추가하거나 건수를 늘리는 것(`--suppress-all`, `--suppress-rule`). 기존 위반을 고치면 `npx eslint . --prune-suppressions`로 건수를 줄임 |
+- 근거: 큰 페이지 파일(최대 5,716줄)을 한 번에 고치면 열린 PR과 충돌하고 리뷰가 어려움. 새 코드부터 막으면 위반은 늘지 않고 고칠 때마다 줄어듦. `eslint-suppressions.json`은 ESLint가 기존 위반을 파일별 건수로 기억해 두는 파일이라, 건수를 늘리면 새 위반이 CI를 통과함
+- 다시 볼 때: 부록 A가 비면 R0-3을 지움. `eslint-suppressions.json`이 비면 R0-6을 지움
 
 ## 1. import
 
@@ -217,6 +218,8 @@ import { FilterDropdown } from '@/shared/ui/FilterDropdown';
 | R3-7 | 큰 파일을 나눌 때는 목록 조회·편집·저장처럼 책임을 기준으로 나눔 | 리뷰 |
 | R3-8 | **권장** 파일 하나가 800줄을 넘으면 나눌지 검토함 | 리뷰 |
 
+FAQ 데이터는 아직 없음. 아래와 7·8절의 FAQ 코드는 폴더·함수 모양을 보여 주는 예시임.
+
 ```
 pages/content-faq/
 ├─ ui/FaqSection.tsx         화면만
@@ -321,7 +324,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 | ID | 규칙 | 검사 |
 | --- | --- | --- |
 | R6-7 | **반드시** 서버 데이터를 읽는 Hook은 `{ 데이터, isLoading, error }` 모양을 돌려주고, 돌려주는 타입을 `interface <무엇>State`로 적음 | 리뷰 |
-| R6-8 | **반드시** `error`는 `Error \| null`로 맞춰 돌려줌. `catch`로 받은 값은 `unknown`이므로 `Error`로 바꿈 | 리뷰 |
+| R6-8 | **반드시** `error`는 `Error` 또는 `null`로 맞춰 돌려줌. `catch`로 받은 값은 `unknown`이므로 `Error`로 바꿈 | 리뷰 |
 | R6-9 | **반드시** `useEffect`에서 요청을 보내면 정리 함수에서 취소 표시를 남겨, 늦게 도착한 옛 응답이 새 결과를 덮지 않게 함 | 리뷰 |
 | R6-10 | **반드시** `isLoading`처럼 다른 상태로 알 수 있는 값은 따로 저장하지 않고 계산함 | 리뷰 |
 | R6-11 | **금지**: `react-hooks/exhaustive-deps` 경고를 `eslint-disable`로 끄는 것. 의존성이 객체면 `JSON.stringify`한 키를 의존성으로 씀 | 의존성 누락은 `ESLint`, `eslint-disable` 사용은 리뷰 |
@@ -432,7 +435,7 @@ const handleSave = async () => {
 ```
 
 - 근거: 데이터를 가져오는 방법이 바뀌어도(임시 API → 실제 서버, 캐시 라이브러리 도입) Hook과 API 함수만 고치고 화면 파일은 그대로 둘 수 있음. `client.ts`가 시간 초과(10초), 오류 응답 읽기, 응답 없는 성공(204)을 한곳에서 처리함
-- 다시 볼 때: MSW 도입이 정해지면(부록 E) `client.ts` 설명을 고침. 캐시 라이브러리를 들이면 R7-6을 "캐시 무효화"로 바꿈
+- 다시 볼 때: MSW 도입이 정해지면 `client.ts` 설명을 고침. 캐시 라이브러리를 들이면 R7-6을 "캐시 무효화"로 바꿈
 
 ## 8. 임시 API와 임시 DB
 
@@ -459,7 +462,7 @@ export const faqRoutes: MockRoute[] = [
     summary: 'FAQ 목록 조회(분류로 거를 수 있음)',
     handler: ({ db, query }) => {
       // 잘못된 분류 값은 validate.ts 함수가 ApiError(400)로 거절함 (R8-3)
-      const category = readOptionalEnum(query.get('category'), FAQ_CATEGORIES, 'category');
+      const category = oneOf(query.get('category') || undefined, FAQ_CATEGORIES, 'category');
       return listFaqs(db, category);
     },
   },
@@ -478,7 +481,7 @@ export const faqRoutes: MockRoute[] = [
 | R9-3 | **금지**: 타입 오류를 없애려고 `as`로 단언하는 것. 외부 값은 확인하는 코드로 좁힘. 허용하는 것: `as const`, `client.ts` 안의 응답 타입 지정, R6-11에 따라 같은 Hook에서 `JSON.stringify`로 만든 키를 되돌리는 `JSON.parse(key) as <타입>`(6-2절 예시) | 리뷰 |
 | R9-4 | **반드시** 내보내는 함수는 매개변수와 반환 타입을 적음. 지역 변수는 추론에 맡김 | 리뷰 |
 | R9-5 | 객체 모양은 `interface`, 합집합·유틸리티 타입은 `type`으로 적음 | 리뷰 |
-| R9-6 | **반드시** 정해진 값만 오는 문자열은 합집합 타입으로 적음. 예: `type AttendanceStatus = 'present' \| 'late' \| 'absent'` | 리뷰 |
+| R9-6 | **반드시** 정해진 값만 오는 문자열은 합집합 타입으로 적음(아래 예) | 리뷰 |
 | R9-7 | **금지**: `enum`, `namespace`. 지워도 동작이 같은 TypeScript 문법만 허용하는 설정(`erasableSyntaxOnly`) 때문에 쓸 수 없음. 합집합 타입과 `as const` 객체를 씀 | `tsc` |
 | R9-8 | **금지**: `@ts-ignore`, `@ts-expect-error` | 리뷰 |
 
@@ -488,9 +491,12 @@ const parse = (data: any) => data.items;
 
 // 허용
 const parse = (data: FaqListResponse) => data.items;
+
+// R9-6
+type AttendanceStatus = 'present' | 'late' | 'absent';
 ```
 
-- 근거: `any`와 `as`는 타입 검사를 끄는 것이라, 실제 서버 응답 모양이 다를 때 화면에서 처음 오류가 남
+- 근거: `any`와 `as`는 타입 검사를 끄는 것이라, 실제 서버 응답 모양이 다를 때 화면에서 처음 오류가 남. 기존 `any` 22건은 `eslint-suppressions.json`에 억제되어 있어 CI가 통과하지만, 새 `any`는 ESLint가 막음
 - 다시 볼 때: 응답 검증 도구(zod 등)를 들일 때 R9-2에 그 도구 사용을 넣음
 
 ## 10. 오류 처리와 로그
@@ -592,12 +598,12 @@ function readDraft(): ScoreRuleDraft | null {
 | --- | --- | --- |
 | R13-1 | **반드시** 문구는 무엇을 하는지만 짧게 씀. **금지**: "스마트한", "한눈에", "손쉽게" 같은 꾸밈말 | 리뷰 |
 | R13-2 | **반드시** 버튼 문구는 누르면 일어나는 동작을 나타내는 말로 끝냄("확인", "목록" 같은 이름이 아님). 예: "저장", "계정 발급", "탈퇴 처리" | 리뷰 |
-| R13-3 | **반드시** 되돌릴 수 없는 동작(삭제, 탈퇴, 비밀번호 재설정)은 확인 창을 띄우고, 무엇이 사라지는지 적음. 예: "탈퇴 처리하면 이 회원은 로그인할 수 없고 되돌릴 수 없습니다. 탈퇴 처리할까요?" | 리뷰 |
-| R13-4 | **반드시** 동작을 막을 때는 이유와 먼저 해야 할 일을 함께 알림. 예: "2026년 하반기 팀장이라 탈퇴할 수 없습니다. 팀장을 먼저 바꿔 주세요." | 리뷰 |
+| R13-3 | **반드시** 지우거나 다른 데이터에 영향을 주는 동작(삭제, 탈퇴 처리, 비밀번호 재설정)은 확인 창을 띄우고, 무엇이 바뀌고 무엇이 남는지 적음. 예: "홍길동님을 정말 탈퇴 처리할까요? 활동 상태만 탈퇴로 바뀌고, 출결 기록과 팀 소속은 그대로 남습니다." | 리뷰 |
+| R13-4 | **반드시** 동작을 막을 때는 이유와 먼저 해야 할 일을 함께 알림. 예: "현재 반기 A팀의 팀장입니다. 출결 화면에서 팀장을 먼저 바꿔 주세요." | 리뷰 |
 | R13-5 | **반드시** 같은 대상은 화면마다 같은 이름으로 부름. 메뉴·화면 이름은 `shared/config/pageLabels.ts`의 `PAGE_LABELS`를 따름 | 리뷰 |
 | R13-6 | **반드시** 날짜는 `shared/lib/date.ts`의 함수로 만듦. **금지**: 화면마다 날짜 형식을 직접 만드는 것 | 리뷰 |
 | R13-7 | **금지**: 실제처럼 보이게 꾸민 가짜 통계 숫자, 장식용 요약 카드 | 리뷰 |
-- 근거: 관리자 콘솔 사용자는 운영진이며, 막힌 이유를 모르면 같은 문의가 반복됨
+- 근거: 관리자 콘솔 사용자는 운영진이며, 막힌 이유를 모르면 같은 문의가 반복됨. R13-3·R13-4 예시는 회원 관리 화면(`MemberManagementPage`)과 `entities/club-member/model/withdrawBlock.ts`의 실제 문구임
 - 다시 볼 때: 문구 표준표(용어집)를 만들 때
 
 ## 14. 주석
@@ -700,7 +706,7 @@ npx tsx --test tests/*.test.ts   # CI가 돌리지 않으므로 로컬에서 실
 
 | 작업(워크플로) | 실행 명령 | 실패할 때 할 일 |
 | --- | --- | --- |
-| Lint (`lint.yml`) | `npm run lint` (경고 0개여야 통과) | `npm run lint:fix` 후 남은 것을 직접 고침. `eslint-disable`로 끄지 않음 |
+| Lint (`lint.yml`) | `npm run lint` (경고 0개여야 통과) | `npm run lint:fix` 후 남은 것을 직접 고침. `eslint-disable`로 끄거나 `eslint-suppressions.json`에 추가하지 않음(R0-6) |
 | Format (`format-check.yml`) | `npm run format:check` | `npm run format` 후 커밋 |
 | Typecheck (`typecheck.yml`) | `npm run check-types` | 로컬에서 같은 명령으로 재현해 고침. `as`·`any`로 덮지 않음(R9) |
 | Build (`build-check.yml`) | `npm run build` | 로컬에서 재현. 별칭 문제면 세 설정 파일을 모두 확인함 |
@@ -709,6 +715,7 @@ npx tsx --test tests/*.test.ts   # CI가 돌리지 않으므로 로컬에서 실
 
 - [ ]  19-1절 명령 4개 통과, 로직을 바꿨으면 테스트 통과
 - [ ]  고친 파일이 이번 작업 범위 안에 있음(R0-2)
+- [ ]  `eslint-suppressions.json`의 건수를 늘리지 않음(R0-6)
 - [ ]  새 import가 층 방향을 지킴(R2)
 - [ ]  새 코드의 위치를 3-1절 판단 순서로 정함(R3)
 - [ ]  컴포넌트가 API 함수를 직접 부르지 않음(R7-1)
@@ -729,6 +736,7 @@ npx tsx --test tests/*.test.ts   # CI가 돌리지 않으므로 로컬에서 실
 
 - [ ]  CI 4개 통과, PR 본문에 테스트 결과가 있음(로직 변경 시)
 - [ ]  수정 파일이 PR 목적과 관계있음. 관계없는 정리는 다른 PR로 나뉨
+- [ ]  `eslint-suppressions.json`이 바뀌었으면 건수가 줄기만 했음(R0-6)
 - [ ]  19-3절 항목 중 `검사: 리뷰`인 규칙을 고친 부분에서 확인함
 - [ ]  화면을 바꿨으면 "UI 변경 전후" 사진이 있고, 좁은 폭에서 넘치지 않음
 - [ ]  WBS 티켓이면 `docs/03-wbs-fe.md`가 갱신됨(R17-6)
@@ -738,23 +746,24 @@ npx tsx --test tests/*.test.ts   # CI가 돌리지 않으므로 로컬에서 실
 
 ## 부록 A. 기존 위반 목록
 
-R0-3에 따라 예외로 두는 위반임. R0-4 범위 안에서 해당 파일을 크게 고치는 PR(기능 변경과 다른 PR)에서 정리하고, 정리하면 이 표에서 그 줄을 지움.
+R0-3에 따라 예외로 두는 위반임. R0-4 범위 안에서 해당 파일을 크게 고치는 PR(기능 변경과 다른 PR)에서 정리하고, 정리하면 이 표에서 그 줄을 지움. ESLint가 잡는 위반은 `eslint-suppressions.json`에도 건수가 있으므로, 정리하면 `npx eslint . --prune-suppressions`로 그 파일도 함께 줄임.
 
 | 규칙 | 위치 | 정리 방법 |
 | --- | --- | --- |
 | R2-3 | `pages/attendance-events/ui/FilterDropdown` (감사 로그·계정 관리·회원 관리 화면이 가져다 씀) | `shared/ui/`로 옮김 |
-| R2-3 | `pages/system-accounts/ui/SplitView`, `SplitListItem`, `systemStyles` (감사 로그·회원 관리 화면이 가져다 씀) | `shared/ui/`로 옮김 |
+| R2-3 | `pages/system-accounts/ui/SplitView.tsx`(`SplitView`, `SplitListItem`), `systemStyles.ts` (감사 로그·회원 관리 화면이 가져다 씀) | `shared/ui/`로 옮김 |
 | R2-3 | `pages/attendance-internal-category/ui/CohortSelect` (행사 출결 화면이 가져다 씀) | `entities/cohort/ui/`로 옮김 |
 | R3-2 | `shared/ui/AccountDeliveryDialog`, `shared/config/accountDeliveryMessages` (회원 관리·계정 관리·HOST 계정 화면이 가져다 씀. 업무 동작인 계정 정보 전달 코드가 `shared`에 있음) | `features/account-delivery/`로 옮김 |
 | R3-3 | 직접 쓴 `<button>` 310개(36개 파일, 회의록 기준) | 공통 `Button`이 생긴 뒤 화면을 고칠 때 바꿈 |
-| R6-11 | `eslint-disable` 2곳 | 의존성을 고쳐 지움 |
+| R6-11 | `eslint-disable` 2곳(`app/App.tsx`, `EventAttendanceManagePage`) | 의존성을 고쳐 지움 |
+| R6-11 | `InternalCategoryAttendancePage`의 `exhaustive-deps` 5건(`eslint-suppressions.json`) | 의존성을 고치고 억제 파일의 건수를 줄임 |
 | R7-1 | `ui/` 파일 8개: `InternalCategoryAttendancePage`, `BaseAttendanceCreateModal`, `StudyMemberPicker`, `RulesPage`, `ScoresPage`, `MemberManagementPage`, `SystemAccountsPage`, `LoginModal` (회의록 기준) | API 호출을 `model/`의 Hook으로 옮김 |
-| R9-1 | `any` 22건: `InternalCategoryAttendancePage`, `CurriculumSection`, `EvaluationManagePage`, `RecruitmentManagePage` (회의록 기준) | 구체 타입으로 바꿈 |
+| R9-1 | `any` 22건: `InternalCategoryAttendancePage` 12, `RecruitmentManagePage` 6, `EvaluationManagePage` 3, `CurriculumSection` 1 (`eslint-suppressions.json` 기준) | 구체 타입으로 바꾸고 억제 파일의 건수를 줄임 |
 | R10-6 | 빈 `catch` 13곳 (회의록 기준) | 무시해도 되는 곳은 주석을 달고, 아니면 `alertApiError`로 바꿈 |
 | R12-1 | `rounded-xl` 이상을 쓰는 8개 파일 (회의록 기준) | 12-1절 표의 클래스로 바꿈 |
 | R12-5 | 반 단위 간격 약 640곳(49개 파일) | 화면을 다시 디자인할 때 정수 클래스로 바꿈 |
 | R12-11 | 팝업 바탕을 직접 만든 20개 파일 중 `useDialogKeyboard`를 쓰지 않는 파일 | 팝업을 고칠 때 붙임 |
-| 그 밖 | (없음) | - |
+| 그 밖 | `eslint-suppressions.json`의 `react-refresh/only-export-components` 2건(`InternalCategoryAttendancePage`), `no-unused-vars` 1건(`RecruitmentManagePage`) | 고치고 억제 파일의 건수를 줄임 |
 
 ## 부록 B. 자동으로 검사되는 것
 
@@ -763,11 +772,11 @@ R0-3에 따라 예외로 두는 위반임. R0-4 범위 안에서 해당 파일�
 | 도구 | 검사하는 것 | 이 문서의 규칙 |
 | --- | --- | --- |
 | TypeScript (`tsc`) | 타입 오류, 타입 import 표시(import 문을 쓴 그대로 남기는 설정 `verbatimModuleSyntax`), 쓰지 않는 변수·매개변수(쓰지 않는 지역 변수 금지 `noUnusedLocals`, 쓰지 않는 매개변수 금지 `noUnusedParameters`), `enum`·`namespace` 금지(지워도 동작이 같은 문법만 허용 `erasableSyntaxOnly`), `PAGE_LABELS` 누락 | R1-2, R4-1(`_` 접두사), R9-7, R16-1 일부 |
-| ESLint | `any`(`typescript-eslint` 권장 규칙), Hook 호출 규칙, `useEffect` 의존성 배열 누락(`react-hooks/exhaustive-deps`), 컴포넌트 파일이 컴포넌트만 내보내는지(`react-refresh`) | R9-1, R6-11(의존성 누락만) |
+| ESLint | `any`(`typescript-eslint` 권장 규칙), Hook 호출 규칙, `useEffect` 의존성 배열 누락(`react-hooks/exhaustive-deps`), 컴포넌트 파일이 컴포넌트만 내보내는지(`react-refresh`). 기존 위반은 `eslint-suppressions.json`에 파일별 건수로 억제되어 있어, 새 위반만 실패함 | R9-1, R6-11(의존성 누락만) |
 | Prettier | 따옴표, 세미콜론, 들여쓰기, 줄 길이 100자 | 코드 모양 전체 |
 | 테스트(로컬) | 쓰기 API의 감사 기록 규칙, 임시 API 응답, 계산 함수 | R8-5, R8-7 |
 
-도구가 검사하지 않는 것: R1-1(import 순서), R2(층 방향), R3-4의 다시 내보내는 파일, R6-11의 `eslint-disable` 사용, R7-1(컴포넌트의 API 직접 호출), R10-6(빈 `catch`, 허용 설정이 켜져 있음), R10-7(`console.log`), R12(스타일). 도구를 켜기 전까지 리뷰로 확인함.
+도구가 검사하지 않는 것: R0-6(억제 파일 건수 증가), R1-1(import 순서), R2(층 방향), R3-4의 다시 내보내는 파일, R6-11의 `eslint-disable` 사용, R7-1(컴포넌트의 API 직접 호출), R10-6(빈 `catch`, 허용 설정이 켜져 있음), R10-7(`console.log`), R12(스타일). 도구를 켜기 전까지 리뷰로 확인함.
 
 ## 부록 C. 회의록 규칙 번호와의 대응
 
@@ -789,6 +798,7 @@ R0-3에 따라 예외로 두는 위반임. R0-4 범위 안에서 해당 파일�
 | 질문 | 답 |
 | --- | --- |
 | 기존 파일을 고치는데 그 파일에 `any`가 많음. 다 고쳐야 하나 | 아님. 이번에 고치는 줄에만 적용함(R0-1). 나머지는 PR 본문에 적기만 함 |
+| 기존 파일에 `any`가 있는데 왜 lint가 통과하나 | 기존 위반이 `eslint-suppressions.json`에 파일별 건수로 억제되어 있음. 그 파일에 `any`를 하나 더 넣으면 건수를 넘어 실패함(R0-6) |
 | 두 화면이 같은 드롭다운을 씀. `shared`인가 `entities`인가 | 특정 데이터를 고르는 드롭다운(기수 선택 등)이면 `entities/<데이터>/ui/`, 데이터와 관계없는 모양만의 드롭다운이면 `shared/ui/`(3-1절 3번·5번) |
 | Hook은 `entities`와 `pages` 중 어디에 두나 | 데이터 하나만 다루면 `entities/<데이터>/model/`, 화면 하나가 여러 데이터를 모으면 `pages/<화면>/model/`(R3-6) |
 | 백엔드 API 경로를 모름 | `docs/spec/`에서 찾고, 없으면 멈추고 물음(18절). 추정한 경로를 쓰지 않음 |

@@ -79,6 +79,7 @@ Tailwind CSS v4를 `@tailwindcss/vite` 플러그인으로 사용합니다. `post
   - 화면 티켓의 완료: 티켓 What의 핵심 기능마다 화면이 있음. 데이터가 목업·임시 API여도 됨(실제 API 연동은 별도)
   - 플랫폼 기반(PLT) 티켓의 완료: 티켓 Acceptance를 모두 충족함
 - `tsconfig.app.json`에 `noUnusedLocals`, `noUnusedParameters`, `verbatimModuleSyntax`, `erasableSyntaxOnly`가 켜져 있습니다. 사용하지 않는 매개변수는 기존 코드처럼 `_onToggleRole`, `_sIdx`와 같이 밑줄 접두사를 붙여 처리하고, 타입 임포트는 반드시 `import type`으로 작성해야 합니다.
+- 코드를 쓰고 고칠 때는 [`docs/04-code-style.md`](docs/04-code-style.md)의 규칙을 따릅니다. 이 파일과 그 문서가 다르면 그 문서를 따릅니다. 리뷰 코멘트와 PR 본문에서는 그 문서의 규칙 ID(`R7-1` 등)로 가리킵니다.
 
 ## 문서 작성 규칙
 
