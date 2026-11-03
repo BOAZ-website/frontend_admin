@@ -8,7 +8,7 @@ BOAZ 빅데이터 동아리 관리자 콘솔(`admin.bigdataboaz.com`)의 프론�
 
 화면은 API 함수(`src/entities/*/api/*Api.ts`)로 데이터를 요청하고, API 함수는 `src/shared/api/client.ts`를 거칩니다. 서버 주소(`VITE_API_BASE_URL`)가 없으면 임시 API(`src/shared/api/mock/`)가 백엔드와 같은 경로(`/api/v1/...`)로 응답합니다. 임시 API는 브라우저 안에서 도는 SQLite(sql.js) 임시 DB를 읽고 씁니다. 스키마는 `db/schema.sql`, 초기 데이터는 `db/seed.sql`입니다.
 
-일부 화면은 파일 안에 정의한 목 데이터로 동작하고(아래 "출결 모델이 두 갈래로 나뉘어 있음" 절의 `InternalCategoryAttendancePage`), 일부 설정은 localStorage에 저장됩니다.
+로그인 상태, 마지막으로 연 화면, 사이드바 펼침 상태 같은 일부 설정은 localStorage에 저장됩니다.
 
 ## 명령어
 
