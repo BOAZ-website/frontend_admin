@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { ChevronRight, ChevronsRight, GripVertical, Maximize2, Minimize2 } from 'lucide-react';
 
-import { useSplitRatio } from '@/pages/system-accounts/model/useSplitRatio';
+import { useSplitRatio } from '@/shared/lib/useSplitRatio';
 
 interface SplitViewProps {
   /** 왼쪽 목록의 화면 읽기 프로그램용 이름. */

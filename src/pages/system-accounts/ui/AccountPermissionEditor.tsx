@@ -13,7 +13,7 @@ import {
   unsavedCountOf,
 } from '@/pages/system-accounts/model/permissionDraft';
 import { PermissionLabel } from '@/pages/system-accounts/ui/PermissionLabel';
-import { MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/pages/system-accounts/ui/systemStyles';
+import { MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
 
 interface AccountPermissionEditorProps {

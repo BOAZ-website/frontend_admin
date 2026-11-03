@@ -13,7 +13,7 @@ import {
 } from '@/pages/attendance-hosts/model/accountLookup';
 import { resolveConfiguredTeam } from '@/pages/attendance-hosts/model/teamSelection';
 import { useHostsPageData } from '@/pages/attendance-hosts/model/useHostsPageData';
-import { buildAccountDelivery } from '@/shared/config/accountDeliveryMessages';
+import { buildAccountDelivery } from '@/features/account-delivery/model/accountDeliveryMessages';
 import { alertApiError } from '@/shared/lib/alertApiError';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';

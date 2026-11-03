@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
-import { MODAL_CLOSE_BTN } from '@/pages/system-accounts/ui/systemStyles';
+import { MODAL_CLOSE_BTN } from '@/shared/ui/systemStyles';
 
 import { AUDIT_ACTIONS, type AuditLogEntry } from '@/entities/audit-log/model/types';
 

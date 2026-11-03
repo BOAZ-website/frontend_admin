@@ -12,7 +12,7 @@ import {
   MODAL_CANCEL_BTN,
   MODAL_CLOSE_BTN,
   MODAL_CONFIRM_BTN,
-} from '@/pages/system-accounts/ui/systemStyles';
+} from '@/shared/ui/systemStyles';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 

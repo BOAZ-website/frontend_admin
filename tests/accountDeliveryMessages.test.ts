@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildAccountDelivery } from '../src/shared/config/accountDeliveryMessages';
+import { buildAccountDelivery } from '../src/features/account-delivery/model/accountDeliveryMessages';
 
 const BASE = { name: '홍길동', username: 'boaz_hong', password: 'Boaz!2027' };
 

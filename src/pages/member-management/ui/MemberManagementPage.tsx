@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 
-import { FilterDropdown } from '@/pages/attendance-events/ui/FilterDropdown';
-import { SplitListItem, SplitView } from '@/pages/system-accounts/ui/SplitView';
-import { LIST_SECTION_TITLE } from '@/pages/system-accounts/ui/systemStyles';
-import { AccountDeliveryDialog } from '@/shared/ui/AccountDeliveryDialog';
+import { FilterDropdown } from '@/shared/ui/FilterDropdown';
+import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
+import { LIST_SECTION_TITLE } from '@/shared/ui/systemStyles';
+import { AccountDeliveryDialog } from '@/features/account-delivery/ui/AccountDeliveryDialog';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { Tooltip } from '@/shared/ui/Tooltip';
@@ -30,7 +30,7 @@ import {
 } from '@/entities/club-member/model/types';
 import { useClubMembers } from '@/entities/club-member/model/useClubMembers';
 import { useClubMemberTermPage } from '@/entities/club-member/model/useClubMemberTermPage';
-import { buildAccountDelivery } from '@/shared/config/accountDeliveryMessages';
+import { buildAccountDelivery } from '@/features/account-delivery/model/accountDeliveryMessages';
 import { alertApiError } from '@/shared/lib/alertApiError';
 
 import {
