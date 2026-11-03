@@ -56,7 +56,7 @@ localStorage 키는 `boaz_score_rules`, `boaz_delivery_template`, `boaz_custom_n
 
 ### FSD 레이어와 경로 별칭
 
-`src/{app,pages,widgets,features,entities,shared}` 구조이며 `@/pages/...`처럼 별칭으로 임포트합니다. 별칭은 `vite.config.ts`와 `tsconfig.json`·`tsconfig.app.json`에 **중복 정의되어 있으므로**, 별칭을 추가하거나 변경할 때 세 파일을 모두 손대야 합니다. `features/`는 2026-10-31 기준 비어 있습니다(`.gitkeep`만 있음).
+`src/{app,pages,widgets,features,entities,shared}` 구조이며 `@/pages/...`처럼 별칭으로 임포트합니다. 별칭은 `vite.config.ts`와 `tsconfig.json`·`tsconfig.app.json`에 **중복 정의되어 있으므로**, 별칭을 추가하거나 변경할 때 세 파일을 모두 손대야 합니다. features/에는 계정 정보 전달(features/account-delivery/)만 있습니다.
 
 레이어 규칙이 엄격하게 지켜지지는 않았습니다. 페이지 컴포넌트가 한 파일에 1,000~6,000줄 규모로 몰려 있고, 자체 타입과 상수, 서브 컴포넌트를 파일 안에 함께 정의합니다. `src/shared/ui`의 `Btn`, `SectionCard`, `Tag`, `CardHeader`는 출결 계열 5개 파일에서만 쓰이고, 나머지 페이지는 Tailwind 클래스를 직접 씁니다. 기존 파일을 수정할 때는 그 파일의 지역 관례를 따르고, 전면적인 구조 정리는 별도 요청으로 처리하는 편이 안전합니다.
 
