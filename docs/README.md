@@ -19,6 +19,7 @@
 | 무엇을 정할까 | [`02-open-items.md`](02-open-items.md) | 결정해야 할 안건 | 미정 | 전원 |
 | **무엇을 언제 만들까** | [`01-wbs.md`](01-wbs.md) | 앞으로 무엇을 어떤 순서·우선순위로 만드는가. EPIC·화면 티켓·기능 ID·마일스톤 | **계획** | PM + 프론트 + 백엔드 |
 | FE 작업 추적 | [`03-wbs-fe.md`](03-wbs-fe.md) | `01-wbs.md`의 FE 몫을 티켓 1개 = GitHub 이슈 1개 = 노션 티켓 1개로 옮긴 실행 계획과 진행 현황 | **계획** | 프론트 |
+| 코드를 어떻게 쓰나 | [`04-code-style.md`](04-code-style.md) | 코드를 쓰고 리뷰할 때 따르는 규칙은 무엇인가. 규칙 ID(`R7-1` 등)와 기존 위반 목록 | 규범 | 프론트 |
 
 ---
 
@@ -39,6 +40,7 @@
 | 임시 API 경로와 그 API를 쓰는 화면을 찾는다 | [`frontend/01-mock-api.md`](frontend/01-mock-api.md) |
 | 임시 DB 테이블·열·관계를 확인한다 | [`frontend/02-mock-db.md`](frontend/02-mock-db.md) |
 | 일정·우선순위·담당 분야를 확인한다 | [`01-wbs.md`](01-wbs.md) — 화면 티켓은 EPIC 절, 결정 대기는 각 EPIC의 디자인 확정(`*-DSN`) 티켓과 API 확인 항목, 일정은 마일스톤 절 |
+| 코드를 쓰거나 리뷰한다 | [`04-code-style.md`](04-code-style.md) — 규칙 ID로 리뷰 코멘트를 단다. 기존 위반은 부록 A |
 
 ---
 
@@ -50,6 +52,7 @@ docs/
 ├── 01-wbs.md                          실행 계획 — EPIC·화면 티켓·기능 ID·마일스톤 (기능명세서 기준)
 ├── 02-open-items.md                   도메인 교차 결정 안건 (미정)
 ├── 03-wbs-fe.md                       FE 실행 계획 — 01-wbs.md의 FE 몫 · 티켓별 GitHub 이슈·노션 대응 · 진행 현황
+├── 04-code-style.md                    프론트엔드 코드 작성 규칙 — 규칙 ID · 기존 위반 목록 · 자동 검사 범위
 ├── frontend/                          프론트엔드 개발 문서
 │   ├── 01-mock-api.md                 임시 API 65개 ↔ 화면 쪽 함수 ↔ 사용 화면 (조회용)
 │   └── 02-mock-db.md                  임시 DB 테이블 22개 · 관계 · 시드 현황 (조회용)
