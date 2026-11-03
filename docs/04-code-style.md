@@ -143,7 +143,7 @@ app → pages → widgets → features → entities → shared
 | `app` | 앱 시작, 전역 상태(`App.tsx`의 `useState`), 화면 전환 | `App.tsx`, `main.tsx` |
 | `pages` | 화면 하나 | `pages/system-audit/` |
 | `widgets` | 여러 화면에 붙는 큰 UI 조각 | 사이드바, 로그인 창 |
-| `features` | 여러 화면이 같이 쓰는 업무 동작(화면 조각 + 처리 함수 묶음) | 계정 정보 전달(2026-10-31 기준 `shared`에 있음, 부록 A) |
+| `features` | 여러 화면이 같이 쓰는 업무 동작(화면 조각 + 처리 함수 묶음) | 계정 정보 전달(`features/account-delivery/`) |
 | `entities` | 업무 데이터별 타입·API·규칙 | 출결, 스터디팀, 회원, 기수 |
 | `shared` | 업무와 관계없는 공통 UI·도구 | 버튼, 날짜 함수, API 클라이언트 |
 
@@ -156,10 +156,10 @@ app → pages → widgets → features → entities → shared
 | R2-5 | 두 화면 이상이 쓰는 코드는 3-1절 판단 순서에 따라 옮긴 뒤 가져다 씀 | 리뷰 |
 
 ```tsx
-// 금지 (R2-3): 감사 로그 화면이 행사 출결 화면 폴더의 드롭다운을 가져옴
-import { FilterDropdown } from '@/pages/attendance-events/ui/FilterDropdown';
+// 금지 (R2-3): 감사 로그 화면이 행사 출결 화면 폴더의 입력칸을 가져옴
+import { ComboInput } from '@/pages/attendance-events/ui/ComboInput';
 
-// 허용: 여러 화면이 쓰는 조각을 shared/ui로 옮기고 거기서 가져옴
+// 허용: 여러 화면이 쓰는 조각은 shared/ui에 두고 거기서 가져옴
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
 ```
 
@@ -169,7 +169,7 @@ import { FilterDropdown } from '@/shared/ui/FilterDropdown';
 | --- | --- | --- |
 | `shared/api/mock/` → `entities` | 임시 DB 함수와 그 타입 | 임시 API는 임시 DB 함수를 불러야 동작함. 백엔드 연결 뒤 폴더째 지울 코드임 |
 | `entities/A` → `entities/B` | 연결된 업무 데이터의 타입·규칙. **반드시** 순환 참조가 없게 함 | 출결·스터디팀·기수·점수는 원래 연결된 데이터라, 막으면 같은 타입을 두 곳에 만들어야 함 |
-- 근거: 파일을 고쳤을 때 영향받는 범위를 폴더 위치만 보고 알 수 있게 함. 2026-10-31 기준 `FilterDropdown`은 행사 출결 화면 폴더에 있지만 화면 3개가 더 씀. 행사 출결 화면을 고치다 바꾸면 다른 화면도 바뀌는데, 폴더 위치로는 알 수 없음
+- 근거: 파일을 고쳤을 때 영향받는 범위를 폴더 위치만 보고 알 수 있게 함
 - 다시 볼 때: ESLint에 층 방향 검사를 넣으면 검사를 `ESLint`로 바꿈. 층 구조를 바꿀 때
 
 ## 3. 코드를 어디에 두나
@@ -196,6 +196,7 @@ import { FilterDropdown } from '@/shared/ui/FilterDropdown';
 | R3-2 | **금지**: 업무 데이터·동작에 묶인 코드를 `shared`에 두는 것 | 리뷰 |
 | R3-3 | **반드시** 팝업과 버튼은 공통 컴포넌트를 씀. 공통 컴포넌트가 생기기 전까지는 `shared/ui/modalStyles.ts`의 클래스를 씀. **금지**: 새 클래스 조합으로 `<button>`·팝업 바탕을 만드는 것 | 리뷰 |
 | R3-4 | 공통 폴더로 옮길 때는 옮기는 PR에서 가져다 쓰는 파일의 import를 모두 고침. 옛 위치에 다시 내보내는 파일을 남기지 않음 | `tsc`(깨진 import)·리뷰(다시 내보내는 파일) |
+| R3-9 | **반드시** 같은 공통 코드(`shared`·`entities`·`features`)를 고치는 PR이 두 개 열려 있으면, 나중에 머지하는 PR이 최신 `dev`를 받아 먼저 머지된 코드에 맞춰 합침. **금지**: 이미 있는 공통 코드와 같은 일을 하는 파일을 새로 만드는 것, 먼저 머지된 공통 코드를 되돌리는 것 | 리뷰 |
 - 근거: `<button>` 태그 310개가 36개 파일에 직접 쓰였고, 주요 버튼만 세어도 클래스 조합이 25가지임(회의록 기준). 화면을 어둡게 덮는 팝업 바탕(`fixed inset-0`)은 20개 파일이 각자 만들어 겹침 순서(`z-50`, `z-60`, `z-[9999]`)가 달라 다른 팝업 아래에 깔릴 수 있음
 - 다시 볼 때: 공통 `Modal`·`Button`이 생기면 R3-3의 `modalStyles.ts` 문장을 컴포넌트 이름으로 바꿈
 
@@ -589,7 +590,7 @@ function readDraft(): ScoreRuleDraft | null {
 | R12-12 | **반드시** 팝업 창에는 `role="dialog"`, `aria-modal="true"`, 제목을 가리키는 `aria-labelledby`를 붙임 | 리뷰 |
 | R12-13 | **반드시** 팝업이 겹치면 맨 위 팝업만 키보드에 반응함 | 리뷰 |
 | R12-14 | **반드시** 저장하지 않은 입력이 있는 팝업을 닫을 때는 확인을 받음. 저장하지 않은 수정이 있는 화면은 `shared/lib/leaveGuard.ts`의 `registerLeaveGuard`로 확인 함수를 등록해, 다른 메뉴로 옮기기 전에 묻게 함 | 리뷰 |
-- 근거: 같은 종류의 요소가 화면마다 같은 모양이어야 함. 2026-10-31 기준 팝업 바탕 20개 파일 중 `useDialogKeyboard`를 쓰는 곳은 5개 파일뿐임
+- 근거: 같은 종류의 요소가 화면마다 같은 모양이어야 함
 - 다시 볼 때: Tailwind 테마에 간격·색·모서리 토큰을 따로 정의할 때. 공통 `Modal`이 생기면 12-4절을 "`Modal`을 씀"으로 줄임
 
 ## 13. 화면 문구
@@ -659,13 +660,13 @@ call('PUT', '/api/v1/mock/admin-session', { accountId: 1 });
 
 | ID | 규칙 | 검사 |
 | --- | --- | --- |
-| R17-1 | **반드시** 작업은 이슈를 먼저 만들고, `dev`에서 `<type>/#<이슈 번호>-<짧은 설명>` 브랜치를 만들어 함. 예: `feat/#48-audit-log` | 리뷰 |
+| R17-1 | **반드시** 이슈는 루트 `README.md` "이슈와 PR" 절의 기준에 맞는 작업 단위로만 만듦. WBS 티켓 하나에 이슈 하나가 기본이고, 그 티켓 이슈가 이미 있으면 새로 만들지 않음. PR 리뷰 반영과 문구·오타 몇 줄 수정은 이슈를 만들지 않고 관련 PR에서 고침. 작업 브랜치는 최신 `dev`에서 `<type>/#<이슈 번호>-<영문 설명>`으로 만듦. 예: `feat/#12-attendance-export`. 이슈 제목은 `[type][작업 이름] 할 일`, PR 제목은 `type: [작업 이름] 한 일 (#<이슈 번호>)`(`README.md` "이름 규칙") | 리뷰 |
 | R17-2 | **반드시** 커밋 메시지는 `<type>: <한국어 설명> (#<이슈 번호>)` 한 줄. type은 `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `style`, `perf`, `revert` | 리뷰 |
 | R17-3 | **반드시** 커밋 하나에는 한 가지 변경만 담음. 기능 변경과 이동·이름 바꾸기·포맷 정리는 다른 커밋으로 나눔 | 리뷰 |
 | R17-4 | **반드시** PR은 `dev`를 대상으로 하고, `.github/PULL_REQUEST_TEMPLATE.md`의 섹션 이름과 순서를 지킴 | 리뷰 |
 | R17-5 | **반드시** PR "검증 결과"에 19-1절 명령 4개 결과와 테스트 결과를 적고, UI를 바꿨으면 "UI 변경 전후"에 화면 사진을 붙임 | 리뷰 |
 | R17-6 | **반드시** WBS 티켓 작업이면 같은 PR에서 `docs/03-wbs-fe.md` 진행 현황표의 그 티켓 행을 고침 | 리뷰 |
-| R17-7 | 분할 PR은 `Refs #<번호>`, 이슈를 끝내는 PR은 `Closes #<번호>`를 씀. 기본 브랜치가 `main`이라 `dev` 병합만으로는 이슈가 자동으로 닫히지 않으므로, `Closes` PR이 `dev`에 병합되면 PR 작성자가 이슈를 직접 닫음 | 리뷰 |
+| R17-7 | 분할 PR은 `Refs #<번호>`, 이슈를 끝내는 PR은 `Closes #<번호>`를 씀. 기본 브랜치가 `dev`이므로 `Closes` PR이 `dev`에 병합되면 이슈가 자동으로 닫힘. `dev`가 아닌 브랜치로 병합한 PR은 이슈가 닫히지 않으므로 PR 작성자가 직접 닫음 | 리뷰 |
 | R17-8 | **금지**: 커밋·PR·이슈에 AI 도구 기여 표시(`Co-Authored-By`, "Generated with ...")를 넣는 것 | 리뷰 |
 | R17-9 | **금지**: `--no-verify`로 검사를 건너뛰는 것 | 리뷰 |
 | R17-10 | **반드시** 화면 동작이 바뀌면 같은 PR에서 `docs/screens/01~05` 중 해당 도메인 문서와 그 문서 상단 표의 기준 커밋을 고침(`docs/README.md` "문서를 고칠 때") | 리뷰 |
@@ -750,10 +751,6 @@ R0-3에 따라 예외로 두는 위반임. R0-4 범위 안에서 해당 파일�
 
 | 규칙 | 위치 | 정리 방법 |
 | --- | --- | --- |
-| R2-3 | `pages/attendance-events/ui/FilterDropdown` (감사 로그·계정 관리·회원 관리 화면이 가져다 씀) | `shared/ui/`로 옮김 |
-| R2-3 | `pages/system-accounts/ui/SplitView.tsx`(`SplitView`, `SplitListItem`), `systemStyles.ts` (감사 로그·회원 관리 화면이 가져다 씀) | `shared/ui/`로 옮김 |
-| R2-3 | `pages/attendance-internal-category/ui/CohortSelect` (행사 출결 화면이 가져다 씀) | `entities/cohort/ui/`로 옮김 |
-| R3-2 | `shared/ui/AccountDeliveryDialog`, `shared/config/accountDeliveryMessages` (회원 관리·계정 관리·HOST 계정 화면이 가져다 씀. 업무 동작인 계정 정보 전달 코드가 `shared`에 있음) | `features/account-delivery/`로 옮김 |
 | R3-3 | 직접 쓴 `<button>` 310개(36개 파일, 회의록 기준) | 공통 `Button`이 생긴 뒤 화면을 고칠 때 바꿈 |
 | R6-11 | `eslint-disable` 2곳(`app/App.tsx`, `EventAttendanceManagePage`) | 의존성을 고쳐 지움 |
 | R6-11 | `InternalCategoryAttendancePage`의 `exhaustive-deps` 5건(`eslint-suppressions.json`) | 의존성을 고치고 억제 파일의 건수를 줄임 |
