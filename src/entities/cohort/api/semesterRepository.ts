@@ -12,6 +12,7 @@ import type {
   SemesterActivity,
   SemesterRosterDto,
   SemesterScheduleDto,
+  SemesterWeekDto,
 } from '../model/dto';
 import { ACTIVITY_WEEK_COUNT, activityWeekDates } from '../model/schedule';
 
@@ -55,6 +56,41 @@ export function listSemesterRoster(
     [cohort],
   ).map((row) => ({ ...row, kind: kindOf(row.term) }));
   return { members };
+}
+
+/**
+ * 반기 주차 표(1~16주차)의 주차마다 활동별 날짜와 휴강 활동. 주차 API가 출결 화면에 함께 돌려준다.
+ * 시작일을 정하지 않은 활동은 날짜가 없다.
+ */
+export function listActivityWeekInfo(
+  db: Database,
+  cohort: number,
+): Map<number, Pick<SemesterWeekDto, 'activityDates' | 'invalidActivities'>> {
+  const info = new Map<number, Pick<SemesterWeekDto, 'activityDates' | 'invalidActivities'>>();
+  const at = (weekNum: number) => {
+    const current = info.get(weekNum) ?? { activityDates: {}, invalidActivities: [] };
+    info.set(weekNum, current);
+    return current;
+  };
+  queryAll<{ activity: SemesterActivity; start_date: string }>(
+    db,
+    'SELECT activity, start_date FROM semester_activity_starts WHERE cohort = ?',
+    [cohort],
+  ).forEach(({ activity, start_date }) =>
+    activityWeekDates(start_date).forEach(({ weekNum, date }) => {
+      const week = at(weekNumInSemester(activity, weekNum));
+      week.activityDates = { ...week.activityDates, [activity]: date };
+    }),
+  );
+  queryAll<{ activity: SemesterActivity; week_num: number }>(
+    db,
+    'SELECT activity, week_num FROM semester_invalid_weeks WHERE cohort = ? ORDER BY activity',
+    [cohort],
+  ).forEach(({ activity, week_num }) => {
+    const week = at(weekNumInSemester(activity, week_num));
+    week.invalidActivities = [...week.invalidActivities, activity];
+  });
+  return info;
 }
 
 /** 일정을 통째로 저장한다. cohort_week_dates는 BASE(없으면 방학 스터디)·학기 스터디 시작일로 다시 채운다. */

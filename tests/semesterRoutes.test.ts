@@ -11,6 +11,7 @@ import type {
   SemesterDto,
   SemesterRosterDto,
   SemesterScheduleDto,
+  SemesterWeekDto,
 } from '../src/entities/cohort/model/dto';
 import { activityWeekDates } from '../src/entities/cohort/model/schedule';
 import { loadHosts } from '../src/entities/host-account/api/hostRepository';
@@ -466,6 +467,20 @@ test('준비·활성화·일정 저장은 감사 기록에 액션과 요청 API�
   assert.throws(() => call('PUT', '/api/v1/semesters/26-2/schedule', SCHEDULE), ApiError);
   assert.throws(() => call('POST', '/api/v1/semesters/26-2/activate'), ApiError);
   assert.equal(count('audit_log'), logs);
+});
+
+test('반기 관리에서 저장한 활동별 날짜·휴강이 출결 화면이 읽는 주차 API에 같은 값으로 나온다', async () => {
+  const { call, prepare } = await setup();
+  prepare();
+
+  const weeks = call<SemesterWeekDto[]>('GET', '/api/v1/semesters/27-1/weeks');
+
+  const week = (weekNum: number) => weeks.find((item) => item.weekNum === weekNum);
+  assert.deepEqual(week(1)?.activityDates, { BASE: '2027-01-05' });
+  assert.deepEqual(week(3)?.invalidActivities, ['BASE']);
+  assert.deepEqual(week(4)?.invalidActivities, []);
+  // 학기 스터디 1주차는 반기 주차 표의 9주차다.
+  assert.deepEqual(week(9)?.activityDates, { STUDY_TERM: '2027-03-09' });
 });
 
 test('명단 조회 실패: 없는 반기는 404이고, 지난 반기 명단을 바꾸면 409 SEMESTER_ARCHIVED이다', async () => {

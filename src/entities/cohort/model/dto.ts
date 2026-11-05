@@ -43,6 +43,13 @@ export interface SemesterWeekDto {
   status: WeekStatus;
   /** YYYY-MM-DD. 정하지 않았으면 null. */
   date: string | null;
+  /**
+   * 반기 관리에서 정한 활동별 이 주차 날짜(1주차 시작일 + 7일씩). 시작일을 정하지 않은 활동은 없다.
+   * BASE·ADV·방학 스터디는 1~8주차, 학기 스터디는 9~16주차에 놓인다.
+   */
+  activityDates: Partial<Record<SemesterActivity, string>>;
+  /** 반기 관리에서 이 주차를 휴강(무효 주차)으로 지정한 활동. */
+  invalidActivities: SemesterActivity[];
 }
 
 export interface CreateSemesterRequest {

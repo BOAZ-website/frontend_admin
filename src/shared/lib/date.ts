@@ -40,3 +40,8 @@ export function localDateTime(date: Date = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
+
+/** 'YYYY-MM-DD' → 'MM-DD'. 주차 버튼처럼 좁은 자리에 쓴다. 날짜 형식이 아니면 빈 문자열. */
+export function monthDayOf(isoDate: string): string {
+  return isValidIsoDate(isoDate) ? isoDate.slice(5) : '';
+}

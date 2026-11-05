@@ -47,6 +47,7 @@ import {
   sortConcurrentMembersLast,
 } from '../model/baseAttendanceConcurrent';
 import { buildWeekSubmission, countUnmarked, submissionKey } from '../model/weekSubmission';
+import { monthDayOf } from '@/shared/lib/date';
 import { BRAND_SELECTED, MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { Tooltip } from '@/shared/ui/Tooltip';
@@ -2554,7 +2555,7 @@ export function InternalCategoryAttendancePage({
           <button
             type="button"
             onClick={() => setSelectedWeek(0)}
-            className={`w-[74px] h-[34px] rounded-sm text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
+            className={`w-[74px] h-11 rounded-sm text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
               selectedWeek === 0
                 ? BRAND_SELECTED
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
@@ -2578,7 +2579,7 @@ export function InternalCategoryAttendancePage({
                     ? 'ADV 팀 개설 전 주차는 팀별 출결을 조회할 수 없습니다.'
                     : undefined
                 }
-                className={`w-[58px] h-[34px] rounded-sm text-xs font-bold transition-colors flex items-center justify-center shrink-0 select-none ${
+                className={`w-[58px] h-11 rounded-sm text-xs font-bold transition-colors flex flex-col items-center justify-center shrink-0 select-none ${
                   isDisabledBeforeAdvTeamCreation
                     ? 'cursor-not-allowed border border-slate-200/60 bg-slate-100/60 text-slate-300'
                     : isActive
@@ -2589,6 +2590,17 @@ export function InternalCategoryAttendancePage({
                 }`}
               >
                 <span>{w.label}</span>
+                {w.isInvalid ? (
+                  <span className={`font-semibold ${isActive ? 'text-white' : 'text-red-600'}`}>
+                    휴강
+                  </span>
+                ) : (
+                  dbWeekDates?.[w.weekNum] && (
+                    <span className="font-medium tabular-nums opacity-80">
+                      {monthDayOf(dbWeekDates[w.weekNum])}
+                    </span>
+                  )
+                )}
               </button>
             );
           })}
@@ -3101,6 +3113,14 @@ export function InternalCategoryAttendancePage({
                             ? '학기 전체 (9~16주차)'
                             : `학기 ${selectedWeek}주차`}{' '}
                       {category !== 'STUDY' && '출결 명단'}
+                      {selectedWeek !== 0 && dbWeekDates?.[selectedWeek] && (
+                        <span className="ml-2 font-medium tabular-nums text-slate-500">
+                          {dbWeekDates[selectedWeek]}
+                        </span>
+                      )}
+                      {weeks.find((w) => w.weekNum === selectedWeek)?.isInvalid && (
+                        <span className="ml-2 font-semibold text-red-600">휴강</span>
+                      )}
                     </h4>
 
                     {/* Track Filter Pill Buttons (스터디 및 BASE 출결에서는 숨김) */}
