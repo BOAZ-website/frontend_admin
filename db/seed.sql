@@ -29,6 +29,14 @@ SELECT cohort, cohort - 1 FROM cohorts
 UNION ALL
 SELECT cohort, cohort FROM cohorts;
 
+-- 현재 반기(27)의 방학·학기 기간과 활동별 시작일(1~8주차 날짜는 아래 cohort_week_dates와 같다). 지난 반기는 정해 두지 않았다.
+INSERT INTO semester_periods (cohort, period, start_date, end_date) VALUES
+  (27, '방학', '2026-07-01', '2026-08-31'),
+  (27, '학기', '2026-09-01', '2026-12-31');
+INSERT INTO semester_activity_starts (cohort, activity, start_date) VALUES
+  (27, 'BASE', '2026-07-07'),
+  (27, 'STUDY_VACATION', '2026-07-07');
+
 -- ── users ──────────────────────────────────────────────
 INSERT INTO users (id, name, term, track) VALUES
   ('u_26_01', '남민서', 26, '엔지니어링'),

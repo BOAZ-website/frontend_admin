@@ -356,8 +356,6 @@ export interface InternalCategoryAttendancePageProps {
   /** 반기 API의 기수 목록과 현재 기수. 현재보다 작은 기수는 지난 기수로 조회만 할 수 있다. ADV 화면은 ADV 기수다. */
   cohorts?: readonly number[];
   currentCohort: number;
-  canCreateNextSemester: boolean;
-  onAdvanceSemester: () => Promise<void>;
   /** 기수 → 반기 표기(반기 API 응답). */
   cohortLabels: Readonly<Record<number, string>>;
   /** 부문 목록(반기 API 응답). */
@@ -405,8 +403,6 @@ export function InternalCategoryAttendancePage({
   weeks: weeksProp = NO_WEEKS,
   cohorts,
   currentCohort,
-  canCreateNextSemester,
-  onAdvanceSemester,
   cohortLabels,
   tracks,
   onCreateStudy,
@@ -2528,8 +2524,6 @@ export function InternalCategoryAttendancePage({
             cohorts={cohortOptions}
             labels={cohortLabels}
             onChange={handleChangeCohort}
-            canCreateNextSemester={canCreateNextSemester}
-            onAdvanceSemester={onAdvanceSemester}
           />
         </div>
       </div>

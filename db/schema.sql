@@ -24,9 +24,12 @@ CREATE TABLE cohorts (
   start_date     TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   end_date       TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   is_current     INTEGER NOT NULL DEFAULT 0 CHECK (is_current IN (0, 1)),
+  is_preparing   INTEGER NOT NULL DEFAULT 0 CHECK (is_preparing IN (0, 1)), -- 준비: 저장했지만 아직 활성화하지 않은 반기. 진행·종료는 is_current로 가른다
   adv_term       INTEGER CHECK (adv_term > 0),             -- 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 teams.cohort). 없으면 NULL
-  CHECK (start_date <= end_date)
+  CHECK (start_date <= end_date),
+  CHECK (is_current = 0 OR is_preparing = 0)
 );
+CREATE UNIQUE INDEX idx_cohorts_single_preparing ON cohorts (is_preparing) WHERE is_preparing = 1;
 CREATE UNIQUE INDEX idx_cohorts_single_current ON cohorts (is_current) WHERE is_current = 1;
 CREATE UNIQUE INDEX idx_cohorts_adv_term ON cohorts (adv_term) WHERE adv_term IS NOT NULL;
 
@@ -35,6 +38,33 @@ CREATE TABLE semester_member_terms (
   cohort INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
   term   INTEGER NOT NULL CHECK (term > 0),
   PRIMARY KEY (cohort, term)
+);
+
+-- 반기의 방학·학기 기간. cohorts.start_date·end_date는 방학 시작 ~ 학기 종료와 같게 맞춘다. 정하지 않은 옛 반기는 행이 없다.
+CREATE TABLE semester_periods (
+  cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  period     TEXT    NOT NULL CHECK (period IN ('방학', '학기')),
+  start_date TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  end_date   TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  PRIMARY KEY (cohort, period),
+  CHECK (start_date <= end_date)
+);
+
+-- 활동별 1주차 시작일. 이후 주차는 7일씩 더해 계산한다(cohort_week_dates는 이 값에서 BASE·학기 스터디 기준으로 채운다).
+CREATE TABLE semester_activity_starts (
+  cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  activity   TEXT    NOT NULL CHECK (activity IN ('BASE', 'ADV', 'STUDY_VACATION', 'STUDY_TERM')),
+  start_date TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  PRIMARY KEY (cohort, activity)
+);
+
+-- 무효 주차(휴강): 그 활동의 출결에서 제외되는 주차(RULE-02). 변경 이력은 감사 로그의 요청 본문에 남는다.
+CREATE TABLE semester_invalid_weeks (
+  cohort   INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  activity TEXT    NOT NULL CHECK (activity IN ('BASE', 'ADV', 'STUDY_VACATION', 'STUDY_TERM')),
+  week_num INTEGER NOT NULL CHECK (week_num BETWEEN 1 AND 8),
+  reason   TEXT    NOT NULL DEFAULT '',
+  PRIMARY KEY (cohort, activity, week_num)
 );
 
 -- 동아리원. 스터디원·ADV 팀원·스터디장 후보는 모두 이 테이블의 사람을 가리킨다.

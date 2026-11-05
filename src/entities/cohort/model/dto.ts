@@ -8,6 +8,9 @@ import type { WeekStatus } from '@/entities/attendance/model/week';
 /** 반기에 등록된 출결 구분. BASE·ADV·STUDY는 그 반기의 팀, EVENT는 그 반기의 행사가 있으면 등록된 것이다. */
 export type SemesterAttendanceKind = 'BASE' | 'ADV' | 'STUDY' | 'EVENT';
 
+/** 반기 상태: 준비(저장만 함)·진행(현재 반기)·종료. */
+export type SemesterStatus = 'PREPARING' | 'ACTIVE' | 'ENDED';
+
 export interface SemesterDto {
   cohort: number;
   /** 예: '26-2'. API 요청에서 반기를 가리키는 값이다. */
@@ -15,6 +18,8 @@ export interface SemesterDto {
   startDate: string;
   endDate: string;
   isCurrent: boolean;
+  /** 준비(저장만 함)·진행(현재 반기)·종료. 진행이면 isCurrent가 true다. */
+  status: SemesterStatus;
   /** 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 기수). */
   advTerm: number | null;
   /** 출결 점수 집계 대상 회원 기수(작은 기수부터). */
@@ -67,4 +72,80 @@ export interface UpdateSemesterWeekRequest {
   status?: WeekStatus;
   /** YYYY-MM-DD. null이면 날짜 삭제. */
   date?: string | null;
+}
+
+// ───────────────────────────── 반기 관리(새 반기 시작·일정) ─────────────────────────────
+
+/** 1주차 시작일을 따로 정하는 활동. */
+export type SemesterActivity = 'BASE' | 'ADV' | 'STUDY_VACATION' | 'STUDY_TERM';
+
+/** YYYY-MM-DD 기간. */
+export interface DateRange {
+  startDate: string;
+  endDate: string;
+}
+
+/** 무효 주차(휴강): 그 활동의 출결에서 제외되는 주차. */
+export interface InvalidWeekDto {
+  activity: SemesterActivity;
+  /** 활동 안에서의 주차(1~8). */
+  weekNum: number;
+  reason: string;
+}
+
+/** 활동 하나의 주차 날짜와 휴강 여부. */
+export interface SemesterActivityWeekDto {
+  weekNum: number;
+  /** 시작일에서 7일씩 더한 날짜. */
+  date: string;
+  isInvalid: boolean;
+}
+
+/** 반기 일정 조회 응답. */
+export interface SemesterScheduleDto {
+  /** 옛 반기처럼 정해 두지 않았으면 null. */
+  vacation: DateRange | null;
+  term: DateRange | null;
+  activityStarts: Record<SemesterActivity, string | null>;
+  invalidWeeks: InvalidWeekDto[];
+  /** 시작일이 없는 활동은 빈 배열. */
+  weeks: Record<SemesterActivity, SemesterActivityWeekDto[]>;
+}
+
+/** 반기 일정 통째 저장 요청(PUT /:semester/schedule). 준비 반기 만들기 요청의 schedule도 같다. */
+export interface SaveSemesterScheduleRequest {
+  vacation: DateRange;
+  term: DateRange;
+  activityStarts: Partial<Record<SemesterActivity, string | null>>;
+  invalidWeeks: { activity: SemesterActivity; weekNum: number; reason?: string }[];
+}
+
+/** BASE·ADV 기수가 아닌데 예외로 더한 사람은 EXTRA. */
+export type RosterKind = 'BASE' | 'ADV' | 'EXTRA';
+
+/** 반기 명단의 한 사람. */
+export interface RosterEntryDto {
+  userId: string;
+  name: string;
+  term: number;
+  track: string;
+  kind: RosterKind;
+}
+
+/** 반기에 저장된 출결·점수 명단. 기수(큰 기수부터) → 부문 → 이름 순. */
+export interface SemesterRosterDto {
+  members: RosterEntryDto[];
+}
+
+/**
+ * 준비 반기 만들기: 반기·일정·무효 주차를 저장하고, BASE·ADV 기수의 활동 중 회원으로 명단을 자동으로 만든다.
+ * 반기 번호(cohort)는 BASE 기수와 같다. 활성화(POST /:semester/activate)해야 진행 반기가 된다.
+ */
+export interface PrepareSemesterRequest {
+  /** 'YY-1' 또는 'YY-2'. */
+  semester: string;
+  baseTerm: number;
+  /** BASE 기수보다 작아야 한다. */
+  advTerm: number;
+  schedule: SaveSemesterScheduleRequest;
 }

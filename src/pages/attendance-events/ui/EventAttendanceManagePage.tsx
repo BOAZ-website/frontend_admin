@@ -405,8 +405,6 @@ export interface EventAttendanceManagePageProps {
   currentCohort: number;
   /** 기수 → 반기 표기(반기 API 응답). */
   cohortLabels: Readonly<Record<number, string>>;
-  canCreateNextSemester: boolean;
-  onAdvanceSemester: () => Promise<void>;
   events: AttendanceEvent[];
   setEvents: Dispatch<SetStateAction<AttendanceEvent[]>>;
   attendees: AttendeeRecord[];
@@ -428,8 +426,6 @@ export function EventAttendanceManagePage({
   cohorts,
   currentCohort,
   cohortLabels,
-  canCreateNextSemester,
-  onAdvanceSemester,
   events,
   setEvents,
   attendees,
@@ -2283,8 +2279,6 @@ export function EventAttendanceManagePage({
             value={selectedCohort}
             cohorts={cohorts}
             labels={cohortLabels}
-            canCreateNextSemester={canCreateNextSemester}
-            onAdvanceSemester={onAdvanceSemester}
             onChange={(cohort) => {
               setSelectedCohort(cohort);
               const firstEvent = events

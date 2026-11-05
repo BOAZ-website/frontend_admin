@@ -10,6 +10,7 @@ import { clubMemberRoutes } from './routes/clubMemberRoutes';
 import { commonRoutes } from './routes/commonRoutes';
 import { eventRoutes } from './routes/eventRoutes';
 import { hostRoutes } from './routes/hostRoutes';
+import { semesterRoutes } from './routes/semesterRoutes';
 import { scoreRoutes } from './routes/scoreRoutes';
 import { scoreRuleRoutes } from './routes/scoreRuleRoutes';
 import { scoreSheetRoutes } from './routes/scoreSheetRoutes';
@@ -20,6 +21,7 @@ import { userRoutes } from './routes/userRoutes';
 export const MOCK_ROUTES: readonly MockRoute[] = [
   ...authRoutes,
   ...commonRoutes,
+  ...semesterRoutes,
   ...userRoutes,
   ...teamRoutes,
   ...teamAttendanceRoutes,

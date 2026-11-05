@@ -68,6 +68,7 @@ interface SemesterRow extends Record<string, unknown> {
   start_date: string;
   end_date: string;
   is_current: number;
+  is_preparing: number;
   adv_term: number | null;
 }
 
@@ -80,6 +81,7 @@ function toSemesterDto(db: Database, row: SemesterRow): SemesterDto {
     startDate: row.start_date,
     endDate: row.end_date,
     isCurrent: row.is_current === 1,
+    status: row.is_current === 1 ? 'ACTIVE' : row.is_preparing === 1 ? 'PREPARING' : 'ENDED',
     advTerm: row.adv_term,
     memberTerms: queryAll<{ term: number }>(
       db,
@@ -107,15 +109,13 @@ function attendanceKindsOf(db: Database, cohort: number): SemesterAttendanceKind
 }
 
 const SEMESTER_SELECT =
-  'SELECT cohort, semester_label, start_date, end_date, is_current, adv_term FROM cohorts';
+  'SELECT cohort, semester_label, start_date, end_date, is_current, is_preparing, adv_term FROM cohorts';
 
-/** 현재 반기와 지난 반기(큰 기수부터). 미리 만들어 둔 다음 반기는 넣지 않는다. */
-export function listSemesters(db: Database): SemesterDto[] {
+/** 진행·종료 반기(큰 기수부터). 준비 반기는 includePreparing일 때만 넣는다(반기 관리 화면). */
+export function listSemesters(db: Database, includePreparing = false): SemesterDto[] {
   return queryAll<SemesterRow>(
     db,
-    `${SEMESTER_SELECT}
-      WHERE cohort <= (SELECT cohort FROM cohorts WHERE is_current = 1)
-      ORDER BY cohort DESC`,
+    `${SEMESTER_SELECT} ${includePreparing ? '' : 'WHERE is_preparing = 0'} ORDER BY cohort DESC`,
   ).map((row) => toSemesterDto(db, row));
 }
 
@@ -158,6 +158,7 @@ function plannedNextSemester(current: SemesterDto): SemesterDto {
     startDate: nextHalf === 1 ? `${fullYear}-01-01` : `${fullYear}-07-01`,
     endDate: nextHalf === 1 ? `${fullYear}-06-30` : `${fullYear}-12-31`,
     isCurrent: false,
+    status: 'PREPARING',
     advTerm: current.advTerm === null ? null : current.advTerm + 1,
     memberTerms: current.memberTerms.map((term) => term + 1),
     currentWeekNum: null,
@@ -175,9 +176,16 @@ export function nextSemester(db: Database): SemesterDto {
 export function insertSemester(db: Database, semester: SemesterDto): void {
   execute(
     db,
-    `INSERT INTO cohorts (cohort, semester_label, start_date, end_date, is_current, adv_term)
-     VALUES (?, ?, ?, ?, 0, ?)`,
-    [semester.cohort, semester.semester, semester.startDate, semester.endDate, semester.advTerm],
+    `INSERT INTO cohorts (cohort, semester_label, start_date, end_date, is_current, is_preparing, adv_term)
+     VALUES (?, ?, ?, ?, 0, ?, ?)`,
+    [
+      semester.cohort,
+      semester.semester,
+      semester.startDate,
+      semester.endDate,
+      semester.status === 'PREPARING' ? 1 : 0,
+      semester.advTerm,
+    ],
   );
   semester.memberTerms.forEach((term) =>
     execute(db, 'INSERT INTO semester_member_terms (cohort, term) VALUES (?, ?)', [

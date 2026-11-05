@@ -17,6 +17,7 @@ import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentM
 import { MemberManagementPage } from '@/pages/member-management/ui/MemberManagementPage';
 import { AuditLogPage } from '@/pages/system-audit/ui/AuditLogPage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
+import { SemesterManagementPage } from '@/pages/system-semesters/ui/SemesterManagementPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
@@ -32,7 +33,6 @@ import { SERVICE_OPERATIONS_TEAM } from '@/entities/admin-account/model/teams';
 import { logout, openDevDefaultSession, restoreSession } from '@/entities/auth/api/authApi';
 import type { AuthSession } from '@/entities/auth/model/types';
 import type { SemesterAttendanceKind, SemesterDto } from '@/entities/cohort/model/dto';
-import { createSemester, updateSemester } from '@/entities/cohort/api/semesterApi';
 import type { WeekInfo } from '@/entities/attendance/model/week';
 import type { HostAccount } from '@/entities/host-account/model/types';
 import { useScoreRules } from '@/entities/score-rule/model/useScoreRules';
@@ -248,19 +248,8 @@ export default function App() {
   const advTeams = currentTeams?.adv ?? NO_TEAMS;
   const studyTeams = currentTeams?.study ?? NO_TEAMS;
   const tracks = attendanceMeta?.tracks ?? NO_TRACKS;
-  async function handleAdvanceSemester(): Promise<void> {
-    if (!nextSemester || !attendanceMeta) throw new Error('다음 반기 정보를 불러오지 못했습니다.');
-    if (attendanceMeta.canCreateNextSemester) {
-      await createSemester({
-        cohort: nextSemester.cohort,
-        semester: nextSemester.semester,
-        startDate: nextSemester.startDate,
-        endDate: nextSemester.endDate,
-        advTerm: nextSemester.advTerm,
-        memberTerms: nextSemester.memberTerms,
-      });
-    }
-    await updateSemester(nextSemester.semester, { isCurrent: true });
+  // 반기 관리 화면에서 반기를 시작하거나 일정을 바꾸면, 출결 화면이 함께 쓰는 반기·HOST 계정·팀을 다시 읽는다.
+  function handleSemesterChanged(): void {
     reloadAttendanceMeta();
     reloadHosts();
     refreshTeamState();
@@ -637,8 +626,6 @@ export default function App() {
                 weeks={weeks}
                 cohorts={baseCohorts}
                 currentCohort={currentCohort}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 cohortLabels={cohortLabels}
                 tracks={tracks}
                 onDataChanged={refreshTeamState}
@@ -654,8 +641,6 @@ export default function App() {
                 weeks={weeks}
                 cohorts={advCohorts}
                 currentCohort={advCurrentCohort}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 cohortLabels={advCohortLabels}
                 tracks={tracks}
                 onDataChanged={refreshTeamState}
@@ -671,8 +656,6 @@ export default function App() {
                 weeks={weeks}
                 cohorts={studyCohorts}
                 currentCohort={currentCohort}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 cohortLabels={cohortLabels}
                 tracks={tracks}
                 onDataChanged={refreshTeamState}
@@ -686,8 +669,6 @@ export default function App() {
                 cohorts={eventCohorts}
                 currentCohort={currentCohort}
                 cohortLabels={cohortLabels}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 listRequest={eventListRequest}
               />
             ))}
@@ -745,6 +726,9 @@ export default function App() {
             />
           )}
           {(activePage === 'system' || activePage === 'system-accounts') && <SystemAccountsPage />}
+          {activePage === 'system-semesters' && (
+            <SemesterManagementPage onSemesterChanged={handleSemesterChanged} />
+          )}
         </main>
       </div>
 
