@@ -4,6 +4,9 @@ import { Lock, Minus, Plus, RotateCcw } from 'lucide-react';
 import { permissionsIn } from '@/entities/admin-account/model/catalog';
 import type { PermissionDef, PermissionGroup } from '@/entities/admin-account/model/permissions';
 import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/model/types';
+import { Tooltip } from '@/shared/ui/Tooltip';
+import { MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
+
 import {
   baseCheckedOf,
   changeCountsOf,
@@ -11,10 +14,8 @@ import {
   lockReasonOf,
   savedCheckedOf,
   unsavedCountOf,
-} from '@/pages/system-accounts/model/permissionDraft';
-import { PermissionLabel } from '@/pages/system-accounts/ui/PermissionLabel';
-import { MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
-import { Tooltip } from '@/shared/ui/Tooltip';
+} from '../model/permissionDraft';
+import { PermissionLabel } from './PermissionLabel';
 
 interface AccountPermissionEditorProps {
   catalog: PermissionCatalog;
@@ -36,7 +37,7 @@ interface Tag {
   className: string;
 }
 
-const SMALL_TAG = 'rounded-sm px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap';
+const SMALL_TAG = 'rounded-sm px-2 py-1 text-xs font-semibold whitespace-nowrap';
 const ADDED_TAG: Tag = {
   text: '추가',
   className: 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200',

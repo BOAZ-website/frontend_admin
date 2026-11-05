@@ -2,9 +2,10 @@ import { Fragment } from 'react';
 
 import { isInBaseOf } from '@/entities/admin-account/model/catalog';
 import type { PermissionCatalog } from '@/entities/admin-account/model/types';
-import { PermissionLabel } from '@/pages/system-accounts/ui/PermissionLabel';
-import { O_MARK, TABLE_BOX, TH_CLASS } from '@/shared/ui/systemStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
+import { O_MARK, TABLE_BOX, TH_CLASS } from '@/shared/ui/systemStyles';
+
+import { PermissionLabel } from './PermissionLabel';
 
 /**
  * 영역 열과 권한 이름 열의 너비 비율(%). 나머지 폭은 기본 권한 세트 열이 머리 글자 길이에 비례해 나눠 갖는다.
@@ -41,7 +42,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
               ))}
             </colgroup>
             <thead className="sticky top-0 z-10 select-none">
-              <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-[11px]">
+              <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-xs">
                 <th className={`${TH_CLASS} text-slate-900`}>영역</th>
                 <th className={`${TH_CLASS} text-slate-900`}>권한</th>
                 {catalog.baseSets.map((column) => (
@@ -84,7 +85,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
                         return (
                           <td
                             key={column.key}
-                            className={`text-center text-[11px] font-semibold ${
+                            className={`text-center text-xs font-semibold ${
                               isIn ? 'text-slate-700' : isAuto ? 'text-slate-400' : 'text-slate-200'
                             }`}
                             aria-label={isIn ? '기본 권한' : isAuto ? '맡은 그룹에서 자동' : '없음'}

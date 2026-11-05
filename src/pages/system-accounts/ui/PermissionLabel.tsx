@@ -21,7 +21,7 @@ export function InfoTip({ label, align = 'center' }: { label: string; align?: 'c
 /** 권한 이름. 이름만으로 알 수 없는 조건은 ⓘ 말풍선으로 둔다. */
 export function PermissionLabel({ permission }: { permission: PermissionDef }) {
   return (
-    <span className="inline-flex items-center gap-1.5 font-medium text-slate-800">
+    <span className="inline-flex items-center gap-2 font-medium text-slate-800">
       {permission.label}
       {permission.note && <InfoTip label={permission.note} />}
     </span>

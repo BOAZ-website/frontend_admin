@@ -18,7 +18,7 @@ interface PermissionChipsProps {
 export function PermissionChips({ catalog, effectivePermissions }: PermissionChipsProps) {
   const areas = permissionSummaryIn(catalog, effectivePermissions);
   if (areas.length === 0) {
-    return <span className="text-[11px] text-slate-400">본인 계정만</span>;
+    return <span className="text-xs text-slate-400">본인 계정만</span>;
   }
   return (
     <ul className="flex flex-wrap gap-1" aria-label="가진 권한">
@@ -27,7 +27,7 @@ export function PermissionChips({ catalog, effectivePermissions }: PermissionChi
         return (
           <li
             key={area}
-            className={`rounded-sm px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${style.className}`}
+            className={`rounded-sm px-2 py-1 text-xs font-medium whitespace-nowrap ${style.className}`}
           >
             {area} {style.suffix}
           </li>

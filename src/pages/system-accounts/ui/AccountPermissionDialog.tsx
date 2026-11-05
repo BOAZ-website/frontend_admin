@@ -6,11 +6,12 @@ import type {
   AdminAccount,
   PermissionCatalog,
 } from '@/entities/admin-account/model/types';
-import { AccountPermissionEditor } from '@/pages/system-accounts/ui/AccountPermissionEditor';
-import { HolderProfileTable } from '@/pages/system-accounts/ui/HolderProfileTable';
-import { MODAL_CLOSE_BTN, TABLE_BOX } from '@/shared/ui/systemStyles';
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
+import { MODAL_CLOSE_BTN, TABLE_BOX } from '@/shared/ui/systemStyles';
+
+import { AccountPermissionEditor } from './AccountPermissionEditor';
+import { HolderProfileTable } from './HolderProfileTable';
 
 interface AccountPermissionDialogProps {
   catalog: PermissionCatalog;
