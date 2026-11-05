@@ -5,7 +5,7 @@
 | 범위 | 관리자 콘솔 `시스템·계정` 전체 (계정 및 권한 / 보안) |
 | 주 사용자 | 서비스운영팀장(MASTER) |
 | 근거 자료 | 시스템 계정 탭 화면 정의서, **Admin 권한 체계 재설계 설계 문서(2026-09-11 개정)** 및 컴팩트판 |
-| 상태 | **v1.4** — §3.4 기능별 권한 매트릭스로 대표진·차기대표진(SUPER) 기본 세트 확정(SYS-A-5 해결). v1.3에서 SYS-ACC와 SYS-PERM을 사이드바 `권한 관리` 한 화면으로 합치고, 권한 편집을 작은 창(팝업)으로 바꾼 구성 반영(2026-10-22 결정, SYS-B-1 수정). v1.2에서 4.2 진입 방식·편집 방식과 역할별 기본 권한 조회 반영. v1.1에서 권한 재설계 문서 기준으로 4.2 · 3장 · 6장 정리. 화면 레이아웃은 PoC |
+| 상태 | **v1.5** — §4.6 반기 관리(SYS-SEM)와 임시 API 계약 초안 추가(2026-11-05). v1.4에서 §3.4 기능별 권한 매트릭스로 대표진·차기대표진(SUPER) 기본 세트 확정(SYS-A-5 해결). v1.3에서 SYS-ACC와 SYS-PERM을 사이드바 `권한 관리` 한 화면으로 합치고, 권한 편집을 작은 창(팝업)으로 바꾼 구성 반영(2026-10-22 결정, SYS-B-1 수정). v1.2에서 4.2 진입 방식·편집 방식과 역할별 기본 권한 조회 반영. v1.1에서 권한 재설계 문서 기준으로 4.2 · 3장 · 6장 정리. 화면 레이아웃은 PoC |
 | 미결 항목 | 매트릭스 행 확인 1건(`SYS-A-6` 콘텐츠 조회·본인 계정 조회 행) · 백엔드 협의 2건(`SYS-A-2` 감사 로그, `SYS-A-7` 기본 세트 조회 API) · 기획·디자인 정리 3건 (6장) |
 
 > **이 문서는 당위 문서이며, 권한 체계의 정본이다.** [`spec/02-role-model.md`](02-role-model.md) §2의 Permission 10종을 **41개 카탈로그로 대체한다.** 역할 4종(`MASTER` · `SUPER` · `TEAM` · `HOST`) 정의는 그대로 유효하며, `TeamName`에 `그룹리더`가 추가된다.
@@ -33,6 +33,7 @@
 | 계정 및 권한 | 권한 관리 — 권한 편집 창 · 권한 매트릭스(역할별 기본 권한 조회) | SYS-PERM | 편집은 `ADMIN_PERMISSION_WRITE` 보유자, 없으면 조회만 |
 | 보안 | 보안 감사 로그 | SYS-LOG | `AUDIT_LOG_READ` 보유자 (**권한 재설계 범위 밖 · 별도 착수**) |
 | 회원 | 회원(User) 관리 | SYS-MEM | MASTER · SUPER (**신규 · PoC 없음**) |
+| 출결 기준 | 반기 관리 | SYS-SEM | `ATTENDANCE_ROSTER_READ` 보유자, 저장·활성화는 `ATTENDANCE_ROSTER_WRITE` (**2026-11-05 기준 임시 API는 권한을 검사하지 않음**) |
 
 > 화면 상단에 현재 로그인 사용자와 보유 권한 배지가 표시된다.
 >
@@ -269,6 +270,49 @@
 > 실행과 조회는 시점도 주체도 다르다는 점에서 [`ia/01-ia-strategy.md`](../ia/01-ia-strategy.md) 규칙 2에도 부합한다.
 > 원본 화면 정의서에 없어 **본 명세서에서 신규로 정의**한다.
 
+### 4.6 반기 관리 `SYS-SEM` *(2026-11-05 추가 — 임시 API 단계)*
+
+**화면 목적**: 반기 하나의 이름·기수·기간·주차·명단을 한 화면에서 정하고, 준비 → 진행 → 종료 순서로 상태를 바꾼다. 종료 버튼은 따로 없다. 다음 반기를 활성화할 때 이전 진행 반기가 종료된다. 반기는 미리 만들어 두지 않는다. "새 반기 시작"에서 저장할 때 처음 생긴다.
+
+| ID | 기능 | 입력 방식 | 설명 |
+| --- | --- | --- | --- |
+| SEM-01 | 기본 | 직접 입력 · 버튼 | 반기 이름(예: `26-2`). 상태(준비·진행·종료). 준비 반기 화면에 활성화·삭제 버튼이 있다 |
+| SEM-02 | 기수 지정 | 직접 선택 | 이번 반기의 BASE 기수와 ADV 기수(예: 28기 BASE, 27기 ADV). 반기 번호는 BASE 기수와 같다. 저장한 뒤에는 바꿀 수 없다 |
+| SEM-03 | 기간 | 직접 입력 | 방학·학기 각각의 시작일·종료일. 방학 종료일은 학기 시작일보다 앞이어야 한다 |
+| SEM-04 | 1주차 시작일 | 직접 입력 + 확인 | BASE · ADV · 방학 스터디 · 학기 스터디별 1주차 시작일. 이후 주차(1~8주차) 날짜는 7일씩 더해 자동으로 보여 준다 |
+| SEM-05 | 무효 주차 | 체크 | 활동별로 휴강 등 출결에서 뺄 주차를 체크한다 |
+| SEM-06 | 명단 | 확인 + 예외 수정 | 저장하면 서버가 BASE·ADV 기수의 활동 중 회원으로 명단을 만든다. 기수·구분별 인원을 확인하고, 사람을 빼거나 다른 기수 사람을 더한 뒤(구분: 예외 추가) 명단을 저장한다 |
+| SEM-07 | 활성화 | 버튼 | 준비 반기를 활성화하면 진행 반기가 되고, 이전 진행 반기는 종료된다. 이전 진행 반기에 진행 중인 주차가 있으면 종료할 수 없어 활성화를 막고, 그 이유와 주차 마감 버튼을 보여 준다 |
+
+**상태 규칙**
+
+| 상태 | 뜻 | 할 수 있는 것 |
+| --- | --- | --- |
+| 준비 (`PREPARING`) | 저장했지만 아직 활성화하지 않은 반기. 한 번에 하나만 있다 | 일정 수정, 명단 예외 수정, 활성화, 삭제 |
+| 진행 (`ACTIVE`) | 출결 화면이 기준으로 쓰는 반기. 한 번에 하나 | 일정 수정. 다음 반기를 활성화하면 종료된다 |
+| 종료 (`ENDED`) | 지난 반기 | 조회만 |
+
+- 활성화하면 그 전 진행 반기의 팀을 HOST 계정에서 떼고, 맡은 팀이 남지 않은 HOST 계정은 지운다. 팀·출결 기록은 남는다.
+- 이전 진행 반기에 진행 중(`OPEN`)인 주차가 남아 있으면 활성화는 409 `SEMESTER_WEEK_IN_PROGRESS`다. 주차 마감은 기존 주차 상태 변경 API(`PATCH /api/v1/semesters/:semester/weeks/:weekNum`, `status: CLOSED`)를 쓴다.
+- 출결 화면이 쓰는 반기 목록(`GET /api/v1/semesters`)에는 준비 반기가 나오지 않는다.
+- 출결 화면(BASE·ADV·스터디 출결 관리)은 같은 DB를 `GET /api/v1/semesters/:semester/weeks`로 읽는다. 주차마다 `activityDates`(활동별 날짜)와 `invalidActivities`(휴강으로 지정한 활동)가 오고, 화면은 자기 활동(BASE·ADV, 스터디는 방학 1~8주차·학기 9~16주차)의 날짜와 휴강을 주차 버튼에 보여 준다.
+
+**임시 API 계약 (초안 — 백엔드와 확정 전, `SYS-API-4`)**
+
+| 메서드 · 경로 | 요청 | 응답 | 오류 |
+| --- | --- | --- | --- |
+| `GET /api/v1/semesters?includePreparing=true` | — | `SemesterDto[]`(큰 기수부터, `status` 포함). `includePreparing`이 없으면 준비 반기를 뺀다 | — |
+| `POST /api/v1/semesters/prepare` | `{ semester, baseTerm, advTerm, schedule }`(`schedule`은 아래 일정 저장 본문과 같다) | 만든 `SemesterDto`(`status: PREPARING`) | 400 `BAD_REQUEST` · `INVALID_TERM`(ADV ≥ BASE, BASE가 등록된 반기 이하) · `INVALID_DATE_RANGE`, 409 `SEMESTER_DUPLICATE` · `SEMESTER_PREPARING_EXISTS` |
+| `GET /api/v1/semesters/:semester/roster` | — | `{ members: { userId, name, term, track, kind: BASE · ADV · EXTRA }[] }` | 404 `NOT_FOUND` |
+| `PUT /api/v1/semesters/:semester/members` | `{ userIds: string[] }`(명단 전체) | 저장된 회원 목록 | 400 `USER_NOT_FOUND` |
+| `GET /api/v1/semesters/:semester/schedule` | — | `{ vacation, term, activityStarts, invalidWeeks, weeks }` | 404 `NOT_FOUND` |
+| `PUT /api/v1/semesters/:semester/schedule` | `{ vacation: { startDate, endDate }, term, activityStarts: { BASE?, ADV?, STUDY_VACATION?, STUDY_TERM? }, invalidWeeks: { activity, weekNum, reason? }[] }` | 저장 뒤 다시 읽은 일정 | 400 `BAD_REQUEST` · `INVALID_DATE_RANGE`, 409 `SEMESTER_ARCHIVED`(종료 반기) |
+| `POST /api/v1/semesters/:semester/activate` | — | 활성화한 `SemesterDto`(`status: ACTIVE`) | 409 `SEMESTER_NOT_PREPARING` · `ROSTER_EMPTY` · `SEMESTER_WEEK_IN_PROGRESS` |
+| `DELETE /api/v1/semesters/:semester` | — | 지운 `SemesterDto` | 409 `SEMESTER_NOT_PREPARING` |
+
+> 날짜는 모두 `YYYY-MM-DD`다. 쓰기 API는 감사 로그에 `SEMESTER_CREATE`(새 반기 준비) · `SEMESTER_SCHEDULE_SET` · `SEMESTER_MEMBERS_SET` · `SEMESTER_ACTIVATE` · `SEMESTER_DELETE`로 남는다.
+> 무효 주차의 변경 이력 표시(WBS SYS-SEM RULE-02)는 2026-11-05 기준 화면에 없다.
+
 ---
 
 ## 5. API 요구사항
@@ -290,6 +334,7 @@
 | SYS-API-1 | 계정 CRUD API 제공 범위 | 생성·수정·삭제·비밀번호 재설정, 락아웃 카운트 검사가 `updateAccount` 강등 경로에도 있는지 (문서 7.1절 지적) |
 | SYS-API-2 | 감사 로그 저장·조회 API | 별도 착수 시 |
 | SYS-API-3 | 회원(User) 조회 API | 4.5절 — 기수·부문·유형 필터, 승격 메타 포함. **지원서 삭제(`EVL-DEL`) 후에도 승격 일시·처리자·출신 기수를 조회할 수 있는지** 확인 (승격 시점에 `User`로 복사해 두지 않으면 `MEM-02`가 빈 값이 된다) |
+| SYS-API-4 | 반기 관리 API | 4.6절 임시 API 계약 초안을 백엔드와 확정. 준비 반기를 한 번에 하나로 둘지, 활성화를 막는 조건(진행 중인 주차 외에 더 있는지), 명단 자동 생성 기준(활동 중 회원)을 서버가 정할지 확인 |
 
 ---
 
