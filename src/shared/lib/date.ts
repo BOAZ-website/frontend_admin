@@ -40,3 +40,14 @@ export function localDateTime(date: Date = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
+
+/** 'YYYY-MM-DD…'의 연도를 두 자리로 줄인다. 예: '2026-10-12 16:21:03' → '26-10-12 16:21:03'. */
+export function twoDigitYearOf(value: string): string {
+  return value.slice(2);
+}
+
+/** 날짜(로컬 시간)를 'YYYY-MM-DD'로 쓴다. */
+export function isoDateOf(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
