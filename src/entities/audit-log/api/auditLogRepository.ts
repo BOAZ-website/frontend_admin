@@ -77,13 +77,30 @@ export function insertAuditLog(db: Database, log: AuditLogInsert): void {
   );
 }
 
-const parseJson = <T>(text: string | null, fallback: T): T => {
-  if (!text) return fallback;
+/** 저장된 JSON 문자열을 읽는다. 비었거나 깨졌으면 null(기록 한 줄 때문에 목록 전체가 실패하지 않게). */
+const parseJson = (text: string | null): unknown => {
+  if (!text) return null;
   try {
-    return JSON.parse(text) as T;
+    return JSON.parse(text);
   } catch {
-    return fallback;
+    // 깨진 기록은 값이 없는 기록으로 본다. 오류를 알릴 상대(요청자)가 없는 읽기 경로다.
+    return null;
   }
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** target_ids 칸: 문자열 배열만 받는다. 모양이 다르면 대상 없음으로 본다. */
+const targetIdsOfRow = (row: AuditRow): string[] => {
+  const value = parseJson(row.target_ids);
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
+};
+
+/** detail 칸: 객체만 받는다. */
+const detailOfRow = (row: AuditRow): Record<string, unknown> | null => {
+  const value = parseJson(row.detail);
+  return isRecord(value) ? value : null;
 };
 
 const firstValue = <T>(db: Database, sql: string, id: string): T | undefined =>
@@ -199,8 +216,8 @@ function requestBodyOf(
   detail: Readonly<Record<string, unknown>> | null,
 ): Readonly<Record<string, unknown>> | null {
   const request = detail?.request;
-  if (!request || typeof request !== 'object' || Array.isArray(request)) return null;
-  return Object.keys(request).length > 0 ? (request as Record<string, unknown>) : null;
+  if (!isRecord(request)) return null;
+  return Object.keys(request).length > 0 ? request : null;
 }
 
 /** 응답 한 줄과, 검색어로 거를 때만 쓰는 대상 이름(응답에는 싣지 않는다). */
@@ -211,14 +228,12 @@ interface ListedEntry {
 
 function targetLabelsOf(db: Database, row: AuditRow, detail: Record<string, unknown> | null) {
   const savedLabel = typeof detail?.label === 'string' ? detail.label : undefined;
-  return parseJson<string[]>(row.target_ids, []).map((id) =>
-    targetLabel(db, row.target_type, id, savedLabel),
-  );
+  return targetIdsOfRow(row).map((id) => targetLabel(db, row.target_type, id, savedLabel));
 }
 
 function toListedEntry(db: Database, row: AuditRow): ListedEntry | null {
   if (!isAuditAction(row.action)) return null;
-  const detail = parseJson<Record<string, unknown> | null>(row.detail, null);
+  const detail = detailOfRow(row);
   return {
     entry: toEntry(db, row, row.action, detail),
     targetLabels: targetLabelsOf(db, row, detail),
@@ -232,7 +247,7 @@ function toEntry(
   detail: Record<string, unknown> | null,
 ): AuditLogEntry {
   const actor = actorOf(db, row);
-  const targetIds = parseJson<string[]>(row.target_ids, []);
+  const targetIds = targetIdsOfRow(row);
   return {
     id: row.id,
     occurredAt: row.occurred_at,

@@ -95,7 +95,9 @@ export const AUDIT_ACTIONS = {
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
 
-export const isAuditAction = (value: string): value is AuditAction => value in AUDIT_ACTIONS;
+/** 정해진 감사 액션인지. `in`은 toString 같은 기본 속성도 찾으므로 자기 속성만 본다. */
+export const isAuditAction = (value: string): value is AuditAction =>
+  Object.hasOwn(AUDIT_ACTIONS, value);
 
 /** 분류에 속한 액션 목록(목록에 적은 순서). */
 export const actionsOf = (category: AuditCategory | null): AuditAction[] =>
