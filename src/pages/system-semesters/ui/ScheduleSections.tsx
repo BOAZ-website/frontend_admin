@@ -42,6 +42,7 @@ export function ScheduleSections({ form, onChange, isReadOnly }: ScheduleSection
                 }
                 ariaLabel={`${label} 시작일`}
                 isReadOnly={isReadOnly}
+                max={form[field].endDate || undefined}
               />
               <span aria-hidden="true" className="text-xs text-slate-500">
                 ~
@@ -51,6 +52,7 @@ export function ScheduleSections({ form, onChange, isReadOnly }: ScheduleSection
                 onChange={(endDate) => onChange({ ...form, [field]: { ...form[field], endDate } })}
                 ariaLabel={`${label} 종료일`}
                 isReadOnly={isReadOnly}
+                min={form[field].startDate || undefined}
               />
             </LabeledRow>
           ))}
@@ -68,6 +70,9 @@ export function ScheduleSections({ form, onChange, isReadOnly }: ScheduleSection
                 }
                 ariaLabel={`${label} 1주차 시작일`}
                 isReadOnly={isReadOnly}
+                // 1주차 시작일은 반기 기간(방학 시작 ~ 학기 종료) 안이어야 한다(서버도 400).
+                min={form.vacation.startDate || undefined}
+                max={form.term.endDate || undefined}
               />
             </LabeledRow>
           ))}

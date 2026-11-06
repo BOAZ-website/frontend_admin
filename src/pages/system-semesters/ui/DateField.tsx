@@ -1,4 +1,4 @@
-import { DateTextInput } from '@/shared/ui/DateTextInput';
+import { DatePickerField } from '@/shared/ui/DatePickerField';
 import { FIELD_READONLY } from '@/shared/ui/systemStyles';
 
 interface DateFieldProps {
@@ -7,10 +7,13 @@ interface DateFieldProps {
   ariaLabel: string;
   /** 종료 반기이거나 저장하는 중이면 값만 보여 준다. */
   isReadOnly: boolean;
+  /** 달력에서 고를 수 있는 범위('YYYY-MM-DD'). */
+  min?: string;
+  max?: string;
 }
 
 /** 수정할 수 있으면 날짜 입력, 지난 반기면 값만 보여 준다. */
-export function DateField({ value, onChange, ariaLabel, isReadOnly }: DateFieldProps) {
+export function DateField({ value, onChange, ariaLabel, isReadOnly, min, max }: DateFieldProps) {
   if (isReadOnly) {
     return (
       <span className={`${FIELD_READONLY} w-full tabular-nums`} aria-label={ariaLabel}>
@@ -18,5 +21,7 @@ export function DateField({ value, onChange, ariaLabel, isReadOnly }: DateFieldP
       </span>
     );
   }
-  return <DateTextInput value={value} onChange={onChange} ariaLabel={ariaLabel} />;
+  return (
+    <DatePickerField value={value} onChange={onChange} ariaLabel={ariaLabel} min={min} max={max} />
+  );
 }
