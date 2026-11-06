@@ -23,12 +23,10 @@ const ERROR_BOX = 'rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs 
 
 interface ExistingSemesterPanelProps {
   semester: SemesterDto;
-  remove: (semester: string, isForced?: boolean) => Promise<SemesterDto>;
-  /** 로그인한 계정이 서비스운영팀장(MASTER)이다. 종료 반기의 편집·삭제를 연다. */
+  /** 로그인한 계정이 서비스운영팀장(MASTER)이다. 종료 반기의 편집을 연다. */
   canEditArchived: boolean;
   /** 상태·일정·명단을 바꾼 뒤 부른다. */
   onChanged: () => void;
-  onRemoved: () => void;
 }
 
 /** 등록된 반기 한 개. 상태·일정·명단을 보여 주고, 처리는 useExistingSemester가 맡는다. */
@@ -47,16 +45,6 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
           <LabeledRow label="상태">
             <span className={status.className}>{status.label}</span>
             {view.isScheduleLocked && <span className="text-xs text-slate-500">조회 전용</span>}
-            {view.canRemove && (
-              <button
-                type="button"
-                className={`${MODAL_CANCEL_BTN} ml-auto`}
-                disabled={view.pending !== null}
-                onClick={view.handleRemove}
-              >
-                삭제
-              </button>
-            )}
           </LabeledRow>
           {view.openWeeks.length > 0 && (
             <LabeledRow label="진행 주차">

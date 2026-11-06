@@ -1,5 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { ChevronRight, ChevronsRight, GripVertical, Maximize2, Minimize2 } from 'lucide-react';
+import {
+  ChevronRight,
+  ChevronsRight,
+  GripVertical,
+  Maximize2,
+  Minimize2,
+  Trash2,
+} from 'lucide-react';
 
 import { useSplitRatio } from '@/shared/lib/useSplitRatio';
 
@@ -140,37 +147,57 @@ interface SplitListItemProps {
   label: string;
   isSelected: boolean;
   onSelect: () => void;
+  /** 있으면 오른쪽 화살표 자리에 휴지통 버튼을 둔다. */
+  onDelete?: () => void;
 }
 
 /** 분할 화면 목록의 한 칸: 이름만 보여 준다. 출결 분할 화면의 팀 카드와 같은 모양이다. */
-export function SplitListItem({ label, isSelected, onSelect }: SplitListItemProps) {
+export function SplitListItem({ label, isSelected, onSelect, onDelete }: SplitListItemProps) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-current={isSelected ? 'true' : undefined}
-      className={`group relative flex w-full shrink-0 cursor-pointer select-none items-center justify-between gap-3 rounded-md border p-4 text-left transition-all ${
-        isSelected
-          ? 'border-slate-300 bg-slate-100/80 shadow-2xs'
-          : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-2xs'
-      }`}
-    >
-      <span
-        className={`min-w-0 flex-1 truncate text-sm font-bold ${
-          isSelected ? 'text-slate-950' : 'text-slate-900 group-hover:text-slate-950'
+    // 버튼 안에 버튼을 둘 수 없어 휴지통은 칸 위에 겹쳐 놓는다.
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-current={isSelected ? 'true' : undefined}
+        className={`group relative flex w-full shrink-0 cursor-pointer select-none items-center justify-between gap-3 rounded-md border p-4 text-left transition-all ${
+          onDelete ? 'pr-12' : ''
+        } ${
+          isSelected
+            ? 'border-slate-300 bg-slate-100/80 shadow-2xs'
+            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-2xs'
         }`}
       >
-        {label}
-      </span>
-      <ChevronRight
-        size={16}
-        aria-hidden="true"
-        className={`shrink-0 transition-transform ${
-          isSelected
-            ? 'translate-x-0.5 text-slate-500'
-            : 'text-slate-300 group-hover:text-slate-500'
-        }`}
-      />
-    </button>
+        <span
+          className={`min-w-0 flex-1 truncate text-sm font-bold ${
+            isSelected ? 'text-slate-950' : 'text-slate-900 group-hover:text-slate-950'
+          }`}
+        >
+          {label}
+        </span>
+        {!onDelete && (
+          <ChevronRight
+            size={16}
+            aria-hidden="true"
+            className={`shrink-0 transition-transform ${
+              isSelected
+                ? 'translate-x-0.5 text-slate-500'
+                : 'text-slate-300 group-hover:text-slate-500'
+            }`}
+          />
+        )}
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`${label} 삭제`}
+          title={`${label} 삭제`}
+          className="absolute right-3 top-1/2 inline-flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+        >
+          <Trash2 size={15} />
+        </button>
+      )}
+    </div>
   );
 }

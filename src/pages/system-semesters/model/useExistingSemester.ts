@@ -9,7 +9,6 @@ import type {
 import { useSemesterRoster } from '@/entities/cohort/model/useSemesterRoster';
 import { useSemesterSchedule } from '@/entities/cohort/model/useSemesterSchedule';
 import { useSemesterWeeks } from '@/entities/cohort/model/useSemesterWeeks';
-import { ApiError } from '@/shared/api/client';
 import { alertApiError } from '@/shared/lib/alertApiError';
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 
@@ -27,7 +26,6 @@ import {
   type ScheduleForm,
 } from './scheduleForm';
 
-type RemoveAction = (semester: string, isForced?: boolean) => Promise<SemesterDto>;
 /** 지금 보내고 있는 요청. 요청 중에는 입력과 다른 버튼을 막는다(R7-8). */
 type Pending = 'schedule' | 'roster' | 'status' | 'week';
 
@@ -52,8 +50,6 @@ export interface ExistingSemesterState {
   isRosterReadOnly: boolean;
   /** 종료 반기를 서비스운영팀장이 보고 있다(고치거나 지울 수 있다). */
   isArchivedEditable: boolean;
-  /** 삭제 버튼을 보인다: 서비스운영팀장이 보는 종료 반기. */
-  canRemove: boolean;
   isDirty: boolean;
   pending: Pending | null;
   /** 진행 반기의 진행 중인 주차. 새 반기를 시작하려면 먼저 마감해야 한다. 진행 반기가 아니면 빈 배열. */
@@ -69,31 +65,24 @@ export interface ExistingSemesterState {
   handleRemoveAdded: (userId: string) => void;
   handleSaveRoster: () => void;
   handleCloseWeek: (week: SemesterWeekDto) => void;
-  handleRemove: () => void;
 }
 
 interface UseExistingSemesterOptions {
   semester: SemesterDto;
-  remove: RemoveAction;
-  /** 로그인한 계정이 서비스운영팀장(MASTER)이다. 종료 반기 편집·삭제 UI를 연다(서버가 다시 확인한다). */
+  /** 로그인한 계정이 서비스운영팀장(MASTER)이다. 종료 반기 편집 UI를 연다(서버가 다시 확인한다). */
   canEditArchived: boolean;
   onChanged: () => void;
-  onRemoved: () => void;
 }
-
-const HAS_RECORDS = 'SEMESTER_HAS_RECORDS';
 
 /**
  * 진행 반기는 일정·명단을 고치고 진행 중인 주차를 마감한다.
- * 종료 반기는 읽기만 하고, 서비스운영팀장만 일정·명단을 고치거나 지운다(저장 전 점수 영향 확인).
+ * 종료 반기는 읽기만 하고, 서비스운영팀장만 일정·명단을 고친다(저장 전 점수 영향 확인). 삭제는 목록의 휴지통에서 한다.
  * 저장 실패는 알리고 초안은 그대로 둔다(R10-4).
  */
 export function useExistingSemester({
   semester,
-  remove,
   canEditArchived,
   onChanged,
-  onRemoved,
 }: UseExistingSemesterOptions): ExistingSemesterState {
   const name = semester.semester;
   const isActive = semester.status === 'ACTIVE';
@@ -165,7 +154,6 @@ export function useExistingSemester({
     added: draftAdded,
     isRosterReadOnly: isLocked,
     isArchivedEditable,
-    canRemove: isArchivedEditable,
     isDirty,
     pending,
     openWeeks,
@@ -213,32 +201,6 @@ export function useExistingSemester({
     handleCloseWeek: (week) => {
       const message = `${name} ${week.label}를 마감할까요?\n마감하면 그 주차 출결은 더 입력하거나 제출할 수 없습니다. 이미 입력한 출결은 그대로 남습니다.`;
       if (window.confirm(message)) void run('week', () => currentWeeks.closeWeek(week.weekNum));
-    },
-    handleRemove: () => {
-      const message = `종료된 ${name}을 삭제할까요?
-반기가 목록에서 빠집니다. 그 반기의 팀·출결·행사 기록과 감사 로그는 지워지지 않습니다.`;
-      if (!window.confirm(message)) return;
-      // 종료 반기에 기록이 있으면 서버가 건수를 알려 준다. 그 내용을 보여 주고 한 번 더 물은 뒤 force로 다시 보낸다.
-      // 두 번째 확인에서 아니오를 누르면 지우지 않고 알림도 띄우지 않는다.
-      let isRemoved = false;
-      const removeOrAskAgain = async () => {
-        try {
-          await remove(name);
-        } catch (error) {
-          const hasRecords = error instanceof ApiError && error.code === HAS_RECORDS;
-          if (!hasRecords) throw error;
-          if (
-            !window.confirm(`${error.message}
-그래도 삭제할까요?`)
-          )
-            return;
-          await remove(name, true);
-        }
-        isRemoved = true;
-      };
-      void run('status', removeOrAskAgain).then((isDone) => {
-        if (isDone && isRemoved) onRemoved();
-      });
     },
   };
 }

@@ -10,6 +10,7 @@ import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import { LIST_SECTION_TITLE } from '@/shared/ui/systemStyles';
 import { PageLoadingState } from '@/widgets/page-loading/ui/PageLoadingState';
 
+import { confirmAndRemoveSemester } from '../model/removeSemester';
 import { ExistingSemesterPanel } from './ExistingSemesterPanel';
 import { NewSemesterPanel } from './NewSemesterPanel';
 
@@ -74,6 +75,13 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
   }
 
   const current = semesters.find((s) => s.status === 'ACTIVE') ?? null;
+  const canEditArchived = myRole === 'MASTER';
+  const handleRemove = async (name: string) => {
+    if (!(await confirmAndRemoveSemester(name, semestersState.remove))) return;
+    onSemesterChanged();
+    // 지운 반기를 열어 두고 있었으면 닫는다(처음 상태로 돌아가 진행 반기가 열린다).
+    if (selection?.kind === 'semester' && selection.name === name) setSelection(undefined);
+  };
   const selection: Selection =
     chosen !== undefined ? chosen : current && { kind: 'semester', name: current.semester };
   const selected =
@@ -96,6 +104,12 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
                   label={s.semester}
                   isSelected={selected?.semester === s.semester}
                   onSelect={() => handleSelect({ kind: 'semester', name: s.semester })}
+                  // 종료 반기는 서비스운영팀장만 지운다(서버도 409 SEMESTER_ARCHIVED). 진행 반기는 지울 수 없다.
+                  onDelete={
+                    s.status === 'ENDED' && canEditArchived
+                      ? () => void handleRemove(s.semester)
+                      : undefined
+                  }
                 />
               ))
             )}
@@ -133,10 +147,8 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
           <ExistingSemesterPanel
             key={selected.semester}
             semester={selected}
-            remove={semestersState.remove}
-            canEditArchived={myRole === 'MASTER'}
+            canEditArchived={canEditArchived}
             onChanged={onSemesterChanged}
-            onRemoved={() => setSelection(null)}
           />
         )}
       </SplitView>
