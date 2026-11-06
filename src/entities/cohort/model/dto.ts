@@ -155,6 +155,6 @@ export interface PrepareSemesterRequest {
   /** BASE 기수보다 작아야 한다. */
   advTerm: number;
   schedule: SaveSemesterScheduleRequest;
-  /** 명단에 넣을 회원 id. 비어 있으면 빈 명단이다(활성화 전에 채워야 한다). 탈퇴 회원은 넣을 수 없다. */
+  /** 명단에 넣을 회원 id. 비어 있으면 빈 명단이다(활성화 전에 채워야 한다). 탈동 회원은 넣을 수 없다. */
   userIds: string[];
 }

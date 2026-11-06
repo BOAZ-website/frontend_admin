@@ -161,7 +161,7 @@ test('휴강 체크를 켜면 사유가 빈 문자열로 들어가고, 끄면 �
 const member = (id: string, term: number, status: ClubMember['status'], name = id): ClubMember =>
   ({ id, name, term, track: '분석', status }) as ClubMember;
 
-test('명단에 더할 후보: 탈퇴·이미 명단에 있는 사람은 빼고, 기수와 이름으로 거르며 큰 기수부터 이름순이다', () => {
+test('명단에 더할 후보: 탈동·이미 명단에 있는 사람은 빼고, 기수와 이름으로 거르며 큰 기수부터 이름순이다', () => {
   const members = [
     member('a', 25, 'ACTIVE', '나'),
     member('b', 27, 'ACTIVE', '가'),

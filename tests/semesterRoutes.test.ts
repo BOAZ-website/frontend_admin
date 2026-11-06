@@ -543,7 +543,7 @@ test('명단 없이 만들면 빈 명단이고, 사람을 더해 저장하기 �
   expectApiError(() => call('POST', '/api/v1/semesters/27-1/activate'), 409, 'ROSTER_EMPTY');
 });
 
-test('명단에 없는 회원 id는 400 USER_NOT_FOUND, 탈퇴 회원은 400 USER_WITHDRAWN이고 반기도 만들어지지 않는다', async () => {
+test('명단에 없는 회원 id는 400 USER_NOT_FOUND, 탈동 회원은 400 USER_WITHDRAWN이고 반기도 만들어지지 않는다', async () => {
   const { prepare, count } = await setup();
   const cohorts = count('cohorts');
 

@@ -110,7 +110,7 @@ function checkPrepare(db: Database, body: unknown) {
   return { input, label, baseTerm, advTerm, schedule: checkSchedule(input.schedule) };
 }
 
-/** 탈퇴한 회원은 새 반기 명단에 넣지 않는다. 지난 반기 명단(PUT /members)은 그 뒤에 탈퇴한 사람도 남아 있어 막지 않는다. */
+/** 탈동한 회원은 새 반기 명단에 넣지 않는다. 지난 반기 명단(PUT /members)은 그 뒤에 탈동한 사람도 남아 있어 막지 않는다. */
 function assertNotWithdrawn(db: Database, userIds: readonly string[]): void {
   if (userIds.length === 0) return;
   const withdrawn = queryAll<{ name: string }>(
@@ -122,7 +122,7 @@ function assertNotWithdrawn(db: Database, userIds: readonly string[]): void {
     throw new ApiError(
       400,
       'USER_WITHDRAWN',
-      `탈퇴한 회원은 명단에 넣을 수 없습니다: ${withdrawn.map((u) => u.name).join(', ')}`,
+      `탈동한 회원은 명단에 넣을 수 없습니다: ${withdrawn.map((u) => u.name).join(', ')}`,
     );
   }
 }
@@ -132,7 +132,7 @@ export const semesterRoutes: MockRoute[] = [
     method: 'POST',
     pattern: '/api/v1/semesters/prepare',
     summary:
-      '준비 반기 만들기: 반기 + 일정·시작일·무효 주차 + 고른 명단(userIds) 저장(실패하면 모두 취소). 명단은 자동으로 채우지 않는다. 없는 회원은 400 USER_NOT_FOUND, 탈퇴 회원은 400 USER_WITHDRAWN. 진행 반기는 바꾸지 않는다',
+      '준비 반기 만들기: 반기 + 일정·시작일·무효 주차 + 고른 명단(userIds) 저장(실패하면 모두 취소). 명단은 자동으로 채우지 않는다. 없는 회원은 400 USER_NOT_FOUND, 탈동 회원은 400 USER_WITHDRAWN. 진행 반기는 바꾸지 않는다',
     handler: ({ db, body }) => {
       const { input, label, baseTerm, advTerm, schedule } = checkPrepare(db, body);
       const userIds = stringArray(input, 'userIds');

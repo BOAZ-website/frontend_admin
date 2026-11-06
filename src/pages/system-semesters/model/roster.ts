@@ -32,7 +32,7 @@ export interface RosterCandidateFilter {
   query: string;
 }
 
-/** 명단에 더할 수 있는 동아리원: 탈퇴하지 않았고 명단에 없으며 기수·이름 조건에 맞는 사람. 큰 기수부터 이름순. */
+/** 명단에 더할 수 있는 동아리원: 탈동하지 않았고 명단에 없으며 기수·이름 조건에 맞는 사람. 큰 기수부터 이름순. */
 export function rosterCandidates(
   members: readonly ClubMember[],
   inRosterIds: ReadonlySet<string>,

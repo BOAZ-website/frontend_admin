@@ -236,7 +236,7 @@ interface RosterPickerProps {
 }
 
 /**
- * 명단에 더할 사람 고르기: 기수·이름으로 거른 동아리원(탈퇴 제외)을 체크해 한 번에 더한다.
+ * 명단에 더할 사람 고르기: 기수·이름으로 거른 동아리원(탈동 제외)을 체크해 한 번에 더한다.
  * 명단을 고칠 수 있을 때만 그려서 그때만 회원 목록을 읽는다.
  */
 function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
