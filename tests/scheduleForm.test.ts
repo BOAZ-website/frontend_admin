@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { RosterEntryDto, SemesterScheduleDto } from '../src/entities/cohort/model/dto';
-import { effectiveRoster, rosterCounts } from '../src/pages/system-semesters/model/roster';
+import { rosterFilterCounts, rosterFilterOf } from '../src/pages/system-semesters/model/roster';
 import {
   emptyScheduleForm,
   formFromSchedule,
@@ -122,20 +122,24 @@ const entry = (userId: string, term: number, kind: RosterEntryDto['kind']): Rost
   kind,
 });
 
-test('저장하면 남을 명단은 뺀 사람을 빼고 더한 사람을 더하며, 인원은 큰 기수부터 기수·구분별로 센다', () => {
-  const saved = [entry('a', 27, 'BASE'), entry('b', 27, 'BASE'), entry('c', 26, 'ADV')];
+test('명단 필터 인원: 뺀 사람은 제외로만 세고, 전체는 저장하면 남을 인원이다', () => {
+  const rows = [
+    entry('a', 27, 'BASE'),
+    entry('b', 27, 'BASE'),
+    entry('c', 26, 'ADV'),
+    entry('d', 25, 'EXTRA'),
+  ];
+  const excluded = new Set(['b']);
 
-  const members = effectiveRoster(saved, new Set(['b']), [entry('d', 25, 'EXTRA')]);
-
-  assert.deepEqual(
-    members.map((m) => m.userId),
-    ['a', 'c', 'd'],
-  );
-  assert.deepEqual(rosterCounts(members), [
-    { term: 27, kind: 'BASE', count: 1 },
-    { term: 26, kind: 'ADV', count: 1 },
-    { term: 25, kind: 'EXTRA', count: 1 },
-  ]);
+  assert.equal(rosterFilterOf(rows[1], excluded), 'EXCLUDED');
+  assert.equal(rosterFilterOf(rows[0], excluded), 'BASE');
+  assert.deepEqual(rosterFilterCounts(rows, excluded), {
+    ALL: 3,
+    BASE: 1,
+    ADV: 1,
+    EXTRA: 1,
+    EXCLUDED: 1,
+  });
 });
 
 test('휴강 체크를 켜면 사유가 빈 문자열로 들어가고, 끄면 빠진다', () => {

@@ -4,31 +4,29 @@ import type { RosterEntryDto, RosterKind } from '@/entities/cohort/model/dto';
 /** 이름 검색 결과를 이만큼만 보여 준다. */
 const SEARCH_LIMIT = 8;
 
-/** 기수·구분별 인원 한 줄. */
-export interface RosterCount {
-  term: number;
-  kind: RosterKind;
-  count: number;
-}
+/** 명단 표를 거르는 구분. 뺀 사람은 원래 구분 대신 제외로 거른다. */
+export type RosterFilter = 'ALL' | RosterKind | 'EXCLUDED';
 
-/** 저장된 명단에서 뺄 사람을 빼고 더할 사람을 더한, 저장하면 남을 명단. */
-export function effectiveRoster(
-  saved: readonly RosterEntryDto[],
+/** 이 사람이 걸리는 필터: 뺀 사람이면 제외, 아니면 구분. */
+export function rosterFilterOf(
+  entry: RosterEntryDto,
   excludedIds: ReadonlySet<string>,
-  added: readonly RosterEntryDto[],
-): RosterEntryDto[] {
-  return [...saved.filter((m) => !excludedIds.has(m.userId)), ...added];
+): Exclude<RosterFilter, 'ALL'> {
+  return excludedIds.has(entry.userId) ? 'EXCLUDED' : entry.kind;
 }
 
-/** 기수(큰 기수부터)·구분별 인원. */
-export function rosterCounts(members: readonly RosterEntryDto[]): RosterCount[] {
-  const groups = new Map<string, RosterCount>();
-  members.forEach(({ term, kind }) => {
-    const key = `${term}|${kind}`;
-    const group = groups.get(key) ?? { term, kind, count: 0 };
-    groups.set(key, { ...group, count: group.count + 1 });
+/** 필터별 인원. 전체는 뺀 사람을 뺀, 저장하면 남을 인원이다. */
+export function rosterFilterCounts(
+  entries: readonly RosterEntryDto[],
+  excludedIds: ReadonlySet<string>,
+): Record<RosterFilter, number> {
+  const counts: Record<RosterFilter, number> = { ALL: 0, BASE: 0, ADV: 0, EXTRA: 0, EXCLUDED: 0 };
+  entries.forEach((entry) => {
+    const filter = rosterFilterOf(entry, excludedIds);
+    counts[filter] += 1;
+    if (filter !== 'EXCLUDED') counts.ALL += 1;
   });
-  return [...groups.values()].sort((a, b) => b.term - a.term);
+  return counts;
 }
 
 /** 명단에 더할 수 있는 동아리원: 탈퇴하지 않았고 명단에 없으며 이름에 검색어가 들어간 사람. */

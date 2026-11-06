@@ -11,10 +11,19 @@ import {
   TH_CLASS,
 } from '@/shared/ui/systemStyles';
 
-import { effectiveRoster, rosterCounts, searchRosterCandidates } from '../model/roster';
+import {
+  type RosterFilter,
+  rosterFilterCounts,
+  rosterFilterOf,
+  searchRosterCandidates,
+} from '../model/roster';
 import { GRID_HEAD_ROW, GRID_ROW, SectionBox } from './SectionBox';
 
 const KIND_LABEL: Record<RosterKind, string> = { BASE: 'BASE', ADV: 'ADV', EXTRA: '예외 추가' };
+const FILTER_LABEL: Record<RosterFilter, string> = { ALL: '전체', ...KIND_LABEL, EXCLUDED: '제외' };
+/** 인원이 0이어도 보이는 필터. 예외 추가·제외는 있을 때만 보인다. */
+const ALWAYS_SHOWN: readonly RosterFilter[] = ['ALL', 'BASE', 'ADV'];
+const FILTER_ORDER: readonly RosterFilter[] = ['ALL', 'BASE', 'ADV', 'EXTRA', 'EXCLUDED'];
 
 interface RosterSectionProps {
   /** 저장된 명단(새 반기 작성에서는 확인한 자동 명단). */
@@ -49,35 +58,54 @@ export function RosterSection({
   onRemoveAdded,
   onSave,
 }: RosterSectionProps) {
-  const effective = effectiveRoster(saved, excludedIds, added);
+  const [chosenFilter, setChosenFilter] = useState<RosterFilter>('ALL');
   const isDirty = excludedIds.size > 0 || added.length > 0;
-  const counts = rosterCounts(effective);
 
   const rows: { entry: RosterEntryDto; isAdded: boolean }[] = [
     ...saved.map((entry) => ({ entry, isAdded: false })),
     ...added.map((entry) => ({ entry, isAdded: true })),
   ];
+  const counts = rosterFilterCounts(
+    rows.map((row) => row.entry),
+    excludedIds,
+  );
+  const filters = FILTER_ORDER.filter((f) => ALWAYS_SHOWN.includes(f) || counts[f] > 0);
+  // 고른 필터의 사람이 모두 사라지면(예: 제외를 모두 되돌림) 전체로 돌아간다.
+  const filter = filters.includes(chosenFilter) ? chosenFilter : 'ALL';
+  const shownRows =
+    filter === 'ALL'
+      ? rows
+      : rows.filter((row) => rosterFilterOf(row.entry, excludedIds) === filter);
 
   return (
     <SectionBox title="명단">
       <div className="space-y-4">
-        <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs text-slate-600">
-          {counts.map(({ term, kind, count }) => (
-            <span key={`${term}-${kind}`}>
-              {term}기 {KIND_LABEL[kind]}{' '}
-              <span className="font-semibold tabular-nums text-slate-900">{count}</span>명
-            </span>
+        <div
+          role="group"
+          aria-label="명단 구분"
+          className="inline-flex flex-wrap gap-1 rounded-md border border-slate-200 bg-slate-100 p-1"
+        >
+          {filters.map((f) => (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={filter === f}
+              onClick={() => setChosenFilter(f)}
+              className={`rounded-sm px-3 py-1 text-xs font-semibold ${
+                filter === f ? 'bg-white text-slate-900' : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              {FILTER_LABEL[f]} <span className="font-normal tabular-nums">{counts[f]}</span>
+            </button>
           ))}
-          <span className="ml-auto">
-            합계{' '}
-            <span className="font-semibold tabular-nums text-slate-900">{effective.length}</span>명
-          </span>
-        </p>
+        </div>
 
         {rows.length === 0 ? (
           <p className="text-xs text-slate-500">
             명단이 비어 있습니다. BASE·ADV 기수에 활동 중인 회원이 없으면 아래에서 직접 더하세요.
           </p>
+        ) : shownRows.length === 0 ? (
+          <p className="text-xs text-slate-500">{FILTER_LABEL[filter]} 인원이 없습니다.</p>
         ) : (
           <div className={`${TABLE_BOX} max-h-96 overflow-y-auto`}>
             <table className="w-full border-collapse text-xs">
@@ -107,7 +135,7 @@ export function RosterSection({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map(({ entry, isAdded }, index) => {
+                {shownRows.map(({ entry, isAdded }, index) => {
                   const isExcluded = excludedIds.has(entry.userId);
                   const action = isAdded ? '빼기' : isExcluded ? '되돌리기' : '제외';
                   return (
