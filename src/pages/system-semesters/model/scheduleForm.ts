@@ -50,6 +50,22 @@ export function withInvalidWeek(form: ScheduleForm, key: string, isInvalid: bool
   return { ...form, invalid };
 }
 
+/** 한 활동의 일정 선택을 취소한 새 일정: 1주차 시작일과 그 활동의 휴동 주차를 지운다. */
+export function withoutActivitySchedule(
+  form: ScheduleForm,
+  activity: SemesterActivity,
+): ScheduleForm {
+  // invalidKey와 같은 'ACTIVITY:주차' 모양이다.
+  const prefix = `${activity}:`;
+  return {
+    ...form,
+    starts: { ...form.starts, [activity]: '' },
+    invalid: Object.fromEntries(
+      Object.entries(form.invalid).filter(([key]) => !key.startsWith(prefix)),
+    ),
+  };
+}
+
 /** 아무것도 정하지 않은 새 일정. */
 export const emptyScheduleForm = (): ScheduleForm => ({
   vacation: { startDate: '', endDate: '' },

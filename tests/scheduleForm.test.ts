@@ -21,6 +21,7 @@ import {
   type ScheduleForm,
   weekDatesByActivity,
   withInvalidWeek,
+  withoutActivitySchedule,
 } from '../src/pages/system-semesters/model/scheduleForm';
 import { monthDayOf } from '../src/shared/lib/date';
 
@@ -189,4 +190,12 @@ test('Shift로 고르면 마지막으로 누른 줄부터 지금 줄까지 지�
   assert.deepEqual([...withCheckedRange(new Set(['a']), ids, 0, 2)].sort(), ['a', 'b', 'c']);
   assert.deepEqual([...withCheckedRange(new Set(['a', 'b', 'c']), ids, 2, 1)].sort(), ['a']);
   assert.deepEqual([...withCheckedRange(new Set(), ids, null, 3)], ['d']);
+});
+
+test('활동 일정 선택을 취소하면 그 활동의 1주차 시작일과 휴동 주차만 지워진다', () => {
+  const cleared = withoutActivitySchedule(VALID, 'BASE');
+
+  assert.equal(cleared.starts.BASE, '');
+  assert.equal(cleared.starts.STUDY_TERM, VALID.starts.STUDY_TERM);
+  assert.deepEqual(cleared.invalid, { [invalidKey('ADV', 2)]: '' });
 });

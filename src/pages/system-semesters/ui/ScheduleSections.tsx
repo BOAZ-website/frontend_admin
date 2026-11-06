@@ -1,5 +1,6 @@
 import { ACTIVITY_WEEK_COUNT } from '@/entities/cohort/model/schedule';
 import { monthDayOf } from '@/shared/lib/date';
+import { FIELD_TEXT_BTN } from '@/shared/ui/systemStyles';
 
 import {
   ACTIVITIES,
@@ -11,6 +12,7 @@ import {
   type ScheduleForm,
   weekDatesByActivity,
   withInvalidWeek,
+  withoutActivitySchedule,
 } from '../model/scheduleForm';
 import { DateField } from './DateField';
 import { LabeledRow, SectionBox } from './SectionBox';
@@ -92,7 +94,7 @@ export function ScheduleSections({
         </div>
       </SectionBox>
 
-      <SectionBox title="주차">
+      <SectionBox title="휴동 기간 지정">
         <div className="space-y-4">
           {ACTIVITIES.map(({ value, label }) => (
             <LabeledRow key={value} label={label} error={errors[value]} errorId={errorIdFor(value)}>
@@ -114,6 +116,16 @@ export function ScheduleSections({
                   errorId={errorIdFor(value)}
                 />
               </div>
+              {form.starts[value] && !isReadOnly && (
+                <button
+                  type="button"
+                  className={`${FIELD_TEXT_BTN} shrink-0`}
+                  aria-label={`${label} 일정 선택 취소`}
+                  onClick={() => onChange(withoutActivitySchedule(form, value))}
+                >
+                  선택 취소
+                </button>
+              )}
               {form.starts[value] && (
                 <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
                   {WEEK_NUMBERS.map((week) => {
