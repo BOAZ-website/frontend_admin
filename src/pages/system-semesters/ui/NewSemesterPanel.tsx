@@ -35,7 +35,9 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
             />
           </LabeledRow>
           <LabeledRow label="상태">
-            <span className="text-xs text-slate-500">저장하면 준비 상태가 됩니다.</span>
+            <span className="text-xs text-slate-500">
+              저장하면 준비 상태의 반기가 만들어집니다.
+            </span>
           </LabeledRow>
         </div>
       </SectionBox>
