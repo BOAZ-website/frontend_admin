@@ -1,5 +1,5 @@
 import { ACTIVITY_WEEK_COUNT } from '@/entities/cohort/model/schedule';
-import { TABLE_BOX, TD_CLASS, TH_CLASS } from '@/shared/ui/systemStyles';
+import { monthDayOf } from '@/shared/lib/date';
 
 import {
   ACTIVITIES,
@@ -13,7 +13,7 @@ import {
   withInvalidWeek,
 } from '../model/scheduleForm';
 import { DateField } from './DateField';
-import { GRID_HEAD_ROW, GRID_ROW, LabeledRow, SectionBox } from './SectionBox';
+import { LabeledRow, SectionBox } from './SectionBox';
 
 const WEEK_NUMBERS = Array.from({ length: ACTIVITY_WEEK_COUNT }, (_, index) => index + 1);
 
@@ -35,7 +35,7 @@ const blurOutside =
     if (!event.currentTarget.contains(event.relatedTarget)) handler?.();
   };
 
-/** 기간, 활동별 1주차 시작일, 계산된 주차 날짜와 휴강 체크. */
+/** 기간, 활동별 1주차 시작일과 그 옆의 주차 칸(누르면 휴강·수업을 바꾼다). */
 export function ScheduleSections({
   form,
   onChange,
@@ -92,13 +92,13 @@ export function ScheduleSections({
         </div>
       </SectionBox>
 
-      <SectionBox title="1주차 시작일">
+      <SectionBox title="주차">
         <div className="space-y-4">
           {ACTIVITIES.map(({ value, label }) => (
             <LabeledRow key={value} label={label} error={errors[value]} errorId={errorIdFor(value)}>
               <div
                 id={scheduleFieldId(value)}
-                className="min-w-0 flex-1"
+                className="w-40 shrink-0"
                 onBlur={blurOutside(onBlurField && (() => onBlurField(value)))}
               >
                 <DateField
@@ -114,70 +114,42 @@ export function ScheduleSections({
                   errorId={errorIdFor(value)}
                 />
               </div>
-            </LabeledRow>
-          ))}
-        </div>
-        <p className="mt-4 mb-2 text-xs text-slate-500">
-          시작일에서 7일씩 더한 주차 날짜입니다. 휴강으로 체크한 주차는 출결에서 제외됩니다.
-        </p>
-        <div className={`${TABLE_BOX} overflow-x-auto`}>
-          <table className="w-full border-collapse text-xs">
-            <caption className="sr-only">활동별 주차 날짜와 휴강</caption>
-            <thead>
-              <tr className={GRID_HEAD_ROW}>
-                <th scope="col" className={`${TH_CLASS} w-16`}>
-                  주차
-                </th>
-                {ACTIVITIES.map(({ value, label }) => (
-                  <th key={value} scope="col" className={TH_CLASS}>
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {WEEK_NUMBERS.map((week) => (
-                <tr key={week} className={GRID_ROW}>
-                  <th scope="row" className={`${TD_CLASS} font-semibold text-slate-700`}>
-                    {week}주차
-                  </th>
-                  {ACTIVITIES.map(({ value, label }) => {
+              {form.starts[value] && (
+                <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+                  {WEEK_NUMBERS.map((week) => {
+                    const date = datesOf[value][week];
+                    if (!date) return null;
                     const key = invalidKey(value, week);
                     const isInvalid = key in form.invalid;
-                    const date = datesOf[value][week];
+                    const name = `${label} ${week}주차 ${monthDayOf(date)}`;
                     return (
-                      <td key={value} className={`${TD_CLASS} ${isInvalid ? 'bg-slate-50' : ''}`}>
-                        {date ? (
-                          <label className="inline-flex items-center justify-center gap-2 text-xs font-normal">
-                            <span
-                              className={`tabular-nums ${
-                                isInvalid ? 'text-slate-500 line-through' : 'text-slate-800'
-                              }`}
-                            >
-                              {date}
-                            </span>
-                            {isInvalid && <span className="font-semibold text-red-600">휴강</span>}
-                            <input
-                              type="checkbox"
-                              checked={isInvalid}
-                              disabled={isReadOnly}
-                              onChange={(event) =>
-                                onChange(withInvalidWeek(form, key, event.target.checked))
-                              }
-                              aria-label={`${label} ${week}주차 휴강`}
-                              className="size-4 cursor-pointer accent-slate-700 disabled:cursor-default"
-                            />
-                          </label>
-                        ) : (
-                          <span className="text-slate-500">-</span>
-                        )}
-                      </td>
+                      <button
+                        key={week}
+                        type="button"
+                        aria-pressed={isInvalid}
+                        aria-label={`${name} ${isInvalid ? '휴강' : '수업'}`}
+                        title={`${date} ${isInvalid ? '휴강' : '수업'}`}
+                        disabled={isReadOnly}
+                        onClick={() => onChange(withInvalidWeek(form, key, !isInvalid))}
+                        className={`flex w-14 shrink-0 flex-col items-center rounded-sm border border-slate-200 py-1 text-xs disabled:cursor-default ${
+                          isInvalid ? 'bg-slate-100' : 'bg-white hover:border-slate-400'
+                        }`}
+                      >
+                        <span className={isInvalid ? 'text-slate-400' : 'text-slate-500'}>
+                          {week}주차
+                        </span>
+                        <span
+                          className={`tabular-nums ${isInvalid ? 'text-slate-400 line-through' : 'text-slate-900'}`}
+                        >
+                          {monthDayOf(date)}
+                        </span>
+                      </button>
                     );
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </div>
+              )}
+            </LabeledRow>
+          ))}
         </div>
       </SectionBox>
     </>
