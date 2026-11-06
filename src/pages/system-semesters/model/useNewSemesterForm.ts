@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import type {
-  PrepareSemesterRequest,
+  StartSemesterRequest,
   RosterEntryDto,
   RosterKind,
   SemesterDto,
@@ -69,8 +69,10 @@ interface UseNewSemesterFormOptions {
   /** 지금까지 등록된 반기 중 가장 큰 기수. 새 BASE 기수는 이보다 커야 한다. */
   latestCohort: number;
   existingNames: readonly string[];
-  prepare: (request: PrepareSemesterRequest) => Promise<SemesterDto>;
-  onPrepared: (semester: string) => void;
+  /** 지금 진행 중인 반기 이름. 시작하면 이 반기가 종료된다. 없으면 null. */
+  currentName: string | null;
+  start: (request: StartSemesterRequest) => Promise<SemesterDto>;
+  onStarted: (semester: string) => void;
 }
 
 /**
@@ -80,8 +82,9 @@ interface UseNewSemesterFormOptions {
 export function useNewSemesterForm({
   latestCohort,
   existingNames,
-  prepare,
-  onPrepared,
+  currentName,
+  start,
+  onStarted,
 }: UseNewSemesterFormOptions): NewSemesterFormState {
   const firstBase = latestCohort + 1;
   const firstAdv = Math.max(1, firstBase - 1);
@@ -123,10 +126,16 @@ export function useNewSemesterForm({
   };
 
   const save = async () => {
-    if (!passOrShowErrors()) return;
+    if (!passOrShowErrors() || members.length === 0) return;
+    const message = currentName
+      ? `${draftName}을 시작할까요?
+${currentName}이 종료되고 ${draftName}이 진행 반기가 됩니다. ${currentName}에 연결된 HOST 계정의 팀이 해제되고, 팀·출결 기록은 그대로 남습니다.`
+      : `${draftName}을 시작할까요?
+${draftName}이 진행 반기가 됩니다.`;
+    if (!window.confirm(message)) return;
     setIsSaving(true);
     try {
-      await prepare({
+      await start({
         semester: draftName,
         baseTerm: draftBaseTerm,
         advTerm: draftAdvTerm,
@@ -139,7 +148,7 @@ export function useNewSemesterForm({
     } finally {
       setIsSaving(false);
     }
-    onPrepared(draftName);
+    onStarted(draftName);
   };
 
   return {

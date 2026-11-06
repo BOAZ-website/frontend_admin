@@ -1,4 +1,4 @@
-import type { PrepareSemesterRequest, SemesterDto } from '@/entities/cohort/model/dto';
+import type { StartSemesterRequest, SemesterDto } from '@/entities/cohort/model/dto';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { FIELD_INPUT, MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 
@@ -16,12 +16,14 @@ interface NewSemesterPanelProps {
   /** 지금까지 등록된 반기 중 가장 큰 기수. 새 BASE 기수는 이보다 커야 한다. */
   latestCohort: number;
   existingNames: readonly string[];
-  prepare: (request: PrepareSemesterRequest) => Promise<SemesterDto>;
-  onPrepared: (semester: string) => void;
+  /** 지금 진행 중인 반기 이름. 시작하면 이 반기가 종료된다. 없으면 null. */
+  currentName: string | null;
+  start: (request: StartSemesterRequest) => Promise<SemesterDto>;
+  onStarted: (semester: string) => void;
   onCancel: () => void;
 }
 
-/** 새 반기 작성. 명단에 사람을 고르고 만들면 준비 반기가 된다. */
+/** 새 반기 작성. 명단에 사람을 고르고 시작하면 바로 진행 반기가 된다(이전 진행 반기는 종료). */
 export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps) {
   const form = useNewSemesterForm(options);
   const nameError = form.shownErrors.name;
@@ -45,9 +47,6 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
               disabled={form.isSaving}
               className={`${FIELD_INPUT} ${nameError ? 'border-red-400' : ''}`}
             />
-          </LabeledRow>
-          <LabeledRow label="상태">
-            <span className="text-xs font-semibold text-slate-700">준비</span>
           </LabeledRow>
         </div>
       </SectionBox>
@@ -96,6 +95,9 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
       />
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-4">
+        {form.members.length === 0 && (
+          <p className="mr-auto text-xs text-slate-500">명단에 사람을 더하면 시작할 수 있습니다</p>
+        )}
         <button type="button" className={MODAL_CANCEL_BTN} onClick={onCancel}>
           취소
         </button>
@@ -103,10 +105,10 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
           type="button"
           className={MODAL_CONFIRM_BTN}
           // 입력 오류는 누르면 칸 아래에 보이고 첫 오류 칸으로 포커스가 옮겨 간다.
-          disabled={form.isSaving}
+          disabled={form.isSaving || form.members.length === 0}
           onClick={form.handleSave}
         >
-          {form.isSaving ? '만드는 중' : '반기 만들기'}
+          {form.isSaving ? '시작하는 중' : '반기 시작'}
         </button>
       </div>
     </div>

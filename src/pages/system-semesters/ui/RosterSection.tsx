@@ -38,7 +38,7 @@ interface RosterSectionProps {
   added: readonly RosterEntryDto[];
   /** 더할 사람의 구분을 정한다(BASE·ADV 기수가 아니면 수료 기수). */
   kindOf: (term: number) => RosterKind;
-  /** 준비 반기가 아니면 예외를 고칠 수 없다. */
+  /** 고칠 수 없는 반기(서비스운영팀장이 아닌 계정이 보는 종료 반기)면 값만 보인다. */
   isReadOnly: boolean;
   /** 명단을 저장하는 중. 그동안 예외 버튼을 막는다. */
   isSaving: boolean;

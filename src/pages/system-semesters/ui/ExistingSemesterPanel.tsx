@@ -12,20 +12,17 @@ import { ScheduleSections } from './ScheduleSections';
 import { LabeledRow, SectionBox } from './SectionBox';
 
 /** 상태는 출결 화면의 "제출 완료"처럼 배지 없이 글자로만 보여 준다. 진행 중인 반기만 진하게. */
-const STATUS_TEXT: Record<SemesterDto['status'], { label: string; className: string }> = {
-  PREPARING: { label: '준비', className: 'text-xs font-semibold text-slate-700' },
+const STATUS_TEXT: Record<
+  Exclude<SemesterDto['status'], 'PREPARING'>,
+  { label: string; className: string }
+> = {
   ACTIVE: { label: '진행 중', className: 'text-xs font-semibold text-slate-900' },
   ENDED: { label: '종료', className: 'text-xs font-normal text-slate-500' },
 };
 const ERROR_BOX = 'rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600';
 
-type SemesterAction = (semester: string) => Promise<SemesterDto>;
-
 interface ExistingSemesterPanelProps {
   semester: SemesterDto;
-  /** 지금 진행 중인 반기 이름. 없으면 null. */
-  currentName: string | null;
-  activate: SemesterAction;
   remove: (semester: string, isForced?: boolean) => Promise<SemesterDto>;
   /** 로그인한 계정이 서비스운영팀장(MASTER)이다. 종료 반기의 편집·삭제를 연다. */
   canEditArchived: boolean;
@@ -36,10 +33,9 @@ interface ExistingSemesterPanelProps {
 
 /** 등록된 반기 한 개. 상태·일정·명단을 보여 주고, 처리는 useExistingSemester가 맡는다. */
 export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
-  const { semester, currentName } = props;
+  const { semester } = props;
   const view = useExistingSemester(props);
-  const isPreparing = semester.status === 'PREPARING';
-  const status = STATUS_TEXT[semester.status];
+  const status = STATUS_TEXT[semester.status === 'ACTIVE' ? 'ACTIVE' : 'ENDED'];
 
   return (
     <div className="space-y-4">
@@ -51,21 +47,10 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
           <LabeledRow label="상태">
             <span className={status.className}>{status.label}</span>
             {view.isScheduleLocked && <span className="text-xs text-slate-500">조회 전용</span>}
-            {isPreparing && (
-              <button
-                type="button"
-                className={`${MODAL_CONFIRM_BTN} ml-auto`}
-                disabled={view.pending !== null || view.activateBlock !== null}
-                title={view.activateBlock ?? undefined}
-                onClick={view.handleActivate}
-              >
-                활성화
-              </button>
-            )}
             {view.canRemove && (
               <button
                 type="button"
-                className={`${MODAL_CANCEL_BTN} ${isPreparing ? '' : 'ml-auto'}`}
+                className={`${MODAL_CANCEL_BTN} ml-auto`}
                 disabled={view.pending !== null}
                 onClick={view.handleRemove}
               >
@@ -73,29 +58,27 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
               </button>
             )}
           </LabeledRow>
-          {isPreparing && view.activateBlock && (
-            <div role="status" className="space-y-2">
-              <p className="text-xs text-red-600">{view.activateBlock}</p>
-              {!view.isDirty && view.openWeeks.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {view.openWeeks.map((week) => (
-                    <button
-                      key={week.weekNum}
-                      type="button"
-                      className={MODAL_CONFIRM_BTN}
-                      disabled={view.pending !== null}
-                      onClick={() => view.handleCloseWeek(week)}
-                    >
-                      {currentName} {week.label} 마감
-                    </button>
-                  ))}
-                </div>
-              )}
+          {view.openWeeks.length > 0 && (
+            <div role="status" className="flex flex-wrap items-center gap-2">
+              <span className="mr-auto text-xs text-slate-500">
+                진행 중인 주차를 마감해야 새 반기를 시작할 수 있습니다.
+              </span>
+              {view.openWeeks.map((week) => (
+                <button
+                  key={week.weekNum}
+                  type="button"
+                  className={MODAL_CANCEL_BTN}
+                  disabled={view.pending !== null}
+                  onClick={() => view.handleCloseWeek(week)}
+                >
+                  {week.label} 마감
+                </button>
+              ))}
             </div>
           )}
-          {isPreparing && view.currentWeeksError && (
+          {view.currentWeeksError && (
             <p role="status" className="text-xs text-red-600">
-              {currentName}의 주차 상태를 불러오지 못했습니다.{' '}
+              주차 상태를 불러오지 못했습니다.{' '}
               <button type="button" className={FIELD_TEXT_BTN} onClick={view.reloadCurrentWeeks}>
                 다시 불러오기
               </button>
