@@ -4,17 +4,18 @@ import { FIELD_INPUT, MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/sy
 
 import { errorIdOf, scheduleFieldId } from '../model/scheduleForm';
 import { useNewSemesterForm } from '../model/useNewSemesterForm';
-import { RosterSection } from './RosterSection';
+import type { SemesterDraft } from '../model/semesterDraft';
+import { RosterConfirmDialog } from './RosterConfirmDialog';
 import { ScheduleSections } from './ScheduleSections';
 import { LabeledRow, SectionBox } from './SectionBox';
 
 const NAME_ID = scheduleFieldId('name');
-/** 새 반기에는 저장된 명단이 없어 뺄 사람도 없다. */
-const NO_IDS: ReadonlySet<string> = new Set();
 
 interface NewSemesterPanelProps {
-  /** 지금까지 등록된 반기 중 가장 큰 기수. 새 BASE 기수는 이보다 커야 한다. */
-  latestCohort: number;
+  /** 임시 저장해 둔 입력. */
+  initialDraft: SemesterDraft;
+  /** 입력이 바뀔 때마다 부른다(임시 저장). */
+  onDraftChange: (draft: SemesterDraft) => void;
   existingNames: readonly string[];
   /** 지금 진행 중인 반기 이름. 시작하면 이 반기가 종료된다. 없으면 null. */
   currentName: string | null;
@@ -23,7 +24,7 @@ interface NewSemesterPanelProps {
   onCancel: () => void;
 }
 
-/** 새 반기 작성. 명단에 사람을 고르고 시작하면 바로 진행 반기가 된다(이전 진행 반기는 종료). */
+/** 새 반기 작성(입력은 임시 저장). 저장을 누르면 명단 확인 창이 뜨고, 확인하면 바로 진행 반기가 된다. */
 export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps) {
   const form = useNewSemesterForm(options);
   const nameError = form.shownErrors.name;
@@ -82,35 +83,31 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
         onBlurField={form.handleBlurField}
       />
 
-      <RosterSection
-        saved={[]}
-        excludedIds={NO_IDS}
-        added={form.members}
-        kindOf={form.kindOf}
-        isReadOnly={false}
-        isSaving={form.isSaving}
-        onToggleExcluded={() => undefined}
-        onAdd={form.handleAddMembers}
-        onRemoveAdded={form.handleRemoveMember}
-      />
-
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-4">
-        {form.members.length === 0 && (
-          <p className="mr-auto text-xs text-slate-500">명단에 사람을 더하면 시작할 수 있습니다</p>
-        )}
         <button type="button" className={MODAL_CANCEL_BTN} onClick={onCancel}>
-          취소
+          닫기
         </button>
         <button
           type="button"
           className={MODAL_CONFIRM_BTN}
           // 입력 오류는 누르면 칸 아래에 보이고 첫 오류 칸으로 포커스가 옮겨 간다.
-          disabled={form.isSaving || form.members.length === 0}
+          disabled={form.isSaving}
           onClick={form.handleSave}
         >
-          {form.isSaving ? '시작하는 중' : '반기 시작'}
+          저장
         </button>
       </div>
+
+      {form.isRosterOpen && (
+        <RosterConfirmDialog
+          semesterName={form.draftName}
+          terms={form.rosterTerms}
+          kindOf={form.kindOf}
+          isSaving={form.isSaving}
+          onCancel={form.handleCloseRoster}
+          onConfirm={form.handleStart}
+        />
+      )}
     </div>
   );
 }

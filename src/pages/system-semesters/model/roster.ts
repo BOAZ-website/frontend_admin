@@ -1,5 +1,6 @@
 import type { ClubMember } from '@/entities/club-member/model/types';
 import type { RosterEntryDto, RosterKind } from '@/entities/cohort/model/dto';
+import type { ScheduleForm } from './scheduleForm';
 
 /** 명단 표를 거르는 구분. 뺀 사람은 원래 구분 대신 제외로 거른다. */
 export type RosterFilter = 'ALL' | RosterKind | 'EXCLUDED';
@@ -66,4 +67,26 @@ export function withCheckedRange(
   const next = new Set(checked);
   ids.slice(start, end + 1).forEach((id) => (isOn ? next.add(id) : next.delete(id)));
   return next;
+}
+
+/** 명단 확인에 미리 넣을 기수: 1주차 시작일을 정한 활동의 기수(BASE·ADV). 스터디만 하는 사람은 직접 더한다. */
+export function rosterTermsOf(form: ScheduleForm, baseTerm: number, advTerm: number): number[] {
+  return [...(form.starts.BASE ? [baseTerm] : []), ...(form.starts.ADV ? [advTerm] : [])];
+}
+
+/** 미리 넣는 명단: 그 기수의 활동 중 회원. 구분은 기수로 정한다. */
+export function autoRosterOf(
+  members: readonly ClubMember[],
+  terms: readonly number[],
+  kindOf: (term: number) => RosterKind,
+): RosterEntryDto[] {
+  return members
+    .filter((m) => m.status === 'ACTIVE' && terms.includes(m.term))
+    .map((m) => ({
+      userId: m.id,
+      name: m.name,
+      term: m.term,
+      track: m.track,
+      kind: kindOf(m.term),
+    }));
 }
