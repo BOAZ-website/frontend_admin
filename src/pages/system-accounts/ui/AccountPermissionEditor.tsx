@@ -1,17 +1,17 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Lock, Minus, Plus, RotateCcw } from 'lucide-react';
 
-import { permissionsIn } from '@/entities/admin-account/model/catalog';
 import type { PermissionDef, PermissionGroup } from '@/entities/admin-account/model/permissions';
 import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/model/types';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 
 import {
-  baseCheckedOf,
   changeCountsOf,
   changeMarkOf,
   lockReasonOf,
+  resetToBaseChecked,
+  saveSummaryOf,
   savedCheckedOf,
   unsavedCountOf,
 } from '../model/permissionDraft';
@@ -78,29 +78,6 @@ const ROW_BAR = {
 } as const;
 
 /**
- * 저장 전에 보여 줄 변경 요약. 저장된 상태와 비교해 더한 권한·뺀 권한을 카탈로그 순서로 늘어놓는다.
- * 자주 하지 않고 영향이 큰 작업이라 저장 버튼을 누르면 한 번 더 확인한다.
- */
-function saveSummaryOf(
-  catalog: PermissionCatalog,
-  saved: readonly string[],
-  checked: ReadonlySet<string>,
-): string {
-  const savedSet = new Set(saved);
-  const permissions = permissionsIn(catalog);
-  const turnedOn = permissions.filter((p) => checked.has(p.key) && !savedSet.has(p.key));
-  const turnedOff = permissions.filter((p) => !checked.has(p.key) && savedSet.has(p.key));
-  const lines = ['다음 변경을 저장할까요?'];
-  if (turnedOn.length > 0) {
-    lines.push('', `추가 ${turnedOn.length}개`, ...turnedOn.map((p) => `- ${p.label}`));
-  }
-  if (turnedOff.length > 0) {
-    lines.push('', `제외 ${turnedOff.length}개`, ...turnedOff.map((p) => `- ${p.label}`));
-  }
-  return lines.join('\n');
-}
-
-/**
  * 운영진 한 명의 권한 편집(SYS-PERM). 왼쪽은 지금 가진 권한, 오른쪽은 추가할 수 있는 권한이다.
  * 권한은 양쪽 다 카탈로그 묶음과 순서를 그대로 지켜, 옮겨도 같은 자리에 들어간다.
  * 기본 권한에 없는데 더한 권한은 왼쪽에 "추가", 기본 권한인데 뺀 권한은 오른쪽에 "기본에서 제외"로 표시한다.
@@ -131,7 +108,7 @@ export function AccountPermissionEditor({
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
-  const toggle = (key: string) =>
+  const handleToggle = (key: string) =>
     setChecked((current) => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
@@ -140,20 +117,13 @@ export function AccountPermissionEditor({
     });
 
   // 기본 권한으로 되돌려도 잠긴 권한(본인·마지막 보유자의 "타 계정 정보 수정")은 빠지지 않는다. 개별 빼기 버튼과 같은 규칙이다.
-  const resetToBase = () =>
-    setChecked((current) => {
-      const next = new Set(baseCheckedOf(catalog, account));
-      for (const permission of permissionsIn(catalog)) {
-        const isLocked = lockReasonOf(permission, account, me, accounts) !== null;
-        if (isLocked && current.has(permission.key)) next.add(permission.key);
-      }
-      return next;
-    });
-  const discard = () => setChecked(new Set(saved));
+  const handleResetToBase = () =>
+    setChecked((current) => resetToBaseChecked(catalog, account, me, accounts, current));
+  const handleDiscard = () => setChecked(new Set(saved));
 
   // 저장에 성공하면 부모가 계정을 다시 읽고, 바뀐 예외로 key가 달라져 이 편집기가 새 상태로 다시 만들어진다.
   // 실패하면 고른 상태를 그대로 두어 고쳐서 다시 저장할 수 있다.
-  const save = async () => {
+  const handleSave = async () => {
     if (!window.confirm(saveSummaryOf(catalog, saved, checked))) return;
     setIsSaving(true);
     try {
@@ -186,7 +156,7 @@ export function AccountPermissionEditor({
         mark={mark === 'added' ? 'added' : null}
         lockReason={lockReason}
         action={canRemove ? 'remove' : null}
-        onAction={() => toggle(permission.key)}
+        onAction={() => handleToggle(permission.key)}
         isDisabled={isSaving}
       />
     );
@@ -202,7 +172,7 @@ export function AccountPermissionEditor({
         mark={isRemoved ? 'removed' : null}
         lockReason={null}
         action={canEdit ? 'add' : null}
-        onAction={() => toggle(permission.key)}
+        onAction={() => handleToggle(permission.key)}
         isDisabled={isSaving}
       />
     );
@@ -215,7 +185,7 @@ export function AccountPermissionEditor({
         {canEdit && (added > 0 || removed > 0) && (
           <button
             type="button"
-            onClick={resetToBase}
+            onClick={handleResetToBase}
             disabled={isSaving}
             className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-sm px-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40"
           >
@@ -261,7 +231,7 @@ export function AccountPermissionEditor({
           </span>
           <button
             type="button"
-            onClick={discard}
+            onClick={handleDiscard}
             disabled={!isDirty || isSaving}
             className={`${MODAL_CANCEL_BTN} disabled:cursor-not-allowed disabled:opacity-40`}
           >
@@ -269,7 +239,7 @@ export function AccountPermissionEditor({
           </button>
           <button
             type="button"
-            onClick={() => void save()}
+            onClick={() => void handleSave()}
             disabled={!isDirty || isSaving}
             className={MODAL_CONFIRM_BTN}
           >
