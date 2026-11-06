@@ -3,20 +3,31 @@
  * 반기는 따로 종료하지 않는다. 다음 반기를 활성화할 때 이전 진행 반기가 종료된다.
  * 반기는 미리 만들지 않는다. 준비 반기는 한 번에 하나이고, 활성화하면 이전 진행 반기는 종료된다(HOST 팀 떼기는 반기 수정과 같다).
  * 권한(ATTENDANCE_ROSTER_READ·WRITE)은 권한 목록에 아직 없고 임시 API는 경로별 권한을 검사하지 않는다.
+ * 종료 반기는 서비스운영팀장(MASTER)만 일정·명단을 고치고 지운다. 반기 삭제는 행을 지우지 않고 deleted_at만 채운다.
  */
+import type { Database } from 'sql.js';
+
 import {
   findSemesterSchedule,
-  listAutoRosterIds,
+  listAutoRoster,
   listSemesterRoster,
   updateSemesterSchedule,
 } from '@/entities/cohort/api/semesterRepository';
 import type { SemesterDto } from '@/entities/cohort/model/dto';
 import { execute, queryAll } from '@/shared/db/createDatabase';
+import { localDateTime } from '@/shared/lib/date';
 
 import { insertSemester, resolveSemester, semesterByCohort, semesterWeeks } from '../queries';
 import { ApiError, type MockRoute } from '../router';
-import { checkSchedule, makeSemesterCurrent, replaceSemesterMemberIds } from '../semesterOps';
-import { type Body, optionalNumber, readBody } from '../validate';
+import {
+  checkSchedule,
+  assertArchivedEditable,
+  assertUsersExist,
+  makeSemesterCurrent,
+  replaceSemesterMemberIds,
+  semesterRecordCounts,
+} from '../semesterOps';
+import { type Body, oneOf, optionalNumber, readBody, stringArray } from '../validate';
 
 const SEMESTER_PATTERN = /^\d{2}-[12]$/;
 
@@ -32,13 +43,73 @@ function checkTerms(body: Body) {
   return { baseTerm, advTerm };
 }
 
-const reread = (db: Parameters<typeof semesterByCohort>[0], cohort: number): SemesterDto => {
+const reread = (db: Database, cohort: number): SemesterDto => {
   const semester = semesterByCohort(db, cohort);
   if (!semester) throw new ApiError(500, 'INTERNAL', '반기를 다시 읽지 못했습니다.');
   return semester;
 };
 
 const notStatus = (code: string, message: string) => new ApiError(409, code, message);
+
+/**
+ * 준비 반기 요청(prepare·preview 공용)을 검증한다: 표기 형식, 기수, 준비 반기 중복, 표기·기수 중복, 일정.
+ * 지운 반기는 중복 검사에서 빠진다. 같은 기수의 지운 준비 반기는 만들 때 비운다(cohort가 키라서).
+ */
+function checkPrepare(db: Database, body: unknown) {
+  const input = readBody(body);
+  const label = input.semester;
+  if (typeof label !== 'string' || !SEMESTER_PATTERN.test(label)) {
+    throw new ApiError(400, 'BAD_REQUEST', 'semester 값은 YY-1 또는 YY-2 형식이어야 합니다.');
+  }
+  const { baseTerm, advTerm } = checkTerms(input);
+  const latest = queryAll<{ cohort: number | null }>(
+    db,
+    'SELECT MAX(cohort) AS cohort FROM cohorts WHERE deleted_at IS NULL',
+  )[0].cohort;
+  if (latest !== null && baseTerm <= latest) {
+    throw new ApiError(
+      400,
+      'INVALID_TERM',
+      'BASE 기수는 지금까지 등록된 반기보다 큰 기수여야 합니다.',
+    );
+  }
+  if (
+    queryAll(db, 'SELECT cohort FROM cohorts WHERE is_preparing = 1 AND deleted_at IS NULL')
+      .length > 0
+  ) {
+    throw notStatus(
+      'SEMESTER_PREPARING_EXISTS',
+      '준비 중인 반기가 이미 있습니다. 활성화하거나 삭제한 뒤 만드세요.',
+    );
+  }
+  const clash = queryAll<{ cohort: number }>(
+    db,
+    `SELECT cohort FROM cohorts
+      WHERE deleted_at IS NULL AND (cohort = ? OR semester_label = ? OR adv_term = ?)`,
+    [baseTerm, label, advTerm],
+  );
+  if (clash.length > 0) {
+    throw notStatus('SEMESTER_DUPLICATE', '같은 반기 표기·기수·ADV 기수의 반기가 이미 있습니다.');
+  }
+  // shortcut: 지운 준비 반기는 만들 때 행을 비우고 다시 넣는다(cohort가 키라서). 그 행을 팀·점수 규칙이 가리키면 비울 수 없어 막는다.
+  // 실제 백엔드에서 반기 키를 기수와 떼면 없앨 제약이다.
+  const isReferenced =
+    queryAll(
+      db,
+      `SELECT 1 FROM cohorts c
+        WHERE c.cohort = ? AND c.deleted_at IS NOT NULL
+          AND (EXISTS (SELECT 1 FROM teams WHERE semester_cohort = c.cohort)
+               OR EXISTS (SELECT 1 FROM score_rules WHERE term = c.cohort))`,
+      [baseTerm],
+    ).length > 0;
+  if (isReferenced) {
+    throw notStatus(
+      'SEMESTER_DUPLICATE',
+      `지운 ${baseTerm}기 반기에 팀·점수 규칙이 연결되어 있어 같은 기수로 만들 수 없습니다.`,
+    );
+  }
+  return { input, label, baseTerm, advTerm, schedule: checkSchedule(input.schedule) };
+}
 
 export const semesterRoutes: MockRoute[] = [
   {
@@ -47,41 +118,14 @@ export const semesterRoutes: MockRoute[] = [
     summary:
       '준비 반기 만들기: 반기 + 일정·시작일·무효 주차 저장, BASE·ADV 기수의 활동 중 회원으로 명단 자동 생성(실패하면 모두 취소). 진행 반기는 바꾸지 않는다',
     handler: ({ db, body }) => {
-      const input = readBody(body);
-      const label = input.semester;
-      if (typeof label !== 'string' || !SEMESTER_PATTERN.test(label)) {
-        throw new ApiError(400, 'BAD_REQUEST', 'semester 값은 YY-1 또는 YY-2 형식이어야 합니다.');
-      }
-      const { baseTerm, advTerm } = checkTerms(input);
-      const latest = queryAll<{ cohort: number | null }>(
-        db,
-        'SELECT MAX(cohort) AS cohort FROM cohorts',
-      )[0].cohort;
-      if (latest !== null && baseTerm <= latest) {
-        throw new ApiError(
-          400,
-          'INVALID_TERM',
-          'BASE 기수는 지금까지 등록된 반기보다 큰 기수여야 합니다.',
-        );
-      }
-      if (queryAll(db, 'SELECT cohort FROM cohorts WHERE is_preparing = 1').length > 0) {
-        throw notStatus(
-          'SEMESTER_PREPARING_EXISTS',
-          '준비 중인 반기가 이미 있습니다. 활성화하거나 삭제한 뒤 만드세요.',
-        );
-      }
-      const clash = queryAll<{ cohort: number }>(
-        db,
-        'SELECT cohort FROM cohorts WHERE cohort = ? OR semester_label = ? OR adv_term = ?',
-        [baseTerm, label, advTerm],
-      );
-      if (clash.length > 0) {
-        throw notStatus(
-          'SEMESTER_DUPLICATE',
-          '같은 반기 표기·기수·ADV 기수의 반기가 이미 있습니다.',
-        );
-      }
-      const schedule = checkSchedule(input.schedule);
+      const { input, label, baseTerm, advTerm, schedule } = checkPrepare(db, body);
+      const auto = listAutoRoster(db, baseTerm, advTerm).members.map((m) => m.userId);
+      const excluded = stringArray(input, 'excludedUserIds');
+      const included = stringArray(input, 'includedUserIds');
+      // 뺄 사람도 등록된 회원이어야 한다(오타로 빼려던 사람이 남는 일을 막는다).
+      assertUsersExist(db, excluded);
+      // 같은 기수의 지운 준비 반기가 남아 있으면 비운다(가리키는 팀·점수 규칙이 없는 것은 checkPrepare가 확인했다).
+      execute(db, 'DELETE FROM cohorts WHERE cohort = ? AND deleted_at IS NOT NULL', [baseTerm]);
 
       insertSemester(db, {
         cohort: baseTerm,
@@ -97,8 +141,19 @@ export const semesterRoutes: MockRoute[] = [
         attendanceKinds: [],
       });
       updateSemesterSchedule(db, baseTerm, schedule);
-      replaceSemesterMemberIds(db, baseTerm, listAutoRosterIds(db, baseTerm, advTerm));
+      const skip = new Set(excluded);
+      replaceSemesterMemberIds(db, baseTerm, [...auto.filter((id) => !skip.has(id)), ...included]);
       return reread(db, baseTerm);
+    },
+  },
+  {
+    method: 'POST',
+    pattern: '/api/v1/semesters/prepare/preview',
+    summary:
+      '준비 반기 만들기 전 명단 확인: prepare와 같은 본문·검증으로 자동 명단(BASE·ADV 기수의 활동 중 회원)을 돌려준다. 아무것도 저장하지 않는다',
+    handler: ({ db, body }) => {
+      const { baseTerm, advTerm } = checkPrepare(db, body);
+      return listAutoRoster(db, baseTerm, advTerm);
     },
   },
   {
@@ -144,13 +199,27 @@ export const semesterRoutes: MockRoute[] = [
   {
     method: 'DELETE',
     pattern: '/api/v1/semesters/:semester',
-    summary: '준비 반기 삭제(일정·명단도 함께 지움). 진행·종료 반기는 409',
-    handler: ({ db, params }) => {
+    summary:
+      '준비·종료 반기 삭제(soft delete: deleted_at만 채우고 팀·출결·행사 기록은 남긴다). 진행 반기는 409, 종료 반기는 서비스운영팀장만. 종료 반기에 기록이 있으면 force=true일 때만 지운다',
+    handler: ({ db, params, query }) => {
       const semester = resolveSemester(db, params.semester);
-      if (semester.status !== 'PREPARING') {
-        throw notStatus('SEMESTER_NOT_PREPARING', '준비 반기만 삭제할 수 있습니다.');
+      if (semester.status === 'ACTIVE') {
+        throw notStatus('SEMESTER_ACTIVE', '진행 중인 반기는 삭제할 수 없습니다.');
       }
-      execute(db, 'DELETE FROM cohorts WHERE cohort = ?', [semester.cohort]);
+      assertArchivedEditable(db, semester, '종료된 반기는 서비스운영팀장만 삭제할 수 있습니다.');
+      const isForced =
+        oneOf(query.get('force') ?? undefined, ['true', 'false'], 'force') === 'true';
+      const records = semesterRecordCounts(db, semester.cohort);
+      if (semester.status === 'ENDED' && !isForced && Object.values(records).some((n) => n > 0)) {
+        throw notStatus(
+          'SEMESTER_HAS_RECORDS',
+          `${semester.semester}에 팀 ${records.teams}개, 출결 ${records.attendance}건, 행사 ${records.events}개 기록이 있습니다. 반기를 지워도 이 기록은 지워지지 않습니다.`,
+        );
+      }
+      execute(db, 'UPDATE cohorts SET deleted_at = ? WHERE cohort = ?', [
+        localDateTime(),
+        semester.cohort,
+      ]);
       return semester;
     },
   },
@@ -168,9 +237,11 @@ export const semesterRoutes: MockRoute[] = [
       '반기 일정 통째로 저장(기간·시작일·무효 주차). 출결 생성 창이 읽는 주차 날짜(cohort_week_dates)도 시작일로 다시 채운다',
     handler: ({ db, params, body }) => {
       const semester = resolveSemester(db, params.semester);
-      if (semester.status === 'ENDED') {
-        throw notStatus('SEMESTER_ARCHIVED', '종료된 반기의 일정은 수정할 수 없습니다.');
-      }
+      assertArchivedEditable(
+        db,
+        semester,
+        '종료된 반기의 일정은 서비스운영팀장만 고칠 수 있습니다.',
+      );
       const { cohort } = semester;
       updateSemesterSchedule(db, cohort, checkSchedule(body));
       return findSemesterSchedule(db, cohort);

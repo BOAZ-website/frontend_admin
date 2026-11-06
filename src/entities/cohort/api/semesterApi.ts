@@ -52,6 +52,11 @@ export function prepareSemester(request: PrepareSemesterRequest): Promise<Semest
   return api.post('/api/v1/semesters/prepare', request);
 }
 
+/** 준비 반기를 만들기 전 명단 확인: prepare와 같은 검증을 하고 자동 명단을 돌려준다. 저장하지 않는다. */
+export function previewSemesterRoster(request: PrepareSemesterRequest): Promise<SemesterRosterDto> {
+  return api.post('/api/v1/semesters/prepare/preview', request);
+}
+
 /** 반기에 저장된 명단과 기수·구분별 인원. */
 export function fetchSemesterRoster(semester: string): Promise<SemesterRosterDto> {
   return api.get(`${semesterPath(semester)}/roster`);
@@ -62,9 +67,12 @@ export function activateSemester(semester: string): Promise<SemesterDto> {
   return api.post(`${semesterPath(semester)}/activate`, {});
 }
 
-/** 준비 반기를 지운다(일정·명단 포함). */
-export function deleteSemester(semester: string): Promise<SemesterDto> {
-  return api.delete(semesterPath(semester));
+/**
+ * 준비·종료 반기를 지운다(목록에서만 빠지고 팀·출결·행사 기록은 남는다). 종료 반기는 서비스운영팀장만.
+ * 종료 반기에 기록이 있으면 409 SEMESTER_HAS_RECORDS이고, isForced로 다시 보내면 지운다.
+ */
+export function deleteSemester(semester: string, isForced: boolean = false): Promise<SemesterDto> {
+  return api.delete(withQuery(semesterPath(semester), { force: isForced || undefined }));
 }
 
 /** 반기 일정: 방학·학기 기간, 활동별 1주차 시작일과 주차 날짜, 무효 주차. */

@@ -13,6 +13,7 @@ INSERT INTO tracks (name, sort_order) VALUES
 -- 20~27기(23-1 ~ 26-2 반기). 27기(26-2 반기)가 현재 반기이고 나머지는 지난 반기다. 다음 반기(27-1)는 등록하지 않았고,
 -- BASE 출결 생성·ADV 팀 개설을 하면 API가 그때 등록한다.
 -- 반기마다 직전 기수가 ADV를 진행한다(예: 26-2 반기 → 26기 ADV).
+-- 지운 반기는 없다(deleted_at은 모두 NULL).
 INSERT INTO cohorts (cohort, semester_label, start_date, end_date, is_current, adv_term) VALUES
   (20, '23-1', '2023-01-01', '2023-06-30', 0, 19),
   (21, '23-2', '2023-07-01', '2023-12-31', 0, 20),

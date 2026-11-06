@@ -20,18 +20,21 @@ CREATE TABLE tracks (
 -- 팀·출결이 아직 없는 반기도 이 목록에는 있을 수 있다(그 반기를 고르면 빈 화면이 보인다).
 CREATE TABLE cohorts (
   cohort         INTEGER PRIMARY KEY CHECK (cohort > 0),
-  semester_label TEXT    NOT NULL UNIQUE CHECK (semester_label GLOB '[0-9][0-9]-[12]'),
+  semester_label TEXT    NOT NULL CHECK (semester_label GLOB '[0-9][0-9]-[12]'),
   start_date     TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   end_date       TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   is_current     INTEGER NOT NULL DEFAULT 0 CHECK (is_current IN (0, 1)),
   is_preparing   INTEGER NOT NULL DEFAULT 0 CHECK (is_preparing IN (0, 1)), -- 준비: 저장했지만 아직 활성화하지 않은 반기. 진행·종료는 is_current로 가른다
   adv_term       INTEGER CHECK (adv_term > 0),             -- 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 teams.cohort). 없으면 NULL
+  deleted_at     TEXT,                                     -- 반기를 지운 시각(soft delete). 지운 반기는 목록·조회·중복 검사에서 빠지고, 그 반기의 팀·출결·행사 기록은 남는다
   CHECK (start_date <= end_date),
   CHECK (is_current = 0 OR is_preparing = 0)
 );
-CREATE UNIQUE INDEX idx_cohorts_single_preparing ON cohorts (is_preparing) WHERE is_preparing = 1;
+-- 표기·준비 반기·ADV 기수가 겹치지 않는지는 지우지 않은 반기끼리만 본다.
+CREATE UNIQUE INDEX idx_cohorts_label ON cohorts (semester_label) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_cohorts_single_preparing ON cohorts (is_preparing) WHERE is_preparing = 1 AND deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_cohorts_single_current ON cohorts (is_current) WHERE is_current = 1;
-CREATE UNIQUE INDEX idx_cohorts_adv_term ON cohorts (adv_term) WHERE adv_term IS NOT NULL;
+CREATE UNIQUE INDEX idx_cohorts_adv_term ON cohorts (adv_term) WHERE adv_term IS NOT NULL AND deleted_at IS NULL;
 
 -- 반기별 출결 점수 집계 대상 회원 기수(예: 26-2 반기 → 26기·27기).
 CREATE TABLE semester_member_terms (

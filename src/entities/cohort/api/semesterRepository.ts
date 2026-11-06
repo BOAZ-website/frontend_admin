@@ -30,13 +30,27 @@ export interface SemesterScheduleInput {
 const weekNumInSemester = (activity: SemesterActivity, weekNum: number): number =>
   activity === 'STUDY_TERM' ? weekNum + ACTIVITY_WEEK_COUNT : weekNum;
 
-/** BASE·ADV 기수의 활동 중(ACTIVE) 회원 id. 준비 반기를 만들 때 자동 명단으로 쓴다. */
-export function listAutoRosterIds(db: Database, baseTerm: number, advTerm: number): string[] {
-  return queryAll<{ id: string }>(
+const kindOfTerm =
+  (cohort: number, advTerm: number | null) =>
+  (term: number): RosterKind =>
+    term === cohort ? 'BASE' : term === advTerm ? 'ADV' : 'EXTRA';
+
+type RosterRow = { userId: string; name: string; term: number; track: string };
+
+/**
+ * BASE·ADV 기수의 활동 중(ACTIVE) 회원. 준비 반기를 만들 때와 만들기 전 명단 확인(미리보기)에 쓰는 자동 명단이다.
+ * 순서와 모양은 저장된 명단(listSemesterRoster)과 같다.
+ */
+export function listAutoRoster(db: Database, baseTerm: number, advTerm: number): SemesterRosterDto {
+  const members = queryAll<RosterRow>(
     db,
-    "SELECT id FROM users WHERE club_status = 'ACTIVE' AND term IN (?, ?)",
+    `SELECT u.id AS userId, u.name, u.term, u.track
+       FROM users u LEFT JOIN tracks t ON t.name = u.track
+      WHERE u.club_status = 'ACTIVE' AND u.term IN (?, ?)
+      ORDER BY u.term DESC, t.sort_order, u.name`,
     [baseTerm, advTerm],
-  ).map((row) => row.id);
+  ).map((row) => ({ ...row, kind: kindOfTerm(baseTerm, advTerm)(row.term) }));
+  return { members };
 }
 
 /** 반기에 저장된 명단. 기수(큰 기수부터) → 부문 → 이름 순. BASE·ADV 기수가 아니면 EXTRA다. */
@@ -45,16 +59,14 @@ export function listSemesterRoster(
   cohort: number,
   advTerm: number | null,
 ): SemesterRosterDto {
-  const kindOf = (term: number): RosterKind =>
-    term === cohort ? 'BASE' : term === advTerm ? 'ADV' : 'EXTRA';
-  const members = queryAll<{ userId: string; name: string; term: number; track: string }>(
+  const members = queryAll<RosterRow>(
     db,
     `SELECT m.user_id AS userId, m.name, m.term, m.track
        FROM semester_members m LEFT JOIN tracks t ON t.name = m.track
       WHERE m.cohort = ?
       ORDER BY m.term DESC, t.sort_order, m.name`,
     [cohort],
-  ).map((row) => ({ ...row, kind: kindOf(row.term) }));
+  ).map((row) => ({ ...row, kind: kindOfTerm(cohort, advTerm)(row.term) }));
   return { members };
 }
 

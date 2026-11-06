@@ -3,8 +3,9 @@ import {
   deleteSemester,
   fetchSemesters,
   prepareSemester,
+  previewSemesterRoster,
 } from '../api/semesterApi';
-import type { PrepareSemesterRequest, SemesterDto } from './dto';
+import type { PrepareSemesterRequest, SemesterDto, SemesterRosterDto } from './dto';
 import { useLoaded } from './useLoaded';
 
 /** 반기 관리 목록 Hook이 돌려주는 값. */
@@ -14,12 +15,14 @@ export interface SemestersState {
   isLoading: boolean;
   error: Error | null;
   reload: () => void;
+  /** 만들기 전 명단 확인. 저장하지 않으므로 목록을 다시 읽지 않는다. 검증에 걸리면 오류를 던진다. */
+  preview: (request: PrepareSemesterRequest) => Promise<SemesterRosterDto>;
   /** 준비 반기를 만든다. 성공하면 목록을 다시 읽는다. 실패하면 오류를 던진다. */
   prepare: (request: PrepareSemesterRequest) => Promise<SemesterDto>;
   /** 준비 반기를 진행 반기로 만든다(이전 진행 반기는 종료). 이전 반기에 진행 중인 주차가 있으면 409. */
   activate: (semester: string) => Promise<SemesterDto>;
-  /** 준비 반기를 지운다. */
-  remove: (semester: string) => Promise<SemesterDto>;
+  /** 준비·종료 반기를 지운다. 종료 반기에 기록이 있으면 409 SEMESTER_HAS_RECORDS이고 isForced로 다시 부른다. */
+  remove: (semester: string, isForced?: boolean) => Promise<SemesterDto>;
 }
 
 const loadAll = (): Promise<SemesterDto[]> => fetchSemesters(true);
@@ -39,6 +42,7 @@ export function useSemesters(): SemestersState {
     isLoading,
     error,
     reload,
+    preview: previewSemesterRoster,
     prepare: thenReload(prepareSemester),
     activate: thenReload(activateSemester),
     remove: thenReload(deleteSemester),

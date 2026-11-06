@@ -27,7 +27,11 @@ import {
   weekIdOf,
 } from '../queries';
 import { ApiError, type MockRoute } from '../router';
-import { makeSemesterCurrent, replaceSemesterMemberIds } from '../semesterOps';
+import {
+  assertArchivedEditable,
+  makeSemesterCurrent,
+  replaceSemesterMemberIds,
+} from '../semesterOps';
 import {
   type Body,
   oneOf,
@@ -200,10 +204,12 @@ export const commonRoutes: MockRoute[] = [
     handler: ({ db, params, body }) => {
       const semester = resolveSemester(db, params.semester);
       const { cohort } = semester;
-      // 화면은 지난 반기 명단을 막는다. 지난 반기는 현재 반기보다 작은 기수의 종료 반기다.
-      if (semester.status === 'ENDED' && cohort < currentSemester(db).cohort) {
-        throw new ApiError(409, 'SEMESTER_ARCHIVED', '종료된 반기의 명단은 수정할 수 없습니다.');
-      }
+      // 종료(지난) 반기 명단은 서비스운영팀장만 고친다.
+      assertArchivedEditable(
+        db,
+        semester,
+        '종료된 반기의 명단은 서비스운영팀장만 고칠 수 있습니다.',
+      );
       const userIds = stringArray(readBody(body), 'userIds', { required: true });
       replaceSemesterMemberIds(db, cohort, userIds);
       return listSemesterUsers(db, cohort);

@@ -14,6 +14,7 @@ import { TEAM_API_PATHS } from '@/entities/study-team/model/dto';
 import { queryAll } from '@/shared/db/createDatabase';
 
 import type { HttpMethod, MockRequest, MockRoute } from './router';
+import { semesterRecordCounts } from './semesterOps';
 import { currentSession } from './session';
 
 /** 임시 API는 요청한 곳의 IP를 알 수 없어 이 컴퓨터 주소로 남긴다. */
@@ -490,6 +491,16 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     action: 'SEMESTER_DELETE',
     targetType: 'SEMESTER',
     targets: semesterOf,
+    // 반기를 지워도 남는 팀·출결·행사 기록 건수를 함께 남긴다(지우기 전에 센다).
+    before: (r, ids) => {
+      const cohort = queryAll<{ cohort: number }>(
+        r.db,
+        'SELECT cohort FROM cohorts WHERE semester_label = ? AND deleted_at IS NULL',
+        [ids[0] ?? ''],
+      )[0]?.cohort;
+      return cohort === undefined ? {} : { ...semesterRecordCounts(r.db, cohort) };
+    },
+    detail: (_r, { before }) => before,
   },
   {
     method: 'PUT',
@@ -541,6 +552,8 @@ export const IGNORED_WRITES: readonly { method: HttpMethod; pattern: string }[] 
   { method: 'POST', pattern: '/api/v1/auth/login' },
   { method: 'POST', pattern: '/api/v1/auth/logout' },
   { method: 'PUT', pattern: '/api/v1/mock/admin-session' },
+  // 새 반기 명단 확인(미리보기)은 검증과 조회만 하고 아무것도 저장하지 않는다.
+  { method: 'POST', pattern: '/api/v1/semesters/prepare/preview' },
 ];
 
 const ruleOf = (route: MockRoute): AuditRule | undefined =>

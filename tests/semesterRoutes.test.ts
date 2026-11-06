@@ -232,17 +232,21 @@ test('반기를 따로 종료하는 API는 없다', async () => {
   expectApiError(() => call('POST', '/api/v1/semesters/26-2/end'), 404, 'ROUTE_NOT_FOUND');
 });
 
-test('준비 반기를 삭제하면 반기·일정·명단이 지워지고, 진행·종료 반기는 409로 지울 수 없다', async () => {
+test('준비 반기를 삭제하면 목록·조회에서 빠지고(행은 남음) 같은 표기로 다시 만들 수 있다. 진행 반기는 409 SEMESTER_ACTIVE이다', async () => {
   const { call, prepare, count } = await setup();
-  const tables = ['cohorts', 'semester_members', 'semester_periods', 'semester_weeks'];
-  const before = tables.map(count);
+  const cohorts = count('cohorts');
   prepare();
 
   call('DELETE', '/api/v1/semesters/27-1');
 
-  assert.deepEqual(tables.map(count), before);
-  expectApiError(() => call('DELETE', '/api/v1/semesters/26-2'), 409, 'SEMESTER_NOT_PREPARING');
-  expectApiError(() => call('DELETE', '/api/v1/semesters/26-1'), 409, 'SEMESTER_NOT_PREPARING');
+  assert.equal(count('cohorts'), cohorts + 1);
+  const labels = call<SemesterDto[]>('GET', '/api/v1/semesters?includePreparing=true').map(
+    (s) => s.semester,
+  );
+  assert.ok(!labels.includes('27-1'));
+  expectApiError(() => call('GET', '/api/v1/semesters/27-1/schedule'), 404, 'NOT_FOUND');
+  assert.equal(prepare().status, 'PREPARING');
+  expectApiError(() => call('DELETE', '/api/v1/semesters/26-2'), 409, 'SEMESTER_ACTIVE');
 });
 
 test('준비 실패: 표기 형식이 틀리면 400이다', async () => {
@@ -431,12 +435,13 @@ test('일정 저장은 날짜 형식·순서·무효 주차 범위가 틀리면 
   assert.equal(read.invalidWeeks.length, 1);
 });
 
-test('종료 반기 일정은 조회만 되고 저장하면 409 SEMESTER_ARCHIVED이다', async () => {
+test('서비스운영팀장이 아니면 종료 반기 일정은 조회만 되고 저장하면 409 SEMESTER_ARCHIVED이다', async () => {
   const { call, start } = await setup();
   start();
 
   const past = call<SemesterScheduleDto>('GET', '/api/v1/semesters/26-2/schedule');
   assert.ok(past.weeks);
+  call('PUT', '/api/v1/mock/admin-session', { accountId: 2 });
   expectApiError(
     () => call('PUT', '/api/v1/semesters/26-2/schedule', SCHEDULE),
     409,
@@ -464,7 +469,14 @@ test('준비·활성화·일정 저장은 감사 기록에 액션과 요청 API�
   assert.equal(latest().action, 'SEMESTER_ACTIVATE');
 
   const logs = count('audit_log');
-  assert.throws(() => call('PUT', '/api/v1/semesters/26-2/schedule', SCHEDULE), ApiError);
+  assert.throws(
+    () =>
+      call('PUT', '/api/v1/semesters/27-1/schedule', {
+        ...SCHEDULE,
+        invalidWeeks: [{ activity: 'BASE', weekNum: 9 }],
+      }),
+    ApiError,
+  );
   assert.throws(() => call('POST', '/api/v1/semesters/26-2/activate'), ApiError);
   assert.equal(count('audit_log'), logs);
 });
@@ -483,10 +495,11 @@ test('반기 관리에서 저장한 활동별 날짜·휴강이 출결 화면이
   assert.deepEqual(week(9)?.activityDates, { STUDY_TERM: '2027-03-09' });
 });
 
-test('명단 조회 실패: 없는 반기는 404이고, 지난 반기 명단을 바꾸면 409 SEMESTER_ARCHIVED이다', async () => {
+test('명단 조회 실패: 없는 반기는 404이고, 서비스운영팀장이 아닌 계정이 지난 반기 명단을 바꾸면 409 SEMESTER_ARCHIVED이다', async () => {
   const { call } = await setup();
 
   expectApiError(() => call('GET', '/api/v1/semesters/99-9/roster'), 404, 'NOT_FOUND');
+  call('PUT', '/api/v1/mock/admin-session', { accountId: 2 });
   expectApiError(
     () => call('PUT', '/api/v1/semesters/26-1/members', { userIds: [] }),
     409,
@@ -508,4 +521,127 @@ test('반기 목록의 includePreparing은 true·false만 받는다', async () =
   const { call } = await setup();
 
   expectApiError(() => call('GET', '/api/v1/semesters?includePreparing=yes'), 400, 'BAD_REQUEST');
+});
+
+// ─── 명단 확인 먼저(미리보기), 그다음 생성 ───
+
+test('명단 미리보기는 prepare와 같은 자동 명단을 돌려주고 아무것도 저장하지 않는다(감사 기록 포함)', async () => {
+  const { call, prepare, roster, count } = await setup();
+  const tables = ['cohorts', 'semester_members', 'semester_periods', 'audit_log'];
+  const before = tables.map(count);
+
+  const preview = call<SemesterRosterDto>('POST', '/api/v1/semesters/prepare/preview', PREPARE);
+
+  assert.deepEqual(tables.map(count), before);
+  assert.ok(preview.members.length > 0);
+  assert.ok(preview.members.every((m) => m.kind === (m.term === 28 ? 'BASE' : 'ADV')));
+  prepare();
+  assert.deepEqual(preview.members, roster('27-1'));
+});
+
+test('명단 미리보기 실패는 prepare와 같은 400·409다', async () => {
+  const { call } = await setup();
+  const preview = (patch: Partial<PrepareSemesterRequest>) =>
+    call('POST', '/api/v1/semesters/prepare/preview', { ...PREPARE, ...patch });
+
+  expectApiError(() => preview({ semester: '27-3' }), 400, 'BAD_REQUEST');
+  expectApiError(() => preview({ semester: '26-2' }), 409, 'SEMESTER_DUPLICATE');
+  expectApiError(() => preview({ baseTerm: 28, advTerm: 28 }), 400, 'INVALID_TERM');
+  expectApiError(
+    () =>
+      preview({
+        schedule: { ...SCHEDULE, term: { startDate: '2027-07-01', endDate: '2027-03-02' } },
+      }),
+    400,
+    'INVALID_DATE_RANGE',
+  );
+});
+
+test('준비 반기를 만들 때 명단 예외(빼기·더하기)를 함께 보내면 자동 명단에서 빼고 더한 명단으로 만든다', async () => {
+  const { call, prepare, roster } = await setup();
+  const auto = call<SemesterRosterDto>(
+    'POST',
+    '/api/v1/semesters/prepare/preview',
+    PREPARE,
+  ).members.map((m) => m.userId);
+
+  prepare({ excludedUserIds: [auto[0]], includedUserIds: ['u_26_01'] });
+
+  const saved = roster('27-1');
+  assert.equal(saved.length, auto.length);
+  assert.ok(!saved.some((m) => m.userId === auto[0]));
+  assert.equal(saved.find((m) => m.userId === 'u_26_01')?.kind, 'EXTRA');
+});
+
+test('명단 예외에 없는 회원 id가 있으면 400 USER_NOT_FOUND이고 반기도 만들어지지 않는다', async () => {
+  const { prepare, count } = await setup();
+  const cohorts = count('cohorts');
+
+  expectApiError(() => prepare({ includedUserIds: ['u_99_99'] }), 400, 'USER_NOT_FOUND');
+  expectApiError(() => prepare({ excludedUserIds: ['u_99_99'] }), 400, 'USER_NOT_FOUND');
+
+  assert.equal(count('cohorts'), cohorts);
+});
+
+// ─── 종료 반기: 서비스운영팀장(MASTER)만 수정·삭제 ───
+
+test('서비스운영팀장은 종료 반기의 일정·명단을 고칠 수 있다', async () => {
+  const { call, roster } = await setup();
+  const schedule: SaveSemesterScheduleRequest = {
+    vacation: { startDate: '2026-01-01', endDate: '2026-02-28' },
+    term: { startDate: '2026-03-02', endDate: '2026-06-30' },
+    activityStarts: { BASE: '2026-01-06' },
+    invalidWeeks: [{ activity: 'BASE', weekNum: 2 }],
+  };
+
+  const saved = call<SemesterScheduleDto>('PUT', '/api/v1/semesters/26-1/schedule', schedule);
+  call('PUT', '/api/v1/semesters/26-1/members', { userIds: ['u_26_01'] });
+
+  assert.deepEqual(saved.invalidWeeks, [{ activity: 'BASE', weekNum: 2, reason: '' }]);
+  assert.deepEqual(
+    roster('26-1').map((m) => m.userId),
+    ['u_26_01'],
+  );
+});
+
+test('서비스운영팀장이 아니면 종료 반기를 지울 수 없다(409 SEMESTER_ARCHIVED)', async () => {
+  const { call } = await setup();
+  call('PUT', '/api/v1/mock/admin-session', { accountId: 2 });
+
+  expectApiError(() => call('DELETE', '/api/v1/semesters/25-2'), 409, 'SEMESTER_ARCHIVED');
+});
+
+test('기록이 없는 종료 반기는 바로 지워지고, 기록이 있으면 409 SEMESTER_HAS_RECORDS로 건수를 알린다', async () => {
+  const { call } = await setup();
+
+  call('DELETE', '/api/v1/semesters/25-2');
+
+  assert.throws(
+    () => call('DELETE', '/api/v1/semesters/26-1'),
+    (error: unknown) =>
+      error instanceof ApiError &&
+      error.status === 409 &&
+      error.code === 'SEMESTER_HAS_RECORDS' &&
+      error.message.includes('팀 6개') &&
+      error.message.includes('출결 192건'),
+  );
+  const labels = call<SemesterDto[]>('GET', '/api/v1/semesters').map((s) => s.semester);
+  assert.ok(!labels.includes('25-2'));
+  assert.ok(labels.includes('26-1'));
+});
+
+test('force=true로 지우면 반기만 목록·조회에서 빠지고 팀·출결 기록과 감사 기록은 남으며, 삭제 기록에 묶인 건수가 남는다', async () => {
+  const { call, count } = await setup();
+  const tables = ['cohorts', 'teams', 'attendance_records', 'audit_log'];
+  const before = tables.map(count);
+
+  call('DELETE', '/api/v1/semesters/26-1?force=true');
+
+  assert.deepEqual(tables.map(count), [before[0], before[1], before[2], before[3] + 1]);
+  expectApiError(() => call('GET', '/api/v1/semesters/26-1/roster'), 404, 'NOT_FOUND');
+  const latest = call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=1').items[0];
+  assert.equal(latest.action, 'SEMESTER_DELETE');
+  assert.equal(latest.detail?.teams, 6);
+  assert.equal(latest.detail?.attendance, 192);
+  assert.equal(latest.detail?.events, 0);
 });
