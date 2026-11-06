@@ -47,7 +47,6 @@ import {
   sortConcurrentMembersLast,
 } from '../model/baseAttendanceConcurrent';
 import { buildWeekSubmission, countUnmarked, submissionKey } from '../model/weekSubmission';
-import { monthDayOf } from '@/shared/lib/date';
 import { BRAND_SELECTED, MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { Tooltip } from '@/shared/ui/Tooltip';
@@ -2590,16 +2589,11 @@ export function InternalCategoryAttendancePage({
                 }`}
               >
                 <span>{w.label}</span>
-                {w.isInvalid ? (
+                {/* 주차 버튼에는 날짜를 넣지 않는다. 날짜는 고른 주차의 표 머리에 보인다. */}
+                {w.isInvalid && (
                   <span className={`font-semibold ${isActive ? 'text-white' : 'text-red-600'}`}>
                     휴강
                   </span>
-                ) : (
-                  dbWeekDates?.[w.weekNum] && (
-                    <span className="font-medium tabular-nums opacity-80">
-                      {monthDayOf(dbWeekDates[w.weekNum])}
-                    </span>
-                  )
                 )}
               </button>
             );
