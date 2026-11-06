@@ -306,33 +306,6 @@ test('활동별 주차 날짜는 1주차 시작일에 7일씩 더한 값이다',
   assert.deepEqual(activityWeekDates('not-a-date'), []);
 });
 
-test('출결 생성 창 주차 날짜는 BASE(없으면 방학 스터디) 시작일로 1~8주차, 학기 스터디 시작일로 9~16주차를 채운다', async () => {
-  const { call, start, weekDates } = await setup();
-
-  start();
-  assert.deepEqual(
-    weekDates(28),
-    [
-      ...activityWeekDates('2027-01-05'),
-      ...activityWeekDates('2027-03-09').map((week) => ({ ...week, weekNum: week.weekNum + 8 })),
-    ].map((week) => ({ week_num: week.weekNum, date: week.date })),
-  );
-
-  // BASE가 없으면 방학 스터디 시작일을 쓴다. 시작일이 모두 없으면 비운다.
-  call('PUT', '/api/v1/semesters/27-1/schedule', {
-    ...SCHEDULE,
-    activityStarts: { STUDY_VACATION: '2027-01-06' },
-  });
-  assert.deepEqual(
-    weekDates(28).map((week) => week.week_num),
-    [1, 2, 3, 4, 5, 6, 7, 8],
-  );
-  assert.equal(weekDates(28)[0].date, '2027-01-06');
-
-  call('PUT', '/api/v1/semesters/27-1/schedule', { ...SCHEDULE, activityStarts: {} });
-  assert.deepEqual(weekDates(28), []);
-});
-
 test('진행 반기의 일정을 저장하면 그대로 다시 읽히고 이전 값은 통째로 교체된다', async () => {
   const { db, call, start } = await setup();
   start();
@@ -436,18 +409,20 @@ test('새 반기 시작·일정 저장은 감사 기록에 액션과 요청 API�
   assert.equal(count('audit_log'), logs);
 });
 
-test('반기 관리에서 저장한 활동별 날짜·휴강이 출결 화면이 읽는 주차 API에 같은 값으로 나온다', async () => {
-  const { call, start } = await setup();
+test('반기 관리의 일정(1주차 시작일·휴강)을 저장해도 출결 화면이 읽는 주차 API 값은 바뀌지 않는다(따로 관리)', async () => {
+  const { call, start, weekDates } = await setup();
   start();
+  const before = call<SemesterWeekDto[]>('GET', '/api/v1/semesters/27-1/weeks');
+  const datesBefore = weekDates(28);
 
-  const weeks = call<SemesterWeekDto[]>('GET', '/api/v1/semesters/27-1/weeks');
+  call('PUT', '/api/v1/semesters/27-1/schedule', {
+    ...SCHEDULE,
+    activityStarts: { BASE: '2027-01-12', STUDY_TERM: '2027-03-16' },
+    invalidWeeks: [{ activity: 'BASE', weekNum: 5 }],
+  });
 
-  const week = (weekNum: number) => weeks.find((item) => item.weekNum === weekNum);
-  assert.deepEqual(week(1)?.activityDates, { BASE: '2027-01-05' });
-  assert.deepEqual(week(3)?.invalidActivities, ['BASE']);
-  assert.deepEqual(week(4)?.invalidActivities, []);
-  // 학기 스터디 1주차는 반기 주차 표의 9주차다.
-  assert.deepEqual(week(9)?.activityDates, { STUDY_TERM: '2027-03-09' });
+  assert.deepEqual(call<SemesterWeekDto[]>('GET', '/api/v1/semesters/27-1/weeks'), before);
+  assert.deepEqual(weekDates(28), datesBefore);
 });
 
 test('명단 조회 실패: 없는 반기는 404이고, 서비스운영팀장이 아닌 계정이 지난 반기 명단을 바꾸면 409 SEMESTER_ARCHIVED이다', async () => {

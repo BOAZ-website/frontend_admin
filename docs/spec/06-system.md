@@ -297,7 +297,7 @@
 - 새 반기를 시작하면 그 전 진행 반기의 팀을 HOST 계정에서 떼고, 맡은 팀이 남지 않은 HOST 계정은 지운다. 팀·출결 기록은 남는다.
 - 이전 진행 반기에 진행 중(`OPEN`)인 주차가 남아 있으면 새 반기 시작은 409 `SEMESTER_WEEK_IN_PROGRESS`다. 주차 마감은 기존 주차 상태 변경 API(`PATCH /api/v1/semesters/:semester/weeks/:weekNum`, `status: CLOSED`)를 쓴다.
 - 반기 관리와 모든 출결 화면의 반기 선택은 같은 반기 목록(`GET /api/v1/semesters`, 진행·종료 반기 전체)을 쓴다. 출결 기록이 없는 반기도 보인다.
-- 출결 화면(BASE·ADV·스터디 출결 관리)은 같은 DB를 `GET /api/v1/semesters/:semester/weeks`로 읽는다. 주차마다 `activityDates`(활동별 날짜)와 `invalidActivities`(휴강으로 지정한 활동)가 오고, 화면은 자기 활동(BASE·ADV, 스터디는 방학 1~8주차·학기 9~16주차)의 날짜와 휴강을 주차 버튼에 보여 준다.
+- 출결 화면(BASE·ADV·스터디 출결 관리)의 주차는 반기 관리의 1주차 시작일·휴강과 따로 관리한다. 출결 화면은 주차 API(`GET /api/v1/semesters/:semester/weeks`)의 값만 쓰고, 반기 일정을 저장해도 그 값은 바뀌지 않는다(2026-11-06 결정). 실제 주차 목록은 백엔드 API로 받는다.
 
 **임시 API 계약 (초안 — 백엔드와 확정 전, `SYS-API-4`)**
 

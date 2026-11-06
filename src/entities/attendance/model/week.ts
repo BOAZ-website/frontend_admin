@@ -18,8 +18,6 @@ export interface WeekInfo {
   period: '방학' | '학기';
   label: string;
   status: WeekStatus;
-  /** 반기 관리에서 이 화면의 활동(BASE·ADV·스터디)에 휴강으로 지정한 주차. */
-  isInvalid?: boolean;
 }
 
 /** 주차 번호의 상태. 목록에 없는 주차는 아직 열리지 않은 것으로 본다. */

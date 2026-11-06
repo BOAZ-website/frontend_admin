@@ -2589,12 +2589,6 @@ export function InternalCategoryAttendancePage({
                 }`}
               >
                 <span>{w.label}</span>
-                {/* 주차 버튼에는 날짜를 넣지 않는다. 날짜는 고른 주차의 표 머리에 보인다. */}
-                {w.isInvalid && (
-                  <span className={`font-semibold ${isActive ? 'text-white' : 'text-red-600'}`}>
-                    휴강
-                  </span>
-                )}
               </button>
             );
           })}
@@ -3111,9 +3105,6 @@ export function InternalCategoryAttendancePage({
                         <span className="ml-2 font-medium tabular-nums text-slate-500">
                           {dbWeekDates[selectedWeek]}
                         </span>
-                      )}
-                      {weeks.find((w) => w.weekNum === selectedWeek)?.isInvalid && (
-                        <span className="ml-2 font-semibold text-red-600">휴강</span>
                       )}
                     </h4>
 

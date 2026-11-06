@@ -11,8 +11,7 @@ import { saveWeekAttendance } from '@/entities/attendance/api/attendanceApi';
 import type { AttendanceState, AttendanceStatus } from '@/entities/attendance/model/types';
 import type { WeekInfo } from '@/entities/attendance/model/week';
 import { fetchSemesterWeeks } from '@/entities/cohort/api/semesterApi';
-import type { SemesterActivity, SemesterDto } from '@/entities/cohort/model/dto';
-import { ACTIVITY_WEEK_COUNT } from '@/entities/cohort/model/schedule';
+import type { SemesterDto } from '@/entities/cohort/model/dto';
 import {
   addTeamMembers,
   createAdvTeam,
@@ -104,15 +103,9 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-/** 이 화면이 반기 관리의 어느 활동 일정을 따르는지. 스터디는 방학(1~8주차)·학기(9~16주차)가 다르다. */
-function activityOf(group: TeamGroup, weekNum: number): SemesterActivity {
-  if (group === 'STUDY') return weekNum <= ACTIVITY_WEEK_COUNT ? 'STUDY_VACATION' : 'STUDY_TERM';
-  return group;
-}
-
 /**
- * 반기별 주차(진행 상태·날짜·휴강)를 화면이 쓰는 키(활동 기수, ADV는 ADV 기수)로 모은다.
- * 날짜와 휴강은 반기 관리에서 정한 이 화면 활동의 값을 쓰고, 정하지 않았으면 반기 주차 날짜를 쓴다.
+ * 반기별 주차(진행 상태·날짜)를 화면이 쓰는 키(활동 기수, ADV는 ADV 기수)로 모은다.
+ * 출결 주차는 주차 API 값만 쓴다. 반기 관리의 1주차 시작일·휴강과는 따로 관리한다.
  */
 async function loadSemesterWeeks(
   semesters: readonly SemesterDto[],
@@ -131,24 +124,18 @@ async function loadSemesterWeeks(
     weekDates: Object.fromEntries(
       loaded.map(({ key, weeks }) => [
         key,
-        Object.fromEntries(
-          weeks.flatMap((week) => {
-            const date = week.activityDates[activityOf(group, week.weekNum)] ?? week.date;
-            return date ? [[week.weekNum, date]] : [];
-          }),
-        ),
+        Object.fromEntries(weeks.flatMap((week) => (week.date ? [[week.weekNum, week.date]] : []))),
       ]),
     ),
     weeksByCohort: Object.fromEntries(
       loaded.map(({ key, weeks }) => [
         key,
-        weeks.map(({ weekNum, label, period, status, invalidActivities }) => ({
+        weeks.map(({ weekNum, label, period, status }) => ({
           id: `w${weekNum}`,
           weekNum,
           label,
           period,
           status,
-          isInvalid: invalidActivities.includes(activityOf(group, weekNum)),
         })),
       ]),
     ),

@@ -26,7 +26,6 @@ import {
   type TeamDto,
   type TeamGroup,
 } from '@/entities/study-team/model/dto';
-import { listActivityWeekInfo } from '@/entities/cohort/api/semesterRepository';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 import { resolveFileUrl } from '@/shared/lib/file';
 import { resolveImageUrl } from '@/shared/lib/imagePath';
@@ -215,7 +214,6 @@ export function resolveSemester(db: Database, label: string | null | undefined):
  * 반기 관리에서 정한 활동별 날짜·휴강도 함께 돌려준다(출결 화면이 같은 DB 값을 보도록).
  */
 export function semesterWeeks(db: Database, cohort: number): SemesterWeekDto[] {
-  const activityInfo = listActivityWeekInfo(db, cohort);
   return queryAll<{
     week_num: number;
     label: string;
@@ -236,8 +234,6 @@ export function semesterWeeks(db: Database, cohort: number): SemesterWeekDto[] {
     period: row.period,
     status: row.status,
     date: row.date,
-    activityDates: activityInfo.get(row.week_num)?.activityDates ?? {},
-    invalidActivities: activityInfo.get(row.week_num)?.invalidActivities ?? [],
   }));
 }
 
