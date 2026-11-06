@@ -27,13 +27,22 @@ interface DatePickerFieldProps {
   min?: string;
   /** 고를 수 있는 마지막 날. */
   max?: string;
+  /** 바깥에서 붙인 입력 오류 문장의 id. 있으면 입력칸을 오류로 표시하고 그 문장과 잇는다. */
+  errorId?: string;
 }
 
 /**
  * 날짜 입력칸과 화면 안에 그린 달력. 숫자만 쳐도 yyyy-mm-dd로 맞춰지고, 달력 버튼을 누르면 아래에 달력이 열린다.
  * 브라우저 기본 달력은 브라우저마다 모양이 달라 직접 그린다. 바깥으로 포커스가 나가거나 Escape를 누르면 닫힌다.
  */
-export function DatePickerField({ value, onChange, ariaLabel, min, max }: DatePickerFieldProps) {
+export function DatePickerField({
+  value,
+  onChange,
+  ariaLabel,
+  min,
+  max,
+  errorId,
+}: DatePickerFieldProps) {
   const [text, setText] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
   const today = isoOfLocalDate(new Date());
@@ -87,9 +96,10 @@ export function DatePickerField({ value, onChange, ariaLabel, min, max }: DatePi
         placeholder="yyyy-mm-dd"
         maxLength={ISO_DATE_LENGTH}
         aria-label={ariaLabel}
-        aria-invalid={isInvalid}
+        aria-invalid={isInvalid || errorId !== undefined}
+        aria-describedby={errorId}
         title={isInvalid ? '존재하지 않는 날짜입니다' : undefined}
-        className={`${FIELD_INPUT} pr-10 tabular-nums ${isInvalid ? 'border-red-400 focus:border-red-500' : ''}`}
+        className={`${FIELD_INPUT} pr-10 tabular-nums ${isInvalid || errorId ? 'border-red-400 focus:border-red-500' : ''}`}
       />
       <button
         type="button"

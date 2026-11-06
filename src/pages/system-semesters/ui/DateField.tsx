@@ -31,22 +31,14 @@ export function DateField({
       </span>
     );
   }
-  // shortcut: DatePickerField(shared/ui)가 aria 속성을 받지 않아 감싼 묶음에 오류를 잇는다. 그 컴포넌트가 받게 되면 입력칸으로 옮긴다.
   return (
-    <div
-      role="group"
-      aria-label={ariaLabel}
-      aria-invalid={errorId ? true : undefined}
-      aria-describedby={errorId}
-      className={`w-full ${errorId ? '[&_input]:border-red-400' : ''}`}
-    >
-      <DatePickerField
-        value={value}
-        onChange={onChange}
-        ariaLabel={ariaLabel}
-        min={min}
-        max={max}
-      />
-    </div>
+    <DatePickerField
+      value={value}
+      onChange={onChange}
+      ariaLabel={ariaLabel}
+      min={min}
+      max={max}
+      errorId={errorId}
+    />
   );
 }
