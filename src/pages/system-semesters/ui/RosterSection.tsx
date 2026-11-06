@@ -190,6 +190,7 @@ export function RosterSection({
           <div className="space-y-2">
             <RosterPicker
               inRosterIds={new Set([...saved, ...added].map((m) => m.userId))}
+              kindOf={kindOf}
               disabled={isSaving}
               onAdd={(picked) =>
                 onAdd(
@@ -230,6 +231,8 @@ export function RosterSection({
 interface RosterPickerProps {
   /** 이미 명단에 있거나 더하기로 한 사람. 후보에서 뺀다. */
   inRosterIds: ReadonlySet<string>;
+  /** 사람의 기수로 정한 구분. BASE·ADV를 한꺼번에 고르는 데 쓴다. */
+  kindOf: (term: number) => RosterKind;
   disabled: boolean;
   /** 체크한 사람들을 명단에 더한다. */
   onAdd: (members: ClubMember[]) => void;
@@ -239,7 +242,7 @@ interface RosterPickerProps {
  * 명단에 더할 사람 고르기: 기수·이름으로 거른 동아리원(탈동 제외)을 체크해 한 번에 더한다.
  * 명단을 고칠 수 있을 때만 그려서 그때만 회원 목록을 읽는다.
  */
-function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
+function RosterPicker({ inRosterIds, kindOf, disabled, onAdd }: RosterPickerProps) {
   const { members, error, reload } = useClubMembers();
   const [term, setTerm] = useState<number | 'ALL'>('ALL');
   const [query, setQuery] = useState('');
@@ -253,6 +256,15 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
         checkedIds.has(c.id),
       )
     : [];
+  const allCandidates = members
+    ? rosterCandidates(members, inRosterIds, { term: 'ALL', query: '' })
+    : [];
+  const activeIdsOf = (kind: RosterKind) =>
+    allCandidates.filter((c) => c.status === 'ACTIVE' && kindOf(c.term) === kind).map((c) => c.id);
+  const checkKind = (kind: RosterKind) => {
+    setCheckedIds(new Set([...checkedIds, ...activeIdsOf(kind)]));
+    setLastIndex(null);
+  };
   const shownChecked = candidates.filter((c) => checkedIds.has(c.id)).length;
   const isAllChecked = candidates.length > 0 && shownChecked === candidates.length;
   const isSomeChecked = shownChecked > 0 && !isAllChecked;
@@ -317,6 +329,26 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
             다시 불러오기
           </button>
         </p>
+      )}
+      {(['BASE', 'ADV'] as const).some((kind) => activeIdsOf(kind).length > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {(['BASE', 'ADV'] as const).map((kind) => {
+            const count = activeIdsOf(kind).length;
+            return (
+              count > 0 && (
+                <button
+                  key={kind}
+                  type="button"
+                  className="h-8 cursor-pointer rounded-sm border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:text-slate-900"
+                  onClick={() => checkKind(kind)}
+                >
+                  {kind} 모두 고르기{' '}
+                  <span className="font-normal tabular-nums text-slate-500">{count}</span>
+                </button>
+              )
+            );
+          })}
+        </div>
       )}
       {candidates.length > 0 && (
         <div className="flex items-center gap-3 text-xs text-slate-500">
