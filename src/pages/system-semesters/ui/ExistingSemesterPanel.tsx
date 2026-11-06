@@ -59,10 +59,7 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
             )}
           </LabeledRow>
           {view.openWeeks.length > 0 && (
-            <div role="status" className="flex flex-wrap items-center gap-2">
-              <span className="mr-auto text-xs text-slate-500">
-                진행 중인 주차를 마감해야 새 반기를 시작할 수 있습니다.
-              </span>
+            <LabeledRow label="진행 주차">
               {view.openWeeks.map((week) => (
                 <button
                   key={week.weekNum}
@@ -74,7 +71,7 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
                   {week.label} 마감
                 </button>
               ))}
-            </div>
+            </LabeledRow>
           )}
           {view.currentWeeksError && (
             <p role="status" className="text-xs text-red-600">
