@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChevronRight, PanelLeft, User, X } from 'lucide-react';
 
@@ -32,7 +32,7 @@ import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { SERVICE_OPERATIONS_TEAM } from '@/entities/admin-account/model/teams';
 import { logout, openDevDefaultSession, restoreSession } from '@/entities/auth/api/authApi';
 import type { AuthSession } from '@/entities/auth/model/types';
-import type { SemesterAttendanceKind, SemesterDto } from '@/entities/cohort/model/dto';
+import type { SemesterDto } from '@/entities/cohort/model/dto';
 import type { WeekInfo } from '@/entities/attendance/model/week';
 import type { HostAccount } from '@/entities/host-account/model/types';
 import { useScoreRules } from '@/entities/score-rule/model/useScoreRules';
@@ -200,28 +200,13 @@ export default function App() {
   const semesters = attendanceMeta?.semesters ?? NO_SEMESTERS;
   const currentSemester = attendanceMeta?.currentSemester ?? null;
   const nextSemester = attendanceMeta?.nextSemester ?? null;
-  // 반기 선택 목록은 그 화면의 출결이 등록된 반기만 보여 준다(반기 API의 attendanceKinds 기준).
-  // 현재 반기는 출결을 새로 만들 수 있어야 하므로 비어 있어도 늘 넣는다.
-  const cohortsWith = useCallback(
-    (kind: SemesterAttendanceKind) =>
-      semesters
-        .filter((semester) => semester.isCurrent || semester.attendanceKinds.includes(kind))
-        .map((semester) => semester.cohort),
-    [semesters],
-  );
-  const baseCohorts = useMemo(() => cohortsWith('BASE'), [cohortsWith]);
-  const studyCohorts = useMemo(() => cohortsWith('STUDY'), [cohortsWith]);
-  const eventCohorts = useMemo(() => cohortsWith('EVENT'), [cohortsWith]);
+  // 반기 선택 목록은 반기 관리 목록과 같다(같은 반기 API). 출결 기록이 없는 반기도 보인다.
+  // 준비 반기는 아직 시작하지 않아 출결 화면에는 넣지 않는다(반기 API가 빼고 준다).
+  const semesterCohorts = useMemo(() => semesters.map((semester) => semester.cohort), [semesters]);
   const currentCohort = currentSemester?.cohort ?? null;
   // ADV 팀의 기수는 회원 기수다. 반기마다 ADV를 진행하는 기수(advTerm)가 정해져 있다.
   const advCohorts = useMemo(
-    () =>
-      semesters.flatMap((semester) =>
-        semester.advTerm === null ||
-        !(semester.isCurrent || semester.attendanceKinds.includes('ADV'))
-          ? []
-          : [semester.advTerm],
-      ),
+    () => semesters.flatMap((semester) => (semester.advTerm === null ? [] : [semester.advTerm])),
     [semesters],
   );
   const advCurrentCohort = currentSemester?.advTerm ?? null;
@@ -624,7 +609,7 @@ export default function App() {
                 category="SESSION"
                 semesters={semesters}
                 weeks={weeks}
-                cohorts={baseCohorts}
+                cohorts={semesterCohorts}
                 currentCohort={currentCohort}
                 cohortLabels={cohortLabels}
                 tracks={tracks}
@@ -654,7 +639,7 @@ export default function App() {
                 category="STUDY"
                 semesters={semesters}
                 weeks={weeks}
-                cohorts={studyCohorts}
+                cohorts={semesterCohorts}
                 currentCohort={currentCohort}
                 cohortLabels={cohortLabels}
                 tracks={tracks}
@@ -666,7 +651,7 @@ export default function App() {
               semesterNotice
             ) : (
               <EventAttendanceContainer
-                cohorts={eventCohorts}
+                cohorts={semesterCohorts}
                 currentCohort={currentCohort}
                 cohortLabels={cohortLabels}
                 listRequest={eventListRequest}
