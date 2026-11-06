@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { useMyRole } from '@/entities/admin-account/model/useMyRole';
 import type { SemesterDto } from '@/entities/cohort/model/dto';
 import { useSemesters } from '@/entities/cohort/model/useSemesters';
 import { PAGE_LABELS } from '@/shared/config/pageLabels';
@@ -41,6 +42,7 @@ interface SemesterManagementPageProps {
  */
 export function SemesterManagementPage({ onSemesterChanged }: SemesterManagementPageProps) {
   const semestersState = useSemesters();
+  const myRole = useMyRole();
   const { semesters, error, reload } = semestersState;
   const [selection, setSelection] = useState<Selection>(null);
   // 저장하지 않은 입력이 있는 패널에서 다른 반기로 옮길 때도 확인한다(R12-14).
@@ -140,6 +142,7 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
           currentName={current?.semester ?? null}
           activate={semestersState.activate}
           remove={semestersState.remove}
+          canEditArchived={myRole === 'MASTER'}
           onChanged={onSemesterChanged}
           onRemoved={() => setSelection(null)}
         />

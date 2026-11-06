@@ -26,7 +26,9 @@ interface ExistingSemesterPanelProps {
   /** 지금 진행 중인 반기 이름. 없으면 null. */
   currentName: string | null;
   activate: SemesterAction;
-  remove: SemesterAction;
+  remove: (semester: string, isForced?: boolean) => Promise<SemesterDto>;
+  /** 로그인한 계정이 서비스운영팀장(MASTER)이다. 종료 반기의 편집·삭제를 연다. */
+  canEditArchived: boolean;
   /** 상태·일정·명단을 바꾼 뒤 부른다. */
   onChanged: () => void;
   onRemoved: () => void;
@@ -49,25 +51,25 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
           <LabeledRow label="상태">
             <span className={status.className}>{status.label}</span>
             {isPreparing && (
-              <>
-                <button
-                  type="button"
-                  className={`${MODAL_CONFIRM_BTN} ml-auto`}
-                  disabled={view.pending !== null || view.activateBlock !== null}
-                  title={view.activateBlock ?? undefined}
-                  onClick={view.handleActivate}
-                >
-                  활성화
-                </button>
-                <button
-                  type="button"
-                  className={MODAL_CANCEL_BTN}
-                  disabled={view.pending !== null}
-                  onClick={view.handleRemove}
-                >
-                  삭제
-                </button>
-              </>
+              <button
+                type="button"
+                className={`${MODAL_CONFIRM_BTN} ml-auto`}
+                disabled={view.pending !== null || view.activateBlock !== null}
+                title={view.activateBlock ?? undefined}
+                onClick={view.handleActivate}
+              >
+                활성화
+              </button>
+            )}
+            {view.canRemove && (
+              <button
+                type="button"
+                className={`${MODAL_CANCEL_BTN} ${isPreparing ? '' : 'ml-auto'}`}
+                disabled={view.pending !== null}
+                onClick={view.handleRemove}
+              >
+                삭제
+              </button>
             )}
           </LabeledRow>
           {isPreparing && view.activateBlock && (
@@ -100,6 +102,13 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
           )}
           {semester.status === 'ACTIVE' && (
             <p className="text-xs text-slate-500">다음 반기를 활성화하면 종료됩니다.</p>
+          )}
+          {semester.status === 'ENDED' && (
+            <p className="text-xs text-slate-500">
+              {view.isArchivedEditable
+                ? '종료된 반기입니다. 일정·휴강·명단을 고치면 지난 반기 점수 계산에 영향을 줄 수 있습니다.'
+                : '종료된 반기는 조회만 됩니다. 수정·삭제는 서비스운영팀장만 할 수 있습니다.'}
+            </p>
           )}
         </div>
       </SectionBox>
@@ -141,7 +150,7 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
             onChange={view.handleChangeSchedule}
             isReadOnly={view.isScheduleReadOnly}
           />
-          {semester.status !== 'ENDED' && (
+          {!view.isScheduleLocked && (
             <div className="flex items-center justify-end gap-3">
               {view.scheduleErrors.length > 0 && (
                 <p role="status" className="mr-auto text-xs text-red-600">
