@@ -18,14 +18,25 @@ export function SectionBox({ title, children }: SectionBoxProps) {
 interface LabeledRowProps {
   label: string;
   children: ReactNode;
+  /** 값 칸 바로 아래에 보일 입력 오류. */
+  error?: string;
+  /** 오류 문장의 id. 입력칸의 aria-describedby가 가리킨다. */
+  errorId?: string;
 }
 
-/** 라벨 열(96px) + 값 한 줄. */
-export function LabeledRow({ label, children }: LabeledRowProps) {
+/** 라벨 열(96px) + 값 한 줄. 오류가 있으면 값 칸 아래(라벨 열 + 간격만큼 들여서)에 붙인다. */
+export function LabeledRow({ label, children, error, errorId }: LabeledRowProps) {
   return (
-    <div className="flex items-center gap-4">
-      <span className="w-24 shrink-0 text-xs font-semibold text-slate-500">{label}</span>
-      <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
+    <div>
+      <div className="flex items-center gap-4">
+        <span className="w-24 shrink-0 text-xs font-semibold text-slate-500">{label}</span>
+        <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
+      </div>
+      {error && (
+        <p id={errorId} className="mt-1 pl-28 text-xs text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -88,35 +88,91 @@ export function requestFromForm(form: ScheduleForm): SaveSemesterScheduleRequest
   };
 }
 
-/** 저장 전에 화면에서 먼저 거르는 입력 오류. 서버도 같은 규칙으로 다시 검사한다. */
-export function scheduleErrors(form: ScheduleForm): string[] {
-  const errors: string[] = [];
+/** 오류를 붙여 보이는 칸: 기간 두 줄과 활동별 1주차 시작일. */
+export type ScheduleField = 'vacation' | 'term' | SemesterActivity;
+
+/** 칸별 입력 오류(그 칸 아래에 보일 짧은 문장). 오류가 없는 칸은 키가 없다. */
+export type ScheduleFieldErrors = Partial<Record<ScheduleField, string>>;
+
+/** 칸을 화면에서 찾는 id. 첫 오류 칸으로 포커스를 옮길 때 쓴다. */
+export const scheduleFieldId = (field: ScheduleField | 'name'): string => `semester-field-${field}`;
+
+/** 칸 아래 오류 문장의 id: 칸 id 뒤에 '-error'. 입력칸의 aria-describedby가 가리킨다. */
+export const errorIdOf = (fieldId: string): string => `${fieldId}-error`;
+
+/** id의 칸(입력칸이거나 입력칸을 감싼 묶음)의 첫 입력칸으로 포커스를 옮긴다. */
+export function focusField(id: string): void {
+  const element = document.getElementById(id);
+  const input = element instanceof HTMLInputElement ? element : element?.querySelector('input');
+  input?.focus();
+}
+
+/** 저장 전에 화면에서 먼저 거르는 입력 오류(칸별). 서버도 같은 규칙으로 다시 검사한다. */
+export function scheduleFieldErrors(form: ScheduleForm): ScheduleFieldErrors {
+  const errors: ScheduleFieldErrors = {};
   const { vacation, term } = form;
-  const ranges = [
-    ['방학', vacation],
-    ['학기', term],
-  ] as const;
-  for (const [label, range] of ranges) {
+  for (const field of ['vacation', 'term'] as const) {
+    const range = form[field];
     if (!isValidIsoDate(range.startDate) || !isValidIsoDate(range.endDate)) {
-      errors.push(`${label} 시작일과 종료일을 입력하세요.`);
+      errors[field] = '시작일과 종료일을 입력하세요';
     } else if (range.startDate > range.endDate) {
-      errors.push(`${label} 시작일이 종료일보다 늦습니다.`);
+      errors[field] = '종료일을 시작일 뒤로 정하세요';
     }
   }
-  if (!errors.length && vacation.endDate >= term.startDate) {
-    errors.push('학기 시작일은 방학 종료일보다 늦어야 합니다.');
+  if (errors.vacation || errors.term) return errors;
+  if (vacation.endDate >= term.startDate) {
+    errors.term = '학기 시작일을 방학 종료일 뒤로 정하세요';
+    return errors;
   }
-  if (!errors.length) {
-    for (const { value, label } of ACTIVITIES) {
-      const start = form.starts[value];
-      if (!start) continue;
-      if (!isValidIsoDate(start) || start < vacation.startDate || start > term.endDate) {
-        errors.push(`${label} 1주차 시작일이 반기 기간 밖입니다.`);
-      }
+  for (const { value } of ACTIVITIES) {
+    const start = form.starts[value];
+    if (!start) continue;
+    if (!isValidIsoDate(start) || start < vacation.startDate || start > term.endDate) {
+      errors[value] = '방학 시작일 ~ 학기 종료일 안의 날짜를 고르세요';
     }
   }
   return errors;
 }
 
+/** 화면 위에서 아래 순서로 본 칸 이름. 첫 오류 칸을 찾을 때 쓴다. */
+export const SCHEDULE_FIELDS: readonly ScheduleField[] = [
+  'vacation',
+  'term',
+  ...ACTIVITIES.map(({ value }) => value),
+];
+
 /** 새 반기 이름 규칙: 'YY-1' 또는 'YY-2'. */
 export const SEMESTER_NAME_PATTERN = /^\d{2}-[12]$/;
+
+/** 새 반기 이름의 입력 오류. 없으면 undefined. */
+export function semesterNameError(
+  name: string,
+  existingNames: readonly string[],
+): string | undefined {
+  if (!SEMESTER_NAME_PATTERN.test(name)) return '26-2처럼 입력하세요';
+  if (existingNames.includes(name)) return '이미 있는 반기 이름입니다';
+  return undefined;
+}
+
+/**
+ * 칸 아래에 실제로 보일 오류. 아직 손대지 않은 칸은 숨기고, 한 번 벗어났거나(touched)
+ * 확인·저장 버튼을 누른 뒤(isAttempted)에만 보인다.
+ */
+export function shownFieldErrors<F extends string>(
+  errors: Partial<Record<F, string>>,
+  touched: ReadonlySet<string>,
+  isAttempted: boolean,
+): Partial<Record<F, string>> {
+  if (isAttempted) return errors;
+  return Object.fromEntries(
+    Object.entries(errors).filter(([field]) => touched.has(field)),
+  ) as Partial<Record<F, string>>;
+}
+
+/** 화면 순서(order)에서 처음 나오는 오류 칸. 오류가 없으면 null. */
+export function firstErrorField<F extends string>(
+  errors: Partial<Record<F, string>>,
+  order: readonly F[],
+): F | null {
+  return order.find((field) => errors[field] !== undefined) ?? null;
+}

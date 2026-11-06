@@ -149,20 +149,16 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
             form={view.form}
             onChange={view.handleChangeSchedule}
             isReadOnly={view.isScheduleReadOnly}
+            errors={view.scheduleErrors}
+            onBlurField={view.handleBlurScheduleField}
           />
           {!view.isScheduleLocked && (
             <div className="flex items-center justify-end gap-3">
-              {view.scheduleErrors.length > 0 && (
-                <p role="status" className="mr-auto text-xs text-red-600">
-                  {view.scheduleErrors[0]}
-                </p>
-              )}
+              {/* 오류가 있으면 누를 때 오류 칸을 보이고 첫 오류 칸으로 포커스를 옮긴다. */}
               <button
                 type="button"
                 className={MODAL_CONFIRM_BTN}
-                disabled={
-                  !view.isScheduleDirty || view.scheduleErrors.length > 0 || view.pending !== null
-                }
+                disabled={!view.isScheduleDirty || view.pending !== null}
                 onClick={view.handleSaveSchedule}
               >
                 {view.pending === 'schedule' ? '저장 중' : '일정 저장'}

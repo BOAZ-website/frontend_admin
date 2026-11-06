@@ -12,11 +12,21 @@ import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 
 import {
   emptyScheduleForm,
+  firstErrorField,
   requestFromForm,
-  scheduleErrors,
-  SEMESTER_NAME_PATTERN,
+  SCHEDULE_FIELDS,
+  scheduleFieldErrors,
+  focusField,
+  scheduleFieldId,
+  type ScheduleField,
   type ScheduleForm,
+  semesterNameError,
+  shownFieldErrors,
 } from './scheduleForm';
+
+/** 새 반기 작성에서 오류를 붙여 보이는 칸: 반기 이름 + 일정 칸. */
+export type NewSemesterField = 'name' | ScheduleField;
+const FIELD_ORDER: readonly NewSemesterField[] = ['name', ...SCHEDULE_FIELDS];
 
 /** 새 BASE 기수로 고를 수 있는 개수: 등록된 가장 큰 기수 다음부터. */
 const BASE_CHOICES = 2;
@@ -44,14 +54,14 @@ export interface NewSemesterFormState {
   draftForm: ScheduleForm;
   baseOptions: TermOption[];
   advOptions: TermOption[];
-  /** 명단 확인을 막는 입력 오류. 첫 번째만 화면에 보여 준다. */
-  errors: string[];
+  /** 칸 아래에 보일 오류. 손대지 않은 칸은 확인·만들기 버튼을 누르기 전까지 숨긴다. */
+  shownErrors: Partial<Record<NewSemesterField, string>>;
   /** 지금 입력으로 확인한 자동 명단. 확인 전이거나 입력이 바뀌었으면 null. */
   checkedMembers: RosterEntryDto[] | null;
   /** 명단 확인에 실패한 이유(서버 메시지). */
   checkError: string | null;
-  /** 반기 만들기를 막는 이유. 막지 않으면 null. */
-  createBlock: string | null;
+  /** 확인한 명단이 있었지만 입력이 바뀌어 다시 확인해야 한다. */
+  isCheckStale: boolean;
   excludedIds: ReadonlySet<string>;
   added: RosterEntryDto[];
   kindOf: (term: number) => RosterKind;
@@ -61,6 +71,8 @@ export interface NewSemesterFormState {
   handleChangeBaseTerm: (term: number) => void;
   handleChangeAdvTerm: (term: number) => void;
   handleChangeSchedule: (form: ScheduleForm) => void;
+  /** 칸을 벗어나면 그 칸의 오류를 보이기 시작한다. */
+  handleBlurField: (field: NewSemesterField) => void;
   handleCheckRoster: () => void;
   handleToggleExcluded: (userId: string) => void;
   handleAddMember: (entry: RosterEntryDto) => void;
@@ -97,6 +109,8 @@ export function useNewSemesterForm({
   const [isSaving, setIsSaving] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [check, setCheck] = useState<RosterCheck | null>(null);
+  const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
+  const [isAttempted, setIsAttempted] = useState(false);
   const [excludedIds, setExcludedIds] = useState<ReadonlySet<string>>(new Set());
   const [added, setAdded] = useState<RosterEntryDto[]>([]);
 
@@ -113,10 +127,19 @@ export function useNewSemesterForm({
     [isDirty],
   );
 
-  const errors: string[] = [];
-  if (!SEMESTER_NAME_PATTERN.test(draftName)) errors.push('반기 이름은 26-2처럼 입력하세요.');
-  else if (existingNames.includes(draftName)) errors.push('이미 있는 반기 이름입니다.');
-  errors.push(...scheduleErrors(draftForm));
+  const nameError = semesterNameError(draftName, existingNames);
+  const fieldErrors: Partial<Record<NewSemesterField, string>> = {
+    ...(nameError ? { name: nameError } : {}),
+    ...scheduleFieldErrors(draftForm),
+  };
+  /** 오류가 있으면 모든 칸 오류를 보이고 첫 오류 칸으로 포커스를 옮긴다. 오류가 없으면 true. */
+  const passOrShowErrors = (): boolean => {
+    const first = firstErrorField(fieldErrors, FIELD_ORDER);
+    if (!first) return true;
+    setIsAttempted(true);
+    focusField(scheduleFieldId(first));
+    return false;
+  };
 
   const request: PrepareSemesterRequest = {
     semester: draftName,
@@ -128,22 +151,15 @@ export function useNewSemesterForm({
   const freshCheck = check?.requestKey === requestKey ? check : null;
   const checkedMembers = freshCheck?.members ?? null;
   const checkError = freshCheck?.error ?? null;
-  const createBlock =
-    errors[0] ??
-    checkError ??
-    (checkedMembers
-      ? null
-      : check
-        ? '입력이 바뀌었습니다. 명단을 다시 확인하세요.'
-        : '명단 확인을 누르고 명단을 본 뒤 반기를 만드세요.');
 
   const checkRoster = async () => {
+    if (!passOrShowErrors()) return;
     setIsChecking(true);
     try {
       const roster = await preview(request);
       setCheck({ requestKey, members: roster.members, error: null });
     } catch (error) {
-      // 검증에 걸린 이유(서버 메시지)를 만들기 버튼 옆에 보여 준다.
+      // 검증에 걸린 이유(서버 메시지)를 명단 확인 버튼 아래에 보여 준다.
       const message = error instanceof Error ? error.message : '명단을 확인하지 못했습니다.';
       setCheck({ requestKey, members: null, error: message });
     } finally {
@@ -155,7 +171,7 @@ export function useNewSemesterForm({
   };
 
   const save = async () => {
-    if (!checkedMembers) return;
+    if (!passOrShowErrors() || !checkedMembers) return;
     setIsSaving(true);
     try {
       await prepare({
@@ -181,10 +197,10 @@ export function useNewSemesterForm({
     advOptions: Array.from({ length: ADV_CHOICES }, (_, i) => draftBaseTerm - 1 - i)
       .filter((term) => term >= 1)
       .map(termOption),
-    errors,
+    shownErrors: shownFieldErrors(fieldErrors, touched, isAttempted),
     checkedMembers,
     checkError,
-    createBlock,
+    isCheckStale: check !== null && freshCheck === null,
     excludedIds,
     added,
     kindOf: (term) => (term === draftBaseTerm ? 'BASE' : term === draftAdvTerm ? 'ADV' : 'EXTRA'),
@@ -197,6 +213,9 @@ export function useNewSemesterForm({
     },
     handleChangeAdvTerm: setDraftAdvTerm,
     handleChangeSchedule: setDraftForm,
+    handleBlurField: (field) => {
+      if (!touched.has(field)) setTouched(new Set([...touched, field]));
+    },
     handleCheckRoster: () => void checkRoster(),
     handleToggleExcluded: (userId) => {
       const next = new Set(excludedIds);

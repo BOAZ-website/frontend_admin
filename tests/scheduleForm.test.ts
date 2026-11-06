@@ -8,7 +8,10 @@ import {
   formFromSchedule,
   invalidKey,
   requestFromForm,
-  scheduleErrors,
+  firstErrorField,
+  scheduleFieldErrors,
+  semesterNameError,
+  shownFieldErrors,
   type ScheduleForm,
   weekDatesByActivity,
   withInvalidWeek,
@@ -58,23 +61,52 @@ test('서버 일정을 입력 상태로 바꾼 뒤 다시 요청으로 바꾸면
   assert.deepEqual(requestFromForm(form).invalidWeeks, schedule.invalidWeeks);
 });
 
-test('일정 입력 오류: 비운 기간, 뒤바뀐 날짜, 방학·학기 겹침, 기간 밖 시작일을 알린다', () => {
-  assert.deepEqual(scheduleErrors(VALID), []);
-  assert.deepEqual(scheduleErrors(emptyScheduleForm()), [
-    '방학 시작일과 종료일을 입력하세요.',
-    '학기 시작일과 종료일을 입력하세요.',
-  ]);
+test('일정 입력 오류는 칸별로 나온다: 비운 기간, 뒤바뀐 날짜, 방학·학기 겹침(학기 칸), 기간 밖 시작일(그 활동 칸)', () => {
+  assert.deepEqual(scheduleFieldErrors(VALID), {});
+  assert.deepEqual(scheduleFieldErrors(emptyScheduleForm()), {
+    vacation: '시작일과 종료일을 입력하세요',
+    term: '시작일과 종료일을 입력하세요',
+  });
   assert.deepEqual(
-    scheduleErrors({ ...VALID, term: { startDate: '2027-06-30', endDate: '2027-03-02' } }),
-    ['학기 시작일이 종료일보다 늦습니다.'],
+    scheduleFieldErrors({ ...VALID, term: { startDate: '2027-06-30', endDate: '2027-03-02' } }),
+    { term: '종료일을 시작일 뒤로 정하세요' },
   );
   assert.deepEqual(
-    scheduleErrors({ ...VALID, vacation: { startDate: '2027-01-01', endDate: '2027-03-02' } }),
-    ['학기 시작일은 방학 종료일보다 늦어야 합니다.'],
+    scheduleFieldErrors({
+      ...VALID,
+      vacation: { startDate: '2027-01-01', endDate: '2027-03-02' },
+    }),
+    { term: '학기 시작일을 방학 종료일 뒤로 정하세요' },
   );
-  assert.deepEqual(scheduleErrors({ ...VALID, starts: { ...VALID.starts, ADV: '2026-12-31' } }), [
-    'ADV 1주차 시작일이 반기 기간 밖입니다.',
-  ]);
+  assert.deepEqual(
+    scheduleFieldErrors({ ...VALID, starts: { ...VALID.starts, ADV: '2026-12-31' } }),
+    { ADV: '방학 시작일 ~ 학기 종료일 안의 날짜를 고르세요' },
+  );
+});
+
+test('반기 이름 오류: 형식이 틀리면 형식 안내, 이미 있으면 중복 안내, 맞으면 없다', () => {
+  assert.equal(semesterNameError('', []), '26-2처럼 입력하세요');
+  assert.equal(semesterNameError('26-3', []), '26-2처럼 입력하세요');
+  assert.equal(semesterNameError('26-2', ['26-2']), '이미 있는 반기 이름입니다');
+  assert.equal(semesterNameError('27-1', ['26-2']), undefined);
+});
+
+test('칸 오류는 손댄 칸만 보이고, 버튼을 누른 뒤에는 모두 보인다', () => {
+  const errors = { name: '26-2처럼 입력하세요', vacation: '시작일과 종료일을 입력하세요' };
+
+  assert.deepEqual(shownFieldErrors(errors, new Set(), false), {});
+  assert.deepEqual(shownFieldErrors(errors, new Set(['vacation']), false), {
+    vacation: '시작일과 종료일을 입력하세요',
+  });
+  assert.deepEqual(shownFieldErrors(errors, new Set(), true), errors);
+});
+
+test('첫 오류 칸은 화면 순서로 찾고, 오류가 없으면 null이다', () => {
+  const order = ['name', 'vacation', 'term', 'BASE'] as const;
+
+  assert.equal(firstErrorField({ term: 'x', name: 'y' }, order), 'name');
+  assert.equal(firstErrorField({ BASE: 'x', term: 'y' }, order), 'term');
+  assert.equal(firstErrorField({}, order), null);
 });
 
 test('주차 버튼 날짜는 MM-DD이고, 날짜 형식이 아니면 빈 문자열이다', () => {

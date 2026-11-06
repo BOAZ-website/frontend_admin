@@ -6,10 +6,13 @@ import type {
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { FIELD_INPUT, MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 
+import { errorIdOf, scheduleFieldId } from '../model/scheduleForm';
 import { useNewSemesterForm } from '../model/useNewSemesterForm';
 import { RosterSection } from './RosterSection';
 import { ScheduleSections } from './ScheduleSections';
 import { LabeledRow, SectionBox } from './SectionBox';
+
+const NAME_ID = scheduleFieldId('name');
 
 interface NewSemesterPanelProps {
   /** 지금까지 등록된 반기 중 가장 큰 기수. 새 BASE 기수는 이보다 커야 한다. */
@@ -24,20 +27,26 @@ interface NewSemesterPanelProps {
 /** 새 반기 작성. 명단을 확인(저장하지 않음)하고 예외를 고친 뒤 만들면 준비 반기가 된다. */
 export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps) {
   const form = useNewSemesterForm(options);
+  const nameError = form.shownErrors.name;
+  const nameErrorId = nameError ? errorIdOf(NAME_ID) : undefined;
 
   return (
     <div className="space-y-4">
       <SectionBox title="기본">
         <div className="space-y-4">
-          <LabeledRow label="반기 이름">
+          <LabeledRow label="반기 이름" error={nameError} errorId={nameErrorId}>
             <input
+              id={NAME_ID}
               value={form.draftName}
               onChange={(event) => form.handleChangeName(event.target.value)}
+              onBlur={() => form.handleBlurField('name')}
               aria-label="반기 이름"
+              aria-invalid={nameError ? true : undefined}
+              aria-describedby={nameErrorId}
               placeholder="26-2"
               maxLength={5}
               disabled={form.isSaving}
-              className={FIELD_INPUT}
+              className={`${FIELD_INPUT} ${nameError ? 'border-red-400' : ''}`}
             />
           </LabeledRow>
           <LabeledRow label="상태">
@@ -75,6 +84,8 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
         form={form.draftForm}
         onChange={form.handleChangeSchedule}
         isReadOnly={form.isSaving}
+        errors={form.shownErrors}
+        onBlurField={form.handleBlurField}
       />
 
       {form.checkedMembers ? (
@@ -98,30 +109,37 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
             <button
               type="button"
               className={MODAL_CANCEL_BTN}
-              disabled={form.errors.length > 0 || form.isChecking || form.isSaving}
+              disabled={form.isChecking || form.isSaving}
               onClick={form.handleCheckRoster}
             >
               {form.isChecking ? '확인 중' : '명단 확인'}
             </button>
           </div>
+          {form.isCheckStale && !form.checkError && (
+            <p role="status" className="mt-2 text-xs text-slate-500">
+              입력이 바뀌었습니다. 다시 확인하세요
+            </p>
+          )}
+          {form.checkError && (
+            <p role="status" className="mt-2 text-xs text-red-600">
+              {form.checkError}
+            </p>
+          )}
         </SectionBox>
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-4">
-        <p
-          role="status"
-          className={`mr-auto text-xs ${form.errors.length || form.checkError ? 'text-red-600' : 'text-slate-500'}`}
-        >
-          {form.createBlock ??
-            '만든 뒤 준비 반기 화면에서 명단을 다시 고치고 활성화할 수 있습니다.'}
-        </p>
+        {!form.checkedMembers && (
+          <p className="mr-auto text-xs text-slate-500">명단 확인 후 만들 수 있습니다</p>
+        )}
         <button type="button" className={MODAL_CANCEL_BTN} onClick={onCancel}>
           취소
         </button>
         <button
           type="button"
           className={MODAL_CONFIRM_BTN}
-          disabled={form.createBlock !== null || form.isSaving}
+          // 입력 오류는 누르면 칸 아래에 보이고 첫 오류 칸으로 포커스가 옮겨 간다.
+          disabled={!form.checkedMembers || form.isSaving}
           onClick={form.handleSave}
         >
           {form.isSaving ? '만드는 중' : '반기 만들기'}

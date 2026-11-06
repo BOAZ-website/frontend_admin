@@ -16,7 +16,14 @@ import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import {
   formFromSchedule,
   requestFromForm,
-  scheduleErrors,
+  firstErrorField,
+  focusField,
+  SCHEDULE_FIELDS,
+  scheduleFieldErrors,
+  scheduleFieldId,
+  type ScheduleField,
+  type ScheduleFieldErrors,
+  shownFieldErrors,
   type ScheduleForm,
 } from './scheduleForm';
 
@@ -31,7 +38,8 @@ export interface ExistingSemesterState {
   form: ScheduleForm | null;
   scheduleError: Error | null;
   reloadSchedule: () => void;
-  scheduleErrors: string[];
+  /** 일정 칸 아래에 보일 오류. 손대지 않은 칸은 저장을 누르기 전까지 숨긴다. */
+  scheduleErrors: ScheduleFieldErrors;
   isScheduleReadOnly: boolean;
   /** 일정을 고칠 수 없는 반기다(서비스운영팀장이 아닌 계정이 보는 종료 반기). 저장 버튼을 그리지 않는다. */
   isScheduleLocked: boolean;
@@ -57,6 +65,7 @@ export interface ExistingSemesterState {
   reloadCurrentWeeks: () => void;
   kindOf: (term: number) => RosterKind;
   handleChangeSchedule: (form: ScheduleForm) => void;
+  handleBlurScheduleField: (field: ScheduleField) => void;
   handleSaveSchedule: () => void;
   handleToggleExcluded: (userId: string) => void;
   handleAddMember: (entry: RosterEntryDto) => void;
@@ -115,6 +124,8 @@ export function useExistingSemester({
   const [draftExcludedIds, setDraftExcludedIds] = useState<ReadonlySet<string>>(new Set());
   const [draftAdded, setDraftAdded] = useState<RosterEntryDto[]>([]);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
+  const [isAttempted, setIsAttempted] = useState(false);
 
   const isScheduleDirty = draftForm !== null;
   const isDirty = isScheduleDirty || draftExcludedIds.size > 0 || draftAdded.length > 0;
@@ -130,6 +141,7 @@ export function useExistingSemester({
 
   const isScheduleReadOnly = isLocked || pending !== null;
   const form = draftForm ?? (scheduleState.schedule && formFromSchedule(scheduleState.schedule));
+  const fieldErrors = form && !isLocked ? scheduleFieldErrors(form) : {};
   const savedMembers = rosterState.members;
   const openWeeks = currentWeeks.weeks?.filter((week) => week.status === 'OPEN') ?? [];
 
@@ -151,7 +163,7 @@ export function useExistingSemester({
     form,
     scheduleError: scheduleState.error,
     reloadSchedule: scheduleState.reload,
-    scheduleErrors: form && !isLocked ? scheduleErrors(form) : [],
+    scheduleErrors: shownFieldErrors(fieldErrors, touched, isAttempted),
     isScheduleReadOnly,
     isScheduleLocked: isLocked,
     isScheduleDirty,
@@ -178,8 +190,18 @@ export function useExistingSemester({
     kindOf: (term) =>
       term === semester.cohort ? 'BASE' : term === semester.advTerm ? 'ADV' : 'EXTRA',
     handleChangeSchedule: setDraftForm,
+    handleBlurScheduleField: (field) => {
+      if (!touched.has(field)) setTouched(new Set([...touched, field]));
+    },
     handleSaveSchedule: () => {
-      if (!draftForm || !confirmArchivedSave('일정')) return;
+      if (!draftForm) return;
+      const first = firstErrorField(fieldErrors, SCHEDULE_FIELDS);
+      if (first) {
+        setIsAttempted(true);
+        focusField(scheduleFieldId(first));
+        return;
+      }
+      if (!confirmArchivedSave('일정')) return;
       const saving = draftForm;
       void run('schedule', () => scheduleState.save(requestFromForm(saving))).then((isSaved) => {
         if (isSaved) setDraftForm(null);
