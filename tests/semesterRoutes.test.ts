@@ -135,7 +135,7 @@ test('준비 반기를 만들면 기간·활동별 1주차 시작일·무효 주
   assert.deepEqual(schedule.weeks.ADV, []);
 });
 
-test('준비 반기 명단에서 사람을 빼고 다른 기수 사람을 더하면 더한 사람은 예외 추가(EXTRA)로 나온다', async () => {
+test('준비 반기 명단에서 사람을 빼고 다른 기수 사람을 더하면 더한 사람은 수료 기수(EXTRA)로 나온다', async () => {
   const { call, prepare, roster } = await setup();
   prepare();
   const auto = roster('27-1').map((m) => m.userId);

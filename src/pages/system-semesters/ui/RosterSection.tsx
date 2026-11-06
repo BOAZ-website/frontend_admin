@@ -19,9 +19,9 @@ import {
 } from '../model/roster';
 import { GRID_HEAD_ROW, GRID_ROW, SectionBox } from './SectionBox';
 
-const KIND_LABEL: Record<RosterKind, string> = { BASE: 'BASE', ADV: 'ADV', EXTRA: '예외 추가' };
+const KIND_LABEL: Record<RosterKind, string> = { BASE: 'BASE', ADV: 'ADV', EXTRA: '수료 기수' };
 const FILTER_LABEL: Record<RosterFilter, string> = { ALL: '전체', ...KIND_LABEL, EXCLUDED: '제외' };
-/** 인원이 0이어도 보이는 필터. 예외 추가·제외는 있을 때만 보인다. */
+/** 인원이 0이어도 보이는 필터. 수료 기수·제외는 있을 때만 보인다. */
 const ALWAYS_SHOWN: readonly RosterFilter[] = ['ALL', 'BASE', 'ADV'];
 const FILTER_ORDER: readonly RosterFilter[] = ['ALL', 'BASE', 'ADV', 'EXTRA', 'EXCLUDED'];
 
@@ -32,7 +32,7 @@ interface RosterSectionProps {
   excludedIds: ReadonlySet<string>;
   /** 저장된 명단에 더할 사람(저장 전). */
   added: readonly RosterEntryDto[];
-  /** 더할 사람의 구분을 정한다(BASE·ADV 기수가 아니면 예외 추가). */
+  /** 더할 사람의 구분을 정한다(BASE·ADV 기수가 아니면 수료 기수). */
   kindOf: (term: number) => RosterKind;
   /** 준비 반기가 아니면 예외를 고칠 수 없다. */
   isReadOnly: boolean;

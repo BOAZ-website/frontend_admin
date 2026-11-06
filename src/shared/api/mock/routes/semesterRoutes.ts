@@ -160,7 +160,7 @@ export const semesterRoutes: MockRoute[] = [
     method: 'GET',
     pattern: '/api/v1/semesters/:semester/roster',
     summary:
-      '반기에 저장된 출결·점수 명단. 구분은 BASE·ADV 기수면 BASE·ADV, 그 밖은 EXTRA(예외 추가)',
+      '반기에 저장된 출결·점수 명단. 구분은 BASE·ADV 기수면 BASE·ADV, 그 밖은 EXTRA(수료 기수)',
     handler: ({ db, params }) => {
       const semester = resolveSemester(db, params.semester);
       return listSemesterRoster(db, semester.cohort, semester.advTerm);

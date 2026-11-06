@@ -158,6 +158,6 @@ export interface PrepareSemesterRequest {
   schedule: SaveSemesterScheduleRequest;
   /** 자동 명단에서 뺄 회원 id. */
   excludedUserIds?: string[];
-  /** 자동 명단에 더할 회원 id(BASE·ADV 기수가 아니면 예외 추가). */
+  /** 자동 명단에 더할 회원 id(BASE·ADV 기수가 아니면 수료 기수). */
   includedUserIds?: string[];
 }
