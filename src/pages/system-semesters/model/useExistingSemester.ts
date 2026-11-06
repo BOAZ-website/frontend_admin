@@ -68,7 +68,7 @@ export interface ExistingSemesterState {
   handleBlurScheduleField: (field: ScheduleField) => void;
   handleSaveSchedule: () => void;
   handleToggleExcluded: (userId: string) => void;
-  handleAddMember: (entry: RosterEntryDto) => void;
+  handleAddMembers: (entries: RosterEntryDto[]) => void;
   handleRemoveAdded: (userId: string) => void;
   handleSaveRoster: () => void;
   handleActivate: () => void;
@@ -212,7 +212,7 @@ export function useExistingSemester({
       if (!next.delete(userId)) next.add(userId);
       setDraftExcludedIds(next);
     },
-    handleAddMember: (entry) => setDraftAdded([...draftAdded, entry]),
+    handleAddMembers: (entries) => setDraftAdded([...draftAdded, ...entries]),
     handleRemoveAdded: (userId) => setDraftAdded(draftAdded.filter((m) => m.userId !== userId)),
     handleSaveRoster: () => {
       if (!savedMembers || !confirmArchivedSave('명단')) return;

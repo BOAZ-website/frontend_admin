@@ -1,9 +1,6 @@
 import type { ClubMember } from '@/entities/club-member/model/types';
 import type { RosterEntryDto, RosterKind } from '@/entities/cohort/model/dto';
 
-/** 이름 검색 결과를 이만큼만 보여 준다. */
-const SEARCH_LIMIT = 8;
-
 /** 명단 표를 거르는 구분. 뺀 사람은 원래 구분 대신 제외로 거른다. */
 export type RosterFilter = 'ALL' | RosterKind | 'EXCLUDED';
 
@@ -29,15 +26,26 @@ export function rosterFilterCounts(
   return counts;
 }
 
-/** 명단에 더할 수 있는 동아리원: 탈퇴하지 않았고 명단에 없으며 이름에 검색어가 들어간 사람. */
-export function searchRosterCandidates(
+/** 명단에 더할 후보를 거르는 조건. */
+export interface RosterCandidateFilter {
+  term: number | 'ALL';
+  query: string;
+}
+
+/** 명단에 더할 수 있는 동아리원: 탈퇴하지 않았고 명단에 없으며 기수·이름 조건에 맞는 사람. 큰 기수부터 이름순. */
+export function rosterCandidates(
   members: readonly ClubMember[],
   inRosterIds: ReadonlySet<string>,
-  query: string,
+  { term, query }: RosterCandidateFilter,
 ): ClubMember[] {
   const keyword = query.trim();
-  if (!keyword) return [];
   return members
-    .filter((c) => c.status !== 'WITHDRAWN' && !inRosterIds.has(c.id) && c.name.includes(keyword))
-    .slice(0, SEARCH_LIMIT);
+    .filter(
+      (m) =>
+        m.status !== 'WITHDRAWN' &&
+        !inRosterIds.has(m.id) &&
+        (term === 'ALL' || m.term === term) &&
+        m.name.includes(keyword),
+    )
+    .sort((a, b) => b.term - a.term || a.name.localeCompare(b.name, 'ko'));
 }

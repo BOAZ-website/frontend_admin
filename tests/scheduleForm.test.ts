@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import type { ClubMember } from '../src/entities/club-member/model/types';
 import type { RosterEntryDto, SemesterScheduleDto } from '../src/entities/cohort/model/dto';
-import { rosterFilterCounts, rosterFilterOf } from '../src/pages/system-semesters/model/roster';
+import {
+  rosterCandidates,
+  rosterFilterCounts,
+  rosterFilterOf,
+} from '../src/pages/system-semesters/model/roster';
 import {
   emptyScheduleForm,
   formFromSchedule,
@@ -150,4 +155,29 @@ test('휴강 체크를 켜면 사유가 빈 문자열로 들어가고, 끄면 �
   assert.equal(checked.invalid[key], '');
   assert.ok(!(key in withInvalidWeek(checked, key, false).invalid));
   assert.equal(weekDatesByActivity(VALID).BASE[2], '2027-01-12');
+});
+
+const member = (id: string, term: number, status: ClubMember['status'], name = id): ClubMember =>
+  ({ id, name, term, track: '분석', status }) as ClubMember;
+
+test('명단에 더할 후보: 탈퇴·이미 명단에 있는 사람은 빼고, 기수와 이름으로 거르며 큰 기수부터 이름순이다', () => {
+  const members = [
+    member('a', 25, 'ACTIVE', '나'),
+    member('b', 27, 'ACTIVE', '가'),
+    member('c', 25, 'WITHDRAWN', '다'),
+    member('d', 25, 'ACTIVE', '가'),
+    member('e', 27, 'ACTIVE', '라'),
+  ];
+  const ids = (list: ClubMember[]) => list.map((m) => m.id);
+
+  assert.deepEqual(ids(rosterCandidates(members, new Set(['e']), { term: 'ALL', query: '' })), [
+    'b',
+    'd',
+    'a',
+  ]);
+  assert.deepEqual(ids(rosterCandidates(members, new Set(), { term: 25, query: '' })), ['d', 'a']);
+  assert.deepEqual(ids(rosterCandidates(members, new Set(), { term: 'ALL', query: ' 가 ' })), [
+    'b',
+    'd',
+  ]);
 });

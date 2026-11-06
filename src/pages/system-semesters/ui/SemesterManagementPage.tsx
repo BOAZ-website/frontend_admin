@@ -129,7 +129,6 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
         <NewSemesterPanel
           latestCohort={Math.max(0, ...semesters.map((s) => s.cohort))}
           existingNames={semesters.map((s) => s.semester)}
-          preview={semestersState.preview}
           prepare={semestersState.prepare}
           onCancel={() => handleSelect(null)}
           onPrepared={(name) => setSelection({ kind: 'semester', name })}

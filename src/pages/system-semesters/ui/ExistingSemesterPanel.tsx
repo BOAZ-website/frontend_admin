@@ -182,7 +182,7 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
           isReadOnly={view.isRosterReadOnly}
           isSaving={view.pending === 'roster'}
           onToggleExcluded={view.handleToggleExcluded}
-          onAdd={view.handleAddMember}
+          onAdd={view.handleAddMembers}
           onRemoveAdded={view.handleRemoveAdded}
           onSave={view.handleSaveRoster}
         />
