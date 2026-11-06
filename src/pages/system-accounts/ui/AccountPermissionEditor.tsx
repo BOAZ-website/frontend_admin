@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Lock, Minus, Plus, RotateCcw } from 'lucide-react';
 
 import type { PermissionDef, PermissionGroup } from '@/entities/admin-account/model/permissions';
@@ -6,15 +6,8 @@ import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/m
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 
-import {
-  changeCountsOf,
-  changeMarkOf,
-  lockReasonOf,
-  resetToBaseChecked,
-  saveSummaryOf,
-  savedCheckedOf,
-  unsavedCountOf,
-} from '../model/permissionDraft';
+import { changeMarkOf, lockReasonOf } from '../model/permissionDraft';
+import { usePermissionDraft } from '../model/usePermissionDraft';
 import { PermissionLabel } from './PermissionLabel';
 
 interface AccountPermissionEditorProps {
@@ -92,47 +85,18 @@ export function AccountPermissionEditor({
   onSave,
   onDirtyChange,
 }: AccountPermissionEditorProps) {
-  // 저장 기준. 처음에는 계정의 유효 권한이고, 저장에 성공하면 그때의 상태로 옮긴다.
-  // 저장 뒤 목록을 다시 읽지 못해 계정 값이 예전 그대로여도, 저장한 내용이 "저장하지 않은 변경"으로 남지 않는다.
-  const [saved, setSaved] = useState<readonly string[]>(() => savedCheckedOf(catalog, account));
-  const [checked, setChecked] = useState<ReadonlySet<string>>(
-    () => new Set(savedCheckedOf(catalog, account)),
-  );
-  const [isSaving, setIsSaving] = useState(false);
-
-  const unsavedCount = unsavedCountOf(saved, checked);
-  const isDirty = unsavedCount > 0;
-  const { added, removed } = changeCountsOf(catalog, account, checked);
-
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  const handleToggle = (key: string) =>
-    setChecked((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
-  // 기본 권한으로 되돌려도 잠긴 권한(본인·마지막 보유자의 "타 계정 정보 수정")은 빠지지 않는다. 개별 빼기 버튼과 같은 규칙이다.
-  const handleResetToBase = () =>
-    setChecked((current) => resetToBaseChecked(catalog, account, me, accounts, current));
-  const handleDiscard = () => setChecked(new Set(saved));
-
-  // 저장에 성공하면 부모가 계정을 다시 읽고, 바뀐 예외로 key가 달라져 이 편집기가 새 상태로 다시 만들어진다.
-  // 실패하면 고른 상태를 그대로 두어 고쳐서 다시 저장할 수 있다.
-  const handleSave = async () => {
-    if (!window.confirm(saveSummaryOf(catalog, saved, checked))) return;
-    setIsSaving(true);
-    try {
-      const isSaved = await onSave([...checked]);
-      if (isSaved) setSaved([...checked]);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const {
+    checked,
+    isSaving,
+    isDirty,
+    unsavedCount,
+    added,
+    removed,
+    handleToggle,
+    handleResetToBase,
+    handleDiscard,
+    handleSave,
+  } = usePermissionDraft({ catalog, account, me, accounts, onSave, onDirtyChange });
 
   const isHeld = (permission: PermissionDef): boolean =>
     permission.ownGroup

@@ -86,7 +86,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
                           <td
                             key={column.key}
                             className={`text-center text-xs font-semibold ${
-                              isIn ? 'text-slate-700' : isAuto ? 'text-slate-400' : 'text-slate-200'
+                              isIn ? 'text-slate-700' : isAuto ? 'text-slate-500' : 'text-slate-200'
                             }`}
                             aria-label={isIn ? '기본 권한' : isAuto ? '맡은 그룹에서 자동' : '없음'}
                           >
@@ -106,7 +106,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
               ))}
               {catalog.groups.length === 0 && (
                 <tr>
-                  <td colSpan={columnCount} className="py-8 text-center text-slate-400">
+                  <td colSpan={columnCount} className="py-8 text-center text-slate-500">
                     권한 정보가 없습니다.
                   </td>
                 </tr>
