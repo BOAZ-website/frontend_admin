@@ -5,7 +5,7 @@
 import { api, withQuery } from '@/shared/api/client';
 
 import type {
-  PrepareSemesterRequest,
+  StartSemesterRequest,
   ReplaceSemesterMembersRequest,
   SaveSemesterScheduleRequest,
   SemesterDto,
@@ -18,11 +18,9 @@ import type { UserProfile } from '@/entities/user/model/types';
 
 const semesterPath = (semester: string) => `/api/v1/semesters/${encodeURIComponent(semester)}`;
 
-/** 진행·종료 반기. shouldIncludePreparing이면 준비 반기도 함께 받는다(반기 관리 화면). */
-export function fetchSemesters(shouldIncludePreparing: boolean = false): Promise<SemesterDto[]> {
-  return api.get(
-    withQuery('/api/v1/semesters', { includePreparing: shouldIncludePreparing || undefined }),
-  );
+/** 진행·종료 반기(큰 기수부터). 반기 관리와 출결 화면의 반기 선택이 같은 목록을 쓴다. */
+export function fetchSemesters(): Promise<SemesterDto[]> {
+  return api.get('/api/v1/semesters');
 }
 
 /** 전역 사용자 중 이 반기의 출결·점수 시스템에서 사용할 회원 명단을 등록한다. */
@@ -48,18 +46,13 @@ export function updateSemesterWeek(
 }
 
 /** 준비 반기 만들기: 반기·일정·무효 주차를 저장하고 BASE·ADV 기수로 명단을 자동으로 만든다. */
-export function prepareSemester(request: PrepareSemesterRequest): Promise<SemesterDto> {
-  return api.post('/api/v1/semesters/prepare', request);
+export function startSemester(request: StartSemesterRequest): Promise<SemesterDto> {
+  return api.post('/api/v1/semesters/start', request);
 }
 
 /** 반기에 저장된 명단과 기수·구분별 인원. */
 export function fetchSemesterRoster(semester: string): Promise<SemesterRosterDto> {
   return api.get(`${semesterPath(semester)}/roster`);
-}
-
-/** 준비 반기를 진행 반기로 만든다. 이전 진행 반기는 종료된다. */
-export function activateSemester(semester: string): Promise<SemesterDto> {
-  return api.post(`${semesterPath(semester)}/activate`, {});
 }
 
 /**

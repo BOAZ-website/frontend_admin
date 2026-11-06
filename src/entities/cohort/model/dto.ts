@@ -145,10 +145,10 @@ export interface SemesterRosterDto {
 }
 
 /**
- * 준비 반기 만들기: 반기·일정·무효 주차와 고른 명단을 저장한다. 명단은 자동으로 채우지 않는다.
- * 반기 번호(cohort)는 BASE 기수와 같다. 활성화(POST /:semester/activate)해야 진행 반기가 된다.
+ * 새 반기 시작: 반기·일정·무효 주차와 고른 명단을 저장하고 바로 진행 반기로 만든다(이전 진행 반기는 종료).
+ * 명단은 자동으로 채우지 않는다. 반기 번호(cohort)는 BASE 기수와 같다.
  */
-export interface PrepareSemesterRequest {
+export interface StartSemesterRequest {
   /** 'YY-1' 또는 'YY-2'. */
   semester: string;
   baseTerm: number;

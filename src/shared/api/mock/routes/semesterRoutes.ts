@@ -1,7 +1,6 @@
 /**
- * 반기 관리 API(계약 초안: docs/spec/06-system.md §4.6): 준비 반기 만들기(고른 명단과 함께) → 명단 수정(PUT /:semester/members) → 활성화.
- * 반기는 따로 종료하지 않는다. 다음 반기를 활성화할 때 이전 진행 반기가 종료된다.
- * 반기는 미리 만들지 않는다. 준비 반기는 한 번에 하나이고, 활성화하면 이전 진행 반기는 종료된다(HOST 팀 떼기는 반기 수정과 같다).
+ * 반기 관리 API(계약 초안: docs/spec/06-system.md §4.6): 새 반기 시작(고른 명단과 함께, 바로 진행 반기가 됨) → 명단 수정(PUT /:semester/members).
+ * 반기는 따로 종료하지 않는다. 새 반기를 시작하면 이전 진행 반기가 종료된다(HOST 팀 떼기는 반기 수정과 같다). 반기는 미리 만들지 않는다.
  * 권한(ATTENDANCE_ROSTER_READ·WRITE)은 권한 목록에 아직 없고 임시 API는 경로별 권한을 검사하지 않는다.
  * 종료 반기는 서비스운영팀장(MASTER)만 일정·명단을 고치고 지운다. 반기 삭제는 행을 지우지 않고 deleted_at만 채운다.
  */
@@ -51,10 +50,10 @@ const reread = (db: Database, cohort: number): SemesterDto => {
 const notStatus = (code: string, message: string) => new ApiError(409, code, message);
 
 /**
- * 준비 반기 요청(prepare·preview 공용)을 검증한다: 표기 형식, 기수, 준비 반기 중복, 표기·기수 중복, 일정.
- * 지운 반기는 중복 검사에서 빠진다. 같은 기수의 지운 준비 반기는 만들 때 비운다(cohort가 키라서).
+ * 새 반기 시작 요청을 검증한다: 표기 형식, 기수, 표기·기수 중복, 일정.
+ * 지운 반기는 중복 검사에서 빠진다. 같은 기수의 지운 반기는 만들 때 비운다(cohort가 키라서).
  */
-function checkPrepare(db: Database, body: unknown) {
+function checkStart(db: Database, body: unknown) {
   const input = readBody(body);
   const label = input.semester;
   if (typeof label !== 'string' || !SEMESTER_PATTERN.test(label)) {
@@ -72,15 +71,6 @@ function checkPrepare(db: Database, body: unknown) {
       'BASE 기수는 지금까지 등록된 반기보다 큰 기수여야 합니다.',
     );
   }
-  if (
-    queryAll(db, 'SELECT cohort FROM cohorts WHERE is_preparing = 1 AND deleted_at IS NULL')
-      .length > 0
-  ) {
-    throw notStatus(
-      'SEMESTER_PREPARING_EXISTS',
-      '준비 중인 반기가 이미 있습니다. 활성화하거나 삭제한 뒤 만드세요.',
-    );
-  }
   const clash = queryAll<{ cohort: number }>(
     db,
     `SELECT cohort FROM cohorts
@@ -90,7 +80,7 @@ function checkPrepare(db: Database, body: unknown) {
   if (clash.length > 0) {
     throw notStatus('SEMESTER_DUPLICATE', '같은 반기 표기·기수·ADV 기수의 반기가 이미 있습니다.');
   }
-  // shortcut: 지운 준비 반기는 만들 때 행을 비우고 다시 넣는다(cohort가 키라서). 그 행을 팀·점수 규칙이 가리키면 비울 수 없어 막는다.
+  // shortcut: 지운 반기는 만들 때 행을 비우고 다시 넣는다(cohort가 키라서). 그 행을 팀·점수 규칙이 가리키면 비울 수 없어 막는다.
   // 실제 백엔드에서 반기 키를 기수와 떼면 없앨 제약이다.
   const isReferenced =
     queryAll(
@@ -127,18 +117,38 @@ function assertNotWithdrawn(db: Database, userIds: readonly string[]): void {
   }
 }
 
+/** 진행 반기에 진행 중인 주차가 있으면 종료할 수 없다(409). 반기 관리에서 주차를 마감한 뒤 새 반기를 시작한다. */
+function assertNoOpenWeek(db: Database): void {
+  const current = queryAll<{ cohort: number; semester_label: string }>(
+    db,
+    'SELECT cohort, semester_label FROM cohorts WHERE is_current = 1',
+  )[0];
+  if (!current) return;
+  const openWeeks = semesterWeeks(db, current.cohort).filter((week) => week.status === 'OPEN');
+  if (openWeeks.length > 0) {
+    throw notStatus(
+      'SEMESTER_WEEK_IN_PROGRESS',
+      `${current.semester_label}에 진행 중인 주차(${openWeeks.map((week) => week.label).join(', ')})가 있어 종료할 수 없습니다. 주차를 마감한 뒤 새 반기를 시작하세요.`,
+    );
+  }
+}
+
 export const semesterRoutes: MockRoute[] = [
   {
     method: 'POST',
-    pattern: '/api/v1/semesters/prepare',
+    pattern: '/api/v1/semesters/start',
     summary:
-      '준비 반기 만들기: 반기 + 일정·시작일·무효 주차 + 고른 명단(userIds) 저장(실패하면 모두 취소). 명단은 자동으로 채우지 않는다. 없는 회원은 400 USER_NOT_FOUND, 탈동 회원은 400 USER_WITHDRAWN. 진행 반기는 바꾸지 않는다',
+      '새 반기 시작: 반기 + 일정·시작일·무효 주차 + 고른 명단(userIds)을 저장하고 바로 진행 반기로 만든다. 이전 진행 반기는 종료(지난 반기 팀을 HOST 계정에서 뗌). 실패하면 모두 취소. 명단은 자동으로 채우지 않는다. 없는 회원은 400 USER_NOT_FOUND, 탈동 회원은 400 USER_WITHDRAWN, 빈 명단은 409 ROSTER_EMPTY, 이전 반기에 진행 중인 주차가 있으면 409 SEMESTER_WEEK_IN_PROGRESS',
     handler: ({ db, body }) => {
-      const { input, label, baseTerm, advTerm, schedule } = checkPrepare(db, body);
+      const { input, label, baseTerm, advTerm, schedule } = checkStart(db, body);
       const userIds = stringArray(input, 'userIds');
       assertUsersExist(db, userIds);
       assertNotWithdrawn(db, userIds);
-      // 같은 기수의 지운 준비 반기가 남아 있으면 비운다(가리키는 팀·점수 규칙이 없는 것은 checkPrepare가 확인했다).
+      if (userIds.length === 0) {
+        throw notStatus('ROSTER_EMPTY', '명단에 사람을 더한 뒤 반기를 시작하세요.');
+      }
+      assertNoOpenWeek(db);
+      // 같은 기수의 지운 반기가 남아 있으면 비운다(가리키는 팀·점수 규칙이 없는 것은 checkStart가 확인했다).
       execute(db, 'DELETE FROM cohorts WHERE cohort = ? AND deleted_at IS NOT NULL', [baseTerm]);
 
       insertSemester(db, {
@@ -147,7 +157,7 @@ export const semesterRoutes: MockRoute[] = [
         startDate: schedule.vacation.startDate,
         endDate: schedule.term.endDate,
         isCurrent: false,
-        status: 'PREPARING',
+        status: 'ACTIVE',
         advTerm,
         memberTerms: [advTerm, baseTerm],
         currentWeekNum: null,
@@ -156,6 +166,7 @@ export const semesterRoutes: MockRoute[] = [
       });
       updateSemesterSchedule(db, baseTerm, schedule);
       replaceSemesterMemberIds(db, baseTerm, userIds);
+      makeSemesterCurrent(db, baseTerm);
       return reread(db, baseTerm);
     },
   },
@@ -170,40 +181,10 @@ export const semesterRoutes: MockRoute[] = [
     },
   },
   {
-    method: 'POST',
-    pattern: '/api/v1/semesters/:semester/activate',
-    summary:
-      '준비 반기 활성화: 진행 반기로 만들고 이전 진행 반기는 종료(지난 반기 팀을 HOST 계정에서 뗌). 명단이 비었거나 이전 반기에 진행 중인 주차가 있으면 409',
-    handler: ({ db, params }) => {
-      const semester = resolveSemester(db, params.semester);
-      if (semester.status !== 'PREPARING') {
-        throw notStatus('SEMESTER_NOT_PREPARING', '준비 반기만 활성화할 수 있습니다.');
-      }
-      if (listSemesterRoster(db, semester.cohort, semester.advTerm).members.length === 0) {
-        throw notStatus('ROSTER_EMPTY', '명단이 비어 있는 반기는 활성화할 수 없습니다.');
-      }
-      const current = queryAll<{ cohort: number; semester_label: string }>(
-        db,
-        'SELECT cohort, semester_label FROM cohorts WHERE is_current = 1',
-      )[0];
-      const openWeeks = current
-        ? semesterWeeks(db, current.cohort).filter((week) => week.status === 'OPEN')
-        : [];
-      if (current && openWeeks.length > 0) {
-        throw notStatus(
-          'SEMESTER_WEEK_IN_PROGRESS',
-          `${current.semester_label}에 진행 중인 주차(${openWeeks.map((week) => week.label).join(', ')})가 있어 종료할 수 없습니다. 반기 관리에서 ${current.semester_label}을 열어 주차를 마감한 뒤 활성화하세요.`,
-        );
-      }
-      makeSemesterCurrent(db, semester.cohort);
-      return reread(db, semester.cohort);
-    },
-  },
-  {
     method: 'DELETE',
     pattern: '/api/v1/semesters/:semester',
     summary:
-      '준비·종료 반기 삭제(soft delete: deleted_at만 채우고 팀·출결·행사 기록은 남긴다). 진행 반기는 409, 종료 반기는 서비스운영팀장만. 종료 반기에 기록이 있으면 force=true일 때만 지운다',
+      '종료 반기 삭제(soft delete: deleted_at만 채우고 팀·출결·행사 기록은 남긴다). 진행 반기는 409, 종료 반기는 서비스운영팀장만. 종료 반기에 기록이 있으면 force=true일 때만 지운다',
     handler: ({ db, params, query }) => {
       const semester = resolveSemester(db, params.semester);
       if (semester.status === 'ACTIVE') {
