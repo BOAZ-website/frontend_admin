@@ -281,7 +281,7 @@
 | SEM-03 | 기간 | 직접 입력 | 방학·학기 각각의 시작일·종료일. 방학 종료일은 학기 시작일보다 앞이어야 한다 |
 | SEM-04 | 1주차 시작일 | 직접 입력 + 확인 | BASE · ADV · 방학 스터디 · 학기 스터디별 1주차 시작일. 이후 주차(1~8주차) 날짜는 7일씩 더해 자동으로 보여 준다 |
 | SEM-05 | 무효 주차 | 체크 | 활동별로 휴강 등 출결에서 뺄 주차를 체크한다 |
-| SEM-06 | 명단 | 확인 + 예외 수정 | 새 반기는 "명단 확인"으로 서버가 BASE·ADV 기수의 활동 중 회원 명단을 저장하지 않고 돌려준다. 기수·구분별 인원을 확인하고 사람을 빼거나 다른 기수 사람을 더한 뒤(구분: 예외 추가) "반기 만들기"를 누르면 그 명단으로 준비 반기가 생긴다. 이름·기수·일정을 바꾸면 확인한 명단은 무효가 되어 다시 확인해야 한다. 준비 반기 화면에서도 명단을 고쳐 저장할 수 있다 |
+| SEM-06 | 명단 | 사람을 골라 추가 | 명단은 빈 상태에서 시작하고 자동으로 채우지 않는다. 기수·이름으로 거른 동아리원(탈퇴 제외)을 체크해 한 번에 더한다. 구분은 사람의 기수로 정한다(BASE 기수 BASE, ADV 기수 ADV, 그 밖 수료 기수). "반기 만들기"를 누르면 고른 명단으로 준비 반기가 생긴다. 준비 반기 화면에서도 사람을 더하거나 빼고 저장할 수 있다 |
 | SEM-07 | 활성화 | 버튼 | 준비 반기를 활성화하면 진행 반기가 되고, 이전 진행 반기는 종료된다. 이전 진행 반기에 진행 중인 주차가 있으면 종료할 수 없어 활성화를 막고, 그 이유와 주차 마감 버튼을 보여 준다 |
 
 **상태 규칙**
@@ -305,8 +305,7 @@
 | 메서드 · 경로 | 요청 | 응답 | 오류 |
 | --- | --- | --- | --- |
 | `GET /api/v1/semesters?includePreparing=true` | — | `SemesterDto[]`(큰 기수부터, `status` 포함). `includePreparing`이 없으면 준비 반기를 뺀다 | — |
-| `POST /api/v1/semesters/prepare/preview` | `{ semester, baseTerm, advTerm, schedule }`(prepare와 같다) | 자동 명단 `{ members: RosterEntryDto[] }`(BASE·ADV 기수의 활동 중 회원, 아래 roster와 같은 모양·순서). 아무것도 저장하지 않고 감사 로그도 남지 않는다 | prepare와 같은 400·409 |
-| `POST /api/v1/semesters/prepare` | `{ semester, baseTerm, advTerm, schedule, excludedUserIds?, includedUserIds? }`(`schedule`은 아래 일정 저장 본문과 같다. 예외는 자동 명단에서 뺄·더할 회원 id) | 만든 `SemesterDto`(`status: PREPARING`). 명단은 자동 명단 − `excludedUserIds` + `includedUserIds` | 400 `BAD_REQUEST` · `INVALID_TERM`(ADV ≥ BASE, BASE가 등록된 반기 이하) · `INVALID_DATE_RANGE` · `USER_NOT_FOUND`(예외에 없는 회원 id, 반기도 만들지 않음), 409 `SEMESTER_DUPLICATE` · `SEMESTER_PREPARING_EXISTS` |
+| `POST /api/v1/semesters/prepare` | `{ semester, baseTerm, advTerm, schedule, userIds }`(`schedule`은 아래 일정 저장 본문과 같다. `userIds`는 명단에 넣을 회원 id, 빈 배열이면 빈 명단) | 만든 `SemesterDto`(`status: PREPARING`). 명단은 `userIds` 그대로이며 자동으로 채우지 않는다 | 400 `BAD_REQUEST` · `INVALID_TERM`(ADV ≥ BASE, BASE가 등록된 반기 이하) · `INVALID_DATE_RANGE` · `USER_NOT_FOUND`(없는 회원 id) · `USER_WITHDRAWN`(탈퇴 회원), 반기도 만들지 않음. 409 `SEMESTER_DUPLICATE` · `SEMESTER_PREPARING_EXISTS` |
 | `GET /api/v1/semesters/:semester/roster` | — | `{ members: { userId, name, term, track, kind: BASE · ADV · EXTRA }[] }` | 404 `NOT_FOUND` |
 | `PUT /api/v1/semesters/:semester/members` | `{ userIds: string[] }`(명단 전체) | 저장된 회원 목록 | 400 `USER_NOT_FOUND`, 409 `SEMESTER_ARCHIVED`(종료 반기를 서비스운영팀장이 아닌 계정이 고칠 때) |
 | `GET /api/v1/semesters/:semester/schedule` | — | `{ vacation, term, activityStarts, invalidWeeks, weeks }` | 404 `NOT_FOUND` |
