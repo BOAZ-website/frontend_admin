@@ -124,6 +124,9 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-4">
+        {!form.checkedMembers && (
+          <p className="mr-auto text-xs text-slate-500">명단 확인 후 만들 수 있습니다</p>
+        )}
         <button type="button" className={MODAL_CANCEL_BTN} onClick={onCancel}>
           취소
         </button>
@@ -132,7 +135,6 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
           className={MODAL_CONFIRM_BTN}
           // 입력 오류는 누르면 칸 아래에 보이고 첫 오류 칸으로 포커스가 옮겨 간다.
           disabled={!form.checkedMembers || form.isSaving}
-          title={form.checkedMembers ? undefined : '명단 확인 후 만들 수 있습니다'}
           onClick={form.handleSave}
         >
           {form.isSaving ? '만드는 중' : '반기 만들기'}

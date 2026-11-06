@@ -122,7 +122,7 @@ const entry = (userId: string, term: number, kind: RosterEntryDto['kind']): Rost
   kind,
 });
 
-test('명단 필터 인원: 뺀 사람은 제외로만 세고, 전체는 저장하면 남을 인원이다', () => {
+test('명단 필터 인원: 뺀 사람은 제외로만 세고, 전체는 표의 모든 행이다', () => {
   const rows = [
     entry('a', 27, 'BASE'),
     entry('b', 27, 'BASE'),
@@ -134,7 +134,7 @@ test('명단 필터 인원: 뺀 사람은 제외로만 세고, 전체는 저장�
   assert.equal(rosterFilterOf(rows[1], excluded), 'EXCLUDED');
   assert.equal(rosterFilterOf(rows[0], excluded), 'BASE');
   assert.deepEqual(rosterFilterCounts(rows, excluded), {
-    ALL: 3,
+    ALL: 4,
     BASE: 1,
     ADV: 1,
     EXTRA: 1,

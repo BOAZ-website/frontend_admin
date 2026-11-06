@@ -15,7 +15,7 @@ export function rosterFilterOf(
   return excludedIds.has(entry.userId) ? 'EXCLUDED' : entry.kind;
 }
 
-/** 필터별 인원. 전체는 뺀 사람을 뺀, 저장하면 남을 인원이다. */
+/** 필터별 인원. 전체는 표의 모든 행(뺀 사람 포함)이고, 나머지 필터의 합과 같다. */
 export function rosterFilterCounts(
   entries: readonly RosterEntryDto[],
   excludedIds: ReadonlySet<string>,
@@ -24,7 +24,7 @@ export function rosterFilterCounts(
   entries.forEach((entry) => {
     const filter = rosterFilterOf(entry, excludedIds);
     counts[filter] += 1;
-    if (filter !== 'EXCLUDED') counts.ALL += 1;
+    counts.ALL += 1;
   });
   return counts;
 }
