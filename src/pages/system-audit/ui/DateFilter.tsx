@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { isoDateOf, twoDigitYearOf } from '@/shared/lib/date';
+import { BRAND_SELECTED } from '@/shared/ui/modalStyles';
 
 import { calendarGridOf, dateOfIso } from '../model/calendar';
 
@@ -55,7 +56,7 @@ export function DateFilter({ value, onChange, ariaLabel }: DateFilterProps) {
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => (isOpen ? setIsOpen(false) : handleOpen())}
-        className={`h-9 min-w-28 cursor-pointer rounded-sm border border-slate-200 bg-white pl-3 pr-9 text-left text-xs font-semibold outline-none transition-colors hover:border-slate-300 focus:border-slate-400 ${
+        className={`h-9 min-w-28 cursor-pointer rounded-sm border border-slate-200 bg-white pl-3 pr-9 text-left text-xs font-medium outline-none transition-colors hover:border-slate-300 focus:border-slate-400 ${
           value ? 'tabular-nums text-slate-800' : 'text-slate-500'
         }`}
       >
@@ -116,10 +117,10 @@ export function DateFilter({ value, onChange, ariaLabel }: DateFilterProps) {
                   aria-pressed={isSelected}
                   className={`h-8 cursor-pointer rounded-sm text-xs tabular-nums transition-colors ${
                     isSelected
-                      ? 'bg-slate-800 font-bold text-white'
+                      ? `${BRAND_SELECTED} font-bold`
                       : `hover:bg-slate-100 ${
                           isOtherMonth ? 'text-slate-500' : 'text-slate-800'
-                        } ${isToday ? 'font-bold ring-1 ring-inset ring-slate-300' : ''}`
+                        } ${isToday ? 'font-bold' : ''}`
                   }`}
                 >
                   {date.getDate()}
