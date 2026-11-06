@@ -40,7 +40,7 @@ function Attachments({ title, files }: AttachmentsProps) {
   const others = files.filter((file) => !(file.isImage && file.url));
   return (
     <section className="border-t border-slate-200 py-4" aria-label={title}>
-      <h4 className="text-xs font-semibold text-slate-900">{title}</h4>
+      <h4 className="text-xs font-bold text-slate-900">{title}</h4>
       {images.length > 0 && (
         <ul className="mt-2 grid grid-cols-2 gap-2">
           {images.map((file, index) => (
@@ -141,7 +141,7 @@ export function AuditLogDetail({ entry, onClose, onOpenPermissions }: AuditLogDe
         className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"
       >
         <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
-          <h3 id="audit-detail-title" className="min-w-0 text-sm font-bold text-slate-900">
+          <h3 id="audit-detail-title" className="min-w-0 text-base font-bold text-slate-900">
             {AUDIT_ACTIONS[entry.action].label}
           </h3>
           <button
