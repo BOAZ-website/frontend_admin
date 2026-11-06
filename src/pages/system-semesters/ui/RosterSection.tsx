@@ -68,7 +68,8 @@ export function RosterSection({
             </span>
           ))}
           <span className="ml-auto">
-            합계 <span className="font-bold tabular-nums text-slate-900">{effective.length}</span>명
+            합계{' '}
+            <span className="font-semibold tabular-nums text-slate-900">{effective.length}</span>명
           </span>
         </p>
 
@@ -223,7 +224,7 @@ function RosterAddSearch({ inRosterIds, onAdd }: RosterAddSearchProps) {
       {matches.length > 0 && (
         <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
           {matches.map((c) => (
-            <li key={c.id} className="flex items-center justify-between gap-2 px-2 py-2">
+            <li key={c.id} className="flex items-center justify-between gap-2 px-4 py-2">
               <span className="text-xs text-slate-900">
                 {c.name}
                 <span className="ml-2 text-slate-500">

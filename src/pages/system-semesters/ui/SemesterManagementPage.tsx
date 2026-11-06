@@ -60,7 +60,7 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
             <button
               type="button"
               onClick={reload}
-              className="ml-3 cursor-pointer rounded-sm border border-red-200 bg-white px-2 py-1 font-semibold hover:bg-red-100"
+              className="ml-3 cursor-pointer rounded-sm border border-red-200 bg-white px-3 py-1 font-semibold hover:bg-red-100"
             >
               다시 시도
             </button>

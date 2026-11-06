@@ -120,7 +120,7 @@ export function ScheduleSections({ form, onChange, isReadOnly }: ScheduleSection
                                 onChange(withInvalidWeek(form, key, event.target.checked))
                               }
                               aria-label={`${label} ${week}주차 휴강`}
-                              className="size-3.5 cursor-pointer accent-slate-700 disabled:cursor-default"
+                              className="size-4 cursor-pointer accent-slate-700 disabled:cursor-default"
                             />
                           </label>
                         ) : (
