@@ -105,7 +105,7 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
               items.map((s) => (
                 <SplitListItem
                   key={s.semester}
-                  label={`${s.semester}  ${s.startDate} ~ ${s.endDate}`}
+                  label={s.semester}
                   isSelected={selected?.semester === s.semester}
                   onSelect={() => handleSelect({ kind: 'semester', name: s.semester })}
                 />
