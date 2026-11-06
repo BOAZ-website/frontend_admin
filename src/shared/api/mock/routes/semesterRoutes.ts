@@ -1,5 +1,5 @@
 /**
- * 반기 관리 API(계약 초안: docs/spec/06-system.md §4.6): 준비 반기 만들기 → 명단 확인·예외 수정(PUT /:semester/members) → 활성화.
+ * 반기 관리 API(계약 초안: docs/spec/06-system.md §4.6): 준비 반기 만들기(고른 명단과 함께) → 명단 수정(PUT /:semester/members) → 활성화.
  * 반기는 따로 종료하지 않는다. 다음 반기를 활성화할 때 이전 진행 반기가 종료된다.
  * 반기는 미리 만들지 않는다. 준비 반기는 한 번에 하나이고, 활성화하면 이전 진행 반기는 종료된다(HOST 팀 떼기는 반기 수정과 같다).
  * 권한(ATTENDANCE_ROSTER_READ·WRITE)은 권한 목록에 아직 없고 임시 API는 경로별 권한을 검사하지 않는다.
@@ -9,7 +9,6 @@ import type { Database } from 'sql.js';
 
 import {
   findSemesterSchedule,
-  listAutoRoster,
   listSemesterRoster,
   updateSemesterSchedule,
 } from '@/entities/cohort/api/semesterRepository';
@@ -111,19 +110,34 @@ function checkPrepare(db: Database, body: unknown) {
   return { input, label, baseTerm, advTerm, schedule: checkSchedule(input.schedule) };
 }
 
+/** 탈퇴한 회원은 새 반기 명단에 넣지 않는다. 지난 반기 명단(PUT /members)은 그 뒤에 탈퇴한 사람도 남아 있어 막지 않는다. */
+function assertNotWithdrawn(db: Database, userIds: readonly string[]): void {
+  if (userIds.length === 0) return;
+  const withdrawn = queryAll<{ name: string }>(
+    db,
+    `SELECT name FROM users WHERE club_status = 'WITHDRAWN' AND id IN (${userIds.map(() => '?').join(', ')})`,
+    [...userIds],
+  );
+  if (withdrawn.length > 0) {
+    throw new ApiError(
+      400,
+      'USER_WITHDRAWN',
+      `탈퇴한 회원은 명단에 넣을 수 없습니다: ${withdrawn.map((u) => u.name).join(', ')}`,
+    );
+  }
+}
+
 export const semesterRoutes: MockRoute[] = [
   {
     method: 'POST',
     pattern: '/api/v1/semesters/prepare',
     summary:
-      '준비 반기 만들기: 반기 + 일정·시작일·무효 주차 저장, BASE·ADV 기수의 활동 중 회원으로 명단 자동 생성(실패하면 모두 취소). 진행 반기는 바꾸지 않는다',
+      '준비 반기 만들기: 반기 + 일정·시작일·무효 주차 + 고른 명단(userIds) 저장(실패하면 모두 취소). 명단은 자동으로 채우지 않는다. 없는 회원은 400 USER_NOT_FOUND, 탈퇴 회원은 400 USER_WITHDRAWN. 진행 반기는 바꾸지 않는다',
     handler: ({ db, body }) => {
       const { input, label, baseTerm, advTerm, schedule } = checkPrepare(db, body);
-      const auto = listAutoRoster(db, baseTerm, advTerm).members.map((m) => m.userId);
-      const excluded = stringArray(input, 'excludedUserIds');
-      const included = stringArray(input, 'includedUserIds');
-      // 뺄 사람도 등록된 회원이어야 한다(오타로 빼려던 사람이 남는 일을 막는다).
-      assertUsersExist(db, excluded);
+      const userIds = stringArray(input, 'userIds');
+      assertUsersExist(db, userIds);
+      assertNotWithdrawn(db, userIds);
       // 같은 기수의 지운 준비 반기가 남아 있으면 비운다(가리키는 팀·점수 규칙이 없는 것은 checkPrepare가 확인했다).
       execute(db, 'DELETE FROM cohorts WHERE cohort = ? AND deleted_at IS NOT NULL', [baseTerm]);
 
@@ -141,19 +155,8 @@ export const semesterRoutes: MockRoute[] = [
         attendanceKinds: [],
       });
       updateSemesterSchedule(db, baseTerm, schedule);
-      const skip = new Set(excluded);
-      replaceSemesterMemberIds(db, baseTerm, [...auto.filter((id) => !skip.has(id)), ...included]);
+      replaceSemesterMemberIds(db, baseTerm, userIds);
       return reread(db, baseTerm);
-    },
-  },
-  {
-    method: 'POST',
-    pattern: '/api/v1/semesters/prepare/preview',
-    summary:
-      '준비 반기 만들기 전 명단 확인: prepare와 같은 본문·검증으로 자동 명단(BASE·ADV 기수의 활동 중 회원)을 돌려준다. 아무것도 저장하지 않는다',
-    handler: ({ db, body }) => {
-      const { baseTerm, advTerm } = checkPrepare(db, body);
-      return listAutoRoster(db, baseTerm, advTerm);
     },
   },
   {

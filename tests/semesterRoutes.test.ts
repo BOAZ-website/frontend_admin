@@ -40,6 +40,7 @@ const PREPARE: PrepareSemesterRequest = {
   baseTerm: 28,
   advTerm: 27,
   schedule: SCHEDULE,
+  userIds: [],
 };
 
 async function setup() {
@@ -53,8 +54,17 @@ async function setup() {
   ) => router.dispatch(db, method, path, body) as T;
   // 임시 API는 세션이 없으면 요청자가 없다. 시험은 1번 계정으로 로그인한 채 시작한다.
   call('PUT', '/api/v1/mock/admin-session', { accountId: 1 });
+  // 따로 정하지 않으면 BASE·ADV 기수(28·27)의 활동 중 회원을 골라 만든다(화면에서 고르는 것과 같은 결과).
+  const activeIds = queryAll<{ id: string }>(
+    db,
+    "SELECT id FROM users WHERE club_status = 'ACTIVE' AND term IN (27, 28) ORDER BY id",
+  ).map((row) => row.id);
   const prepare = (patch: Partial<PrepareSemesterRequest> = {}) =>
-    call<SemesterDto>('POST', '/api/v1/semesters/prepare', { ...PREPARE, ...patch });
+    call<SemesterDto>('POST', '/api/v1/semesters/prepare', {
+      ...PREPARE,
+      userIds: activeIds,
+      ...patch,
+    });
   /** 시드 26-2의 진행 중인 주차(3주차)를 마감한다. 마감하지 않으면 활성화가 409다. */
   const closeOpenWeeks = () =>
     call('PATCH', '/api/v1/semesters/26-2/weeks/3', { status: 'CLOSED' });
@@ -89,10 +99,10 @@ function expectApiError(work: () => unknown, status: number, code: string) {
   );
 }
 
-test('준비 반기를 만들면 진행 반기는 그대로고 상태는 준비, 명단은 BASE·ADV 기수의 활동 중 회원으로 만들어진다', async () => {
-  const { db, call, prepare, roster, currentLabels } = await setup();
+test('준비 반기를 만들면 진행 반기는 그대로고 상태는 준비, 명단은 보낸 회원 그대로이고 구분은 기수로 정해진다', async () => {
+  const { call, prepare, roster, currentLabels } = await setup();
 
-  const created = prepare();
+  const created = prepare({ userIds: ['u_27_02', 'u_25_01'] });
 
   assert.equal(created.status, 'PREPARING');
   assert.equal(created.isCurrent, false);
@@ -101,14 +111,13 @@ test('준비 반기를 만들면 진행 반기는 그대로고 상태는 준비,
   assert.equal(created.startDate, '2027-01-01');
   assert.equal(created.endDate, '2027-06-30');
   assert.deepEqual(currentLabels(), ['26-2']);
-  const members = roster('27-1');
-  const expected = queryAll<{ id: string }>(
-    db,
-    "SELECT id FROM users WHERE club_status = 'ACTIVE' AND term IN (27, 28) ORDER BY id",
-  ).map((row) => row.id);
-  assert.ok(expected.length > 0);
-  assert.deepEqual(members.map((m) => m.userId).sort(), expected);
-  assert.ok(members.every((m) => m.kind === (m.term === 28 ? 'BASE' : 'ADV')));
+  assert.deepEqual(
+    roster('27-1').map((m) => [m.userId, m.kind]),
+    [
+      ['u_27_02', 'ADV'],
+      ['u_25_01', 'EXTRA'],
+    ],
+  );
   // 출결 화면이 쓰는 반기 목록에는 준비 반기가 없고, 반기 관리 화면 목록에는 있다.
   const labels = (path: string) => call<SemesterDto[]>('GET', path).map((s) => s.semester);
   assert.ok(!labels('/api/v1/semesters').includes('27-1'));
@@ -523,62 +532,23 @@ test('반기 목록의 includePreparing은 true·false만 받는다', async () =
   expectApiError(() => call('GET', '/api/v1/semesters?includePreparing=yes'), 400, 'BAD_REQUEST');
 });
 
-// ─── 명단 확인 먼저(미리보기), 그다음 생성 ───
+// ─── 명단은 골라서 추가(자동으로 채우지 않음) ───
 
-test('명단 미리보기는 prepare와 같은 자동 명단을 돌려주고 아무것도 저장하지 않는다(감사 기록 포함)', async () => {
-  const { call, prepare, roster, count } = await setup();
-  const tables = ['cohorts', 'semester_members', 'semester_periods', 'audit_log'];
-  const before = tables.map(count);
+test('명단 없이 만들면 빈 명단이고, 사람을 더해 저장하기 전에는 활성화되지 않는다', async () => {
+  const { call, prepare, roster, closeOpenWeeks } = await setup();
+  prepare({ userIds: [] });
+  closeOpenWeeks();
 
-  const preview = call<SemesterRosterDto>('POST', '/api/v1/semesters/prepare/preview', PREPARE);
-
-  assert.deepEqual(tables.map(count), before);
-  assert.ok(preview.members.length > 0);
-  assert.ok(preview.members.every((m) => m.kind === (m.term === 28 ? 'BASE' : 'ADV')));
-  prepare();
-  assert.deepEqual(preview.members, roster('27-1'));
+  assert.deepEqual(roster('27-1'), []);
+  expectApiError(() => call('POST', '/api/v1/semesters/27-1/activate'), 409, 'ROSTER_EMPTY');
 });
 
-test('명단 미리보기 실패는 prepare와 같은 400·409다', async () => {
-  const { call } = await setup();
-  const preview = (patch: Partial<PrepareSemesterRequest>) =>
-    call('POST', '/api/v1/semesters/prepare/preview', { ...PREPARE, ...patch });
-
-  expectApiError(() => preview({ semester: '27-3' }), 400, 'BAD_REQUEST');
-  expectApiError(() => preview({ semester: '26-2' }), 409, 'SEMESTER_DUPLICATE');
-  expectApiError(() => preview({ baseTerm: 28, advTerm: 28 }), 400, 'INVALID_TERM');
-  expectApiError(
-    () =>
-      preview({
-        schedule: { ...SCHEDULE, term: { startDate: '2027-07-01', endDate: '2027-03-02' } },
-      }),
-    400,
-    'INVALID_DATE_RANGE',
-  );
-});
-
-test('준비 반기를 만들 때 명단 예외(빼기·더하기)를 함께 보내면 자동 명단에서 빼고 더한 명단으로 만든다', async () => {
-  const { call, prepare, roster } = await setup();
-  const auto = call<SemesterRosterDto>(
-    'POST',
-    '/api/v1/semesters/prepare/preview',
-    PREPARE,
-  ).members.map((m) => m.userId);
-
-  prepare({ excludedUserIds: [auto[0]], includedUserIds: ['u_26_01'] });
-
-  const saved = roster('27-1');
-  assert.equal(saved.length, auto.length);
-  assert.ok(!saved.some((m) => m.userId === auto[0]));
-  assert.equal(saved.find((m) => m.userId === 'u_26_01')?.kind, 'EXTRA');
-});
-
-test('명단 예외에 없는 회원 id가 있으면 400 USER_NOT_FOUND이고 반기도 만들어지지 않는다', async () => {
+test('명단에 없는 회원 id는 400 USER_NOT_FOUND, 탈퇴 회원은 400 USER_WITHDRAWN이고 반기도 만들어지지 않는다', async () => {
   const { prepare, count } = await setup();
   const cohorts = count('cohorts');
 
-  expectApiError(() => prepare({ includedUserIds: ['u_99_99'] }), 400, 'USER_NOT_FOUND');
-  expectApiError(() => prepare({ excludedUserIds: ['u_99_99'] }), 400, 'USER_NOT_FOUND');
+  expectApiError(() => prepare({ userIds: ['u_99_99'] }), 400, 'USER_NOT_FOUND');
+  expectApiError(() => prepare({ userIds: ['u_27_02', 'u_27_07'] }), 400, 'USER_WITHDRAWN');
 
   assert.equal(count('cohorts'), cohorts);
 });

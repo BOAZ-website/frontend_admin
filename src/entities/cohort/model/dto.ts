@@ -145,9 +145,8 @@ export interface SemesterRosterDto {
 }
 
 /**
- * 준비 반기 만들기: 반기·일정·무효 주차를 저장하고, BASE·ADV 기수의 활동 중 회원으로 명단을 자동으로 만든다.
+ * 준비 반기 만들기: 반기·일정·무효 주차와 고른 명단을 저장한다. 명단은 자동으로 채우지 않는다.
  * 반기 번호(cohort)는 BASE 기수와 같다. 활성화(POST /:semester/activate)해야 진행 반기가 된다.
- * 같은 본문(예외 제외)을 POST /prepare/preview로 보내면 저장하지 않고 자동 명단만 돌려받는다.
  */
 export interface PrepareSemesterRequest {
   /** 'YY-1' 또는 'YY-2'. */
@@ -156,8 +155,6 @@ export interface PrepareSemesterRequest {
   /** BASE 기수보다 작아야 한다. */
   advTerm: number;
   schedule: SaveSemesterScheduleRequest;
-  /** 자동 명단에서 뺄 회원 id. */
-  excludedUserIds?: string[];
-  /** 자동 명단에 더할 회원 id(BASE·ADV 기수가 아니면 수료 기수). */
-  includedUserIds?: string[];
+  /** 명단에 넣을 회원 id. 비어 있으면 빈 명단이다(활성화 전에 채워야 한다). 탈퇴 회원은 넣을 수 없다. */
+  userIds: string[];
 }

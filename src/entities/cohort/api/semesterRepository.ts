@@ -37,22 +37,6 @@ const kindOfTerm =
 
 type RosterRow = { userId: string; name: string; term: number; track: string };
 
-/**
- * BASE·ADV 기수의 활동 중(ACTIVE) 회원. 준비 반기를 만들 때와 만들기 전 명단 확인(미리보기)에 쓰는 자동 명단이다.
- * 순서와 모양은 저장된 명단(listSemesterRoster)과 같다.
- */
-export function listAutoRoster(db: Database, baseTerm: number, advTerm: number): SemesterRosterDto {
-  const members = queryAll<RosterRow>(
-    db,
-    `SELECT u.id AS userId, u.name, u.term, u.track
-       FROM users u LEFT JOIN tracks t ON t.name = u.track
-      WHERE u.club_status = 'ACTIVE' AND u.term IN (?, ?)
-      ORDER BY u.term DESC, t.sort_order, u.name`,
-    [baseTerm, advTerm],
-  ).map((row) => ({ ...row, kind: kindOfTerm(baseTerm, advTerm)(row.term) }));
-  return { members };
-}
-
 /** 반기에 저장된 명단. 기수(큰 기수부터) → 부문 → 이름 순. BASE·ADV 기수가 아니면 EXTRA다. */
 export function listSemesterRoster(
   db: Database,

@@ -52,11 +52,6 @@ export function prepareSemester(request: PrepareSemesterRequest): Promise<Semest
   return api.post('/api/v1/semesters/prepare', request);
 }
 
-/** 준비 반기를 만들기 전 명단 확인: prepare와 같은 검증을 하고 자동 명단을 돌려준다. 저장하지 않는다. */
-export function previewSemesterRoster(request: PrepareSemesterRequest): Promise<SemesterRosterDto> {
-  return api.post('/api/v1/semesters/prepare/preview', request);
-}
-
 /** 반기에 저장된 명단과 기수·구분별 인원. */
 export function fetchSemesterRoster(semester: string): Promise<SemesterRosterDto> {
   return api.get(`${semesterPath(semester)}/roster`);

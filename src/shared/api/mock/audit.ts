@@ -552,8 +552,6 @@ export const IGNORED_WRITES: readonly { method: HttpMethod; pattern: string }[] 
   { method: 'POST', pattern: '/api/v1/auth/login' },
   { method: 'POST', pattern: '/api/v1/auth/logout' },
   { method: 'PUT', pattern: '/api/v1/mock/admin-session' },
-  // 새 반기 명단 확인(미리보기)은 검증과 조회만 하고 아무것도 저장하지 않는다.
-  { method: 'POST', pattern: '/api/v1/semesters/prepare/preview' },
 ];
 
 const ruleOf = (route: MockRoute): AuditRule | undefined =>
