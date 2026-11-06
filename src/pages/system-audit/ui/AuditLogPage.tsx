@@ -27,7 +27,7 @@ const COLUMN_COUNT = 7;
 
 /** 도구 줄의 입력칸(검색). 동아리원 관리의 검색칸과 같은 모양이다. */
 const TOOLBAR_FIELD =
-  'h-9 rounded-sm border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
+  'h-9 rounded-sm border border-slate-200 bg-white px-3 text-xs font-normal text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
 /** 쪽 번호 버튼. 지금 쪽은 진한 굵은 글자로만 구분한다. */
 const PAGE_NUMBER_BTN =
   'inline-flex h-8 min-w-8 cursor-pointer items-center justify-center px-2 text-xs tabular-nums transition-colors';

@@ -56,7 +56,7 @@ export function DateFilter({ value, onChange, ariaLabel }: DateFilterProps) {
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => (isOpen ? setIsOpen(false) : handleOpen())}
-        className={`h-9 min-w-28 cursor-pointer rounded-sm border border-slate-200 bg-white pl-3 pr-9 text-left text-xs font-medium outline-none transition-colors hover:border-slate-300 focus:border-slate-400 ${
+        className={`h-9 min-w-28 cursor-pointer rounded-sm border border-slate-200 bg-white pl-3 pr-9 text-left text-xs font-normal outline-none transition-colors hover:border-slate-300 focus:border-slate-400 ${
           value ? 'tabular-nums text-slate-800' : 'text-slate-500'
         }`}
       >
@@ -114,6 +114,7 @@ export function DateFilter({ value, onChange, ariaLabel }: DateFilterProps) {
                   type="button"
                   onClick={() => handlePick(iso)}
                   aria-label={iso}
+                  aria-current={isToday ? 'date' : undefined}
                   aria-pressed={isSelected}
                   className={`h-8 cursor-pointer rounded-sm text-xs tabular-nums transition-colors ${
                     isSelected
