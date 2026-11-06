@@ -10,7 +10,7 @@ export function InfoTip({ label, align = 'center' }: { label: string; align?: 'c
       <span
         tabIndex={0}
         aria-label={label}
-        className="inline-flex cursor-help text-slate-400 outline-none hover:text-slate-600 focus-visible:text-slate-600"
+        className="inline-flex cursor-help text-slate-500 outline-none hover:text-slate-700 focus-visible:text-slate-700"
       >
         <Info size={12} aria-hidden="true" />
       </span>
