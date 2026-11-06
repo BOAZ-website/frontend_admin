@@ -17,7 +17,7 @@ import { GRID_HEAD_ROW, GRID_ROW, SectionBox } from './SectionBox';
 const KIND_LABEL: Record<RosterKind, string> = { BASE: 'BASE', ADV: 'ADV', EXTRA: '예외 추가' };
 
 interface RosterSectionProps {
-  /** 저장된 명단. */
+  /** 저장된 명단(새 반기 작성에서는 확인한 자동 명단). */
   saved: readonly RosterEntryDto[];
   /** 저장된 명단에서 뺄 사람(저장 전). */
   excludedIds: ReadonlySet<string>;
@@ -32,7 +32,8 @@ interface RosterSectionProps {
   onToggleExcluded: (userId: string) => void;
   onAdd: (entry: RosterEntryDto) => void;
   onRemoveAdded: (userId: string) => void;
-  onSave: () => void;
+  /** 명단만 따로 저장한다. 없으면 저장 버튼을 그리지 않는다(새 반기 작성은 반기를 만들 때 함께 보낸다). */
+  onSave?: () => void;
 }
 
 /** 반기 출결·점수 명단: 기수·구분별 인원, 자동으로 만든 명단과 예외(빼기·더하기). */
@@ -168,21 +169,29 @@ export function RosterSection({
                 })
               }
             />
-            <div className="flex items-center justify-end gap-3">
-              {isDirty && (
-                <p className="mr-auto text-xs text-slate-500">
-                  제외 {excludedIds.size}명 · 추가 {added.length}명, 저장하지 않음
+            {onSave ? (
+              <div className="flex items-center justify-end gap-3">
+                {isDirty && (
+                  <p className="mr-auto text-xs text-slate-500">
+                    제외 {excludedIds.size}명 · 추가 {added.length}명, 저장하지 않음
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className={MODAL_CONFIRM_BTN}
+                  disabled={!isDirty || isSaving}
+                  onClick={onSave}
+                >
+                  {isSaving ? '저장 중' : '명단 저장'}
+                </button>
+              </div>
+            ) : (
+              isDirty && (
+                <p className="text-xs text-slate-500">
+                  제외 {excludedIds.size}명 · 추가 {added.length}명
                 </p>
-              )}
-              <button
-                type="button"
-                className={MODAL_CONFIRM_BTN}
-                disabled={!isDirty || isSaving}
-                onClick={onSave}
-              >
-                {isSaving ? '저장 중' : '명단 저장'}
-              </button>
-            </div>
+              )
+            )}
           </div>
         )}
       </div>

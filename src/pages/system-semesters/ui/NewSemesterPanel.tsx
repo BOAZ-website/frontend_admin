@@ -1,8 +1,13 @@
-import type { PrepareSemesterRequest, SemesterDto } from '@/entities/cohort/model/dto';
+import type {
+  PrepareSemesterRequest,
+  SemesterDto,
+  SemesterRosterDto,
+} from '@/entities/cohort/model/dto';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { FIELD_INPUT, MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 
 import { useNewSemesterForm } from '../model/useNewSemesterForm';
+import { RosterSection } from './RosterSection';
 import { ScheduleSections } from './ScheduleSections';
 import { LabeledRow, SectionBox } from './SectionBox';
 
@@ -10,12 +15,13 @@ interface NewSemesterPanelProps {
   /** 지금까지 등록된 반기 중 가장 큰 기수. 새 BASE 기수는 이보다 커야 한다. */
   latestCohort: number;
   existingNames: readonly string[];
+  preview: (request: PrepareSemesterRequest) => Promise<SemesterRosterDto>;
   prepare: (request: PrepareSemesterRequest) => Promise<SemesterDto>;
   onPrepared: (semester: string) => void;
   onCancel: () => void;
 }
 
-/** 새 반기 작성. 저장하면 준비 반기가 되고, 서버가 BASE·ADV 기수로 명단을 자동으로 만든다. */
+/** 새 반기 작성. 명단을 확인(저장하지 않음)하고 예외를 고친 뒤 만들면 준비 반기가 된다. */
 export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps) {
   const form = useNewSemesterForm(options);
 
@@ -36,7 +42,7 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
           </LabeledRow>
           <LabeledRow label="상태">
             <span className="text-xs text-slate-500">
-              저장하면 준비 상태의 반기가 만들어집니다.
+              반기 만들기를 누르면 준비 상태의 반기가 만들어집니다.
             </span>
           </LabeledRow>
         </div>
@@ -71,13 +77,43 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
         isReadOnly={form.isSaving}
       />
 
+      {form.checkedMembers ? (
+        <RosterSection
+          saved={form.checkedMembers}
+          excludedIds={form.excludedIds}
+          added={form.added}
+          kindOf={form.kindOf}
+          isReadOnly={false}
+          isSaving={form.isSaving}
+          onToggleExcluded={form.handleToggleExcluded}
+          onAdd={form.handleAddMember}
+          onRemoveAdded={form.handleRemoveAdded}
+        />
+      ) : (
+        <SectionBox title="명단">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="mr-auto text-xs text-slate-500">
+              BASE·ADV 기수의 활동 중 회원으로 만들 명단을 먼저 확인합니다. 아직 저장하지 않습니다.
+            </p>
+            <button
+              type="button"
+              className={MODAL_CANCEL_BTN}
+              disabled={form.errors.length > 0 || form.isChecking || form.isSaving}
+              onClick={form.handleCheckRoster}
+            >
+              {form.isChecking ? '확인 중' : '명단 확인'}
+            </button>
+          </div>
+        </SectionBox>
+      )}
+
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-4">
         <p
           role="status"
-          className={`mr-auto text-xs ${form.errors.length ? 'text-red-600' : 'text-slate-500'}`}
+          className={`mr-auto text-xs ${form.errors.length || form.checkError ? 'text-red-600' : 'text-slate-500'}`}
         >
-          {form.errors[0] ??
-            '저장하면 BASE·ADV 기수의 활동 중 회원으로 명단을 만듭니다. 명단을 확인한 뒤 활성화하세요.'}
+          {form.createBlock ??
+            '만든 뒤 준비 반기 화면에서 명단을 다시 고치고 활성화할 수 있습니다.'}
         </p>
         <button type="button" className={MODAL_CANCEL_BTN} onClick={onCancel}>
           취소
@@ -85,10 +121,10 @@ export function NewSemesterPanel({ onCancel, ...options }: NewSemesterPanelProps
         <button
           type="button"
           className={MODAL_CONFIRM_BTN}
-          disabled={form.errors.length > 0 || form.isSaving}
+          disabled={form.createBlock !== null || form.isSaving}
           onClick={form.handleSave}
         >
-          {form.isSaving ? '저장 중' : '저장'}
+          {form.isSaving ? '만드는 중' : '반기 만들기'}
         </button>
       </div>
     </div>
