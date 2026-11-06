@@ -30,15 +30,10 @@ interface Tag {
   className: string;
 }
 
-const SMALL_TAG = 'rounded-sm px-2 py-1 text-xs font-semibold whitespace-nowrap';
-const ADDED_TAG: Tag = {
-  text: '추가',
-  className: 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200',
-};
-const REMOVED_TAG: Tag = {
-  text: '기본에서 제외',
-  className: 'bg-red-50 text-red-600 ring-1 ring-inset ring-red-200',
-};
+/** 기본값과 달라진 표시. 바탕·테두리 없이 글자 색만 쓴다(반기 명단 화면과 같다). */
+const SMALL_TAG = 'text-xs font-semibold whitespace-nowrap';
+const ADDED_TAG: Tag = { text: '추가', className: 'text-emerald-700' };
+const REMOVED_TAG: Tag = { text: '기본에서 제외', className: 'text-red-600' };
 /** 맡은 그룹에서 자동으로 붙는 권한의 잠금 사유. 글자 대신 자물쇠에 마우스를 올리면 보인다. */
 const OWN_GROUP_LOCK_REASON =
   '맡은 그룹에서 자동으로 붙는 권한이라 뺄 수 없습니다. 출결 › 그룹 계정 관리에서 바꿉니다.';
@@ -48,7 +43,7 @@ const LIST_BOX = 'overflow-hidden rounded-md border border-slate-200 bg-white';
 
 const ACTION_BTN =
   'inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm border transition-colors disabled:cursor-not-allowed disabled:opacity-40';
-/** 빼기는 평소 조용하다가 마우스를 올리면 빨강, 추가는 오른쪽 표의 주 동작이라 처음부터 파랑이다. */
+/** 두 버튼 모두 평소 회색 테두리다. 빼기만 마우스를 올리면 빨강이 된다. */
 const ACTION = {
   remove: {
     label: '빼기',
@@ -59,15 +54,8 @@ const ACTION = {
   add: {
     label: '추가',
     Icon: Plus,
-    className:
-      'border-blue-200 text-blue-700 hover:border-blue-600 hover:bg-blue-600 hover:text-white',
+    className: 'border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-900',
   },
-} as const;
-
-/** 기본값과 달라진 줄의 왼쪽 세로 막대. 태그와 같은 색이다. */
-const ROW_BAR = {
-  added: 'shadow-[inset_3px_0_0_var(--color-blue-500)]',
-  removed: 'shadow-[inset_3px_0_0_var(--color-red-500)]',
 } as const;
 
 /**
@@ -117,7 +105,6 @@ export function AccountPermissionEditor({
         key={permission.key}
         permission={permission}
         tag={mark === 'added' ? ADDED_TAG : null}
-        mark={mark === 'added' ? 'added' : null}
         lockReason={lockReason}
         action={canRemove ? 'remove' : null}
         onAction={() => handleToggle(permission.key)}
@@ -133,7 +120,6 @@ export function AccountPermissionEditor({
         key={permission.key}
         permission={permission}
         tag={isRemoved ? REMOVED_TAG : null}
-        mark={isRemoved ? 'removed' : null}
         lockReason={null}
         action={canEdit ? 'add' : null}
         onAction={() => handleToggle(permission.key)}
@@ -145,7 +131,7 @@ export function AccountPermissionEditor({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-sm font-bold text-slate-900">운영 권한</h2>
+        <h4 className="text-sm font-bold text-slate-900">운영 권한</h4>
         {canEdit && (added > 0 || removed > 0) && (
           <button
             type="button"
@@ -188,7 +174,7 @@ export function AccountPermissionEditor({
 
       {/* 저장 바는 바꾼 것이 있을 때만 나타난다. */}
       {canEdit && isDirty && (
-        <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <span className="mr-auto text-xs text-slate-500">
             저장하지 않은 변경{' '}
             <strong className="font-semibold text-slate-900">{unsavedCount}</strong>건
@@ -261,8 +247,6 @@ function PermissionColumn({ title, groups, filter, renderItem, emptyText }: Perm
 interface PermissionItemProps {
   permission: PermissionDef;
   tag: Tag | null;
-  /** 기본값과 달라진 줄. 왼쪽에 같은 색 세로 막대를 그린다. */
-  mark: keyof typeof ROW_BAR | null;
   /** 뺄 수 없는 사유. 있으면 자물쇠와 말풍선으로 보여 준다. */
   lockReason: string | null;
   /** −(빼기)·+(추가) 버튼. 조회만 가능하거나 잠긴 권한이면 null이다. */
@@ -275,7 +259,6 @@ interface PermissionItemProps {
 function PermissionItem({
   permission,
   tag,
-  mark,
   lockReason,
   action,
   onAction,
@@ -284,11 +267,7 @@ function PermissionItem({
   const button = action ? ACTION[action] : null;
 
   return (
-    <li
-      className={`flex h-11 items-center gap-3 border-t border-slate-200 px-4 text-xs transition-colors first:border-t-0 hover:bg-slate-50/70 ${
-        mark ? ROW_BAR[mark] : ''
-      }`}
-    >
+    <li className="flex h-11 items-center gap-3 border-t border-slate-200 px-4 text-xs transition-colors first:border-t-0 hover:bg-slate-50/70">
       <span className="flex min-w-0 flex-1 items-center gap-2">
         <PermissionLabel permission={permission} />
         {tag && <span className={`${SMALL_TAG} ${tag.className}`}>{tag.text}</span>}
