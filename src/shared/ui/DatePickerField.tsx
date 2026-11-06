@@ -9,7 +9,6 @@ import {
 } from '@/shared/lib/calendar';
 import { formatDateInput, isValidIsoDate } from '@/shared/lib/date';
 
-import { BRAND_SELECTED } from './modalStyles';
 import { FIELD_INPUT } from './systemStyles';
 
 const ISO_DATE_LENGTH = 'YYYY-MM-DD'.length;
@@ -153,7 +152,7 @@ export function DatePickerField({ value, onChange, ariaLabel, min, max }: DatePi
                   aria-current={isToday ? 'date' : undefined}
                   className={`h-8 cursor-pointer rounded-sm text-xs tabular-nums transition-colors disabled:cursor-not-allowed disabled:text-slate-300 ${
                     isSelected
-                      ? `${BRAND_SELECTED} font-bold`
+                      ? 'bg-slate-200 font-bold text-slate-900'
                       : `hover:bg-slate-100 ${isOtherMonth ? 'text-slate-500' : 'text-slate-800'} ${isToday ? 'font-bold' : ''}`
                   }`}
                 >
