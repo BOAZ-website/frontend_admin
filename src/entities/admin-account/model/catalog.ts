@@ -2,12 +2,7 @@
  * 화면에서 권한 카탈로그(GET /api/v1/admin/permissions 응답)를 읽는 함수.
  * 권한·기본 권한 세트 정의를 화면에 하드코딩하지 않고, 받은 카탈로그만으로 계산한다.
  */
-import {
-  isValidCombination,
-  resolveBaseSetKey,
-  type BaseSetKey,
-  type PermissionDef,
-} from './permissions';
+import type { BaseSetKey, PermissionDef } from './permissions';
 import type { PermissionCatalog } from './types';
 
 /** 권한이 그 기본 권한 세트에 들어 있는지. permission.base는 catalog.baseSets 순서의 O·X다. */
@@ -20,21 +15,6 @@ export const isInBaseOf = (
   const index = catalog.baseSets.findIndex((column) => column.key === key);
   return index >= 0 && permission.base[index] === 'O';
 };
-
-export const baseSetLabelIn = (catalog: PermissionCatalog, key: BaseSetKey | null): string =>
-  catalog.baseSets.find((column) => column.key === key)?.label ?? '없음';
-
-export const baseSetKeyIn = (
-  catalog: PermissionCatalog,
-  role: string,
-  teamName: string,
-): BaseSetKey | null => resolveBaseSetKey(catalog.rules, role, teamName);
-
-export const isValidCombinationIn = (
-  catalog: PermissionCatalog,
-  role: string,
-  teamName: string,
-): boolean => isValidCombination(catalog.rules, role, teamName);
 
 export const permissionsIn = (catalog: PermissionCatalog): PermissionDef[] =>
   catalog.groups.flatMap((group) => group.permissions);
