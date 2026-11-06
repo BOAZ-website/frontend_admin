@@ -46,6 +46,7 @@ export function ScheduleSections({
   onBlurField,
 }: ScheduleSectionsProps) {
   const datesOf = weekDatesByActivity(form);
+  const scheduledActivities = ACTIVITIES.filter(({ value }) => form.starts[value]);
   const errorIdFor = (field: ScheduleField) =>
     errors[field] ? errorIdOf(scheduleFieldId(field)) : undefined;
 
@@ -94,7 +95,7 @@ export function ScheduleSections({
         </div>
       </SectionBox>
 
-      <SectionBox title="휴동 기간 지정">
+      <SectionBox title="활동 기간">
         <div className="space-y-4">
           {ACTIVITIES.map(({ value, label }) => (
             <LabeledRow key={value} label={label} error={errors[value]} errorId={errorIdFor(value)}>
@@ -120,14 +121,24 @@ export function ScheduleSections({
                 <button
                   type="button"
                   className={`${FIELD_TEXT_BTN} shrink-0`}
-                  aria-label={`${label} 일정 선택 취소`}
+                  aria-label={`${label} 활동 기간 선택 취소`}
                   onClick={() => onChange(withoutActivitySchedule(form, value))}
                 >
                   선택 취소
                 </button>
               )}
-              {form.starts[value] && (
-                <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+            </LabeledRow>
+          ))}
+        </div>
+      </SectionBox>
+
+      {/* 활동 기간을 정한 활동만 주차·날짜 칸이 나온다. 칸을 누르면 휴동·수업이 바뀐다. */}
+      {scheduledActivities.length > 0 && (
+        <SectionBox title="휴동 기간 지정">
+          <div className="space-y-4">
+            {scheduledActivities.map(({ value, label }) => (
+              <LabeledRow key={value} label={label}>
+                <div className="flex min-w-0 flex-1 flex-wrap gap-1">
                   {WEEK_NUMBERS.map((week) => {
                     const date = datesOf[value][week];
                     if (!date) return null;
@@ -139,8 +150,8 @@ export function ScheduleSections({
                         key={week}
                         type="button"
                         aria-pressed={isInvalid}
-                        aria-label={`${name} ${isInvalid ? '휴강' : '수업'}`}
-                        title={`${date} ${isInvalid ? '휴강' : '수업'}`}
+                        aria-label={`${name} ${isInvalid ? '휴동' : '활동'}`}
+                        title={`${date} ${isInvalid ? '휴동' : '활동'}`}
                         disabled={isReadOnly}
                         onClick={() => onChange(withInvalidWeek(form, key, !isInvalid))}
                         className={`flex w-14 shrink-0 flex-col items-center rounded-sm border border-slate-200 py-1 text-xs disabled:cursor-default ${
@@ -159,11 +170,11 @@ export function ScheduleSections({
                     );
                   })}
                 </div>
-              )}
-            </LabeledRow>
-          ))}
-        </div>
-      </SectionBox>
+              </LabeledRow>
+            ))}
+          </div>
+        </SectionBox>
+      )}
     </>
   );
 }
