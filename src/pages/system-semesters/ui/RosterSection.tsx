@@ -19,6 +19,7 @@ import {
   rosterFilterCounts,
   rosterFilterOf,
   rosterCandidates,
+  withCheckedRange,
 } from '../model/roster';
 import { GRID_HEAD_ROW, GRID_ROW, SectionBox } from './SectionBox';
 
@@ -243,6 +244,8 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
   const [term, setTerm] = useState<number | 'ALL'>('ALL');
   const [query, setQuery] = useState('');
   const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(new Set());
+  /** 마지막으로 누른 줄. Shift를 누른 채 다른 줄을 누르면 그 사이를 한꺼번에 고른다. */
+  const [lastIndex, setLastIndex] = useState<number | null>(null);
   const candidates = members ? rosterCandidates(members, inRosterIds, { term, query }) : [];
   // 거르는 조건을 바꿔도 앞서 체크한 사람은 그대로 더한다(보이지 않아도 빠지지 않게).
   const picked = members
@@ -259,10 +262,16 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
       .sort((a, b) => b - a)
       .map((t) => ({ value: String(t), label: `${t}기` })),
   ];
-  const toggle = (id: string) => {
+  const candidateIds = candidates.map((c) => c.id);
+  const toggleRow = (index: number, isRange: boolean) => {
+    setCheckedIds(withCheckedRange(checkedIds, candidateIds, isRange ? lastIndex : null, index));
+    setLastIndex(index);
+  };
+  const setAllShown = (isOn: boolean) => {
     const next = new Set(checkedIds);
-    if (!next.delete(id)) next.add(id);
+    candidateIds.forEach((id) => (isOn ? next.add(id) : next.delete(id)));
     setCheckedIds(next);
+    setLastIndex(null);
   };
 
   return (
@@ -272,12 +281,18 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
           ariaLabel="더할 사람 기수"
           value={String(term)}
           options={termOptions}
-          onChange={(value) => setTerm(value === 'ALL' ? 'ALL' : Number(value))}
+          onChange={(value) => {
+            setTerm(value === 'ALL' ? 'ALL' : Number(value));
+            setLastIndex(null);
+          }}
           buttonClassName="h-10 w-32 text-left"
         />
         <input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setLastIndex(null);
+          }}
           aria-label="더할 사람 이름"
           placeholder="이름"
           className={`${FIELD_INPUT} w-auto min-w-0 flex-1`}
@@ -289,6 +304,7 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
           onClick={() => {
             onAdd(picked);
             setCheckedIds(new Set());
+            setLastIndex(null);
           }}
         >
           {picked.length > 0 ? `${picked.length}명 추가` : '추가'}
@@ -301,6 +317,33 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
             다시 불러오기
           </button>
         </p>
+      )}
+      {candidates.length > 0 && (
+        <div className="flex items-center gap-3 text-xs text-slate-500">
+          <span>
+            <span className="font-semibold tabular-nums text-slate-900">{picked.length}</span>명
+            고름
+          </span>
+          <button
+            type="button"
+            className={FIELD_TEXT_BTN}
+            onClick={() => setAllShown(!isAllChecked)}
+          >
+            {isAllChecked ? '보이는 사람 모두 풀기' : `보이는 ${candidates.length}명 모두 고르기`}
+          </button>
+          {picked.length > 0 && (
+            <button
+              type="button"
+              className={FIELD_TEXT_BTN}
+              onClick={() => {
+                setCheckedIds(new Set());
+                setLastIndex(null);
+              }}
+            >
+              고른 사람 비우기
+            </button>
+          )}
+        </div>
       )}
       {members && candidates.length === 0 && (
         <p className="text-xs text-slate-500">더할 수 있는 사람이 없습니다.</p>
@@ -318,13 +361,7 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
                     ref={(element) => {
                       if (element) element.indeterminate = isSomeChecked;
                     }}
-                    onChange={() => {
-                      const next = new Set(checkedIds);
-                      candidates.forEach((c) =>
-                        isAllChecked ? next.delete(c.id) : next.add(c.id),
-                      );
-                      setCheckedIds(next);
-                    }}
+                    onChange={() => setAllShown(!isAllChecked)}
                     aria-label="보이는 사람 모두 고르기"
                     className="size-4 cursor-pointer accent-slate-700"
                   />
@@ -341,13 +378,23 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {candidates.map((c) => (
-                <tr key={c.id} className={GRID_ROW}>
+              {candidates.map((c, index) => (
+                // 줄 어디를 눌러도 고른다. Shift를 누른 채 누르면 앞서 누른 줄까지 한꺼번에 고른다.
+                <tr
+                  key={c.id}
+                  onClick={(event) => toggleRow(index, event.shiftKey)}
+                  className={`${GRID_ROW} cursor-pointer select-none ${checkedIds.has(c.id) ? 'bg-slate-50' : ''}`}
+                >
                   <td className={TD_CLASS}>
                     <input
                       type="checkbox"
                       checked={checkedIds.has(c.id)}
-                      onChange={() => toggle(c.id)}
+                      // 줄의 onClick이 고르므로 체크박스 자체 클릭은 줄로만 넘긴다(두 번 뒤집히지 않게).
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleRow(index, event.shiftKey);
+                      }}
+                      onChange={() => undefined}
                       aria-label={`${c.name} 고르기`}
                       className="size-4 cursor-pointer accent-slate-700"
                     />

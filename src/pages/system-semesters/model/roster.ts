@@ -49,3 +49,21 @@ export function rosterCandidates(
     )
     .sort((a, b) => b.term - a.term || a.name.localeCompare(b.name, 'ko'));
 }
+
+/**
+ * 목록에서 한 줄을 눌렀을 때의 체크 상태. 누른 줄은 상태가 뒤집히고, from이 있으면(Shift)
+ * from 줄부터 누른 줄까지 모두 누른 줄의 새 상태로 맞춘다.
+ */
+export function withCheckedRange(
+  checked: ReadonlySet<string>,
+  ids: readonly string[],
+  from: number | null,
+  to: number,
+): Set<string> {
+  const isOn = !checked.has(ids[to]);
+  const start = from === null ? to : Math.min(from, to);
+  const end = from === null ? to : Math.max(from, to);
+  const next = new Set(checked);
+  ids.slice(start, end + 1).forEach((id) => (isOn ? next.add(id) : next.delete(id)));
+  return next;
+}

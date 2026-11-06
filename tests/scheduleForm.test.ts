@@ -7,6 +7,7 @@ import {
   rosterCandidates,
   rosterFilterCounts,
   rosterFilterOf,
+  withCheckedRange,
 } from '../src/pages/system-semesters/model/roster';
 import {
   emptyScheduleForm,
@@ -180,4 +181,12 @@ test('명단에 더할 후보: 탈퇴·이미 명단에 있는 사람은 빼고,
     'b',
     'd',
   ]);
+});
+
+test('Shift로 고르면 마지막으로 누른 줄부터 지금 줄까지 지금 줄의 새 상태로 맞춘다', () => {
+  const ids = ['a', 'b', 'c', 'd'];
+
+  assert.deepEqual([...withCheckedRange(new Set(['a']), ids, 0, 2)].sort(), ['a', 'b', 'c']);
+  assert.deepEqual([...withCheckedRange(new Set(['a', 'b', 'c']), ids, 2, 1)].sort(), ['a']);
+  assert.deepEqual([...withCheckedRange(new Set(), ids, null, 3)], ['d']);
 });
