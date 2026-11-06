@@ -8,7 +8,7 @@ import type {
 } from '@/entities/admin-account/model/types';
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
-import { MODAL_CLOSE_BTN, TABLE_BOX } from '@/shared/ui/systemStyles';
+import { MODAL_CLOSE_BTN } from '@/shared/ui/systemStyles';
 
 import { AccountPermissionEditor } from './AccountPermissionEditor';
 import { HolderProfileTable } from './HolderProfileTable';
@@ -126,7 +126,10 @@ export function AccountPermissionDialog({
               onDirtyChange={handleDirtyChange}
             />
           ) : (
-            <section className={`${TABLE_BOX} px-5 py-4`} aria-label="운영 권한">
+            <section
+              className="rounded-md border border-slate-200 bg-white p-4"
+              aria-label="운영 권한"
+            >
               <h4 className="text-sm font-bold text-slate-900">운영 권한</h4>
               <p className="mt-2 text-xs leading-5 text-slate-500">
                 운영진 계정이 없어 운영 권한이 없습니다. 그룹 리더 계정(HOST)은 본인 계정 수정과

@@ -60,7 +60,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
                   {group.permissions.map((permission, index) => (
                     <tr
                       key={permission.key}
-                      className={`h-10 divide-x divide-slate-200 transition-colors hover:bg-slate-50/70 ${
+                      className={`h-11 divide-x divide-slate-200 transition-colors hover:bg-slate-50/70 ${
                         index === 0
                           ? 'border-t border-slate-200 first:border-t-0'
                           : 'border-t border-slate-100'
@@ -70,7 +70,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
                         <th
                           scope="rowgroup"
                           rowSpan={group.permissions.length}
-                          className="bg-white px-2 text-center align-middle text-xs font-bold text-slate-900"
+                          className="bg-slate-50/80 px-2 text-center align-middle text-xs font-bold text-slate-900"
                         >
                           {group.title}
                         </th>
@@ -85,8 +85,8 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
                         return (
                           <td
                             key={column.key}
-                            className={`text-center text-xs font-semibold ${
-                              isIn ? 'text-slate-700' : isAuto ? 'text-slate-500' : 'text-slate-200'
+                            className={`text-center text-xs ${
+                              isIn ? 'font-semibold text-slate-700' : 'font-normal text-slate-500'
                             }`}
                             aria-label={isIn ? '기본 권한' : isAuto ? '맡은 그룹에서 자동' : '없음'}
                           >
