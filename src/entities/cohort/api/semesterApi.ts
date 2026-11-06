@@ -5,7 +5,6 @@
 import { api, withQuery } from '@/shared/api/client';
 
 import type {
-  CreateSemesterRequest,
   PrepareSemesterRequest,
   ReplaceSemesterMembersRequest,
   SaveSemesterScheduleRequest,
@@ -13,7 +12,6 @@ import type {
   SemesterRosterDto,
   SemesterScheduleDto,
   SemesterWeekDto,
-  UpdateSemesterRequest,
   UpdateSemesterWeekRequest,
 } from '../model/dto';
 import type { UserProfile } from '@/entities/user/model/types';
@@ -25,17 +23,6 @@ export function fetchSemesters(shouldIncludePreparing: boolean = false): Promise
   return api.get(
     withQuery('/api/v1/semesters', { includePreparing: shouldIncludePreparing || undefined }),
   );
-}
-
-export function createSemester(request: CreateSemesterRequest): Promise<SemesterDto> {
-  return api.post('/api/v1/semesters', request);
-}
-
-export function updateSemester(
-  semester: string,
-  request: UpdateSemesterRequest,
-): Promise<SemesterDto> {
-  return api.patch(semesterPath(semester), request);
 }
 
 /** 전역 사용자 중 이 반기의 출결·점수 시스템에서 사용할 회원 명단을 등록한다. */
@@ -58,14 +45,6 @@ export function updateSemesterWeek(
   request: UpdateSemesterWeekRequest,
 ): Promise<SemesterWeekDto> {
   return api.patch(`${semesterPath(semester)}/weeks/${weekNum}`, request);
-}
-
-/** 반기의 주차별 날짜를 한 번에 저장한다. 본문에 없는 주차의 날짜는 지워진다. */
-export function saveSemesterWeekDates(
-  semester: string,
-  weekDates: Readonly<Record<number, string>>,
-): Promise<SemesterWeekDto[]> {
-  return api.put(`${semesterPath(semester)}/week-dates`, { weekDates });
 }
 
 /** 준비 반기 만들기: 반기·일정·무효 주차를 저장하고 BASE·ADV 기수로 명단을 자동으로 만든다. */
