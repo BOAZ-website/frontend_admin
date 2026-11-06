@@ -8,6 +8,7 @@ import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import {
   FIELD_TEXT_BTN,
   LIST_SECTION_TITLE,
+  O_MARK,
   TABLE_BOX,
   TD_CLASS,
   TH_CLASS,
@@ -19,6 +20,8 @@ import { AuditLogDetail } from './AuditLogDetail';
 import { DateFilter } from './DateFilter';
 
 const EMPTY_CELL = '-';
+/** 권한 유지 X. O(O_MARK)와 같은 모양에 글자색만 빨강이다. */
+const X_MARK = 'font-mono text-xs font-bold text-red-600';
 /** 표에 보이는 열 수(전체 기록과 탭별 기록이 같다). */
 const COLUMN_COUNT = 7;
 
@@ -30,7 +33,7 @@ const PAGE_NUMBER_BTN =
   'inline-flex h-8 min-w-8 cursor-pointer items-center justify-center px-2 text-xs tabular-nums transition-colors';
 /** 쪽 넘김의 이전·다음 버튼. */
 const PAGER_BTN =
-  'inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent';
+  'inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent';
 /** 상세 보기 버튼. 상세 창을 연 행은 눌린 모양(진한 테두리·회색 바탕)으로 둔다. */
 const DETAIL_BTN =
   'inline-flex h-7 cursor-pointer items-center gap-1 rounded-sm border px-2 text-xs font-semibold transition-colors';
@@ -162,7 +165,7 @@ export function AuditLogPage({ onOpenPermissions, onOpenMember }: AuditLogPagePr
               aria-busy={isLoading}
             >
               <thead className="select-none">
-                <tr className="h-10 divide-x divide-slate-200 border-b border-slate-200">
+                <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200">
                   {/* 짧은 값(일시·이름·구분 등)은 너비를 고정하고, 긴 글(액션·권한·대상·상세)은 남은 너비를 나눠 쓴다. */}
                   <th className={`${TH_CLASS} w-36`}>일시</th>
                   <th className={`${TH_CLASS} w-20 text-slate-900`}>이름</th>
@@ -228,13 +231,11 @@ export function AuditLogPage({ onOpenPermissions, onOpenMember }: AuditLogPagePr
                             </span>
                           )}
                         </td>
-                        <td className={`${TD_CLASS} font-mono font-semibold text-slate-700`}>
+                        <td className={`${TD_CLASS} font-mono text-slate-700`}>
                           {entry.actorRole ?? EMPTY_CELL}
                         </td>
                         <td
-                          className={`${TD_CLASS} font-bold ${
-                            entry.actorHasPermission ? 'text-slate-900' : 'text-red-600'
-                          }`}
+                          className={`${TD_CLASS} ${entry.actorHasPermission ? O_MARK : X_MARK}`}
                           title={
                             entry.actorHasPermission
                               ? '지금도 권한이 있습니다.'
@@ -253,7 +254,7 @@ export function AuditLogPage({ onOpenPermissions, onOpenMember }: AuditLogPagePr
                         </td>
                         {/* 실제로 한 행동. 삭제는 되돌릴 수 없어 빨간 글자로 둔다. */}
                         <td
-                          className={`${TD_CLASS} truncate font-semibold ${
+                          className={`${TD_CLASS} truncate ${
                             entry.operation === 'DELETE' ? 'text-red-600' : 'text-slate-800'
                           }`}
                           title={AUDIT_ACTIONS[entry.action].label}
