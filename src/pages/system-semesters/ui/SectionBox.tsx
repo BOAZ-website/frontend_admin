@@ -9,7 +9,7 @@ interface SectionBoxProps {
 export function SectionBox({ title, children }: SectionBoxProps) {
   return (
     <section className="rounded-md border border-slate-200 bg-white p-4">
-      <h4 className="mb-4 text-xs font-bold text-slate-900">{title}</h4>
+      <h4 className="mb-4 text-sm font-bold text-slate-900">{title}</h4>
       {children}
     </section>
   );

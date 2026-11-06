@@ -13,9 +13,9 @@ import { LabeledRow, SectionBox } from './SectionBox';
 
 /** 상태는 출결 화면의 "제출 완료"처럼 배지 없이 글자로만 보여 준다. 진행 중인 반기만 진하게. */
 const STATUS_TEXT: Record<SemesterDto['status'], { label: string; className: string }> = {
-  PREPARING: { label: '준비', className: 'text-sm font-semibold text-slate-700' },
-  ACTIVE: { label: '진행 중', className: 'text-sm font-semibold text-slate-900' },
-  ENDED: { label: '종료', className: 'text-sm font-medium text-slate-500' },
+  PREPARING: { label: '준비', className: 'text-xs font-semibold text-slate-700' },
+  ACTIVE: { label: '진행 중', className: 'text-xs font-semibold text-slate-900' },
+  ENDED: { label: '종료', className: 'text-xs font-normal text-slate-500' },
 };
 const ERROR_BOX = 'rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600';
 
@@ -44,7 +44,7 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
       <SectionBox title="기본">
         <div className="space-y-4">
           <LabeledRow label="반기 이름">
-            <span className="text-base font-bold text-slate-900">{semester.semester}</span>
+            <span className="text-sm font-bold text-slate-900">{semester.semester}</span>
           </LabeledRow>
           <LabeledRow label="상태">
             <span className={status.className}>{status.label}</span>
