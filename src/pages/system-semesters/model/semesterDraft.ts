@@ -61,11 +61,13 @@ export function loadSemesterDraft(): SemesterDraft | null {
   }
 }
 
-export function saveSemesterDraft(draft: SemesterDraft): void {
+/** 임시 저장한다. 저장소가 꽉 찼거나 쓸 수 없으면 false(화면이 알린다). */
+export function saveSemesterDraft(draft: SemesterDraft): boolean {
   try {
     localStorage.setItem(SEMESTER_DRAFT_KEY, JSON.stringify(draft));
+    return true;
   } catch {
-    // 저장하지 못해도 입력은 화면에 남는다.
+    return false;
   }
 }
 

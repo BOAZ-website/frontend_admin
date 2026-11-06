@@ -59,9 +59,10 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
   };
   // 임시 저장한 새 반기(목록의 "예정"). 입력이 바뀔 때마다 저장한다.
   const [draft, setDraft] = useState<SemesterDraft | null>(loadSemesterDraft);
+  const [isDraftUnsaved, setIsDraftUnsaved] = useState(false);
   const handleDraftChange = useCallback((next: SemesterDraft) => {
     setDraft(next);
-    saveSemesterDraft(next);
+    setIsDraftUnsaved(!saveSemesterDraft(next));
   }, []);
 
   if (!semesters) {
@@ -179,6 +180,7 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
           <NewSemesterPanel
             initialDraft={draft}
             onDraftChange={handleDraftChange}
+            isDraftUnsaved={isDraftUnsaved}
             existingNames={semesters.map((s) => s.semester)}
             currentName={current?.semester ?? null}
             start={semestersState.start}

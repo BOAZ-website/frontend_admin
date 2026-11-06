@@ -36,9 +36,18 @@ export function RosterConfirmDialog({
   const roster = useRosterConfirm(terms, kindOf);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  useDialogKeyboard(panelRef, onCancel);
+  // 시작 요청 중에는 닫지 않는다(명단을 잃고 다시 시작하는 일을 막는다).
+  const requestClose = () => {
+    if (!isSaving) onCancel();
+  };
+  useDialogKeyboard(panelRef, requestClose);
+  // 열 때 창으로 포커스를 옮기고, 닫히면 창을 연 버튼으로 돌려준다.
   useEffect(() => {
+    const opener = document.activeElement;
     closeRef.current?.focus();
+    return () => {
+      if (opener instanceof HTMLElement) opener.focus();
+    };
   }, []);
 
   return (
@@ -47,7 +56,7 @@ export function RosterConfirmDialog({
       aria-modal="true"
       aria-labelledby="roster-confirm-title"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
+        if (event.target === event.currentTarget) requestClose();
       }}
       className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 p-4"
     >
@@ -62,7 +71,8 @@ export function RosterConfirmDialog({
           <button
             ref={closeRef}
             type="button"
-            onClick={onCancel}
+            onClick={requestClose}
+            disabled={isSaving}
             aria-label="창 닫기"
             className={`shrink-0 ${MODAL_CLOSE_BTN}`}
           >
@@ -105,7 +115,12 @@ export function RosterConfirmDialog({
             </span>
             명으로 시작
           </span>
-          <button type="button" className={MODAL_CANCEL_BTN} onClick={onCancel}>
+          <button
+            type="button"
+            className={MODAL_CANCEL_BTN}
+            disabled={isSaving}
+            onClick={requestClose}
+          >
             취소
           </button>
           <button

@@ -124,6 +124,7 @@ export function useNewSemesterForm({
   };
 
   const startWith = async (userIds: string[]) => {
+    if (isSaving) return;
     const message = currentName
       ? `${draftName}을 시작할까요?\n${currentName}이 종료되고 ${draftName}이 진행 반기가 됩니다. ${currentName}에 연결된 HOST 계정의 팀이 해제되고, 팀·출결 기록은 그대로 남습니다.`
       : `${draftName}을 시작할까요?\n${draftName}이 진행 반기가 됩니다.`;
