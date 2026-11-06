@@ -244,8 +244,15 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
   const [query, setQuery] = useState('');
   const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(new Set());
   const candidates = members ? rosterCandidates(members, inRosterIds, { term, query }) : [];
-  const picked = candidates.filter((c) => checkedIds.has(c.id));
-  const isAllChecked = candidates.length > 0 && picked.length === candidates.length;
+  // 거르는 조건을 바꿔도 앞서 체크한 사람은 그대로 더한다(보이지 않아도 빠지지 않게).
+  const picked = members
+    ? rosterCandidates(members, inRosterIds, { term: 'ALL', query: '' }).filter((c) =>
+        checkedIds.has(c.id),
+      )
+    : [];
+  const shownChecked = candidates.filter((c) => checkedIds.has(c.id)).length;
+  const isAllChecked = candidates.length > 0 && shownChecked === candidates.length;
+  const isSomeChecked = shownChecked > 0 && !isAllChecked;
   const termOptions = [
     { value: 'ALL', label: '전체 기수' },
     ...[...new Set((members ?? []).filter((m) => m.status !== 'WITHDRAWN').map((m) => m.term))]
@@ -308,9 +315,16 @@ function RosterPicker({ inRosterIds, disabled, onAdd }: RosterPickerProps) {
                   <input
                     type="checkbox"
                     checked={isAllChecked}
-                    onChange={() =>
-                      setCheckedIds(isAllChecked ? new Set() : new Set(candidates.map((c) => c.id)))
-                    }
+                    ref={(element) => {
+                      if (element) element.indeterminate = isSomeChecked;
+                    }}
+                    onChange={() => {
+                      const next = new Set(checkedIds);
+                      candidates.forEach((c) =>
+                        isAllChecked ? next.delete(c.id) : next.add(c.id),
+                      );
+                      setCheckedIds(next);
+                    }}
                     aria-label="보이는 사람 모두 고르기"
                     className="size-4 cursor-pointer accent-slate-700"
                   />
