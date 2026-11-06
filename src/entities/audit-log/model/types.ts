@@ -108,12 +108,6 @@ export const actionsOf = (category: AuditCategory | null): AuditAction[] =>
 /** 권한 안에서 한 일. CUD 권한이면 그 가운데 무엇을 했는지다. */
 export type AuditOperation = 'CREATE' | 'UPDATE' | 'DELETE';
 
-export const AUDIT_OPERATION_LABELS: Readonly<Record<AuditOperation, string>> = {
-  CREATE: '생성',
-  UPDATE: '수정',
-  DELETE: '삭제',
-};
-
 /** 기록 한 줄이 쓴 권한(권한 매트릭스의 항목). */
 export interface AuditUsedPermission {
   key: string;
