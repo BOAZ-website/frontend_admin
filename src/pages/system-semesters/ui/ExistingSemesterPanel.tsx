@@ -50,6 +50,7 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
           </LabeledRow>
           <LabeledRow label="상태">
             <span className={status.className}>{status.label}</span>
+            {view.isScheduleLocked && <span className="text-xs text-slate-500">조회 전용</span>}
             {isPreparing && (
               <button
                 type="button"
@@ -98,16 +99,6 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
               <button type="button" className={FIELD_TEXT_BTN} onClick={view.reloadCurrentWeeks}>
                 다시 불러오기
               </button>
-            </p>
-          )}
-          {semester.status === 'ACTIVE' && (
-            <p className="text-xs text-slate-500">다음 반기를 활성화하면 종료됩니다.</p>
-          )}
-          {semester.status === 'ENDED' && (
-            <p className="text-xs text-slate-500">
-              {view.isArchivedEditable
-                ? '종료된 반기입니다. 일정·휴강·명단을 고치면 지난 반기 점수 계산에 영향을 줄 수 있습니다.'
-                : '종료된 반기는 조회만 됩니다. 수정·삭제는 서비스운영팀장만 할 수 있습니다.'}
             </p>
           )}
         </div>

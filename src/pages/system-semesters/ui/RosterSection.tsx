@@ -101,9 +101,7 @@ export function RosterSection({
         </div>
 
         {rows.length === 0 ? (
-          <p className="text-xs text-slate-500">
-            명단이 비어 있습니다. BASE·ADV 기수에 활동 중인 회원이 없으면 아래에서 직접 더하세요.
-          </p>
+          <p className="text-xs text-slate-500">명단이 비어 있습니다.</p>
         ) : shownRows.length === 0 ? (
           <p className="text-xs text-slate-500">{FILTER_LABEL[filter]} 인원이 없습니다.</p>
         ) : (
@@ -197,11 +195,11 @@ export function RosterSection({
                 })
               }
             />
-            {onSave ? (
+            {onSave && (
               <div className="flex items-center justify-end gap-3">
                 {isDirty && (
                   <p className="mr-auto text-xs text-slate-500">
-                    제외 {excludedIds.size}명 · 추가 {added.length}명, 저장하지 않음
+                    저장 전 · 제외 {excludedIds.size} · 추가 {added.length}
                   </p>
                 )}
                 <button
@@ -213,12 +211,6 @@ export function RosterSection({
                   {isSaving ? '저장 중' : '명단 저장'}
                 </button>
               </div>
-            ) : (
-              isDirty && (
-                <p className="text-xs text-slate-500">
-                  제외 {excludedIds.size}명 · 추가 {added.length}명
-                </p>
-              )
             )}
           </div>
         )}
