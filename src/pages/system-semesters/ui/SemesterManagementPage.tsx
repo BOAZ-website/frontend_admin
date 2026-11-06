@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useMyRole } from '@/entities/admin-account/model/useMyRole';
 import type { SemesterDto } from '@/entities/cohort/model/dto';
@@ -11,10 +11,17 @@ import { LIST_SECTION_TITLE } from '@/shared/ui/systemStyles';
 import { PageLoadingState } from '@/widgets/page-loading/ui/PageLoadingState';
 
 import { confirmAndRemoveSemester } from '../model/removeSemester';
+import {
+  clearSemesterDraft,
+  loadSemesterDraft,
+  saveSemesterDraft,
+  type SemesterDraft,
+} from '../model/semesterDraft';
+import { emptySemesterDraft } from '../model/useNewSemesterForm';
 import { ExistingSemesterPanel } from './ExistingSemesterPanel';
 import { NewSemesterPanel } from './NewSemesterPanel';
 
-/** 선택 상태: 새 반기 작성, 이름이 있는 반기, 또는 없음. */
+/** 선택 상태: 예정(임시 저장한 새 반기), 이름이 있는 반기, 또는 없음. */
 type Selection = { kind: 'new' } | { kind: 'semester'; name: string } | null;
 
 const TITLE = (
@@ -37,9 +44,8 @@ interface SemesterManagementPageProps {
 }
 
 /**
- * 반기 관리 화면. 반기는 미리 만들지 않는다.
- * "새 반기 시작"에서 명단을 고르고 시작하면 바로 진행 반기가 되고, 이전 진행 반기는 종료된다.
- * 화면에 들어오면 진행 반기를 열어 둔다.
+ * 반기 관리 화면. "새 반기 시작"을 누르면 목록 맨 위 "예정"에 새 반기가 생기고 입력은 이 브라우저에 임시 저장된다.
+ * 저장 → 명단 확인 → 시작하면 바로 진행 반기가 되고, 이전 진행 반기는 종료된다. 화면에 들어오면 진행 반기를 열어 둔다.
  */
 export function SemesterManagementPage({ onSemesterChanged }: SemesterManagementPageProps) {
   const semestersState = useSemesters();
@@ -51,6 +57,12 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
   const handleSelect = (next: Selection) => {
     if (confirmLeave()) setSelection(next);
   };
+  // 임시 저장한 새 반기(목록의 "예정"). 입력이 바뀔 때마다 저장한다.
+  const [draft, setDraft] = useState<SemesterDraft | null>(loadSemesterDraft);
+  const handleDraftChange = useCallback((next: SemesterDraft) => {
+    setDraft(next);
+    saveSemesterDraft(next);
+  }, []);
 
   if (!semesters) {
     return (
@@ -75,6 +87,23 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
   }
 
   const current = semesters.find((s) => s.status === 'ACTIVE') ?? null;
+  const handleNew = () => {
+    if (!draft)
+      handleDraftChange(emptySemesterDraft(Math.max(0, ...semesters.map((s) => s.cohort))));
+    handleSelect({ kind: 'new' });
+  };
+  const forgetDraft = () => {
+    clearSemesterDraft();
+    setDraft(null);
+  };
+  const handleRemoveDraft = () => {
+    if (
+      !window.confirm('임시 저장한 새 반기를 지울까요?\n입력한 이름·기수·일정이 모두 지워집니다.')
+    )
+      return;
+    forgetDraft();
+    if (selection?.kind === 'new') setSelection(undefined);
+  };
   const canEditArchived = myRole === 'MASTER';
   const handleRemove = async (name: string) => {
     if (!(await confirmAndRemoveSemester(name, semestersState.remove))) return;
@@ -90,6 +119,17 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
 
   const list = (
     <div className="space-y-2">
+      {draft && (
+        <div className="space-y-2">
+          <p className={LIST_SECTION_TITLE}>예정</p>
+          <SplitListItem
+            label={draft.name || '새 반기'}
+            isSelected={selection?.kind === 'new'}
+            onSelect={() => handleSelect({ kind: 'new' })}
+            onDelete={handleRemoveDraft}
+          />
+        </div>
+      )}
       {GROUPS.map((group) => {
         const items = semesters.filter((s) => s.status === group.status);
         return (
@@ -124,23 +164,30 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
     <div className="space-y-6">
       <div className={TITLE_ROW_CLASS}>
         {TITLE}
-        <CreateButton label="새 반기 시작" onClick={() => handleSelect({ kind: 'new' })} />
+        <CreateButton label="새 반기 시작" onClick={handleNew} />
       </div>
       <SplitView
         listLabel="반기 목록"
         list={list}
         isOpen={isOpen}
-        panelTitle={selection?.kind === 'new' ? '새 반기 시작' : (selected?.semester ?? '')}
+        panelTitle={
+          selection?.kind === 'new' ? draft?.name || '새 반기' : (selected?.semester ?? '')
+        }
         onClose={() => handleSelect(null)}
       >
-        {selection?.kind === 'new' && (
+        {selection?.kind === 'new' && draft && (
           <NewSemesterPanel
-            latestCohort={Math.max(0, ...semesters.map((s) => s.cohort))}
+            initialDraft={draft}
+            onDraftChange={handleDraftChange}
             existingNames={semesters.map((s) => s.semester)}
             currentName={current?.semester ?? null}
             start={semestersState.start}
             onCancel={() => handleSelect(null)}
-            onStarted={(name) => setSelection({ kind: 'semester', name })}
+            onStarted={(name) => {
+              forgetDraft();
+              onSemesterChanged();
+              setSelection({ kind: 'semester', name });
+            }}
           />
         )}
         {selected && (
