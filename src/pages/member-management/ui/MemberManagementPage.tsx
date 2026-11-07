@@ -113,6 +113,8 @@ const STATUS_OPTIONS = labelOptions(STATUS_LABELS);
  * 탈퇴를 뺀 활동 상태 선택지(활동기수·수료). 부문 명단의 필터(탈퇴한 사람은 탈퇴 명단에만 있다)와
  * 추가·수정 팝업(탈퇴는 탈퇴 처리 버튼으로만 한다)에 쓴다.
  */
+/** 추가 창의 활동 상태 선택지. 처음부터 탈퇴로 만들 수는 없다(서버도 400 CANNOT_CREATE_WITHDRAWN). */
+const CREATE_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
 const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter(
   (option) => option.value !== 'WITHDRAWN' && option.value !== 'NOT_COMPLETED',
 );
@@ -337,6 +339,9 @@ export function MemberManagementPage() {
         window.alert(blockMessage);
         return;
       }
+      const message = `${editingMember.name}님을 탈퇴로 바꿀까요?
+활동 상태만 탈퇴로 바뀌고, 출결 기록과 팀 소속은 그대로 남습니다.`;
+      if (!window.confirm(message)) return;
     }
     const request: ClubMemberForm = {
       ...form,
@@ -874,7 +879,7 @@ export function MemberManagementPage() {
                 <SelectDropdown<ClubMemberStatus>
                   ariaLabel="활동 상태"
                   value={form.status}
-                  options={STATUS_OPTIONS}
+                  options={isCreating ? CREATE_STATUS_OPTIONS : STATUS_OPTIONS}
                   onChange={(status) => updateForm({ status })}
                   buttonClassName={FIELD_SELECT}
                 />
