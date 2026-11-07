@@ -25,8 +25,8 @@ const baseSetOf = (key: ReturnType<typeof baseSetKeyOf>) =>
     .map((p) => p.key)
     .sort();
 
-test('권한은 41개이고, 모두 기본 세트 7개 열에 O·X가 적혀 있으며 이름이 겹치지 않는다', () => {
-  assert.equal(PERMISSIONS.length, 41);
+test('권한은 43개이고, 모두 기본 세트 7개 열에 O·X가 적혀 있으며 이름이 겹치지 않는다', () => {
+  assert.equal(PERMISSIONS.length, 43);
   for (const permission of PERMISSIONS) {
     assert.match(permission.base, new RegExp(`^[OX]{${BASE_SET_COLUMNS.length}}$`), permission.key);
   }

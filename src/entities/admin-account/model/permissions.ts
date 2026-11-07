@@ -180,6 +180,9 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
       { key: 'HOST_ACCOUNT_READ', label: 'HOST 계정 발급 조회', base: 'OOOXOXX' },
       { key: 'SCORE_RULE_WRITE', label: '점수 규칙 CUD', base: 'OOOXOXX' },
       { key: 'SCORE_RULE_READ', label: '점수 규칙 조회', base: 'OOOXOXX' },
+      // 2026-11-05 권한 매트릭스 최신화(협의 0-1): 반기 관리 화면의 조회·저장
+      { key: 'ATTENDANCE_ROSTER_WRITE', label: '반기 CUD', base: 'OOOOOXX' },
+      { key: 'ATTENDANCE_ROSTER_READ', label: '반기 조회', base: 'OOOOOXX' },
     ],
   },
   {
