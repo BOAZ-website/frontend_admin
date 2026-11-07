@@ -866,16 +866,6 @@ export function MemberManagementPage() {
                   요청하세요.
                 </p>
               )}
-              {editingMember && (
-                <div>
-                  <span className={FIELD_LABEL}>운영진</span>
-                  {/* 운영진 팀·팀장·로그인 계정은 권한 관리에서 정한다(백엔드 협의 2026-11-05). */}
-                  <p className="flex h-10 items-center text-sm text-slate-900">
-                    {editingMember.operatorTeam ?? '없음'}
-                    <span className="ml-2 text-xs text-slate-500">권한 관리에서 바꿉니다</span>
-                  </p>
-                </div>
-              )}
               <div>
                 <span className={FIELD_LABEL}>활동 상태</span>
                 <SelectDropdown<ClubMemberStatus>
