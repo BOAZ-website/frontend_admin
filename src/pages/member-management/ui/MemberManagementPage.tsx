@@ -3,7 +3,16 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from 'luci
 
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
 import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
-import { LIST_SECTION_TITLE } from '@/shared/ui/systemStyles';
+import {
+  FIELD_INPUT,
+  FIELD_LABEL,
+  LIST_SECTION_TITLE,
+  MODAL_CANCEL_BTN,
+  MODAL_CLOSE_BTN,
+  MODAL_CONFIRM_BTN,
+  TD_CLASS,
+  TH_CLASS,
+} from '@/shared/ui/systemStyles';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { Tooltip } from '@/shared/ui/Tooltip';
@@ -82,21 +91,7 @@ const HEADER_ICON_BTN =
 // ─── 출결 화면(행사 출결·그룹 계정 관리)과 같은 입력칸·표·팝업 스타일 ───
 /** 도구 줄의 검색칸. */
 const TOOLBAR_FIELD =
-  'h-9 rounded-sm border border-slate-200 bg-white text-xs font-semibold text-slate-800 shadow-2xs outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
-const TH_CLASS = 'px-4 py-2 text-center font-bold text-slate-700 whitespace-nowrap';
-const TD_CLASS = 'px-4 py-2 text-center whitespace-nowrap';
-/** 팝업 제목 옆 닫기 버튼. */
-const MODAL_CLOSE_BTN =
-  'p-1.5 rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer';
-/** 팝업 아래쪽 취소·확인 버튼. */
-const MODAL_CANCEL_BTN =
-  'h-9 rounded-sm px-4 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer';
-const MODAL_CONFIRM_BTN =
-  'h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40';
-/** 팝업 입력 항목의 이름과 입력칸. */
-const FIELD_LABEL = 'mb-1.5 block text-[11px] font-semibold text-slate-500';
-const FIELD_INPUT =
-  'h-10 w-full rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400';
+  'h-9 rounded-sm border border-slate-200 bg-white text-xs font-medium text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
 /** 팝업 안 드롭다운 버튼. 옆 입력칸(FIELD_INPUT)과 글자 크기·정렬·안쪽 여백을 맞추고 그림자를 뺀다. */
 const FIELD_SELECT =
   'h-10 w-full text-left pl-3! text-sm! font-normal! text-slate-900! shadow-none!';
@@ -525,7 +520,7 @@ export function MemberManagementPage() {
               <h2 id="members-all-heading" className={LIST_SECTION_TITLE}>
                 전체 동아리원
               </h2>
-              <ul className="space-y-2.5">
+              <ul className="space-y-2">
                 {ALL_TRACK_SHEETS.map((item) => (
                   <li key={item.id}>
                     <SplitListItem
@@ -542,7 +537,7 @@ export function MemberManagementPage() {
               <h2 id="members-track-heading" className={LIST_SECTION_TITLE}>
                 부문별
               </h2>
-              <ul className="space-y-2.5">
+              <ul className="space-y-2">
                 {TRACK_SHEETS.map((item) => (
                   <li key={item.id}>
                     <SplitListItem
@@ -612,7 +607,7 @@ export function MemberManagementPage() {
               <div className="relative">
                 <Search
                   size={13}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                   aria-hidden="true"
                 />
                 <input
@@ -632,12 +627,12 @@ export function MemberManagementPage() {
         {/* 동아리원 표 */}
         <div
           aria-busy={isTermSwitching || isSheetSwitching}
-          className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xs"
+          className="overflow-hidden rounded-md border border-slate-200 bg-white"
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1070px] border-collapse text-xs">
-              <thead className="bg-slate-50/80">
-                <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-[11px]">
+              <thead>
+                <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-xs">
                   <th className={`${TH_CLASS} w-[120px] text-slate-900`}>이름</th>
                   <th className={`${TH_CLASS} w-[80px]`}>기수</th>
                   {hasTrackColumn && <th className={`${TH_CLASS} w-[100px]`}>부문</th>}
@@ -670,7 +665,7 @@ export function MemberManagementPage() {
                   </tr>
                 ) : tableStatus === 'ready' && filteredMembers.length === 0 ? (
                   <tr>
-                    <td colSpan={columnCount} className="py-10 text-center text-slate-400">
+                    <td colSpan={columnCount} className="py-10 text-center text-slate-500">
                       <p>검색 조건에 일치하는 동아리원이 없습니다.</p>
                       <button
                         type="button"
@@ -686,8 +681,8 @@ export function MemberManagementPage() {
                     <tr
                       key={member.id}
                       id={`member-row-${member.id}`}
-                      className={`h-[46px] divide-x divide-slate-200 transition-colors ${
-                        freshBadgeIds.has(member.id) ? 'bg-blue-50/60' : 'hover:bg-slate-50/70'
+                      className={`h-11 divide-x divide-slate-200 transition-colors ${
+                        freshBadgeIds.has(member.id) ? 'bg-slate-100' : 'hover:bg-slate-50/70'
                       }`}
                     >
                       <td className={`${TD_CLASS} font-bold text-slate-900`}>{member.name}</td>
@@ -784,7 +779,7 @@ export function MemberManagementPage() {
       {/* 동아리원 추가·정보 수정 팝업 */}
       {form && (
         <div
-          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeModal();
           }}
@@ -868,7 +863,7 @@ export function MemberManagementPage() {
                 <div>
                   <span className={FIELD_LABEL}>운영진</span>
                   {/* 운영진 팀·팀장·로그인 계정은 권한 관리에서 정한다(백엔드 협의 2026-11-05). */}
-                  <p className="flex h-10 items-center text-sm text-slate-700">
+                  <p className="flex h-10 items-center text-sm text-slate-900">
                     {editingMember.operatorTeam ?? '없음'}
                     <span className="ml-2 text-xs text-slate-500">권한 관리에서 바꿉니다</span>
                   </p>
@@ -933,7 +928,7 @@ export function MemberManagementPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-slate-100 pt-3.5">
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
               <button type="button" onClick={closeModal} className={MODAL_CANCEL_BTN}>
                 취소
               </button>
