@@ -13,7 +13,7 @@ import { assignOperator } from '@/entities/admin-account/api/adminAccountApi';
 import {
   createClubMember,
   updateClubMember,
-  withdrawClubMember,
+  deleteClubMember,
 } from '@/entities/club-member/api/clubMemberApi';
 import {
   withdrawBlockMessageOf,
@@ -381,6 +381,17 @@ export function MemberManagementPage() {
   const saveMember = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSave || !form) return;
+    // 탈퇴로 바꾸는데 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 이유와 먼저 할 일을 알리고 멈춘다(서버도 409).
+    if (editingMember && editingMember.status !== 'WITHDRAWN' && form.status === 'WITHDRAWN') {
+      const blockMessage = withdrawBlockMessageOf(
+        editingMember.name,
+        withdrawBlocksOf(editingMember),
+      );
+      if (blockMessage) {
+        window.alert(blockMessage);
+        return;
+      }
+    }
     const request: ClubMemberForm = {
       ...form,
       name: form.name.trim(),
@@ -465,20 +476,13 @@ export function MemberManagementPage() {
   };
 
   /**
-   * 동아리원을 탈퇴 처리한다(활동 상태를 탈퇴로 바꾼다). 출결 기록과 팀 소속은 그대로 남고,
-   * 지금 보는 명단에서 빠져 탈퇴 명단으로 옮겨진다.
+   * 잘못 등록한 동아리원을 지운다. 활동한 사람(반기 명단에 오른 사람)은 서버가 409로 막고, 탈퇴는 정보 수정에서 한다.
    */
-  const withdrawMember = async (member: ClubMember) => {
-    // 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 이유와 먼저 할 일을 알리고 멈춘다(서버도 409로 막는다).
-    const blockMessage = withdrawBlockMessageOf(member.name, withdrawBlocksOf(member));
-    if (blockMessage) {
-      window.alert(blockMessage);
-      return;
-    }
+  const handleDeleteMember = async (member: ClubMember) => {
     if (
       !window.confirm(
-        `${member.name}님(${member.term}기 ${member.track})을 정말 탈퇴 처리할까요?
-활동 상태만 탈퇴로 바뀌고, 출결 기록과 팀 소속은 그대로 남습니다.`,
+        `${member.name}님(${member.term}기 ${member.track})을 명단에서 지울까요?
+잘못 등록한 회원을 지울 때만 씁니다. 활동한 회원은 정보 수정에서 활동 상태를 탈퇴로 바꿔 주세요.`,
       )
     ) {
       return;
@@ -486,7 +490,7 @@ export function MemberManagementPage() {
     if (withdrawingId !== null) return;
     setWithdrawingId(member.id);
     try {
-      await withdrawClubMember(member.id);
+      await deleteClubMember(member.id);
       setHasSaved(true);
       reload();
       reloadPage();
@@ -829,21 +833,13 @@ export function MemberManagementPage() {
                               <Pencil size={14} aria-hidden="true" />
                             </button>
                           </Tooltip>
-                          {/* 운영진·HOST 계정이 있거나 현재 반기 팀장이면 눌렀을 때 이유와 먼저 할 일을 알린다.
-                              이미 탈퇴한 사람은 탈퇴 처리할 것이 없어 버튼을 끈다. */}
-                          <Tooltip
-                            label={
-                              member.status === 'WITHDRAWN'
-                                ? '이미 탈퇴한 동아리원입니다'
-                                : '탈퇴 처리'
-                            }
-                            align="end"
-                          >
+                          {/* 잘못 등록한 회원 삭제. 반기 명단에 오른 사람·로그인 계정이 있는 사람은 서버가 이유와 함께 막는다. */}
+                          <Tooltip label="잘못 등록한 회원 삭제" align="end">
                             <button
                               type="button"
-                              onClick={() => withdrawMember(member)}
-                              disabled={member.status === 'WITHDRAWN' || withdrawingId !== null}
-                              aria-label={`${member.name} 탈퇴 처리`}
+                              onClick={() => void handleDeleteMember(member)}
+                              disabled={withdrawingId !== null}
+                              aria-label={`${member.name} 삭제`}
                               className={WITHDRAW_ICON_BTN}
                             >
                               <Trash2 size={14} aria-hidden="true" />
@@ -1030,7 +1026,7 @@ export function MemberManagementPage() {
                 <SelectDropdown<ClubMemberStatus>
                   ariaLabel="활동 상태"
                   value={form.status}
-                  options={isEditingWithdrawn ? STATUS_OPTIONS : TRACK_STATUS_OPTIONS}
+                  options={STATUS_OPTIONS}
                   onChange={(status) => updateForm({ status })}
                   buttonClassName={FIELD_SELECT}
                 />
