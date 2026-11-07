@@ -1,7 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
-import { compareTeamNames } from '@/entities/admin-account/model/teams';
+import {
+  compareTeamNames,
+  SERVICE_OPERATIONS_TEAM,
+  TEAMS_WITHOUT_LEAD,
+} from '@/entities/admin-account/model/teams';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import type { ClubMember } from '@/entities/club-member/model/types';
 import { useClubMembers } from '@/entities/club-member/model/useClubMembers';
@@ -23,6 +27,8 @@ import { candidatesOf, matchesFilter, parseTerm } from '../model/credentialCandi
 export interface IssueCredentials {
   username: string;
   password: string;
+  /** 그 팀의 팀장으로 정한다. 같은 팀의 다른 팀장은 팀원이 된다. */
+  isTeamLead: boolean;
 }
 
 interface CredentialIssueModalProps {
@@ -47,7 +53,7 @@ interface CredentialIssueModalProps {
   onMove: (
     account: AdminAccount,
     teamName: string,
-    change: { username: string; password: string | null },
+    change: { username: string; password: string | null; isTeamLead: boolean },
   ) => Promise<boolean>;
 }
 
@@ -124,6 +130,8 @@ export function CredentialIssueModal({
   /** 아이디 칸에 쓴 글자. null이면 아직 고치지 않은 것이고, 운영진을 고른 경우 그 사람의 아이디를 보여 준다. */
   const [username, setUsername] = useState<string | null>(null);
   const [password, setPassword] = useState('');
+  /** 팀장 체크. 고르지 않았으면(null) 고른 운영진의 지금 값을 따른다. */
+  const [isTeamLeadChoice, setIsTeamLeadChoice] = useState<boolean | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const typedName = nameInput.trim();
@@ -186,6 +194,7 @@ export function CredentialIssueModal({
   const resetPasswordChoice = () => {
     setUsername(null);
     setPassword('');
+    setIsTeamLeadChoice(null);
   };
 
   /**
@@ -238,8 +247,20 @@ export function CredentialIssueModal({
   const trimmedUsername = usernameValue.trim();
   const isTeamChanged = isMoving && teamName !== selected?.operatorTeam;
   /** 운영진을 고른 경우 바뀌는 것이 하나라도 있는지(팀, 아이디, 비밀번호). */
+  // 대표진·차기대표진은 팀장을 두지 않는다. 팀을 옮기면 팀장 표시는 서버가 먼저 지운다.
+  // 서비스운영팀의 팀장은 서비스운영팀장(MASTER)으로 고정이라 고르지 않는다.
+  const canHaveLead =
+    teamName !== NO_TEAM &&
+    !TEAMS_WITHOUT_LEAD.includes(teamName) &&
+    teamName !== SERVICE_OPERATIONS_TEAM;
+  const isTeamLead =
+    canHaveLead && (isTeamLeadChoice ?? (!isTeamChanged && (selectedAccount?.isTeamLead ?? false)));
+  const isLeadChanged = isMoving && isTeamLead !== (!isTeamChanged && selectedAccount?.isTeamLead);
   const hasOperatorChange =
-    isTeamChanged || trimmedUsername !== selectedAccount?.username || Boolean(password);
+    isTeamChanged ||
+    isLeadChanged ||
+    trimmedUsername !== selectedAccount?.username ||
+    Boolean(password);
   const canSave =
     !isSaving &&
     selected !== null &&
@@ -265,8 +286,9 @@ export function CredentialIssueModal({
         ? await onMove(selectedAccount, teamName, {
             username: trimmedUsername,
             password: password ? password : null,
+            isTeamLead,
           })
-        : await onSubmit(selected, { username: trimmedUsername, password }, teamName);
+        : await onSubmit(selected, { username: trimmedUsername, password, isTeamLead }, teamName);
     } finally {
       setIsSaving(false);
     }
@@ -333,6 +355,17 @@ export function CredentialIssueModal({
                 onChange={changeTeam}
                 buttonClassName={FIELD_SELECT}
               />
+              {canHaveLead && (
+                <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={isTeamLead}
+                    onChange={(event) => setIsTeamLeadChoice(event.target.checked)}
+                    className="size-4 cursor-pointer accent-slate-700"
+                  />
+                  이 팀의 팀장으로 지정(팀장은 한 명이고, 지금 팀장은 팀원이 됩니다)
+                </label>
+              )}
             </div>
 
             <div>

@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import type { AccountHolder } from '@/entities/admin-account/model/types';
 import { TABLE_BOX, TD_CLASS, TH_CLASS } from '@/shared/ui/systemStyles';
 
@@ -6,11 +8,11 @@ const EMPTY = '-';
 
 /** 열 너비는 비율로 나눈다. 그룹 이름이 긴 ADV·스터디 권한 열을 넓게 둔다. 합계 100%. */
 const COLUMNS: readonly { label: string; width: string }[] = [
-  { label: '기수', width: 'w-[12%]' },
-  { label: '부문', width: 'w-[13%]' },
-  { label: '소속 운영진', width: 'w-[17%]' },
-  { label: 'ADV 권한', width: 'w-[29%]' },
-  { label: '스터디 권한', width: 'w-[29%]' },
+  { label: '기수', width: 'w-[10%]' },
+  { label: '부문', width: 'w-[10%]' },
+  { label: '소속 운영진', width: 'w-[32%]' },
+  { label: 'ADV 권한', width: 'w-[24%]' },
+  { label: '스터디 권한', width: 'w-[24%]' },
 ];
 
 /*
@@ -23,7 +25,13 @@ const COLUMNS: readonly { label: string; width: string }[] = [
  * 스터디가 두 개여도 ADV 칸은 한 칸 그대로다(가운데에 놓인다). 값이 없으면 "-"를 보인다. ADV·스터디 권한은 출결 입력 권한(맡은 그룹에서 자동)이 생기는 근거이며,
  * 출결의 그룹 계정 관리에서 바꾼다.
  */
-export function HolderProfileTable({ holder }: { holder: AccountHolder }) {
+interface HolderProfileTableProps {
+  holder: AccountHolder;
+  /** 소속 운영진 칸에 팀 이름 대신 넣을 내용(팀·팀장 드롭다운). 없으면 팀 이름만 보인다. */
+  operatorCell?: ReactNode;
+}
+
+export function HolderProfileTable({ holder, operatorCell }: HolderProfileTableProps) {
   const groupNamesOf = (groupType: 'ADV' | 'STUDY') =>
     holder.leaderGroups.filter((group) => group.groupType === groupType).map((group) => group.name);
   const advNames = groupNamesOf('ADV');
@@ -31,7 +39,7 @@ export function HolderProfileTable({ holder }: { holder: AccountHolder }) {
   const plainCells = [
     holder.term ? `${holder.term}기` : EMPTY,
     holder.track || EMPTY,
-    holder.adminAccount?.teamName ?? EMPTY,
+    ...(operatorCell ? [] : [holder.adminAccount?.teamName ?? EMPTY]),
   ];
 
   return (
@@ -65,6 +73,7 @@ export function HolderProfileTable({ holder }: { holder: AccountHolder }) {
                   {value}
                 </td>
               ))}
+              {operatorCell && <td className="px-2 py-1.5 text-xs">{operatorCell}</td>}
               <GroupCell names={advNames} />
               <GroupCell names={studyNames} />
             </tr>

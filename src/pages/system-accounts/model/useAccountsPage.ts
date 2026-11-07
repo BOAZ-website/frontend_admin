@@ -65,10 +65,16 @@ export interface AccountsPageDerived {
   handleChangeOperator: (
     account: AdminAccount,
     teamName: string,
-    change: { username: string; password: string | null },
+    change: { username: string; password: string | null; isTeamLead: boolean },
   ) => Promise<boolean>;
   handleDeleteAccount: (account: AdminAccount) => void;
   handleSavePermissions: (account: AdminAccount, permissions: string[]) => Promise<boolean>;
+  /** 권한 창에서 운영진 팀·팀장을 바꾼다. 팀을 옮기면 개별 권한 예외는 서버가 지운다. */
+  handleChangeTeam: (
+    account: AdminAccount,
+    teamName: string,
+    isTeamLead: boolean,
+  ) => Promise<boolean>;
 }
 
 /** useAccountsPage가 돌려주는 값. */
@@ -242,7 +248,7 @@ export function useAccountsPage(): AccountsPageState {
     const handleChangeOperator = async (
       account: AdminAccount,
       teamName: string,
-      change: { username: string; password: string | null },
+      change: { username: string; password: string | null; isTeamLead: boolean },
     ) => {
       const isTeamChanged = teamName !== account.teamName;
       const isUsernameChanged = change.username !== account.username;
@@ -252,9 +258,12 @@ export function useAccountsPage(): AccountsPageState {
           assignOperator(account.userId, {
             teamName,
             username: change.username,
+            isTeamLead: change.isTeamLead,
             ...(change.password !== null ? { password: change.password } : {}),
           }),
-        hasLoginChange ? undefined : `${account.name}님을 ${teamName}으로 옮겼습니다.`,
+        hasLoginChange || !isTeamChanged
+          ? undefined
+          : `${account.name}님을 ${teamName}으로 옮겼습니다.`,
       );
       if (isDone && hasLoginChange) {
         // 팀을 옮기지 않았으면 팀 자리를 비워 '• 팀:' 줄을 뺀다.
@@ -301,6 +310,8 @@ export function useAccountsPage(): AccountsPageState {
       handleChangeOperator,
       handleDeleteAccount,
       handleSavePermissions,
+      handleChangeTeam: (account, teamName, isTeamLead) =>
+        run(() => assignOperator(account.userId, { teamName, isTeamLead })),
     };
   };
 
