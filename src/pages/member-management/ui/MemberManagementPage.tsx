@@ -117,6 +117,8 @@ const STATUS_OPTIONS = labelOptions(CLUB_MEMBER_STATUS_LABELS);
  */
 /** 추가 창의 활동 상태 선택지. 처음부터 탈퇴로 만들 수는 없다(서버도 400 CANNOT_CREATE_WITHDRAWN). */
 const CREATE_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
+/** 운영진 칸 글자: 운영진이면 그 팀 이름, 아니면 '해당 없음'. */
+const operatorLabelOf = (member: ClubMember): string => member.operatorTeam ?? '해당 없음';
 const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => !isLeftClubStatus(option.value));
 
 /** 왼쪽 "전체 동아리원" 묶음: 분석·시각화·엔지니어링을 모두 담은 활동기수·수료기수 목록. */
@@ -696,12 +698,7 @@ export function MemberManagementPage() {
                         <td className={`${TD_CLASS} text-slate-700`}>{member.track}</td>
                       )}
                       {hasOperatorColumn && (
-                        <td
-                          className={`${TD_CLASS} text-slate-700`}
-                          aria-label={member.operatorTeam ?? '운영진 팀 없음'}
-                        >
-                          {member.operatorTeam}
-                        </td>
+                        <td className={`${TD_CLASS} text-slate-700`}>{operatorLabelOf(member)}</td>
                       )}
                       {hasStatusColumn && (
                         <td className={`${TD_CLASS} ${STATUS_TEXT[member.status]}`}>
@@ -856,6 +853,20 @@ export function MemberManagementPage() {
                     />
                   </div>
                 </>
+              )}
+              {editingMember && (
+                <div>
+                  <span id="member-operator-label" className={FIELD_LABEL}>
+                    운영진
+                  </span>
+                  {/* 보기만 한다. 운영진 팀·팀장은 권한 관리에서 정한다(백엔드 협의 2026-11-05). */}
+                  <p
+                    aria-labelledby="member-operator-label"
+                    className="flex h-10 items-center text-sm text-slate-900"
+                  >
+                    {operatorLabelOf(editingMember)}
+                  </p>
+                </div>
               )}
               <div>
                 <span className={FIELD_LABEL}>활동 상태</span>
