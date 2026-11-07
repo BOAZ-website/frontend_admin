@@ -64,6 +64,8 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
     title: '계정·보안',
     permissions: [
       { key: 'ADMIN_ACCOUNT_READ', label: '운영진 계정 목록 조회', base: 'OOOOXXX' },
+      // 2026-11-06 권한 매트릭스: HOST 계정은 본인 계정 정보를 보지 않는다(수정·비밀번호 변경은 한다).
+      { key: 'ADMIN_ACCOUNT_SELF_READ', label: '본인 계정 정보 조회', base: 'OOOOOOX' },
       {
         key: 'ADMIN_ACCOUNT_SELF_WRITE',
         label: '본인 계정 정보 수정 / 비밀번호 변경',
@@ -78,6 +80,9 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
       { key: 'ADMIN_ACCOUNT_CREATE_DELETE', label: '운영진 계정 생성 / 삭제', base: 'OXXXXXX' },
       { key: 'ADMIN_PERMISSION_WRITE', label: '운영진 계정 권한 부여(커스텀)', base: 'OXXXXXX' },
       { key: 'AUDIT_LOG_READ', label: '보안 감사 로그 조회', base: 'OXXOXXX' },
+      // 2026-11-06 권한 매트릭스: 권한 관리 화면(운영진 계정 표·권한 매트릭스)의 조회와 운영진 팀 이동 등 변경
+      { key: 'PERMISSION_MANAGE_READ', label: '권한 관리 조회', base: 'OOOOOXX' },
+      { key: 'PERMISSION_MANAGE_WRITE', label: '권한 관리 CUD', base: 'OXXOXXX' },
     ],
   },
   {
@@ -186,12 +191,22 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
     ],
   },
   {
+    // 2026-11-06 권한 매트릭스: 동아리원 관리 화면의 전체 기수 목록과 활동 기수 목록
+    title: '동아리원',
+    permissions: [
+      { key: 'CLUB_MEMBER_ALL_WRITE', label: '전체 기수 목록 CUD', base: 'OOOOOXX' },
+      { key: 'CLUB_MEMBER_ALL_READ', label: '전체 기수 목록 조회', base: 'OOOOOXX' },
+      { key: 'CLUB_MEMBER_ACTIVE_WRITE', label: '활동 기수 목록 CUD', base: 'OXXOOXX' },
+      { key: 'CLUB_MEMBER_ACTIVE_READ', label: '활동 기수 목록 조회', base: 'OOOOOOX' },
+    ],
+  },
+  {
     title: '서류 평가·합불',
     permissions: [
       {
         key: 'EVALUATION_OWN_TRACK_WRITE',
         label: '본인 부문 서류 평가',
-        base: 'XOOOOOX',
+        base: 'OOOOOOX',
       },
       {
         key: 'EVALUATION_ALL_TRACK_WRITE',

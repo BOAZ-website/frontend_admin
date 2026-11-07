@@ -25,8 +25,8 @@ const baseSetOf = (key: ReturnType<typeof baseSetKeyOf>) =>
     .map((p) => p.key)
     .sort();
 
-test('권한은 43개이고, 모두 기본 세트 7개 열에 O·X가 적혀 있으며 이름이 겹치지 않는다', () => {
-  assert.equal(PERMISSIONS.length, 43);
+test('권한은 50개이고, 모두 기본 세트 7개 열에 O·X가 적혀 있으며 이름이 겹치지 않는다', () => {
+  assert.equal(PERMISSIONS.length, 50);
   for (const permission of PERMISSIONS) {
     assert.match(permission.base, new RegExp(`^[OX]{${BASE_SET_COLUMNS.length}}$`), permission.key);
   }
@@ -66,11 +66,35 @@ test('다른 역할 전용 자리이거나 기본 세트가 없는 조합은 발
 
 test('기타 운영진과 그룹리더의 기본 세트는 백엔드 설계와 같다', () => {
   assert.deepEqual(baseSetOf('otherTeam'), [
+    'ADMIN_ACCOUNT_SELF_READ',
     'ADMIN_ACCOUNT_SELF_WRITE',
+    'CLUB_MEMBER_ACTIVE_READ',
     'EVALUATION_OWN_TRACK_WRITE',
     'FINAL_DECISION_READ',
   ]);
   assert.deepEqual(baseSetOf('groupLeader'), ['ADMIN_ACCOUNT_SELF_WRITE']);
+});
+
+test('2026-11-06 권한 매트릭스: 서비스운영팀장도 본인 부문 서류 평가를 하고, 동아리원·권한 관리 행은 팀마다 다르다', () => {
+  const column = (key: string) =>
+    BASE_SET_COLUMNS.filter((c) => isInBaseSet(permissionOf(key), c.key))
+      .map((c) => c.key)
+      .join(',');
+
+  assert.equal(
+    column('EVALUATION_OWN_TRACK_WRITE'),
+    'master,president,nextPresident,serviceTeam,opsTeam,otherTeam',
+  );
+  assert.equal(
+    column('CLUB_MEMBER_ALL_WRITE'),
+    'master,president,nextPresident,serviceTeam,opsTeam',
+  );
+  assert.equal(column('CLUB_MEMBER_ACTIVE_WRITE'), 'master,serviceTeam,opsTeam');
+  assert.equal(
+    column('PERMISSION_MANAGE_READ'),
+    'master,president,nextPresident,serviceTeam,opsTeam',
+  );
+  assert.equal(column('PERMISSION_MANAGE_WRITE'), 'master,serviceTeam');
 });
 
 test('예외는 기본 세트보다 우선하고, 담당 그룹 권한은 맡은 그룹 종류로만 정해진다', () => {
@@ -112,10 +136,14 @@ test('유효 권한을 영역별 관리·조회로 요약하고, 누구나 가�
   const of = (key: Parameters<typeof isInBaseSet>[1]) =>
     PERMISSIONS.filter((p) => isInBaseSet(p, key)).map((p) => p.key);
 
-  // 기타 운영진: 본인 계정 수정(누구나)은 빠지고 서류 평가만 남는다.
+  // 기타 운영진: 본인 계정 수정(누구나)은 빠지고, 본인 계정 조회·활동 기수 조회·서류 평가가 남는다.
   assert.deepEqual(
     permissionSummaryIn(catalog, of('otherTeam')).map((s) => [s.area, s.level]),
-    [['서류 평가', 'manage']],
+    [
+      ['계정', 'read'],
+      ['동아리원', 'read'],
+      ['서류 평가', 'manage'],
+    ],
   );
   // 대표진: 출결은 조회만이라 조회, 점수 규칙 수정이 있는 출결 설정은 관리.
   const president = permissionSummaryIn(catalog, of('president'));
@@ -140,5 +168,6 @@ test('영역 수준은 관리·일부 관리·조회·맡은 그룹·없음으�
   assert.equal(areaLevelIn(catalog, area('리크루팅'), 'president'), 'read');
   assert.equal(areaLevelIn(catalog, area('출결 설정'), 'president'), 'partial');
   assert.equal(areaLevelIn(catalog, area('출결 입력'), 'groupLeader'), 'ownGroup');
-  assert.equal(areaLevelIn(catalog, area('계정·보안'), 'otherTeam'), 'none');
+  assert.equal(areaLevelIn(catalog, area('계정·보안'), 'otherTeam'), 'read');
+  assert.equal(areaLevelIn(catalog, area('계정·보안'), 'groupLeader'), 'none');
 });
