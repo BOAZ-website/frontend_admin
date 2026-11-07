@@ -20,6 +20,7 @@ import {
   updateAdmin,
   updateAdminPassword,
   updateAdminUsername,
+  updateTeamLead,
   userExists,
   type AdminRow,
 } from '@/entities/admin-account/api/adminAccountRepository';
@@ -35,7 +36,7 @@ import {
   toOverrides,
   type PermissionOverrides,
 } from '@/entities/admin-account/model/permissions';
-import { compareTeamNames } from '@/entities/admin-account/model/teams';
+import { compareTeamNames, TEAMS_WITHOUT_LEAD } from '@/entities/admin-account/model/teams';
 import type { AuthSession } from '@/entities/auth/model/types';
 import {
   ADMIN_ROLES,
@@ -52,6 +53,7 @@ import { requireUnusedLoginUsername, restoreByUsername } from './authRoutes';
 import {
   type Body,
   oneOf,
+  optionalBoolean,
   optionalString,
   readBody,
   requiredString,
@@ -566,7 +568,7 @@ export const adminAccountRoutes: MockRoute[] = [
     method: 'PUT',
     pattern: '/api/v1/admin/operators/:userId',
     summary:
-      '한 명의 운영진 지정(동아리원 명단). 운영진이 아닌 회원을 팀으로 정하면 아이디·초기 비밀번호가 필수이고(없으면 400, 겹치면 409, 탈퇴한 회원이면 409) 그 값으로 계정을 만든다. 이미 운영진이면 teamName이 다를 때 팀을 옮기고, username이 지금과 다르면 아이디를(빈 값 400, 겹치면 409), password를 보내면 비밀번호를 함께 바꾼다. null이면 운영진에서 뺀다(운영진 계정도 함께 삭제)',
+      '한 명의 운영진 지정(동아리원 명단). 운영진이 아닌 회원을 팀으로 정하면 아이디·초기 비밀번호가 필수이고(없으면 400, 겹치면 409, 탈퇴한 회원이면 409) 그 값으로 계정을 만든다. 이미 운영진이면 teamName이 다를 때 팀을 옮기고, username이 지금과 다르면 아이디를(빈 값 400, 겹치면 409), password를 보내면 비밀번호를 함께 바꾼다. null이면 운영진에서 뺀다(운영진 계정도 함께 삭제). isTeamLead를 보내면 팀장 표시를 바꾸고, 팀장으로 정하면 같은 팀의 다른 팀장은 팀원이 된다(대표진·차기대표진은 400 TEAM_HAS_NO_LEAD)',
     handler: ({ db, params, body }) => {
       const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
       const data = readBody(body);
@@ -576,11 +578,17 @@ export const adminAccountRoutes: MockRoute[] = [
         if (row) removeOperator(db, actor, row);
         return undefined;
       }
-      if (!row) {
-        addOperator(db, actor, params.userId, teamName, data);
-        return undefined;
+      // 팀장 지정(협의 2026-11-05: 팀마다 0~1명). 대표진·차기대표진은 팀장을 두지 않는다.
+      const isTeamLead = optionalBoolean(data, 'isTeamLead');
+      if (isTeamLead === true && TEAMS_WITHOUT_LEAD.includes(teamName)) {
+        throw badRequest('TEAM_HAS_NO_LEAD', `${teamName}은 팀장을 두지 않습니다.`);
       }
-      updateOperator(db, actor, row, teamName, data);
+      if (!row) addOperator(db, actor, params.userId, teamName, data);
+      else updateOperator(db, actor, row, teamName, data);
+      if (isTeamLead !== undefined) {
+        const saved = listAdminRows(db).find((admin) => admin.user_id === params.userId);
+        if (saved) updateTeamLead(db, saved.id, isTeamLead);
+      }
       return undefined;
     },
   },

@@ -197,3 +197,19 @@ export function replaceOverrides(
     );
   });
 }
+
+/**
+ * 운영진 계정의 팀장 표시를 바꾼다. 팀장으로 정하면 같은 팀의 다른 팀장은 팀원이 되어 팀마다 팀장은 0~1명이다.
+ * 팀장은 점수 계산·표시용이고 권한과는 관계없다.
+ */
+export function updateTeamLead(db: Database, adminId: number, isTeamLead: boolean): void {
+  if (isTeamLead) {
+    execute(
+      db,
+      `UPDATE admin SET is_team_lead = 0
+        WHERE team_name = (SELECT team_name FROM admin WHERE id = ?) AND id <> ?`,
+      [adminId, adminId],
+    );
+  }
+  execute(db, 'UPDATE admin SET is_team_lead = ? WHERE id = ?', [isTeamLead ? 1 : 0, adminId]);
+}

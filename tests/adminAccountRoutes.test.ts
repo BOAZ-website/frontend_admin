@@ -849,3 +849,51 @@ test('운영진 추가로 서비스운영팀장(MASTER) 계정은 만들 수 없
     'MASTER_NOT_CREATABLE',
   );
 });
+
+test('운영진 지정에서 팀장을 정하면 같은 팀의 기존 팀장은 팀원이 되어 팀마다 팀장은 한 명이다', async () => {
+  const { call } = await setup();
+  const leadOf = (teamName: string) =>
+    call<AdminAccount[]>('GET', '/api/v1/admin/accounts').filter(
+      (a) => a.teamName === teamName && a.isTeamLead,
+    );
+  const ops = call<AdminAccount[]>('GET', '/api/v1/admin/accounts').filter(
+    (a) => a.teamName === '운영지원팀',
+  );
+  assert.ok(ops.length >= 2);
+
+  call('PUT', `/api/v1/admin/operators/${ops[0].userId}`, {
+    teamName: '운영지원팀',
+    isTeamLead: true,
+  });
+  call('PUT', `/api/v1/admin/operators/${ops[1].userId}`, {
+    teamName: '운영지원팀',
+    isTeamLead: true,
+  });
+
+  assert.deepEqual(
+    leadOf('운영지원팀').map((a) => a.userId),
+    [ops[1].userId],
+  );
+  call('PUT', `/api/v1/admin/operators/${ops[1].userId}`, {
+    teamName: '운영지원팀',
+    isTeamLead: false,
+  });
+  assert.deepEqual(leadOf('운영지원팀'), []);
+});
+
+test('대표진·차기대표진은 팀장을 둘 수 없다(400 TEAM_HAS_NO_LEAD)', async () => {
+  const { call } = await setup();
+  const president = call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find(
+    (a) => a.teamName === '대표진',
+  )!;
+
+  expectApiError(
+    () =>
+      call('PUT', `/api/v1/admin/operators/${president.userId}`, {
+        teamName: '대표진',
+        isTeamLead: true,
+      }),
+    400,
+    'TEAM_HAS_NO_LEAD',
+  );
+});
