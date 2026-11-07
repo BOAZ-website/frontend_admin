@@ -12,7 +12,7 @@ import type {
 import { ApiError } from '../src/shared/api/apiError';
 import { createRouter } from '../src/shared/api/mock/router';
 import { adminAccountRoutes } from '../src/shared/api/mock/routes/adminAccountRoutes';
-import { createDatabase, execute } from '../src/shared/db/createDatabase';
+import { createDatabase, execute, queryAll } from '../src/shared/db/createDatabase';
 
 const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
 const seed = readFileSync(new URL('../db/seed.sql', import.meta.url), 'utf8');
@@ -324,7 +324,7 @@ test('계정 수정·비밀번호 재설정으로도 다른 계정이 MASTER를 
   call('PATCH', '/api/v1/admin/accounts/5/password', { newPassword: 'Changed!1' });
 });
 
-test('탈퇴한 동아리원은 운영진 지정·운영진 추가 모두 409 MEMBER_WITHDRAWN이다', async () => {
+test('탈동한 동아리원은 운영진 지정·운영진 추가 모두 409 MEMBER_WITHDRAWN이다', async () => {
   const { db, call } = await setup();
   execute(db, "UPDATE users SET club_status = 'WITHDRAWN' WHERE id = ?", [NEW_ACCOUNT.userId]);
 
@@ -676,18 +676,13 @@ test('대표진으로 지정하면 대표진 역할(SUPER)을 받는다', async 
   assert.equal(accountOf(call, 'u_26_17')?.role, 'SUPER');
 });
 
-test('운영진 지정은 본인·서비스운영팀장(MASTER)을 빼거나 옮기지 못하고, 권한이 없으면 403이다', async () => {
+test('운영진 지정은 서비스운영팀장(MASTER)을 빼지 못하고, 권한이 없으면 403이다', async () => {
   const { db, call, loginAs } = await setup();
-  // 1번(로그인한 서비스운영팀장 본인)
+  // 1번(로그인한 서비스운영팀장 본인)도 MASTER 계정은 뺄 수 없다(삭제는 DB에서).
   expectApiError(
     () => call('PUT', '/api/v1/admin/operators/u_26_01', { teamName: null }),
     400,
-    'CANNOT_MODIFY_OWN_ROLE',
-  );
-  expectApiError(
-    () => call('PUT', '/api/v1/admin/operators/u_26_01', { teamName: '기획팀' }),
-    400,
-    'CANNOT_MODIFY_OWN_ROLE',
+    'CANNOT_MOVE_MASTER',
   );
 
   // 대표진(2번)에게 계정 생성·삭제를 주고 MASTER(1번)를 빼려 하면 거부한다.
@@ -896,4 +891,67 @@ test('대표진·차기대표진은 팀장을 둘 수 없다(400 TEAM_HAS_NO_LEA
     400,
     'TEAM_HAS_NO_LEAD',
   );
+});
+
+test('서비스운영팀의 팀장은 서비스운영팀장(MASTER)으로 고정이라 다른 계정을 팀장으로 정할 수 없다', async () => {
+  const { call } = await setup();
+  const member = call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find(
+    (a) => a.teamName === '서비스운영팀' && a.role !== 'MASTER',
+  )!;
+
+  expectApiError(
+    () =>
+      call('PUT', `/api/v1/admin/operators/${member.userId}`, {
+        teamName: '서비스운영팀',
+        isTeamLead: true,
+      }),
+    400,
+    'SERVICE_TEAM_LEAD_FIXED',
+  );
+});
+
+test('서비스운영팀 일반 계정은 팀장 아님(false)을 보내도 저장되고, 서비스운영팀장(MASTER)의 팀장 표시는 끌 수 없다', async () => {
+  const { call } = await setup();
+  const accounts = call<AdminAccount[]>('GET', '/api/v1/admin/accounts');
+  const member = accounts.find((a) => a.teamName === '서비스운영팀' && a.role !== 'MASTER')!;
+  const master = accounts.find((a) => a.role === 'MASTER')!;
+
+  call('PUT', `/api/v1/admin/operators/${member.userId}`, {
+    teamName: '서비스운영팀',
+    isTeamLead: false,
+    username: member.username,
+  });
+  expectApiError(
+    () =>
+      call('PUT', `/api/v1/admin/operators/${master.userId}`, {
+        teamName: '서비스운영팀',
+        isTeamLead: false,
+      }),
+    400,
+    'SERVICE_TEAM_LEAD_FIXED',
+  );
+});
+
+test('서비스운영팀장(MASTER)은 다른 팀으로 옮길 수 있고(본인이어도), 옮기면 그 팀 역할이 되어 MASTER가 비어도 된다', async () => {
+  const { db, call } = await setup();
+
+  call('PUT', '/api/v1/admin/operators/u_26_01', { teamName: '기획팀' });
+
+  // 옮긴 본인은 계정 목록 조회 권한이 없어져 DB에서 직접 확인한다.
+  const [moved] = queryAll<{ role: string; team_name: string; is_team_lead: number }>(
+    db,
+    "SELECT role, team_name, is_team_lead FROM admin WHERE user_id = 'u_26_01'",
+  );
+  assert.deepEqual(moved, { role: 'TEAM', team_name: '기획팀', is_team_lead: 0 });
+});
+
+test('서비스운영팀장(MASTER)을 운영진에서 빼는 것(계정 삭제)은 여전히 400 CANNOT_MOVE_MASTER이다(삭제는 DB에서 한다)', async () => {
+  const { call } = await setup();
+
+  expectApiError(
+    () => call('PUT', '/api/v1/admin/operators/u_26_01', { teamName: null }),
+    400,
+    'CANNOT_MOVE_MASTER',
+  );
+  assert.equal(accountOf(call, 'u_26_01')?.role, 'MASTER');
 });
