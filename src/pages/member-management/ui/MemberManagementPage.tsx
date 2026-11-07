@@ -72,15 +72,15 @@ const EMPTY_FILTER: ClubMemberFilter = {
 };
 /** 방금 운영진 팀이 바뀐 줄을 표시해 두는 시간. */
 const FRESH_BADGE_MS = 2500;
-/** 탈퇴 명단 한 쪽에 보이는 사람 수. 탈퇴 명단은 기수 페이지가 없어 전체 목록을 화면에서 쪽으로 나눈다. */
+/** 탈동 명단 한 쪽에 보이는 사람 수. 탈동 명단은 기수 페이지가 없어 전체 목록을 화면에서 쪽으로 나눈다. */
 const WITHDRAWN_PAGE_SIZE = 7;
 /**
- * 탈퇴 명단의 쪽 넘김 줄. 표가 길어도 패널 아래쪽에 붙어 보이게 한다.
+ * 탈동 명단의 쪽 넘김 줄. 표가 길어도 패널 아래쪽에 붙어 보이게 한다.
  * 패널(SplitView)의 안쪽 여백(p-6, lg:p-7)만큼 바깥으로 넓혀 패널 아래 끝과 양옆에 딱 맞춘다.
  */
 const PAGER_BAR =
   'sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-center gap-1 border-t border-slate-100 bg-white px-6 py-3 lg:-mx-7 lg:-mb-7 lg:px-7';
-/** 관리 칸의 수정·탈퇴 처리 버튼. 탈퇴 처리는 마우스를 올리면 빨갛게 바뀐다. 쓸 수 없으면 흐리게 둔다. */
+/** 관리 칸의 수정·탈동 처리 버튼. 탈동 처리는 마우스를 올리면 빨갛게 바뀐다. 쓸 수 없으면 흐리게 둔다. */
 const ICON_BTN_BASE =
   'inline-flex size-7 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors disabled:cursor-not-allowed disabled:opacity-40';
 const ICON_BTN = `${ICON_BTN_BASE} hover:bg-slate-100 hover:text-slate-800`;
@@ -113,10 +113,10 @@ const labelOptions = <T extends string>(labels: Record<T, string>) =>
 const TRACK_OPTIONS = CLUB_MEMBER_TRACKS.map((track) => ({ value: track, label: track }));
 const STATUS_OPTIONS = labelOptions(CLUB_MEMBER_STATUS_LABELS);
 /**
- * 탈퇴를 뺀 활동 상태 선택지(활동기수·수료). 부문 명단의 필터(탈퇴한 사람은 탈퇴 명단에만 있다)와
- * 추가·수정 팝업(탈퇴는 탈퇴 처리 버튼으로만 한다)에 쓴다.
+ * 탈동을 뺀 활동 상태 선택지(활동기수·수료). 부문 명단의 필터(탈동한 사람은 탈동 명단에만 있다)와
+ * 추가·수정 팝업(탈동은 탈동 처리 버튼으로만 한다)에 쓴다.
  */
-/** 추가 창의 활동 상태 선택지. 처음부터 탈퇴로 만들 수는 없다(서버도 400 CANNOT_CREATE_WITHDRAWN). */
+/** 추가 창의 활동 상태 선택지. 처음부터 탈동으로 만들 수는 없다(서버도 400 CANNOT_CREATE_WITHDRAWN). */
 const CREATE_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
 /** 운영진 칸 글자: 운영진이면 그 팀 이름, 아니면 '-'. */
 const operatorLabelOf = (member: ClubMember): string => member.operatorTeam ?? '-';
@@ -152,7 +152,7 @@ function focusIdOfHash(): string | null {
   }
 }
 
-/** 사람이 들어 있는 상태 명단(활동기수·수료기수·탈퇴). */
+/** 사람이 들어 있는 상태 명단(활동기수·수료기수·탈동). */
 const STATUS_SHEET: Readonly<Record<ClubMember['status'], MemberSheet>> = {
   ACTIVE: 'active',
   COMPLETED: 'completed',
@@ -170,19 +170,19 @@ export function MemberManagementPage() {
   /** 오른쪽에 연 명단(null이면 패널을 닫았다). 주소에 남겨 새로고침해도 같은 명단이 열린다. */
   const [sheet, setSheet] = useState<MemberSheet | null>(sheetOfHash);
   const sheetItem = MEMBER_SHEETS.find((item) => item.id === sheet) ?? null;
-  // 부문 명단에서는 부문이 모두 같아 부문 열을, 활동기수·수료기수·탈퇴 명단에서는 상태가 모두 같아
+  // 부문 명단에서는 부문이 모두 같아 부문 열을, 활동기수·수료기수·탈동 명단에서는 상태가 모두 같아
   // 활동 상태 열(과 필터)을 뺀다.
   const hasTrackColumn = sheetItem?.kind !== 'track';
   const hasStatusColumn = sheetItem?.kind !== 'status';
   const isWithdrawnSheet = sheet === 'withdrawn';
-  // 탈퇴하면 운영진에서도 빠지므로(운영진은 탈퇴 처리할 수 없다) 탈퇴 명단에는 운영진 열을 두지 않는다.
+  // 탈동하면 운영진에서도 빠지므로(운영진은 탈동 처리할 수 없다) 탈동 명단에는 운영진 열을 두지 않는다.
   const hasOperatorColumn = !isWithdrawnSheet;
   // 활동기수·수료기수 목록({ status })과 부문 명단({ track })은 한 페이지에 한 기수씩 서버에서 읽는다.
-  // 탈퇴 명단은 기수 페이지가 없다(null). 기수를 안 고르면(null) 서버가 최신 기수를 고른다.
+  // 탈동 명단은 기수 페이지가 없다(null). 기수를 안 고르면(null) 서버가 최신 기수를 고른다.
   const termScope = termScopeOfSheet(sheet);
   const isPagedSheet = termScope !== null;
   const [pageTerm, setPageTerm] = useState<number | null>(null);
-  /** 탈퇴 명단에서 보고 있는 쪽(1부터). */
+  /** 탈동 명단에서 보고 있는 쪽(1부터). */
   const [withdrawnPage, setWithdrawnPage] = useState(1);
   const {
     page: termPage,
@@ -212,11 +212,11 @@ export function MemberManagementPage() {
   const [form, setForm] = useState<ClubMemberForm | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   /**
-   * 이 화면에서 저장(추가·수정·탈퇴 처리)을 한 번이라도 했는지. 저장 뒤 목록을 다시 읽다가 실패하면
+   * 이 화면에서 저장(추가·수정·탈동 처리)을 한 번이라도 했는지. 저장 뒤 목록을 다시 읽다가 실패하면
    * "저장은 됐지만 목록이 최신이 아니다"를 따로 알린다.
    */
   const [hasSaved, setHasSaved] = useState(false);
-  /** 탈퇴 처리를 보내는 중인 동아리원 id. 버튼을 연달아 눌러 같은 요청이 두 번 가지 않게 한다. */
+  /** 탈동 처리를 보내는 중인 동아리원 id. 버튼을 연달아 눌러 같은 요청이 두 번 가지 않게 한다. */
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   /** 방금 운영진 팀이 바뀐 동아리원. 잠깐 줄 바탕을 칠한다. */
   const [freshBadgeIds, setFreshBadgeIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -229,9 +229,9 @@ export function MemberManagementPage() {
     setPendingFocusId(null);
     if (target) {
       setSheet(STATUS_SHEET[target.status]);
-      // 활동기수·수료기수면 그 사람의 기수 페이지를 연다(탈퇴 명단은 기수 페이지가 없어 이 값을 쓰지 않는다).
+      // 활동기수·수료기수면 그 사람의 기수 페이지를 연다(탈동 명단은 기수 페이지가 없어 이 값을 쓰지 않는다).
       setPageTerm(target.term);
-      // 탈퇴한 사람이면 탈퇴 명단에서 그 사람이 있는 쪽을 연다(표와 같은 순서로 거른 목록에서 찾는다).
+      // 탈동한 사람이면 탈동 명단에서 그 사람이 있는 쪽을 연다(표와 같은 순서로 거른 목록에서 찾는다).
       if (target.status === 'WITHDRAWN') {
         const index = filterClubMembers(loadedMembers, {
           ...EMPTY_FILTER,
@@ -250,7 +250,7 @@ export function MemberManagementPage() {
     return () => window.clearTimeout(timer);
   }, [freshBadgeIds]);
 
-  // 기수 페이지가 있는 명단은 받은 기수 페이지 안에서, 탈퇴 명단은 전체 목록에서 화면이 거른다.
+  // 기수 페이지가 있는 명단은 받은 기수 페이지 안에서, 탈동 명단은 전체 목록에서 화면이 거른다.
   const pageMembers = currentPage?.members;
   const filteredMembers = useMemo(
     () =>
@@ -277,7 +277,7 @@ export function MemberManagementPage() {
   /** 명단을 바꾼다. 활동 상태로 나눈 명단에는 상태 필터가 없으므로 상태 필터를 푼다. */
   const changeSheet = (next: MemberSheet) => {
     setSheet(next);
-    // 명단마다 쓰는 필터가 달라서, 다른 명단으로 옮기면 필터·기수 페이지·탈퇴 명단 쪽을 처음 상태로 돌린다.
+    // 명단마다 쓰는 필터가 달라서, 다른 명단으로 옮기면 필터·기수 페이지·탈동 명단 쪽을 처음 상태로 돌린다.
     if (next !== sheet) {
       setFilter(EMPTY_FILTER);
       setPageTerm(null);
@@ -332,7 +332,7 @@ export function MemberManagementPage() {
   const saveMember = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSave || !form) return;
-    // 탈퇴로 바꾸는데 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 이유와 먼저 할 일을 알리고 멈춘다(서버도 409).
+    // 탈동으로 바꾸는데 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 이유와 먼저 할 일을 알리고 멈춘다(서버도 409).
     if (editingMember && editingMember.status !== 'WITHDRAWN' && form.status === 'WITHDRAWN') {
       const blockMessage = withdrawBlockMessageOf(
         editingMember.name,
@@ -342,8 +342,8 @@ export function MemberManagementPage() {
         window.alert(blockMessage);
         return;
       }
-      const message = `${editingMember.name}님을 탈퇴로 바꿀까요?
-활동 상태만 탈퇴로 바뀌고, 출결 기록과 팀 소속은 그대로 남습니다.`;
+      const message = `${editingMember.name}님을 탈동으로 바꿀까요?
+활동 상태만 탈동으로 바뀌고, 출결 기록과 팀 소속은 그대로 남습니다.`;
       if (!window.confirm(message)) return;
     }
     const request: ClubMemberForm = {
@@ -384,13 +384,13 @@ export function MemberManagementPage() {
   };
 
   /**
-   * 잘못 등록한 동아리원을 지운다. 활동한 사람(반기 명단에 오른 사람)은 서버가 409로 막고, 탈퇴는 정보 수정에서 한다.
+   * 잘못 등록한 동아리원을 지운다. 활동한 사람(반기 명단에 오른 사람)은 서버가 409로 막고, 탈동은 정보 수정에서 한다.
    */
   const handleDeleteMember = async (member: ClubMember) => {
     if (
       !window.confirm(
         `${member.name}님(${member.term}기 ${member.track})을 명단에서 지울까요?
-잘못 등록한 회원을 지울 때만 씁니다. 활동한 회원은 정보 수정에서 활동 상태를 탈퇴로 바꿔 주세요.`,
+잘못 등록한 회원을 지울 때만 씁니다. 활동한 회원은 정보 수정에서 활동 상태를 탈동으로 바꿔 주세요.`,
       )
     ) {
       return;
@@ -417,13 +417,13 @@ export function MemberManagementPage() {
     : loadStatus === 'ready' && (!isPagedSheet || currentPage)
       ? 'ready'
       : 'loading';
-  /** 탈퇴 명단의 쪽 수(사람이 없어도 1쪽). 다른 명단은 쪽으로 나누지 않는다. */
+  /** 탈동 명단의 쪽 수(사람이 없어도 1쪽). 다른 명단은 쪽으로 나누지 않는다. */
   const withdrawnPageCount = Math.max(1, Math.ceil(filteredMembers.length / WITHDRAWN_PAGE_SIZE));
   // 수정으로 보고 있던 마지막 쪽이 비면 남아 있는 마지막 쪽으로 맞춘다.
   if (isWithdrawnSheet && tableStatus === 'ready' && withdrawnPage > withdrawnPageCount) {
     setWithdrawnPage(withdrawnPageCount);
   }
-  /** 표에 그릴 행. 탈퇴 명단은 보고 있는 쪽의 사람만이다. */
+  /** 표에 그릴 행. 탈동 명단은 보고 있는 쪽의 사람만이다. */
   const visibleMembers = useMemo(
     () =>
       isWithdrawnSheet
@@ -560,10 +560,10 @@ export function MemberManagementPage() {
 
             <section className="space-y-2" aria-labelledby="members-withdrawn-heading">
               <h2 id="members-withdrawn-heading" className={LIST_SECTION_TITLE}>
-                탈퇴
+                탈동
               </h2>
               <SplitListItem
-                label="탈퇴"
+                label="탈동"
                 isSelected={sheet === 'withdrawn'}
                 onSelect={() => changeSheet('withdrawn')}
               />
@@ -578,7 +578,7 @@ export function MemberManagementPage() {
           setWithdrawnPage(1);
         }}
       >
-        {/* 검색·필터. 탈퇴 명단에는 두지 않는다. 활동기수·수료기수 목록은 부문, 부문 명단은 활동 상태로
+        {/* 검색·필터. 탈동 명단에는 두지 않는다. 활동기수·수료기수 목록은 부문, 부문 명단은 활동 상태로
             받은 기수 페이지 안에서 거른다. 기수는 표 아래 기수 번호로 고르므로 기수 필터가 없다. */}
         {!isWithdrawnSheet && (
           <div className="flex flex-wrap items-center gap-3">
@@ -748,7 +748,7 @@ export function MemberManagementPage() {
           </div>
         </div>
 
-        {/* 탈퇴 명단의 쪽 넘김. 한 쪽뿐이어도 자리를 남겨, 쪽 수가 바뀔 때 화면이 튀지 않게 한다. */}
+        {/* 탈동 명단의 쪽 넘김. 한 쪽뿐이어도 자리를 남겨, 쪽 수가 바뀔 때 화면이 튀지 않게 한다. */}
         {isWithdrawnSheet && tableStatus === 'ready' && (
           <div role="group" aria-label="쪽 넘김" className={PAGER_BAR}>
             <button

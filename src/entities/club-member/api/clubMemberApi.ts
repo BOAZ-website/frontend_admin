@@ -36,7 +36,7 @@ export function createClubMember(request: ClubMemberCreateRequest): Promise<Club
 
 /**
  * 잘못 등록한 동아리원을 지운다(DELETE). 서버는 행을 남기고 목록에서만 뺀다.
- * 반기 명단에 오른 적이 있거나 운영진·HOST 계정이 있으면 409로 거절된다. 탈퇴는 활동 상태 수정으로 한다.
+ * 반기 명단에 오른 적이 있거나 운영진·HOST 계정이 있으면 409로 거절된다. 탈동은 활동 상태 수정으로 한다.
  */
 export function deleteClubMember(memberId: string): Promise<void> {
   return api.delete(clubMemberPath(memberId));

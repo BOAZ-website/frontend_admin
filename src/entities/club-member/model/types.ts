@@ -9,7 +9,7 @@ export const CLUB_MEMBER_STATUS_LABELS = {
   ACTIVE: '활동기수',
   COMPLETED: '수료',
   NOT_COMPLETED: '미수료',
-  WITHDRAWN: '탈퇴',
+  WITHDRAWN: '탈동',
 } as const;
 /** 활동 상태 코드. */
 export type ClubMemberStatus = keyof typeof CLUB_MEMBER_STATUS_LABELS;
@@ -37,12 +37,12 @@ export interface ClubMember {
   operatorTeam: string | null;
   /**
    * 현재 반기에 팀장을 맡은 팀 이름(여러 개면 ', '로 이음). 없으면 null.
-   * 현재 반기 팀장은 탈퇴 처리할 수 없다(출결 화면에서 팀장을 바꾼 뒤 탈퇴한다). 지난 반기 팀장은 막지 않는다.
+   * 현재 반기 팀장은 탈동 처리할 수 없다(출결 화면에서 팀장을 바꾼 뒤 탈동한다). 지난 반기 팀장은 막지 않는다.
    */
   leaderTeams: string | null;
   /**
    * 연결된 HOST 계정 아이디(여러 개면 ', '로 이음). 없으면 null.
-   * HOST 계정이 있으면 탈퇴 처리할 수 없다(그룹 계정 관리에서 계정을 먼저 삭제한다).
+   * HOST 계정이 있으면 탈동 처리할 수 없다(그룹 계정 관리에서 계정을 먼저 삭제한다).
    */
   hostUsernames: string | null;
 }
@@ -56,10 +56,10 @@ export const CLUB_MEMBER_STATUSES: readonly ClubMemberStatus[] = [
   'WITHDRAWN',
 ];
 
-/** 활동을 마치지 못하고 나간 상태(미수료·탈퇴). 탈퇴 명단에 함께 보이고, 기수 페이지·부문 명단에서는 빠진다. */
+/** 활동을 마치지 못하고 나간 상태(미수료·탈동). 탈동 명단에 함께 보이고, 기수 페이지·부문 명단에서는 빠진다. */
 export const LEFT_CLUB_STATUSES: readonly ClubMemberStatus[] = ['NOT_COMPLETED', 'WITHDRAWN'];
 
-/** 미수료·탈퇴처럼 활동을 마치지 못하고 나간 상태인지. */
+/** 미수료·탈동처럼 활동을 마치지 못하고 나간 상태인지. */
 export const isLeftClubStatus = (status: ClubMemberStatus): boolean =>
   LEFT_CLUB_STATUSES.includes(status);
 
@@ -77,7 +77,7 @@ export const CLUB_MEMBER_PAGED_STATUSES: readonly ClubMemberPagedStatus[] = ['AC
 /**
  * GET /api/v1/club-members/by-term 의 조건. status·track 둘 다 선택이지만 둘 중 하나는 있어야 한다.
  * - status만: 활동기수 목록(ACTIVE)·수료기수 목록(COMPLETED).
- * - track만: 그 부문 명단(활동·수료인 사람, 탈퇴는 빠진다).
+ * - track만: 그 부문 명단(활동·수료인 사람, 탈동은 빠진다).
  * - 둘 다: 두 조건을 모두 만족하는 사람.
  */
 export interface ClubMemberTermScope {
@@ -100,7 +100,7 @@ export interface ClubMemberTermPage {
   terms: number[];
   /**
    * 그 기수에서 조건에 맞는 사람. 활동 상태(활동 → 수료) → 부문(분석 → 시각화 → 엔지니어링) → 이름 → id 순.
-   * 보낸 기수에 조건에 맞는 사람이 없으면 빈 배열이다(탈퇴 처리 직후 빈 페이지가 될 수 있다).
+   * 보낸 기수에 조건에 맞는 사람이 없으면 빈 배열이다(탈동 처리 직후 빈 페이지가 될 수 있다).
    */
   members: ClubMember[];
 }

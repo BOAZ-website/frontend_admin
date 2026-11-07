@@ -29,8 +29,8 @@ export type MemberSheetItem = { id: MemberSheet; label: string } & (
 /**
  * 동아리원 명단. 왼쪽 목록에서 고르는 단위다.
  * - 활동기수·수료기수 목록: 부문과 관계없이 그 활동 상태인 사람(status)
- * - 부문 명단: 그 부문에서 탈퇴하지 않은 사람(track). 순서는 CLUB_MEMBER_TRACKS를 따른다.
- * - 탈퇴 명단: 부문과 관계없이 탈퇴한 사람(status)
+ * - 부문 명단: 그 부문에서 탈동하지 않은 사람(track). 순서는 CLUB_MEMBER_TRACKS를 따른다.
+ * - 탈동 명단: 부문과 관계없이 탈동한 사람(status)
  * id는 주소('#system-members/<id>')에 남기는 값이다.
  */
 export const MEMBER_SHEETS: readonly MemberSheetItem[] = [
@@ -43,8 +43,8 @@ export const MEMBER_SHEETS: readonly MemberSheetItem[] = [
     status: null,
     track,
   })),
-  // 미수료도 활동을 마치지 못하고 나간 사람이라 탈퇴 명단에 함께 둔다(백엔드 협의 2026-11-05).
-  { id: 'withdrawn', label: '탈퇴·미수료', kind: 'status', status: 'WITHDRAWN', track: null },
+  // 미수료도 활동을 마치지 못하고 나간 사람이라 탈동 명단에 함께 둔다(백엔드 협의 2026-11-05).
+  { id: 'withdrawn', label: '탈동·미수료', kind: 'status', status: 'WITHDRAWN', track: null },
 ];
 
 export const isMemberSheet = (value: string): value is MemberSheet =>
@@ -53,7 +53,7 @@ export const isMemberSheet = (value: string): value is MemberSheet =>
 /**
  * 한 페이지에 한 기수씩 서버(GET /api/v1/club-members/by-term)에서 나눠 읽는 명단의 읽기 조건.
  * 활동기수·수료기수 목록은 { status }, 부문 명단은 { track }(그 부문의 활동·수료 사람)이다.
- * 탈퇴 명단이나 명단을 닫았을 때(null)는 기수 페이지가 없어 null이다.
+ * 탈동 명단이나 명단을 닫았을 때(null)는 기수 페이지가 없어 null이다.
  */
 export function termScopeOfSheet(sheet: MemberSheet | null): ClubMemberTermScope | null {
   const item = MEMBER_SHEETS.find((candidate) => candidate.id === sheet);

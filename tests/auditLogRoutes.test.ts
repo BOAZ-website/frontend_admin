@@ -104,7 +104,7 @@ test('실패한 쓰기는 기록되지 않는다', async () => {
   assert.equal(logCount(), before);
 });
 
-test('동아리원 탈퇴는 "동아리원 수정"으로 기록되고, 바꾼 활동 상태를 남긴다', async () => {
+test('동아리원 탈동은 "동아리원 수정"으로 기록되고, 바꾼 활동 상태를 남긴다', async () => {
   const { db, call, latest, targetIdsOf } = await setup();
   const member = queryAll<{ id: string; name: string; term: number; club_status: string }>(
     db,

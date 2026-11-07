@@ -367,7 +367,7 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     compareTable: 'users',
   },
   {
-    // 잘못 등록한 동아리원 삭제(soft delete). 탈퇴는 PATCH(MEMBER_UPDATE)의 활동 상태 변경으로 남는다.
+    // 잘못 등록한 동아리원 삭제(soft delete). 탈동은 PATCH(MEMBER_UPDATE)의 활동 상태 변경으로 남는다.
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     action: 'MEMBER_DELETE',

@@ -2,9 +2,9 @@
  * 동아리원 관리 API. 동아리원 한 명은 임시 DB users 테이블의 한 행이며,
  * 추가·수정 시 그 기수·부문의 활동 명단(members) 행이 없으면 함께 만든다.
  * 새 기수는 보통 서류 평가의 합격자 승격으로 들어오고, 추가 API는 그 밖의 사람(예: 예전 수료 기수)을 넣을 때 쓴다.
- * 삭제(DELETE)는 행을 지우지 않고 탈퇴 처리(활동 상태 WITHDRAWN)다. 반기 명단·팀 소속·출결 기록은 그대로 남고,
- * 로그인 계정이 있는 사람(운영진·HOST)과 현재 반기 팀장은 먼저 해지해야 탈퇴할 수 있다(이미 탈퇴한 사람은 다시 처리하지 않는다).
- * 탈퇴는 이 경로로만 한다. 정보 수정(PATCH)으로 활동 상태를 탈퇴로 바꾸면 400이다.
+ * 삭제(DELETE)는 행을 지우지 않고 탈동 처리(활동 상태 WITHDRAWN)다. 반기 명단·팀 소속·출결 기록은 그대로 남고,
+ * 로그인 계정이 있는 사람(운영진·HOST)과 현재 반기 팀장은 먼저 해지해야 탈동할 수 있다(이미 탈동한 사람은 다시 처리하지 않는다).
+ * 탈동은 이 경로로만 한다. 정보 수정(PATCH)으로 활동 상태를 탈동으로 바꾸면 400이다.
  */
 import type { Database } from 'sql.js';
 
@@ -80,7 +80,7 @@ function roleOf(db: Database, base: ClubMember, body: Body): ClubMemberRole {
 
 /**
  * 본문에 있는 값만 기존 동아리원 위에 덮어쓴다. 없는 키는 기존 값을 유지한다.
- * 탈퇴(WITHDRAWN)로 바꾸면 운영진·HOST 계정·현재 반기 팀장인지 확인해, 걸리면 먼저 해지하라는 안내와 함께 409다.
+ * 탈동(WITHDRAWN)로 바꾸면 운영진·HOST 계정·현재 반기 팀장인지 확인해, 걸리면 먼저 해지하라는 안내와 함께 409다.
  */
 function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember {
   const text = (key: string) => optionalString(body, key);
@@ -124,14 +124,14 @@ function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember
 }
 
 /** 추가 요청을 동아리원 한 명으로 만든다. 활동 상태를 보내지 않으면 활동(ACTIVE)이다. */
-/** 추가할 때의 활동 상태. 없으면 활동기수다. 처음부터 탈퇴로 만들 수는 없다. */
+/** 추가할 때의 활동 상태. 없으면 활동기수다. 처음부터 탈동으로 만들 수는 없다. */
 function newMemberStatusOf(body: Body): ClubMember['status'] {
   const status = oneOf(optionalString(body, 'status'), CLUB_MEMBER_STATUSES, 'status') ?? 'ACTIVE';
   if (status === 'WITHDRAWN') {
     throw new ApiError(
       400,
       'CANNOT_CREATE_WITHDRAWN',
-      '탈퇴한 상태로는 동아리원을 추가할 수 없습니다.',
+      '탈동한 상태로는 동아리원을 추가할 수 없습니다.',
     );
   }
   return status;
@@ -179,8 +179,8 @@ function validateMember(db: Database, member: ClubMember): void {
 
 /**
  * 활동기수·수료기수 목록과 부문 명단의 한 페이지(한 기수). status·track 중 하나는 있어야 한다.
- * status가 없으면 활동·수료인 사람(탈퇴 제외)이다. term이 없으면 조건에 맞는 가장 최근 기수를 준다.
- * 보낸 기수에 조건에 맞는 사람이 없어도 오류가 아니라 빈 페이지다(탈퇴 처리 직후 빈 페이지가 될 수 있다).
+ * status가 없으면 활동·수료인 사람(탈동 제외)이다. term이 없으면 조건에 맞는 가장 최근 기수를 준다.
+ * 보낸 기수에 조건에 맞는 사람이 없어도 오류가 아니라 빈 페이지다(탈동 처리 직후 빈 페이지가 될 수 있다).
  */
 function termPageOf(db: Database, query: URLSearchParams): ClubMemberTermPage {
   const status = oneOf(query.get('status') ?? undefined, CLUB_MEMBER_PAGED_STATUSES, 'status');
@@ -199,7 +199,7 @@ export const clubMemberRoutes: MockRoute[] = [
     method: 'GET',
     pattern: '/api/v1/club-members',
     summary:
-      '동아리원 전체 목록(활동 상태 → 부문 → 이름 순, 탈퇴는 최신 기수부터). 검색·필터는 화면에서 하고, 화면은 정렬하지 않는다',
+      '동아리원 전체 목록(활동 상태 → 부문 → 이름 순, 탈동은 최신 기수부터). 검색·필터는 화면에서 하고, 화면은 정렬하지 않는다',
     handler: ({ db }) => listClubMembers(db),
   },
   {
@@ -226,7 +226,7 @@ export const clubMemberRoutes: MockRoute[] = [
     method: 'PATCH',
     pattern: '/api/v1/club-members/:memberId',
     summary:
-      '동아리원 정보 수정(보낸 값만 바뀐다). 탈퇴로 바꾸면 400 WITHDRAW_BY_DELETE(탈퇴는 DELETE로만), role은 PRESIDENT이거나 운영진 계정 여부와 맞을 때만 받는다(아니면 400 ROLE_FOLLOWS_OPERATOR)',
+      '동아리원 정보 수정(보낸 값만 바뀐다). 탈동으로 바꾸면 400 WITHDRAW_BY_DELETE(탈동은 DELETE로만), role은 PRESIDENT이거나 운영진 계정 여부와 맞을 때만 받는다(아니면 400 ROLE_FOLLOWS_OPERATOR)',
     handler: ({ db, params, body }) => {
       const current = findMember(db, params.memberId);
       const member = applyMemberBody(db, current, readBody(body));
@@ -240,7 +240,7 @@ export const clubMemberRoutes: MockRoute[] = [
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     summary:
-      '잘못 등록한 동아리원 삭제(soft delete, 행은 남기고 목록에서 뺀다). 반기 명단에 오른 적이 있으면 409 MEMBER_HAS_ENROLLMENTS, 운영진·HOST 계정이 있으면 409(MEMBER_IS_OPERATOR·MEMBER_HAS_HOST_ACCOUNT). 활동한 사람은 삭제가 아니라 활동 상태를 탈퇴로 바꾼다',
+      '잘못 등록한 동아리원 삭제(soft delete, 행은 남기고 목록에서 뺀다). 반기 명단에 오른 적이 있으면 409 MEMBER_HAS_ENROLLMENTS, 운영진·HOST 계정이 있으면 409(MEMBER_IS_OPERATOR·MEMBER_HAS_HOST_ACCOUNT). 활동한 사람은 삭제가 아니라 활동 상태를 탈동으로 바꾼다',
     handler: ({ db, params }) => {
       const member = findMember(db, params.memberId);
       if (member.operatorTeam) {
@@ -261,7 +261,7 @@ export const clubMemberRoutes: MockRoute[] = [
         throw new ApiError(
           409,
           'MEMBER_HAS_ENROLLMENTS',
-          `${member.name}님은 반기 명단에 오른 적이 있어 지울 수 없습니다. 활동한 사람은 활동 상태를 탈퇴로 바꿔 주세요.`,
+          `${member.name}님은 반기 명단에 오른 적이 있어 지울 수 없습니다. 활동한 사람은 활동 상태를 탈동으로 바꿔 주세요.`,
         );
       }
       deleteClubMember(db, member.id);

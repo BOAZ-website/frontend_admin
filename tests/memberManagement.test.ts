@@ -111,7 +111,7 @@ test('운영진 필터로 팀별 운영진이나 운영진이 아닌 동아리�
   assert.equal(filterClubMembers(members, base).length, members.length);
 });
 
-test('부문 명단은 그 부문에서 탈퇴하지 않은 사람, 탈퇴 명단은 부문과 관계없이 탈퇴한 사람이다', () => {
+test('부문 명단은 그 부문에서 탈동하지 않은 사람, 탈동 명단은 부문과 관계없이 탈동한 사람이다', () => {
   const withdrawn: ClubMember = { ...MEMBERS[0], id: 'member-4', status: 'WITHDRAWN' };
   const members = [...MEMBERS, withdrawn];
   const idsOf = (sheet: 'active' | 'completed' | 'analysis' | 'engineering' | 'withdrawn') =>
@@ -125,7 +125,7 @@ test('부문 명단은 그 부문에서 탈퇴하지 않은 사람, 탈퇴 명�
   assert.deepEqual(idsOf('completed'), ['member-2']);
 });
 
-test('기수 페이지 읽기 조건: 활동·수료 목록은 status, 부문 명단은 track, 탈퇴 명단과 닫힌 상태는 null이다', () => {
+test('기수 페이지 읽기 조건: 활동·수료 목록은 status, 부문 명단은 track, 탈동 명단과 닫힌 상태는 null이다', () => {
   assert.deepEqual(termScopeOfSheet('active'), { status: 'ACTIVE' });
   assert.deepEqual(termScopeOfSheet('completed'), { status: 'COMPLETED' });
   assert.deepEqual(termScopeOfSheet('analysis'), { track: '분석' });
@@ -135,7 +135,7 @@ test('기수 페이지 읽기 조건: 활동·수료 목록은 status, 부문 �
   assert.equal(termScopeOfSheet(null), null);
 });
 
-test('미수료는 탈퇴 명단에 함께 나오고, 부문 명단에는 나오지 않는다', () => {
+test('미수료는 탈동 명단에 함께 나오고, 부문 명단에는 나오지 않는다', () => {
   const member = { ...MEMBERS[0], status: 'NOT_COMPLETED' } as const;
 
   assert.ok(isInSheet(member, 'withdrawn'));

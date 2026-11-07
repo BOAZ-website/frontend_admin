@@ -1613,7 +1613,7 @@ INSERT INTO host_concurrent_roles (host_id, position, role) VALUES
   ('h_adv1', 1, 'LLM Agent & RAG 스터디');
 
 -- ── 동아리원 관리 화면 예시 값 ─────────────────────────────
--- 탈퇴 명단 쪽 넘김(한 쪽 7명)을 볼 수 있게 탈퇴 회원을 더 넣는다. 팀·반기 명단·출결에는 넣지 않는다.
+-- 탈동 명단 쪽 넘김(한 쪽 7명)을 볼 수 있게 탈동 회원을 더 넣는다. 팀·반기 명단·출결에는 넣지 않는다.
 -- 25기 이하는 모두 수료로 두므로 26기로 넣는다.
 INSERT INTO users (id, name, term, track) VALUES
   ('u_26_24', '김도윤', 26, '분석'),

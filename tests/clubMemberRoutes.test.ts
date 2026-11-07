@@ -43,7 +43,7 @@ test('동아리원 목록은 임시 DB users 테이블 전체를 활동 상태 �
       const byStatus = STATUS_ORDER.indexOf(prev.status) - STATUS_ORDER.indexOf(member.status);
       const byTrack = TRACK_ORDER.indexOf(prev.track) - TRACK_ORDER.indexOf(member.track);
       if (byStatus !== 0) return byStatus < 0;
-      // 탈퇴한 사람은 최신 기수부터다.
+      // 탈동한 사람은 최신 기수부터다.
       if (member.status === 'WITHDRAWN' && prev.term !== member.term)
         return prev.term > member.term;
       return byTrack < 0 || (byTrack === 0 && prev.name <= member.name);
@@ -179,7 +179,7 @@ test('운영진 역할은 정보 수정으로 달거나 뗄 수 없고, 대표 �
   assert.equal(president.role, 'PRESIDENT');
 });
 
-test('탈퇴는 정보 수정에서 활동 상태를 탈퇴로 바꿔 처리하고, 처음부터 탈퇴로 추가할 수는 없다', async () => {
+test('탈동은 정보 수정에서 활동 상태를 탈동으로 바꿔 처리하고, 처음부터 탈동으로 추가할 수는 없다', async () => {
   const { call } = await setup();
   const members = call<ClubMember[]>('GET', '/api/v1/club-members');
   const member = members.find(
@@ -203,7 +203,7 @@ test('탈퇴는 정보 수정에서 활동 상태를 탈퇴로 바꿔 처리하�
     status: 'WITHDRAWN',
   });
   assert.equal(withdrawn.status, 'WITHDRAWN');
-  // 이미 탈퇴한 사람도 지금 상태(탈퇴)를 그대로 보내 다른 정보를 고칠 수 있다.
+  // 이미 탈동한 사람도 지금 상태(탈동)를 그대로 보내 다른 정보를 고칠 수 있다.
   const edited = call<ClubMember>('PATCH', `/api/v1/club-members/${member.id}`, {
     status: 'WITHDRAWN',
     major: '통계학',
@@ -218,7 +218,7 @@ function expectApiErrorCode(work: () => unknown, status: number, code: string) {
   );
 }
 
-/** 탈퇴 처리해도 남아야 하는 행 수(반기 명단·팀 소속·팀장 칸·출결 기록). */
+/** 탈동 처리해도 남아야 하는 행 수(반기 명단·팀 소속·팀장 칸·출결 기록). */
 function linkedRowCounts(db: Awaited<ReturnType<typeof setup>>['db'], id: string) {
   const count = (sql: string) => queryAll<{ n: number }>(db, sql, [id])[0].n;
   return {
@@ -232,11 +232,11 @@ function linkedRowCounts(db: Awaited<ReturnType<typeof setup>>['db'], id: string
   };
 }
 
-/** 현재 반기 팀 조건. 현재 반기 팀장은 탈퇴 처리할 수 없다. */
+/** 현재 반기 팀 조건. 현재 반기 팀장은 탈동 처리할 수 없다. */
 const CURRENT_TEAM = 'semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)';
 
 /**
- * 탈퇴 처리할 수 있는 활동 회원(운영진·HOST 계정이 없고 현재 반기 팀장도 아닌 사람). 팀 소속·출결 기록이 있는 사람을 고른다.
+ * 탈동 처리할 수 있는 활동 회원(운영진·HOST 계정이 없고 현재 반기 팀장도 아닌 사람). 팀 소속·출결 기록이 있는 사람을 고른다.
  */
 function activeLeaderId(db: Awaited<ReturnType<typeof setup>>['db']): string {
   return queryAll<{ id: string }>(
@@ -264,7 +264,7 @@ function currentLeaderOf(db: Awaited<ReturnType<typeof setup>>['db']) {
   )[0];
 }
 
-test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸면 탈퇴 처리된다', async () => {
+test('현재 반기 팀장은 탈동 처리할 수 없고(409), 팀장을 바꾸면 탈동 처리된다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
   assert.ok(leader);
@@ -292,7 +292,7 @@ test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸
   );
 });
 
-test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
+test('지난 반기 팀장은 탈동을 막지 않는다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
   execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
@@ -322,7 +322,7 @@ test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
   assert.equal(leaderOf, 1);
 });
 
-test('탈퇴 처리는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 바꾼 회원을 돌려준다', async () => {
+test('탈동 처리는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 바꾼 회원을 돌려준다', async () => {
   const { db, call } = await setup();
   const target = activeLeaderId(db);
   const before = linkedRowCounts(db, target);
@@ -342,7 +342,7 @@ test('탈퇴 처리는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 
   assert.deepEqual(linkedRowCounts(db, target), before);
 });
 
-test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(409), 계정을 지우면 탈퇴 처리된다', async () => {
+test('팀장이 아닌데 HOST 계정이 있으면 탈동 처리할 수 없고(409), 계정을 지우면 탈동 처리된다', async () => {
   const { db, call } = await setup();
   // 시드의 HOST 계정 host_c(계정 주인 u_27_01). 팀장 사유는 따로 보므로 팀장을 먼저 비운다.
   execute(db, 'UPDATE teams SET leader_id = NULL WHERE leader_id = ?', ['u_27_01']);
@@ -385,7 +385,7 @@ test('HOST 계정이 있는 현재 반기 팀장은 팀장 사유 하나로 409�
   );
 });
 
-test('탈퇴 처리한 사람은 기수별 활동 페이지와 부문 페이지에서 빠진다', async () => {
+test('탈동 처리한 사람은 기수별 활동 페이지와 부문 페이지에서 빠진다', async () => {
   const { db, call } = await setup();
   const target = activeLeaderId(db);
   const { term, track } = queryAll<{ term: number; track: string }>(
@@ -407,7 +407,7 @@ test('탈퇴 처리한 사람은 기수별 활동 페이지와 부문 페이지�
   assert.ok(!pageOf(`status=ACTIVE&${trackQueryOf}`).includes(target));
 });
 
-test('수료 회원도 탈퇴 처리하면 수료 페이지에서 빠진다', async () => {
+test('수료 회원도 탈동 처리하면 수료 페이지에서 빠진다', async () => {
   const { db, call } = await setup();
   const alumniId = queryAll<{ id: string }>(
     db,
@@ -422,13 +422,13 @@ test('수료 회원도 탈퇴 처리하면 수료 페이지에서 빠진다', as
   assert.ok(!page.members.some((m) => m.id === alumniId));
 });
 
-test('탈퇴 처리: 없는 회원은 404다', async () => {
+test('탈동 처리: 없는 회원은 404다', async () => {
   const { call } = await setup();
 
   expectApiError(() => call('PATCH', '/api/v1/club-members/u_none', { status: 'WITHDRAWN' }), 404);
 });
 
-test('운영진은 탈퇴 처리할 수 없다(409 MEMBER_IS_OPERATOR)', async () => {
+test('운영진은 탈동 처리할 수 없다(409 MEMBER_IS_OPERATOR)', async () => {
   const { db, call } = await setup();
   const operatorId = queryAll<{ user_id: string }>(db, 'SELECT user_id FROM admin LIMIT 1')[0]
     .user_id;
@@ -499,9 +499,9 @@ test('기수별 명단: ALUMNI와 수료 기수(25기)를 보내면 그 기수 �
   assert.ok(isTrackThenNameOrder(page.members));
 });
 
-test('기수별 명단: 탈퇴자와 다른 기수 사람은 섞이지 않는다', async () => {
+test('기수별 명단: 탈동자와 다른 기수 사람은 섞이지 않는다', async () => {
   const { call } = await setup();
-  // 시드에서 u_27_07·u_28_14는 27기 탈퇴다.
+  // 시드에서 u_27_07·u_28_14는 27기 탈동이다.
   const page27 = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=27`);
   const page26 = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=26`);
 
@@ -609,7 +609,7 @@ test('기수별 명단(track): status 없이 track=분석만 보내면 분석 �
   assert.equal(page.status, null);
   assert.equal(page.track, '분석');
   assert.equal(page.term, 27);
-  assert.ok(withdrawnIds.length > 0, '시드에 27기 분석 탈퇴자가 있어야 한다');
+  assert.ok(withdrawnIds.length > 0, '시드에 27기 분석 탈동자가 있어야 한다');
   assert.ok(!page.members.some((m) => withdrawnIds.includes(m.id)));
   assert.ok(page.members.every((m) => m.track === '분석' && m.term === 27));
   assert.ok(page.members.every((m) => m.status === 'ACTIVE' || m.status === 'COMPLETED'));
@@ -622,13 +622,13 @@ test('기수별 명단(track): status 없이 track=분석만 보내면 분석 �
 
 test('기수별 명단(track): track만 보내면 terms는 그 부문 활동·수료자가 있는 기수 전체 큰 순, term이 없으면 terms[0] 페이지다', async () => {
   const { db, call } = await setup();
-  // 20기 분석 탈퇴자, 19기 시각화 수료자를 넣는다. 분석 terms에는 둘 다 들어가면 안 된다.
+  // 20기 분석 탈동자, 19기 시각화 수료자를 넣는다. 분석 terms에는 둘 다 들어가면 안 된다.
   const base = { phone: '010-0000-0000', university: '', major: '' };
-  // 탈퇴로 바로 추가할 수는 없으므로 추가한 뒤 탈퇴 처리한다.
+  // 탈동으로 바로 추가할 수는 없으므로 추가한 뒤 탈동 처리한다.
   const withdrawnId = call<ClubMember>('POST', '/api/v1/club-members', {
     ...base,
     email: 'w20@example.com',
-    name: '탈퇴분석',
+    name: '탈동분석',
     term: 20,
     track: '분석',
   }).id;
@@ -814,7 +814,7 @@ test('잘못 등록해 지운 회원과 같은 이름·기수로 다시 등록�
   assert.equal(again.name, mistaken.name);
 });
 
-test('수료·탈퇴에서 활동으로 되돌리면서 이름·기수·부문을 함께 바꿀 수는 없다', async () => {
+test('수료·탈동에서 활동으로 되돌리면서 이름·기수·부문을 함께 바꿀 수는 없다', async () => {
   const { call } = await setup();
   call('PATCH', '/api/v1/club-members/u_28_01', { status: 'COMPLETED' });
 

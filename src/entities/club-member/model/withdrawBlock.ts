@@ -1,6 +1,6 @@
 import type { ClubMember } from './types';
 
-/** 탈퇴 처리를 막는 사유 하나. code는 임시 API의 409 오류 코드다. */
+/** 탈동 처리를 막는 사유 하나. code는 임시 API의 409 오류 코드다. */
 export interface WithdrawBlock {
   code: 'MEMBER_IS_OPERATOR' | 'MEMBER_HAS_HOST_ACCOUNT' | 'MEMBER_IS_TEAM_LEADER';
   /** 왜 안 되는지와 먼저 할 일. */
@@ -8,8 +8,8 @@ export interface WithdrawBlock {
 }
 
 /**
- * 탈퇴 처리를 막는 사유 목록(없으면 빈 배열). 화면(버튼을 눌렀을 때 안내)과 임시 API(409)가 같은 규칙을 쓴다.
- * 로그인 계정이 있는 사람(운영진, HOST 계정이 붙는 현재 반기 팀장)은 먼저 해지해야 탈퇴할 수 있다. 지난 반기 팀장은 막지 않는다.
+ * 탈동 처리를 막는 사유 목록(없으면 빈 배열). 화면(버튼을 눌렀을 때 안내)과 임시 API(409)가 같은 규칙을 쓴다.
+ * 로그인 계정이 있는 사람(운영진, HOST 계정이 붙는 현재 반기 팀장)은 먼저 해지해야 탈동할 수 있다. 지난 반기 팀장은 막지 않는다.
  */
 export function withdrawBlocksOf(
   member: Pick<ClubMember, 'operatorTeam' | 'hostUsernames' | 'leaderTeams'>,
@@ -46,5 +46,5 @@ export function withdrawBlockMessageOf(
 ): string | null {
   if (blocks.length === 0) return null;
   const lines = blocks.map((block) => `- ${block.message}`);
-  return [`${name}님은 아래 이유로 탈퇴 처리할 수 없습니다.`, ...lines].join('\n');
+  return [`${name}님은 아래 이유로 탈동 처리할 수 없습니다.`, ...lines].join('\n');
 }

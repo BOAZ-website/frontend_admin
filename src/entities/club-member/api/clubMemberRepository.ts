@@ -13,7 +13,7 @@ const CURRENT_LEADER_TEAMS = `(SELECT group_concat(t.team_name, ', ') FROM teams
      AND t.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1))`;
 
 /** 운영진 팀은 운영진 명단(admin)에서 읽는다. 운영진 계정 관리와 같은 데이터다. */
-/** SQL에 넣는 미수료·탈퇴 상태 목록. 코드 값은 LEFT_CLUB_STATUSES 한 곳에서 온다. */
+/** SQL에 넣는 미수료·탈동 상태 목록. 코드 값은 LEFT_CLUB_STATUSES 한 곳에서 온다. */
 const LEFT_STATUS_SQL = LEFT_CLUB_STATUSES.map((status) => `'${status}'`).join(', ');
 
 const SELECT_CLUB_MEMBERS = `
@@ -28,9 +28,9 @@ const SELECT_CLUB_MEMBERS = `
 
 /**
  * 임시 DB의 users 테이블에서 동아리원 목록을 읽는다. 화면은 정렬하지 않고 이 순서를 그대로 쓴다.
- * 1차는 활동 상태(활동기수 → 수료 → 탈퇴), 2차는 부문(분석 → 시각화 → 엔지니어링), 3차는 이름 가나다순이다.
+ * 1차는 활동 상태(활동기수 → 수료 → 탈동), 2차는 부문(분석 → 시각화 → 엔지니어링), 3차는 이름 가나다순이다.
  * 그래서 부문 명단은 활동기수 → 수료 → 이름 순, 활동기수·수료기수 목록은 부문 → 이름 순으로 보인다.
- * 탈퇴한 사람만은 부문 대신 기수(최신 기수부터)로 정렬한다.
+ * 탈동한 사람만은 부문 대신 기수(최신 기수부터)로 정렬한다.
  */
 export function listClubMembers(db: Database): ClubMember[] {
   return queryAll<ClubMember & Record<string, unknown>>(
@@ -45,7 +45,7 @@ export function listClubMembers(db: Database): ClubMember[] {
 
 /**
  * 기수 페이지 조건(status·track)을 WHERE 조각과 바인딩 값으로 만든다. 값은 모두 ?로 넘긴다.
- * status가 없으면 활동·수료(ACTIVE·COMPLETED)만 고른다(탈퇴는 기수 페이지에 넣지 않는다).
+ * status가 없으면 활동·수료(ACTIVE·COMPLETED)만 고른다(탈동은 기수 페이지에 넣지 않는다).
  */
 function termScopeFilter(scope: ClubMemberTermScope): { sql: string; params: string[] } {
   const statusFilter = scope.status
@@ -132,12 +132,12 @@ export function insertClubMember(db: Database, member: ClubMember): void {
   );
 }
 
-/** 운영진 명단(admin)에 있는 회원인지. 운영진은 운영진에서 먼저 빼야 탈퇴 처리할 수 있다. */
+/** 운영진 명단(admin)에 있는 회원인지. 운영진은 운영진에서 먼저 빼야 탈동 처리할 수 있다. */
 export function isOperator(db: Database, userId: string): boolean {
   return queryAll(db, 'SELECT 1 FROM admin WHERE user_id = ?', [userId]).length > 0;
 }
 
-/** 탈퇴한 동아리원인지. 없는 회원이면 false다(없는 회원은 부르는 쪽이 따로 404로 막는다). */
+/** 탈동한 동아리원인지. 없는 회원이면 false다(없는 회원은 부르는 쪽이 따로 404로 막는다). */
 export function isWithdrawn(db: Database, userId: string): boolean {
   return (
     queryAll(db, "SELECT 1 FROM users WHERE id = ? AND club_status = 'WITHDRAWN'", [userId])
