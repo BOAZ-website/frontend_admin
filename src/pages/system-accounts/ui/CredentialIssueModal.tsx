@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
 import { compareTeamNames } from '@/entities/admin-account/model/teams';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import type { ClubMember } from '@/entities/club-member/model/types';
 import { useClubMembers } from '@/entities/club-member/model/useClubMembers';
+import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
+import { SelectDropdown } from '@/shared/ui/SelectDropdown';
+import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import {
   FIELD_INPUT,
   FIELD_LABEL,
@@ -278,15 +281,25 @@ export function CredentialIssueModal({
       return;
     }
     setIsSaving(true);
-    const isDone = selectedAccount
-      ? await onMove(selectedAccount, teamName, {
-          username: trimmedUsername,
-          password: password ? password : null,
-        })
-      : await onSubmit(selected, { username: trimmedUsername, password }, teamName);
-    setIsSaving(false);
+    let isDone = false;
+    try {
+      isDone = selectedAccount
+        ? await onMove(selectedAccount, teamName, {
+            username: trimmedUsername,
+            password: password ? password : null,
+          })
+        : await onSubmit(selected, { username: trimmedUsername, password }, teamName);
+    } finally {
+      setIsSaving(false);
+    }
     if (isDone) onClose();
   };
+  // 요청 중에는 닫지 않는다. 닫으면 결과를 알 수 없고 같은 요청을 다시 보낼 수 있다.
+  const handleClose = () => {
+    if (!isSaving) onClose();
+  };
+  const panelRef = useRef<HTMLFormElement>(null);
+  useDialogKeyboard(panelRef, handleClose);
 
   /** 동아리원 목록을 읽기 전이거나 읽지 못했을 때 목록 자리에 보이는 안내. */
   const listNotice = membersError
@@ -297,10 +310,11 @@ export function CredentialIssueModal({
     <div
       className={MODAL_BACKDROP}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) handleClose();
       }}
     >
       <form
+        ref={panelRef}
         onSubmit={submit}
         role="dialog"
         aria-modal="true"
@@ -311,7 +325,13 @@ export function CredentialIssueModal({
           <h3 id="credential-issue-title" className="text-base font-bold text-slate-900">
             운영진 계정 발급
           </h3>
-          <button type="button" onClick={onClose} className={MODAL_CLOSE_BTN} aria-label="창 닫기">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            className={MODAL_CLOSE_BTN}
+            aria-label="창 닫기"
+          >
             <X size={18} />
           </button>
         </div>
@@ -485,8 +505,13 @@ export function CredentialIssueModal({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3.5">
-          <button type="button" onClick={onClose} className={MODAL_CANCEL_BTN}>
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            className={MODAL_CANCEL_BTN}
+          >
             취소
           </button>
           <button type="submit" disabled={!canSave} className={MODAL_CONFIRM_BTN}>

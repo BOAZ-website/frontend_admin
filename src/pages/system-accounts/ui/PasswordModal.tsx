@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Eye, EyeOff, X } from 'lucide-react';
 
 import type { AdminPasswordRequest } from '@/entities/admin-account/model/dto';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
+import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
+import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import {
   FIELD_INPUT,
   FIELD_LABEL,
@@ -43,19 +45,30 @@ export function PasswordModal({ account, isSelf, onClose, onSubmit }: PasswordMo
     event.preventDefault();
     if (!canSave) return;
     setIsSaving(true);
-    const isSaved = await onSubmit(isSelf ? { newPassword, currentPassword } : { newPassword });
-    setIsSaving(false);
+    let isSaved = false;
+    try {
+      isSaved = await onSubmit(isSelf ? { newPassword, currentPassword } : { newPassword });
+    } finally {
+      setIsSaving(false);
+    }
     if (isSaved) onClose();
   };
+  // 요청 중에는 닫지 않는다. 닫으면 결과를 알 수 없고 같은 요청을 다시 보낼 수 있다.
+  const handleClose = () => {
+    if (!isSaving) onClose();
+  };
+  const panelRef = useRef<HTMLFormElement>(null);
+  useDialogKeyboard(panelRef, handleClose);
 
   return (
     <div
       className={MODAL_BACKDROP}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) handleClose();
       }}
     >
       <form
+        ref={panelRef}
         onSubmit={submit}
         role="dialog"
         aria-modal="true"
@@ -66,7 +79,13 @@ export function PasswordModal({ account, isSelf, onClose, onSubmit }: PasswordMo
           <h3 id="password-modal-title" className="text-base font-bold text-slate-900">
             {isSelf ? '내 비밀번호 변경' : `비밀번호 재설정 · ${account.name}`}
           </h3>
-          <button type="button" onClick={onClose} className={MODAL_CLOSE_BTN} aria-label="창 닫기">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            className={MODAL_CLOSE_BTN}
+            aria-label="창 닫기"
+          >
             <X size={18} />
           </button>
         </div>
@@ -146,20 +165,25 @@ export function PasswordModal({ account, isSelf, onClose, onSubmit }: PasswordMo
                 className={`${FIELD_INPUT} font-mono`}
               />
               {isMismatch && (
-                <p className="mt-1.5 text-[11px] text-red-600">새 비밀번호와 같지 않습니다.</p>
+                <p className="mt-2 text-xs text-red-600">새 비밀번호와 같지 않습니다.</p>
               )}
             </div>
           )}
 
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3 text-[11px] leading-5 text-slate-600">
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
             {isSelf
               ? '현재 비밀번호를 확인한 뒤 변경하며, 변경하면 기존 로그인이 모두 해제됩니다.'
               : '현재 비밀번호 없이 바로 재설정하며, 해당 계정의 기존 로그인이 모두 해제됩니다.'}
           </p>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-3.5">
-          <button type="button" onClick={onClose} className={MODAL_CANCEL_BTN}>
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            className={MODAL_CANCEL_BTN}
+          >
             취소
           </button>
           <button type="submit" disabled={!canSave} className={MODAL_CONFIRM_BTN}>
