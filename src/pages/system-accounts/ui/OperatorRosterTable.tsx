@@ -3,8 +3,8 @@ import { KeyRound, ShieldCheck, Trash2 } from 'lucide-react';
 
 import { NEXT_PRESIDENT_TEAM, TEAMS_WITHOUT_LEAD } from '@/entities/admin-account/model/teams';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
-import { ICON_BTN, ID_CHIP } from '@/shared/ui/systemStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
+import { ICON_BTN, ID_CHIP } from '@/shared/ui/systemStyles';
 
 /**
  * 운영진 행의 관리 버튼(비밀번호 재설정·삭제)을 쓸 수 없는 사유. null이면 쓸 수 있다.
@@ -88,7 +88,7 @@ function seatOf(account: AdminAccount, hasLead: boolean): { label: string; isPri
  * 이름은 굵게.
  */
 const TH = 'px-2 py-1 text-center font-bold bg-slate-100/90';
-const CELL = 'px-2 py-1.5 text-center text-xs';
+const CELL = 'px-2 py-2 text-center text-xs';
 /** 팀이 끝나는 줄 아래 선. 출결 표에서 한 사람(멘멘·친바 두 줄)이 끝날 때 긋는 선과 같다. */
 const GROUP_END = 'border-b border-b-slate-300';
 /** 팀 열 오른쪽 선. 다른 세로선과 같은 색이다. 팀 칸이 여러 줄에 걸쳐 있어 줄마다 붙는 세로선(divide-x)이 닿지 않는 곳까지 긋는다. */
@@ -120,7 +120,7 @@ export function OperatorRosterTable({
             ))}
           </colgroup>
           <thead className="select-none bg-slate-50/80">
-            <tr className="h-11 divide-x divide-slate-200/70 border-b border-slate-200 text-[11px] font-semibold whitespace-nowrap text-slate-700">
+            <tr className="h-11 divide-x divide-slate-200/70 border-b border-slate-200 text-xs font-semibold whitespace-nowrap text-slate-700">
               {COLUMNS.map((column) => (
                 <th
                   key={column.label}
@@ -154,7 +154,7 @@ export function OperatorRosterTable({
                           <th
                             scope="rowgroup"
                             rowSpan={members.length}
-                            className={`bg-white px-2 py-1.5 text-center align-middle text-xs font-bold break-keep text-slate-900 ${DIVIDER_RIGHT} ${
+                            className={`bg-white px-2 py-2 text-center align-middle text-xs font-bold break-keep text-slate-900 ${DIVIDER_RIGHT} ${
                               isLastGroup ? '' : GROUP_END
                             }`}
                           >
@@ -184,7 +184,7 @@ export function OperatorRosterTable({
                           <span className={ID_CHIP}>{account.username}</span>
                         </td>
                         <td className={CELL}>
-                          <div className="flex items-center justify-center gap-0.5">
+                          <div className="flex items-center justify-center gap-1">
                             <IconAction
                               label="권한"
                               blockReason={null}

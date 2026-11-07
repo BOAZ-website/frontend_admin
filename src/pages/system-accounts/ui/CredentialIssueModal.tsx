@@ -16,8 +16,6 @@ import {
   MODAL_CLOSE_BTN,
   MODAL_CONFIRM_BTN,
 } from '@/shared/ui/systemStyles';
-import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
-import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 
 /** 새 운영진의 로그인 아이디·초기 비밀번호. */
 export interface IssueCredentials {
@@ -420,7 +418,7 @@ export function CredentialIssueModal({
                     {/* 표처럼 이름·기수·부문·운영진을 칸으로 나눈다. 머리 줄은 목록을 내려도 위에 남는다. */}
                     <div
                       aria-hidden="true"
-                      className={`sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 ${CANDIDATE_GRID}`}
+                      className={`sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-500 ${CANDIDATE_GRID}`}
                     >
                       <span className={CANDIDATE_CELL}>이름</span>
                       <span className={CANDIDATE_CELL}>기수</span>

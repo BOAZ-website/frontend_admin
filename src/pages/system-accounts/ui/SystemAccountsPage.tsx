@@ -6,27 +6,25 @@ import {
   deleteAdminAccount,
   saveAccountPermissions,
 } from '@/entities/admin-account/api/adminAccountApi';
-import type { AdminPasswordRequest } from '@/entities/admin-account/model/dto';
 import { can } from '@/entities/admin-account/model/can';
+import type { AdminPasswordRequest } from '@/entities/admin-account/model/dto';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import type { ClubMember } from '@/entities/club-member/model/types';
-import { useAdminConsole } from '@/pages/system-accounts/model/useAdminConsole';
-import { AccountPermissionDialog } from '@/pages/system-accounts/ui/AccountPermissionDialog';
-import { AccountsTab } from '@/pages/system-accounts/ui/AccountsTab';
-import type { AccountActions } from '@/pages/system-accounts/ui/OperatorRosterTable';
-import {
-  CredentialIssueModal,
-  type IssueCredentials,
-} from '@/pages/system-accounts/ui/CredentialIssueModal';
-import { MyAccountCard } from '@/pages/system-accounts/ui/MyAccountCard';
-import { PasswordModal } from '@/pages/system-accounts/ui/PasswordModal';
-import { ApiError } from '@/shared/api/apiError';
 import { buildAccountDelivery } from '@/features/account-delivery/model/accountDeliveryMessages';
-import { alertApiError } from '@/shared/lib/alertApiError';
 import { AccountDeliveryDialog } from '@/features/account-delivery/ui/AccountDeliveryDialog';
+import { ApiError } from '@/shared/api/apiError';
+import { alertApiError } from '@/shared/lib/alertApiError';
 import { CreateButton } from '@/shared/ui/CreateButton';
 import { PasswordResetDialog } from '@/shared/ui/PasswordResetDialog';
 import { PageLoadingState } from '@/widgets/page-loading/ui/PageLoadingState';
+
+import { useAdminConsole } from '../model/useAdminConsole';
+import { AccountPermissionDialog } from './AccountPermissionDialog';
+import { AccountsTab } from './AccountsTab';
+import { CredentialIssueModal, type IssueCredentials } from './CredentialIssueModal';
+import { MyAccountCard } from './MyAccountCard';
+import type { AccountActions } from './OperatorRosterTable';
+import { PasswordModal } from './PasswordModal';
 
 /** 권한 관리 화면의 주소 이름. 권한 창을 연 사람은 '/' 뒤에 붙인다. */
 const ACCOUNTS_HASH = 'system-accounts';
@@ -100,7 +98,7 @@ export function SystemAccountsPage() {
             <button
               type="button"
               onClick={() => void reload()}
-              className="ml-3 cursor-pointer rounded-sm border border-red-200 bg-white px-2.5 py-1 font-semibold hover:bg-red-100"
+              className="ml-3 cursor-pointer rounded-sm border border-red-200 bg-white px-3 py-1 font-semibold hover:bg-red-100"
             >
               다시 시도
             </button>
@@ -296,7 +294,7 @@ export function SystemAccountsPage() {
           <button
             type="button"
             onClick={() => void reload()}
-            className="shrink-0 cursor-pointer rounded-sm border border-red-200 bg-white px-2.5 py-1 font-semibold hover:bg-red-100"
+            className="shrink-0 cursor-pointer rounded-sm border border-red-200 bg-white px-3 py-1 font-semibold hover:bg-red-100"
           >
             다시 시도
           </button>

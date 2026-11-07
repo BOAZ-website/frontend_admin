@@ -7,15 +7,13 @@ import type {
   PermissionCatalog,
 } from '@/entities/admin-account/model/types';
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
-import { byLeadThenTermThenTrack, sortTeamNames } from '@/pages/system-accounts/model/teamOrder';
-import { GroupLeaderTable } from '@/pages/system-accounts/ui/GroupLeaderTable';
-import {
-  type AccountActions,
-  OperatorRosterTable,
-} from '@/pages/system-accounts/ui/OperatorRosterTable';
-import { PermissionMatrix } from '@/pages/system-accounts/ui/PermissionMatrix';
 import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import { LIST_SECTION_TITLE } from '@/shared/ui/systemStyles';
+
+import { byLeadThenTermThenTrack, sortTeamNames } from '../model/teamOrder';
+import { GroupLeaderTable } from './GroupLeaderTable';
+import { type AccountActions, OperatorRosterTable } from './OperatorRosterTable';
+import { PermissionMatrix } from './PermissionMatrix';
 
 interface AccountsTabProps {
   catalog: PermissionCatalog;
@@ -106,7 +104,7 @@ export function AccountsTab({
             <h2 id="accounts-all-heading" className={LIST_SECTION_TITLE}>
               계정
             </h2>
-            <ul className="space-y-2.5">
+            <ul className="space-y-3">
               <li>
                 <SplitListItem
                   label="운영진 계정"

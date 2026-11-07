@@ -20,7 +20,7 @@ const COLUMNS: readonly { key: string; label: string; share: number; isKey?: boo
 ];
 const TOTAL_SHARE = COLUMNS.reduce((sum, column) => sum + column.share, 0);
 /** 여러 줄이 들어가는 칸(아이디·ADV·스터디). 줄바꿈을 막지 않는다. */
-const MULTI_CELL = 'px-2 py-1.5 text-center text-xs';
+const MULTI_CELL = 'px-2 py-2 text-center text-xs';
 
 interface GroupLeaderTableProps {
   /** 그룹(ADV 팀·스터디)을 맡았거나 HOST 계정이 있는 사람(운영진 여부와 관계없이). 부르는 쪽이 이름순으로 넘긴다. */

@@ -13,7 +13,6 @@ import {
   MODAL_CLOSE_BTN,
   MODAL_CONFIRM_BTN,
 } from '@/shared/ui/systemStyles';
-import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 
 interface PasswordModalProps {
   account: AdminAccount;
