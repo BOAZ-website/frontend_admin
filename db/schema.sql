@@ -63,9 +63,10 @@ CREATE TABLE users (
   club_role   TEXT NOT NULL DEFAULT 'MEMBER' CHECK (club_role IN ('MEMBER', 'OPERATOR', 'PRESIDENT')),
   deleted_at  TEXT,                                     -- 잘못 등록해 지운 회원(soft delete). 값이 있으면 목록에서 뺀다
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (name, term)
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- 같은 기수에 같은 이름은 한 명. 잘못 등록해 지운 회원(deleted_at)은 빼고 본다.
+CREATE UNIQUE INDEX idx_users_name_term ON users (name, term) WHERE deleted_at IS NULL;
 
 -- 출결·점수 시스템에서 사용하는 반기별 회원 명단. users는 전역 계정/프로필이고,
 -- 이 테이블에 등록된 사람만 해당 반기의 팀원·팀장 후보로 조회된다. 새 반기는 빈 명단으로 시작한다.

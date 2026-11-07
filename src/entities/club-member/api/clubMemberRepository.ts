@@ -101,11 +101,11 @@ export function hasNameConflict(
   exceptId?: string,
 ): boolean {
   return (
-    queryAll(db, 'SELECT 1 FROM users WHERE name = ? AND term = ? AND id <> ?', [
-      name,
-      term,
-      exceptId ?? '',
-    ]).length > 0
+    queryAll(
+      db,
+      'SELECT 1 FROM users WHERE name = ? AND term = ? AND id <> ? AND deleted_at IS NULL',
+      [name, term, exceptId ?? ''],
+    ).length > 0
   );
 }
 

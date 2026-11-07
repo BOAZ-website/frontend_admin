@@ -802,3 +802,25 @@ test('반기 명단에 오른 회원과 운영진은 삭제할 수 없다(409)',
     'MEMBER_IS_OPERATOR',
   );
 });
+
+test('잘못 등록해 지운 회원과 같은 이름·기수로 다시 등록할 수 있다', async () => {
+  const { call } = await setup();
+  const mistaken = addMistakenMember(call);
+  call('DELETE', `/api/v1/club-members/${mistaken.id}`);
+
+  const again = addMistakenMember(call);
+
+  assert.notEqual(again.id, mistaken.id);
+  assert.equal(again.name, mistaken.name);
+});
+
+test('수료·탈퇴에서 활동으로 되돌리면서 이름·기수·부문을 함께 바꿀 수는 없다', async () => {
+  const { call } = await setup();
+  call('PATCH', '/api/v1/club-members/u_28_01', { status: 'ALUMNI' });
+
+  expectApiErrorCode(
+    () => call('PATCH', '/api/v1/club-members/u_28_01', { status: 'ACTIVE', track: '시각화' }),
+    400,
+    'ACTIVE_MEMBER_IDENTITY_LOCKED',
+  );
+});
