@@ -86,7 +86,7 @@
 | 기타 | `HOST_ACCOUNT_READ/WRITE` `SCORE_RULE_READ/WRITE` `ATTENDANCE_ROSTER_READ/WRITE` |
 
 - 이름 규칙 `<대상>_<동작>`, 동작은 `READ` / `WRITE` 둘뿐.
-- 서비스운영팀장(MASTER) 계정은 계정별 권한 수정 대상이 아니다(400 `PERMISSION_CUSTOM_NOT_ALLOWED`). 서비스운영팀장 계정은 운영진 추가로 만들 수 없고(400 `MASTER_NOT_CREATABLE`), 이월은 DB에서 직접 바꾼다. 역할·팀 조합이 정해진 조합이 아니면 400 `INVALID_ROLE_TEAM_COMBINATION`이다(2026-11-05 백엔드 협의).
+- 서비스운영팀장(MASTER) 계정은 계정별 권한 수정 대상이 아니다(400 `PERMISSION_CUSTOM_NOT_ALLOWED`). 서비스운영팀장 계정은 운영진 추가로 만들 수 없고(400 `MASTER_NOT_CREATABLE`), 이월은 DB에서 직접 바꾼다. 역할·팀 조합이 정해진 조합이 아니면 400 `INVALID_ROLE_TEAM_COMBINATION`이다(2026-11-05 백엔드 협의). 운영진 팀·팀장·로그인 계정은 권한 관리 탭(계정 발급·이동 창)에서 정하고, 동아리원 정보 수정 창에서는 바꾸지 않는다. 팀마다 팀장은 0~1명이며 대표진·차기대표진은 팀장을 두지 않는다(400 `TEAM_HAS_NO_LEAD`).
 - `_OWN_GROUP_` 4개는 기본 세트에 없고 **담당 그룹에서 계산**된다. 계정별 권한 화면에서 체크로 켜고 끌 수 없다.
 - PoC 화면의 `ACCOUNT_MANAGE` · `CONTENT_MANAGE` 등 10개 묶음 이름은 **폐기**. 실제 키는 위 43개다. `ATTENDANCE_ROSTER_READ/WRITE`(반기 조회·CUD)는 2026-11-05 권한 매트릭스 최신화로 더했다.
 
