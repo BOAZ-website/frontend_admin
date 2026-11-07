@@ -26,7 +26,14 @@ type Detail = Record<string, unknown>;
  * 보낸 값과 바뀌기 전·후 값 모두 HIDDEN_VALUE로 바꾼다. 이름은 대상 이름으로 따로 보이므로(지금 DB에서 찾는다) 값은 남기지 않는다.
  * 실제 백엔드 계약이 snake_case(new_password)여도 같은 키로 본다.
  */
-const SENSITIVE_KEYS: ReadonlySet<string> = new Set(['name', 'phone', 'email', 'birth', 'address']);
+const SENSITIVE_KEYS: ReadonlySet<string> = new Set([
+  'name',
+  'phone',
+  'email',
+  'birth',
+  'birthdate',
+  'address',
+]);
 /** 이 글자가 이름에 들어간 키는 목록에 없어도 가린다(initialPassword, access_token 등). */
 const SENSITIVE_KEY_PARTS: readonly string[] = ['password', 'token', 'secret'];
 export const HIDDEN_VALUE = '(비공개)';
