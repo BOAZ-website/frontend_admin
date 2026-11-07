@@ -811,60 +811,51 @@ export function MemberManagementPage() {
             </div>
 
             <div className="grid gap-x-4 gap-y-5 text-xs sm:grid-cols-2">
-              <div>
-                <label htmlFor="member-name" className={FIELD_LABEL}>
-                  이름 *
-                </label>
-                <input
-                  id="member-name"
-                  required
-                  disabled={isIdentityLocked}
-                  className={`${FIELD_INPUT} disabled:bg-slate-50 disabled:text-slate-500`}
-                  value={form.name}
-                  onChange={(event) => updateForm({ name: event.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="member-term" className={FIELD_LABEL}>
-                  기수 *
-                </label>
-                <input
-                  id="member-term"
-                  required
-                  min={1}
-                  type="number"
-                  disabled={isIdentityLocked}
-                  className={`${FIELD_INPUT} disabled:bg-slate-50 disabled:text-slate-500`}
-                  value={form.term}
-                  onChange={(event) => updateForm({ term: Number(event.target.value) })}
-                />
-              </div>
-              <div>
-                <span id="member-track-label" className={FIELD_LABEL}>
-                  부문
-                </span>
-                {isIdentityLocked ? (
-                  <span
-                    aria-labelledby="member-track-label"
-                    className="flex h-10 items-center rounded-sm border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500"
-                  >
-                    {form.track}
-                  </span>
-                ) : (
-                  <SelectDropdown<ClubMemberTrack>
-                    ariaLabel="부문"
-                    value={form.track}
-                    options={TRACK_OPTIONS}
-                    onChange={(track) => updateForm({ track })}
-                    buttonClassName={FIELD_SELECT}
-                  />
-                )}
-              </div>
-              {isIdentityLocked && (
+              {/* 활동기수 회원은 이름·기수·부문을 고치지 않아 칸을 두지 않는다(서버도 400 ACTIVE_MEMBER_IDENTITY_LOCKED). */}
+              {isIdentityLocked ? (
                 <p className="text-xs text-slate-500 sm:col-span-2">
-                  활동 중인 회원의 이름·기수·부문은 고칠 수 없습니다. 고쳐야 하면 서비스운영팀에
+                  활동기수 회원의 이름·기수·부문은 고칠 수 없습니다. 고쳐야 하면 서비스운영팀에
                   요청하세요.
                 </p>
+              ) : (
+                <>
+                  <div>
+                    <label htmlFor="member-name" className={FIELD_LABEL}>
+                      이름 *
+                    </label>
+                    <input
+                      id="member-name"
+                      required
+                      className={FIELD_INPUT}
+                      value={form.name}
+                      onChange={(event) => updateForm({ name: event.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="member-term" className={FIELD_LABEL}>
+                      기수 *
+                    </label>
+                    <input
+                      id="member-term"
+                      required
+                      min={1}
+                      type="number"
+                      className={FIELD_INPUT}
+                      value={form.term}
+                      onChange={(event) => updateForm({ term: Number(event.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <span className={FIELD_LABEL}>부문</span>
+                    <SelectDropdown<ClubMemberTrack>
+                      ariaLabel="부문"
+                      value={form.track}
+                      options={TRACK_OPTIONS}
+                      onChange={(track) => updateForm({ track })}
+                      buttonClassName={FIELD_SELECT}
+                    />
+                  </div>
+                </>
               )}
               <div>
                 <span className={FIELD_LABEL}>활동 상태</span>
