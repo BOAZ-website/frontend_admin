@@ -6,6 +6,7 @@ import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import {
   FIELD_INPUT,
   FIELD_LABEL,
+  FIELD_READONLY,
   LIST_SECTION_TITLE,
   MODAL_CANCEL_BTN,
   MODAL_CLOSE_BTN,
@@ -822,11 +823,8 @@ export function MemberManagementPage() {
                       <span id={id} className={FIELD_LABEL}>
                         {label}
                       </span>
-                      <p
-                        aria-labelledby={id}
-                        className="flex h-10 items-center truncate text-sm text-slate-900"
-                      >
-                        {value}
+                      <p aria-labelledby={id} className={FIELD_READONLY}>
+                        <span className="truncate">{value}</span>
                       </p>
                     </div>
                   ))}
@@ -877,11 +875,8 @@ export function MemberManagementPage() {
                     운영진
                   </span>
                   {/* 보기만 한다. 운영진 팀·팀장은 권한 관리에서 정한다(백엔드 협의 2026-11-05). */}
-                  <p
-                    aria-labelledby="member-operator-label"
-                    className="flex h-10 items-center text-sm text-slate-900"
-                  >
-                    {operatorLabelOf(editingMember)}
+                  <p aria-labelledby="member-operator-label" className={FIELD_READONLY}>
+                    <span className="truncate">{operatorLabelOf(editingMember)}</span>
                   </p>
                 </div>
               )}
