@@ -31,3 +31,9 @@ test('값이 null이거나 빈 문자열인 자리가 든 줄은 통째로 빠�
     assert.ok(text.includes('로그인 후 비밀번호를 바꿔 주세요.'));
   }
 });
+
+test('계정 발급 전달문의 아이디 줄은 아이디로 끝난다', () => {
+  const { text } = buildAccountDelivery('issue', BASE);
+
+  assert.ok(text.split('\n').includes('• 로그인 아이디: boaz_hong'));
+});

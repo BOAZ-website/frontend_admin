@@ -19,7 +19,7 @@ export const ACCOUNT_DELIVERY_TEMPLATES = {
     title: '{name} 계정 발급',
     body: `[BOAZ 운영진 계정 발급 안내]
 
-• 로그인 아이디: {username}오
+• 로그인 아이디: {username}
 • 초기 비밀번호: {password}
 
 로그인 후 비밀번호를 바꿔 주세요.`,
