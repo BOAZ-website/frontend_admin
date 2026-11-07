@@ -316,6 +316,8 @@ export function MemberManagementPage() {
   const needsCredentials = !editingMember?.operatorTeam && formTeam !== NOT_OPERATOR;
   /** 탈퇴한 사람의 정보 수정인지. 운영진 지정을 막고, 활동 상태 선택지에 탈퇴를 남긴다(되돌리기는 된다). */
   const isEditingWithdrawn = editingMember?.status === 'WITHDRAWN';
+  // 활동 중인 회원의 이름·기수·부문은 서버도 막는다(400 ACTIVE_MEMBER_IDENTITY_LOCKED). 고쳐야 하면 운영진에게 요청한다.
+  const isIdentityLocked = editingMember?.status === 'ACTIVE';
   const hasCredentials = !needsCredentials || Boolean(formUsername.trim() && formPassword);
   const canSave =
     !isSaving &&
@@ -925,7 +927,8 @@ export function MemberManagementPage() {
                 <input
                   id="member-name"
                   required
-                  className={FIELD_INPUT}
+                  disabled={isIdentityLocked}
+                  className={`${FIELD_INPUT} disabled:bg-slate-50 disabled:text-slate-500`}
                   value={form.name}
                   onChange={(event) => updateForm({ name: event.target.value })}
                 />
@@ -939,21 +942,37 @@ export function MemberManagementPage() {
                   required
                   min={1}
                   type="number"
-                  className={FIELD_INPUT}
+                  disabled={isIdentityLocked}
+                  className={`${FIELD_INPUT} disabled:bg-slate-50 disabled:text-slate-500`}
                   value={form.term}
                   onChange={(event) => updateForm({ term: Number(event.target.value) })}
                 />
               </div>
               <div>
                 <span className={FIELD_LABEL}>부문</span>
-                <SelectDropdown<ClubMemberTrack>
-                  ariaLabel="부문"
-                  value={form.track}
-                  options={TRACK_OPTIONS}
-                  onChange={(track) => updateForm({ track })}
-                  buttonClassName={FIELD_SELECT}
-                />
+                {isIdentityLocked ? (
+                  <span
+                    aria-label="부문"
+                    className="flex h-10 items-center rounded-sm border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500"
+                  >
+                    {form.track}
+                  </span>
+                ) : (
+                  <SelectDropdown<ClubMemberTrack>
+                    ariaLabel="부문"
+                    value={form.track}
+                    options={TRACK_OPTIONS}
+                    onChange={(track) => updateForm({ track })}
+                    buttonClassName={FIELD_SELECT}
+                  />
+                )}
               </div>
+              {isIdentityLocked && (
+                <p className="text-xs text-slate-500 sm:col-span-2">
+                  활동 중인 회원의 이름·기수·부문은 고칠 수 없습니다. 고쳐야 하면 서비스운영팀에
+                  요청하세요.
+                </p>
+              )}
               <div>
                 <span className={FIELD_LABEL}>운영진</span>
                 {/* 탈퇴한 사람에게는 운영진 계정을 만들지 않는다(서버도 409로 막는다). */}

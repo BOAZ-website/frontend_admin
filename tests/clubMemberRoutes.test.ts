@@ -116,6 +116,8 @@ test('수정은 보낸 값만 바꾼다', async () => {
 
 test('기수·부문을 바꾸면 그 기수·부문의 활동 명단(members) 행이 생긴다', async () => {
   const { db, call } = await setup();
+  // 활동 중인 회원은 기수·부문을 고칠 수 없어, 먼저 수료로 바꾼다.
+  call('PATCH', '/api/v1/club-members/u_28_01', { status: 'ALUMNI' });
   call('PATCH', '/api/v1/club-members/u_28_01', { term: 29, track: '시각화' });
 
   assert.equal(
@@ -130,6 +132,8 @@ test('기수·부문을 바꾸면 그 기수·부문의 활동 명단(members) �
 test('같은 기수에 같은 이름이 있으면 409, 형식이 틀리면 400, 없는 동아리원은 404로 거절한다', async () => {
   const { call } = await setup();
   const patch = (body: unknown) => () => call('PATCH', '/api/v1/club-members/u_28_02', body);
+  // 활동 중인 회원은 이름을 고칠 수 없어, 먼저 수료로 바꾼다.
+  call('PATCH', '/api/v1/club-members/u_28_02', { status: 'ALUMNI' });
 
   expectApiError(patch({ name: '김서하' }), 409);
   expectApiError(patch({ track: 'AI' }), 400);
@@ -735,4 +739,20 @@ test('활동 상태를 미수료(NOT_COMPLETED)로 바꿀 수 있고, 기수별 
     );
     assert.ok(!page.members.some((member) => member.id === 'u_28_01'));
   }
+});
+
+test('활동 중인 회원의 이름·기수·부문은 고칠 수 없고(400 ACTIVE_MEMBER_IDENTITY_LOCKED) 연락처는 고칠 수 있다', async () => {
+  const { call } = await setup();
+  const before = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === 'u_28_01')!;
+  assert.equal(before.status, 'ACTIVE');
+
+  for (const body of [{ name: '홍길동' }, { term: 26 }, { track: '시각화' }]) {
+    expectApiErrorCode(
+      () => call('PATCH', '/api/v1/club-members/u_28_01', body),
+      400,
+      'ACTIVE_MEMBER_IDENTITY_LOCKED',
+    );
+  }
+  // 같은 값을 보내는 것은 바꾸는 것이 아니라 통과한다.
+  call('PATCH', '/api/v1/club-members/u_28_01', { name: before.name, phone: '010-0000-0000' });
 });

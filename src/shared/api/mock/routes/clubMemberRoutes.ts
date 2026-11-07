@@ -90,6 +90,22 @@ function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember
       '탈퇴는 정보 수정이 아니라 탈퇴 처리로만 할 수 있습니다.',
     );
   }
+  // 활동 중인 회원의 이름·기수·부문은 서류 평가 범위와 이어져 있어 화면에서 고치지 않는다(백엔드 협의 2026-11-05).
+  // 고쳐야 하면 DB에서 직접 고친다.
+  if (base.status === 'ACTIVE') {
+    const changed = [
+      text('name') !== undefined && text('name') !== base.name,
+      optionalNumber(body, 'term') !== undefined && optionalNumber(body, 'term') !== base.term,
+      text('track') !== undefined && text('track') !== base.track,
+    ].some(Boolean);
+    if (changed) {
+      throw new ApiError(
+        400,
+        'ACTIVE_MEMBER_IDENTITY_LOCKED',
+        '활동 중인 회원의 이름·기수·부문은 고칠 수 없습니다.',
+      );
+    }
+  }
   return {
     ...base,
     name: text('name') ?? base.name,

@@ -99,7 +99,8 @@ test('실패한 쓰기는 기록되지 않는다', async () => {
   const { call, logCount } = await setup();
   const before = logCount();
 
-  expectApiError(() => call('PATCH', '/api/v1/club-members/u_28_02', { name: '김서하' }), 409);
+  // 활동 중인 회원의 이름은 고칠 수 없어 400으로 거절된다.
+  expectApiError(() => call('PATCH', '/api/v1/club-members/u_28_02', { name: '김서하' }), 400);
   assert.equal(logCount(), before);
 });
 
