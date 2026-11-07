@@ -808,12 +808,33 @@ export function MemberManagementPage() {
             </div>
 
             <div className="grid gap-x-4 gap-y-5 text-xs sm:grid-cols-2">
-              {/* 활동기수 회원은 이름·기수·부문을 고치지 않아 칸을 두지 않는다(서버도 400 ACTIVE_MEMBER_IDENTITY_LOCKED). */}
+              {/* 활동기수 회원의 이름·기수·부문은 보기만 한다(서버도 고치면 400 ACTIVE_MEMBER_IDENTITY_LOCKED). */}
               {isIdentityLocked ? (
-                <p className="text-xs text-slate-500 sm:col-span-2">
-                  활동기수 회원의 이름·기수·부문은 고칠 수 없습니다. 고쳐야 하면 서비스운영팀에
-                  요청하세요.
-                </p>
+                <>
+                  {(
+                    [
+                      ['member-name-view', '이름', form.name],
+                      ['member-term-view', '기수', `${form.term}기`],
+                      ['member-track-view', '부문', form.track],
+                    ] as const
+                  ).map(([id, label, value]) => (
+                    <div key={id}>
+                      <span id={id} className={FIELD_LABEL}>
+                        {label}
+                      </span>
+                      <p
+                        aria-labelledby={id}
+                        className="flex h-10 items-center text-sm text-slate-900"
+                      >
+                        {value}
+                      </p>
+                    </div>
+                  ))}
+                  <p className="text-xs text-slate-500 sm:col-span-2">
+                    활동기수 회원의 이름·기수·부문은 볼 수만 있습니다. 고쳐야 하면 서비스운영팀에
+                    요청하세요.
+                  </p>
+                </>
               ) : (
                 <>
                   <div>
