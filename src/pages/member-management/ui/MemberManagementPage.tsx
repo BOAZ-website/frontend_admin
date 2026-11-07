@@ -4,12 +4,10 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from 'luci
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
 import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import { LIST_SECTION_TITLE } from '@/shared/ui/systemStyles';
-import { AccountDeliveryDialog } from '@/features/account-delivery/ui/AccountDeliveryDialog';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { Tooltip } from '@/shared/ui/Tooltip';
 
-import { assignOperator } from '@/entities/admin-account/api/adminAccountApi';
 import {
   createClubMember,
   updateClubMember,
@@ -30,7 +28,6 @@ import {
 } from '@/entities/club-member/model/types';
 import { useClubMembers } from '@/entities/club-member/model/useClubMembers';
 import { useClubMemberTermPage } from '@/entities/club-member/model/useClubMemberTermPage';
-import { buildAccountDelivery } from '@/features/account-delivery/model/accountDeliveryMessages';
 import { alertApiError } from '@/shared/lib/alertApiError';
 
 import {
@@ -39,10 +36,8 @@ import {
   isMemberSheet,
   MEMBER_SHEETS,
   type MemberSheet,
-  NOT_OPERATOR,
   termScopeOfSheet,
 } from '../model/memberManagement';
-import { useOperatorTeams } from '../model/useOperatorTeams';
 
 /** 수정 팝업의 입력값. 동아리원 행에서 id만 뺀 값이다. */
 const toForm = (member: ClubMember): ClubMemberForm => ({
@@ -215,13 +210,6 @@ export function MemberManagementPage() {
   }, [sheet]);
   const [editingMember, setEditingMember] = useState<ClubMember | null>(null);
   const [form, setForm] = useState<ClubMemberForm | null>(null);
-  /** 수정 팝업에서 고른 운영진 팀. NOT_OPERATOR면 운영진이 아니다. */
-  const [formTeam, setFormTeam] = useState(NOT_OPERATOR);
-  /** 새 운영진의 로그인 아이디·초기 비밀번호. 운영진이 아닌 사람에게 팀을 고를 때만 쓴다. */
-  const [formUsername, setFormUsername] = useState('');
-  const [formPassword, setFormPassword] = useState('');
-  /** 새 운영진 계정을 만든 뒤 띄우는 전달문. */
-  const [delivery, setDelivery] = useState<{ title: string; text: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   /**
    * 이 화면에서 저장(추가·수정·탈퇴 처리)을 한 번이라도 했는지. 저장 뒤 목록을 다시 읽다가 실패하면
@@ -232,7 +220,6 @@ export function MemberManagementPage() {
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   /** 방금 운영진 팀이 바뀐 동아리원. 잠깐 줄 바탕을 칠한다. */
   const [freshBadgeIds, setFreshBadgeIds] = useState<ReadonlySet<string>>(() => new Set());
-  const { teams: operatorTeams, error: teamsError } = useOperatorTeams();
 
   // 다른 화면에서 사람을 지정해 들어왔으면, 목록을 읽은 뒤 그 사람이 든 명단을 열고 필터를 풀어 행을 보여 준다.
   const [pendingFocusId, setPendingFocusId] = useState(focusIdOfHash);
@@ -262,17 +249,6 @@ export function MemberManagementPage() {
     const timer = window.setTimeout(() => setFreshBadgeIds(new Set()), FRESH_BADGE_MS);
     return () => window.clearTimeout(timer);
   }, [freshBadgeIds]);
-
-  /** 수정 팝업의 운영진 팀 선택지. 지금 팀이 팀 목록에 없어도(새로 생긴 팀) 고를 수 있게 넣는다. */
-  const teamOptions = useMemo(() => {
-    const current = editingMember?.operatorTeam;
-    const teams =
-      current && !operatorTeams.includes(current) ? [...operatorTeams, current] : operatorTeams;
-    return [
-      { value: NOT_OPERATOR, label: '없음' },
-      ...teams.map((team) => ({ value: team, label: team })),
-    ];
-  }, [editingMember, operatorTeams]);
 
   // 기수 페이지가 있는 명단은 받은 기수 페이지 안에서, 탈퇴 명단은 전체 목록에서 화면이 거른다.
   const pageMembers = currentPage?.members;
@@ -309,33 +285,12 @@ export function MemberManagementPage() {
     }
   };
 
-  /**
-   * 새 운영진 계정을 만드는지. 운영진이 아닌 사람(추가 팝업 포함)에게 팀을 고르면 아이디·초기 비밀번호가 필요하다.
-   * 이미 운영진인 사람은 팀만 옮기므로 필요 없다.
-   */
-  const needsCredentials = !editingMember?.operatorTeam && formTeam !== NOT_OPERATOR;
-  /** 탈퇴한 사람의 정보 수정인지. 운영진 지정을 막고, 활동 상태 선택지에 탈퇴를 남긴다(되돌리기는 된다). */
-  const isEditingWithdrawn = editingMember?.status === 'WITHDRAWN';
   // 활동 중인 회원의 이름·기수·부문은 서버도 막는다(400 ACTIVE_MEMBER_IDENTITY_LOCKED). 고쳐야 하면 운영진에게 요청한다.
   const isIdentityLocked = editingMember?.status === 'ACTIVE';
-  const hasCredentials = !needsCredentials || Boolean(formUsername.trim() && formPassword);
   const canSave =
     !isSaving &&
     form !== null &&
-    hasCredentials &&
     Boolean(form.name.trim() && form.email.trim() && form.phone.trim() && form.term > 0);
-
-  /** 입력한 아이디·초기 비밀번호를 비운다. */
-  const resetCredentials = () => {
-    setFormUsername('');
-    setFormPassword('');
-  };
-
-  /** 운영진 팀을 바꾼다. '없음'으로 돌리면 입력한 아이디·비밀번호를 지운다. */
-  const changeFormTeam = (next: string) => {
-    setFormTeam(next);
-    if (next === NOT_OPERATOR) resetCredentials();
-  };
 
   /** 추가 팝업인지(수정할 사람이 없는 채로 열렸다). */
   const isCreating = form !== null && editingMember === null;
@@ -347,8 +302,6 @@ export function MemberManagementPage() {
    */
   const openCreate = () => {
     setEditingMember(null);
-    setFormTeam(NOT_OPERATOR);
-    resetCredentials();
     setForm({
       name: '',
       email: '',
@@ -365,8 +318,6 @@ export function MemberManagementPage() {
   const openEdit = (member: ClubMember) => {
     setEditingMember(member);
     setForm(toForm(member));
-    setFormTeam(member.operatorTeam ?? NOT_OPERATOR);
-    resetCredentials();
   };
 
   const closeModal = () => {
@@ -400,25 +351,9 @@ export function MemberManagementPage() {
       university: form.university.trim(),
       major: form.major.trim(),
     };
-    // 운영진 팀이 바뀌면 운영진 명단(권한 관리 화면과 같은 데이터)도 바꾼다. 역할은 서버가 맞춘다.
-    const teamName = formTeam === NOT_OPERATOR ? null : formTeam;
-    const isTeamChanged = teamName !== (editingMember?.operatorTeam ?? null);
-    if (
-      editingMember &&
-      isTeamChanged &&
-      teamName === null &&
-      !window.confirm(`${editingMember.name}님을 운영진에서 뺄까요? 운영진 계정도 함께 삭제됩니다.`)
-    ) {
-      return;
-    }
     setIsSaving(true);
-    /**
-     * 이번 저장에서 동아리원 정보(첫 단계)를 저장한 결과. 운영진 지정(둘째 단계)만 실패하면
-     * 목록을 다시 읽고, 팝업을 이 사람의 정보 수정으로 바꿔 다시 저장할 때 운영진 지정만 다시 하게 한다.
-     */
-    let savedMember: ClubMember | null = null;
     try {
-      // 추가는 역할을 보내지 않는다(일반 회원으로 시작하고, 운영진 팀을 고르면 아래에서 정한다).
+      // 추가는 역할을 보내지 않는다(일반 회원으로 시작한다. 운영진 지정은 권한 관리에서 한다).
       const { name, email, phone, university, major, term, track, status } = request;
       const saved = editingMember
         ? await updateClubMember(editingMember.id, request)
@@ -432,44 +367,14 @@ export function MemberManagementPage() {
             track,
             status,
           });
-      savedMember = saved;
       setHasSaved(true);
-      // 새 운영진이면 입력한 아이디·초기 비밀번호로 계정을 함께 만든다. 아이디 중복·비밀번호 규칙 검사는 서버가 한다.
-      const username = formUsername.trim();
-      const isIssuing = needsCredentials && teamName !== null;
-      if (isTeamChanged) {
-        await assignOperator(
-          saved.id,
-          isIssuing ? { teamName, username, password: formPassword } : { teamName },
-        );
-      }
-      if (isIssuing) {
-        setDelivery(
-          buildAccountDelivery('issue', {
-            name: saved.name,
-            username,
-            password: formPassword,
-          }),
-        );
-      }
-      // 새로 넣은 사람이나 운영진 팀이 바뀐 사람의 줄을 잠깐 표시한다.
-      if (!editingMember || isTeamChanged) setFreshBadgeIds(new Set([saved.id]));
+      // 새로 넣은 사람의 줄을 잠깐 표시한다.
+      if (!editingMember) setFreshBadgeIds(new Set([saved.id]));
       closeModal();
       reload();
       reloadPage();
     } catch (error) {
-      if (savedMember) {
-        // 동아리원 정보는 저장됐고 운영진 지정만 실패했다. 목록을 다시 읽어 저장된 값을 보이고,
-        // 팝업은 그 사람의 정보 수정으로 바꿔 다시 저장하면 운영진 지정만 다시 하게 한다(추가였다면 또 만들지 않는다).
-        // 입력값·운영진 팀·아이디·비밀번호는 그대로 둔다.
-        setEditingMember(savedMember);
-        reload();
-        reloadPage();
-        const reason = error instanceof Error ? error.message : '알 수 없는 오류';
-        window.alert(`동아리원 정보는 저장했지만 운영진 지정은 하지 못했습니다. (${reason})`);
-      } else {
-        alertApiError(error);
-      }
+      alertApiError(error);
     } finally {
       setIsSaving(false);
     }
@@ -611,16 +516,6 @@ export function MemberManagementPage() {
           </Tooltip>
         </div>
       </div>
-      {teamsError && (
-        <p
-          role="alert"
-          className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600"
-        >
-          운영진 팀 목록을 불러오지 못해 수정 팝업에서 운영진 팀을 고를 수 없습니다. (
-          {teamsError.message})
-        </p>
-      )}
-
       {/* 2. 명단 목록(왼쪽)과 고른 명단의 표(오른쪽). 권한 관리 화면과 같은 분할 화면이다. */}
       <SplitView
         listLabel="동아리원 명단 목록"
@@ -969,56 +864,14 @@ export function MemberManagementPage() {
                   요청하세요.
                 </p>
               )}
-              <div>
-                <span className={FIELD_LABEL}>운영진</span>
-                {/* 탈퇴한 사람에게는 운영진 계정을 만들지 않는다(서버도 409로 막는다). */}
-                {isEditingWithdrawn ? (
-                  <p className="flex h-9 items-center text-xs text-slate-500">
-                    탈퇴한 동아리원은 지정할 수 없습니다
+              {editingMember && (
+                <div>
+                  <span className={FIELD_LABEL}>운영진</span>
+                  {/* 운영진 팀·팀장·로그인 계정은 권한 관리에서 정한다(백엔드 협의 2026-11-05). */}
+                  <p className="flex h-10 items-center text-sm text-slate-700">
+                    {editingMember.operatorTeam ?? '없음'}
+                    <span className="ml-2 text-xs text-slate-500">권한 관리에서 바꿉니다</span>
                   </p>
-                ) : (
-                  <SelectDropdown
-                    ariaLabel="운영진"
-                    value={formTeam}
-                    options={teamOptions}
-                    onChange={changeFormTeam}
-                    buttonClassName={FIELD_SELECT}
-                  />
-                )}
-              </div>
-              {needsCredentials && (
-                <div className="grid gap-x-4 gap-y-5 sm:col-span-2 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="member-username" className={FIELD_LABEL}>
-                      아이디 *
-                    </label>
-                    <input
-                      id="member-username"
-                      required
-                      autoComplete="off"
-                      spellCheck={false}
-                      placeholder="입력"
-                      className={`${FIELD_INPUT} font-mono`}
-                      value={formUsername}
-                      onChange={(event) => setFormUsername(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="member-password" className={FIELD_LABEL}>
-                      초기 비밀번호 *
-                    </label>
-                    <input
-                      id="member-password"
-                      required
-                      type="text"
-                      autoComplete="off"
-                      spellCheck={false}
-                      className={`${FIELD_INPUT} font-mono`}
-                      placeholder="입력"
-                      value={formPassword}
-                      onChange={(event) => setFormPassword(event.target.value)}
-                    />
-                  </div>
                 </div>
               )}
               <div>
@@ -1090,15 +943,6 @@ export function MemberManagementPage() {
             </div>
           </form>
         </div>
-      )}
-
-      {delivery && (
-        <AccountDeliveryDialog
-          title={delivery.title}
-          text={delivery.text}
-          onTextChange={(text) => setDelivery({ ...delivery, text })}
-          onClose={() => setDelivery(null)}
-        />
       )}
     </div>
   );
