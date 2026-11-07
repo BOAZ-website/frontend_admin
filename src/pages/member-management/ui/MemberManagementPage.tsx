@@ -118,8 +118,8 @@ const STATUS_OPTIONS = labelOptions(CLUB_MEMBER_STATUS_LABELS);
  */
 /** 추가 창의 활동 상태 선택지. 처음부터 탈퇴로 만들 수는 없다(서버도 400 CANNOT_CREATE_WITHDRAWN). */
 const CREATE_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
-/** 운영진 칸 글자: 운영진이면 그 팀 이름, 아니면 '해당 없음'. */
-const operatorLabelOf = (member: ClubMember): string => member.operatorTeam ?? '해당 없음';
+/** 운영진 칸 글자: 운영진이면 그 팀 이름, 아니면 '-'. */
+const operatorLabelOf = (member: ClubMember): string => member.operatorTeam ?? '-';
 const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => !isLeftClubStatus(option.value));
 
 /** 왼쪽 "전체 동아리원" 묶음: 분석·시각화·엔지니어링을 모두 담은 활동기수·수료기수 목록. */
