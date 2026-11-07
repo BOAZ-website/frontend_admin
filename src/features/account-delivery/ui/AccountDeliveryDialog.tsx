@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, X } from 'lucide-react';
 
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
+import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
+import { MODAL_BACKDROP, MODAL_CLOSE_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 
 /** 복사 완료 표시를 보여 주는 시간. */
 const COPIED_NOTICE_MS = 2000;
@@ -56,16 +58,13 @@ export function AccountDeliveryDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="account-delivery-title"
-      className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+      className={`${MODAL_BACKDROP} animate-in fade-in duration-150`}
     >
-      <div
-        ref={panelRef}
-        className="w-full max-w-lg overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]"
-      >
+      <div ref={panelRef} className={`w-full max-w-lg overflow-hidden rounded-lg ${MODAL_SURFACE}`}>
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <h3
             id="account-delivery-title"
-            className="min-w-0 text-sm font-bold text-slate-900 text-wrap-balance"
+            className="min-w-0 text-base font-bold text-slate-900 text-wrap-balance"
           >
             {title} 계정 전달문
           </h3>
@@ -73,28 +72,28 @@ export function AccountDeliveryDialog({
             type="button"
             onClick={onClose}
             aria-label="전달문 닫기"
-            className="flex size-10 shrink-0 items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+            className={`${MODAL_CLOSE_BTN} shrink-0`}
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
-        <div className="space-y-3 px-6 py-5">
+        <div className="space-y-3 px-6 py-4">
           <textarea
             ref={textRef}
             rows={11}
             aria-label="계정 전달문 내용"
             value={text}
             onChange={(event) => onTextChange(event.target.value)}
-            className="w-full resize-none rounded-sm border border-slate-200 bg-slate-50 p-4 font-mono text-xs leading-6 text-slate-700 outline-none transition-[background-color,border-color,box-shadow] focus:border-slate-400 focus:bg-white focus:ring-3 focus:ring-slate-100"
+            className="w-full resize-none rounded-sm border border-slate-200 bg-slate-50 p-4 font-mono text-xs leading-6 text-slate-700 outline-none transition-colors focus:border-slate-400 focus:bg-white"
           />
           <div className="flex justify-end">
             <button
               type="button"
               onClick={() => void copy()}
-              className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-[0.97] cursor-pointer"
+              className={`${MODAL_CONFIRM_BTN} inline-flex items-center gap-2`}
             >
-              {isCopied ? <Check size={13} /> : <Copy size={13} />}
+              {isCopied ? <Check size={14} /> : <Copy size={14} />}
               <span>{isCopied ? '복사 완료' : '전달문 복사'}</span>
             </button>
           </div>

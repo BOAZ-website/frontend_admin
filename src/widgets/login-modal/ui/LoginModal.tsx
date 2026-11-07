@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { login } from '@/entities/auth/api/authApi';
 import type { AuthSession } from '@/entities/auth/model/types';
 import { MODAL_PRIMARY_BTN } from '@/shared/ui/modalStyles';
+import { FIELD_INPUT, FIELD_LABEL, MODAL_CLOSE_BTN } from '@/shared/ui/systemStyles';
 
 interface LoginModalProps {
   /** 없으면 닫을 수 없는 창이다(로그인 전 화면). Escape·바깥 누르기·닫기 버튼이 모두 빠진다. */
@@ -28,12 +29,6 @@ const EXAMPLE_ACCOUNTS: readonly { label: string; username: string; password: st
         { label: 'ADV 팀장(HOST)', username: 'host_adv_ana1', password: 'boaz2026!adv1' },
       ]
     : [];
-
-const FIELD_LABEL = 'mb-1 block text-xs font-semibold text-slate-600';
-const FIELD_INPUT =
-  'h-9 w-full rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400';
-const CLOSE_BTN =
-  'rounded-sm p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer';
 
 /**
  * 콘솔 로그인 창. 아이디·비밀번호를 로그인 API(POST /api/v1/auth/login)로 보내고, 성공하면 세션을 넘긴다.
@@ -90,7 +85,12 @@ export function LoginModal({ onClose, onLoginSuccess }: LoginModalProps) {
             로그인
           </h3>
           {onClose && (
-            <button type="button" onClick={onClose} aria-label="창 닫기" className={CLOSE_BTN}>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="창 닫기"
+              className={MODAL_CLOSE_BTN}
+            >
               <X size={16} />
             </button>
           )}
