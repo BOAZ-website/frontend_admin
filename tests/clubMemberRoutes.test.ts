@@ -179,13 +179,13 @@ test('운영진 역할은 정보 수정으로 달거나 뗄 수 없고, 대표 �
   assert.equal(president.role, 'PRESIDENT');
 });
 
-test('정보 수정으로는 탈퇴로 바꿀 수 없다(탈퇴는 탈퇴 처리로만)', async () => {
+test('탈퇴는 정보 수정에서 활동 상태를 탈퇴로 바꿔 처리하고, 처음부터 탈퇴로 추가할 수는 없다', async () => {
   const { call } = await setup();
   const members = call<ClubMember[]>('GET', '/api/v1/club-members');
-  const operator = members.find((m) => m.role === 'OPERATOR')!;
-  const member = members.find((m) => m.role === 'MEMBER' && m.status === 'ACTIVE')!;
+  const member = members.find(
+    (m) => m.role === 'MEMBER' && m.status === 'ACTIVE' && !m.leaderTeams && !m.hostUsernames,
+  )!;
 
-  // 처음부터 탈퇴로 추가할 수도 없다.
   expectApiErrorCode(
     () =>
       call('POST', '/api/v1/club-members', {
@@ -197,18 +197,14 @@ test('정보 수정으로는 탈퇴로 바꿀 수 없다(탈퇴는 탈퇴 처리
         status: 'WITHDRAWN',
       }),
     400,
-    'WITHDRAW_BY_DELETE',
+    'CANNOT_CREATE_WITHDRAWN',
   );
-  for (const target of [operator, member]) {
-    expectApiErrorCode(
-      () => call('PATCH', `/api/v1/club-members/${target.id}`, { status: 'WITHDRAWN' }),
-      400,
-      'WITHDRAW_BY_DELETE',
-    );
-  }
-  // 이미 탈퇴한 사람은 지금 상태(탈퇴)를 그대로 보내 다른 정보를 고칠 수 있다.
-  const withdrawn = members.find((m) => m.status === 'WITHDRAWN')!;
-  const edited = call<ClubMember>('PATCH', `/api/v1/club-members/${withdrawn.id}`, {
+  const withdrawn = call<ClubMember>('PATCH', `/api/v1/club-members/${member.id}`, {
+    status: 'WITHDRAWN',
+  });
+  assert.equal(withdrawn.status, 'WITHDRAWN');
+  // 이미 탈퇴한 사람도 지금 상태(탈퇴)를 그대로 보내 다른 정보를 고칠 수 있다.
+  const edited = call<ClubMember>('PATCH', `/api/v1/club-members/${member.id}`, {
     status: 'WITHDRAWN',
     major: '통계학',
   });
@@ -279,7 +275,7 @@ test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸
   assert.equal(listed?.leaderTeams, leader.teamName);
 
   expectApiErrorCode(
-    () => call('DELETE', `/api/v1/club-members/${leader.userId}`),
+    () => call('PATCH', `/api/v1/club-members/${leader.userId}`, { status: 'WITHDRAWN' }),
     409,
     'MEMBER_IS_TEAM_LEADER',
   );
@@ -290,7 +286,8 @@ test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸
 
   execute(db, 'UPDATE teams SET leader_id = NULL WHERE id = ?', [leader.teamId]);
   assert.equal(
-    call<ClubMember>('DELETE', `/api/v1/club-members/${leader.userId}`).status,
+    call<ClubMember>('PATCH', `/api/v1/club-members/${leader.userId}`, { status: 'WITHDRAWN' })
+      .status,
     'WITHDRAWN',
   );
 });
@@ -312,7 +309,8 @@ test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
   );
   assert.equal(listed?.leaderTeams, null);
   assert.equal(
-    call<ClubMember>('DELETE', `/api/v1/club-members/${leader.userId}`).status,
+    call<ClubMember>('PATCH', `/api/v1/club-members/${leader.userId}`, { status: 'WITHDRAWN' })
+      .status,
     'WITHDRAWN',
   );
   // 지난 반기 팀의 팀장 기록은 남는다.
@@ -324,7 +322,7 @@ test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
   assert.equal(leaderOf, 1);
 });
 
-test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 바꾼 회원을 돌려준다', async () => {
+test('탈퇴 처리는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 바꾼 회원을 돌려준다', async () => {
   const { db, call } = await setup();
   const target = activeLeaderId(db);
   const before = linkedRowCounts(db, target);
@@ -332,7 +330,9 @@ test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAW
   assert.ok(before.attendance > 0, '출결 기록이 있는 사람이어야 한다');
   const original = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === target);
 
-  const withdrawn = call<ClubMember>('DELETE', `/api/v1/club-members/${target}`);
+  const withdrawn = call<ClubMember>('PATCH', `/api/v1/club-members/${target}`, {
+    status: 'WITHDRAWN',
+  });
 
   assert.equal(withdrawn.id, target);
   assert.equal(withdrawn.status, 'WITHDRAWN');
@@ -350,7 +350,7 @@ test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(4
   assert.equal(listed?.hostUsernames, 'host_c');
 
   expectApiErrorCode(
-    () => call('DELETE', '/api/v1/club-members/u_27_01'),
+    () => call('PATCH', '/api/v1/club-members/u_27_01', { status: 'WITHDRAWN' }),
     409,
     'MEMBER_HAS_HOST_ACCOUNT',
   );
@@ -358,7 +358,10 @@ test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(4
   assert.equal(queryAll(db, "SELECT 1 FROM host_accounts WHERE username = 'host_c'").length, 1);
 
   execute(db, "DELETE FROM host_accounts WHERE username = 'host_c'");
-  assert.equal(call<ClubMember>('DELETE', '/api/v1/club-members/u_27_01').status, 'WITHDRAWN');
+  assert.equal(
+    call<ClubMember>('PATCH', '/api/v1/club-members/u_27_01', { status: 'WITHDRAWN' }).status,
+    'WITHDRAWN',
+  );
 });
 
 test('HOST 계정이 있는 현재 반기 팀장은 팀장 사유 하나로 409를 받고, 팀장을 바꾸라고 알린다', async () => {
@@ -371,7 +374,7 @@ test('HOST 계정이 있는 현재 반기 팀장은 팀장 사유 하나로 409�
     [leader.userId],
   );
   assert.throws(
-    () => call('DELETE', `/api/v1/club-members/${leader.userId}`),
+    () => call('PATCH', `/api/v1/club-members/${leader.userId}`, { status: 'WITHDRAWN' }),
     (error: unknown) =>
       error instanceof ApiError &&
       error.status === 409 &&
@@ -396,7 +399,7 @@ test('탈퇴 처리한 사람은 기수별 활동 페이지와 부문 페이지�
   assert.ok(pageOf('status=ACTIVE').includes(target));
   assert.ok(pageOf(trackQueryOf).includes(target));
 
-  call('DELETE', `/api/v1/club-members/${target}`);
+  call('PATCH', `/api/v1/club-members/${target}`, { status: 'WITHDRAWN' });
 
   assert.ok(!pageOf('status=ACTIVE').includes(target));
   assert.ok(!pageOf('status=ALUMNI').includes(target));
@@ -411,28 +414,18 @@ test('수료 회원도 탈퇴 처리하면 수료 페이지에서 빠진다', as
     "SELECT id FROM users WHERE club_status = 'ALUMNI' AND term = 25 AND id NOT IN (SELECT user_id FROM admin) LIMIT 1",
   )[0].id;
 
-  assert.equal(call<ClubMember>('DELETE', `/api/v1/club-members/${alumniId}`).status, 'WITHDRAWN');
+  assert.equal(
+    call<ClubMember>('PATCH', `/api/v1/club-members/${alumniId}`, { status: 'WITHDRAWN' }).status,
+    'WITHDRAWN',
+  );
   const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=25`);
   assert.ok(!page.members.some((m) => m.id === alumniId));
 });
 
-test('탈퇴 처리: 없는 회원은 404, 이미 탈퇴한 회원은 409 ALREADY_WITHDRAWN', async () => {
-  const { db, call } = await setup();
-  const target = activeLeaderId(db);
+test('탈퇴 처리: 없는 회원은 404다', async () => {
+  const { call } = await setup();
 
-  expectApiError(() => call('DELETE', '/api/v1/club-members/u_none'), 404);
-  call('DELETE', `/api/v1/club-members/${target}`);
-  expectApiErrorCode(
-    () => call('DELETE', `/api/v1/club-members/${target}`),
-    409,
-    'ALREADY_WITHDRAWN',
-  );
-  // 시드의 탈퇴자(u_27_07)도 같다.
-  expectApiErrorCode(
-    () => call('DELETE', '/api/v1/club-members/u_27_07'),
-    409,
-    'ALREADY_WITHDRAWN',
-  );
+  expectApiError(() => call('PATCH', '/api/v1/club-members/u_none', { status: 'WITHDRAWN' }), 404);
 });
 
 test('운영진은 탈퇴 처리할 수 없다(409 MEMBER_IS_OPERATOR)', async () => {
@@ -441,7 +434,7 @@ test('운영진은 탈퇴 처리할 수 없다(409 MEMBER_IS_OPERATOR)', async (
     .user_id;
 
   expectApiErrorCode(
-    () => call('DELETE', `/api/v1/club-members/${operatorId}`),
+    () => call('PATCH', `/api/v1/club-members/${operatorId}`, { status: 'WITHDRAWN' }),
     409,
     'MEMBER_IS_OPERATOR',
   );
@@ -639,7 +632,7 @@ test('기수별 명단(track): track만 보내면 terms는 그 부문 활동·�
     term: 20,
     track: '분석',
   }).id;
-  call('DELETE', `/api/v1/club-members/${withdrawnId}`);
+  call('PATCH', `/api/v1/club-members/${withdrawnId}`, { status: 'WITHDRAWN' });
   call('POST', '/api/v1/club-members', {
     ...base,
     email: 'a19@example.com',
@@ -755,4 +748,57 @@ test('활동 중인 회원의 이름·기수·부문은 고칠 수 없고(400 AC
   }
   // 같은 값을 보내는 것은 바꾸는 것이 아니라 통과한다.
   call('PATCH', '/api/v1/club-members/u_28_01', { name: before.name, phone: '010-0000-0000' });
+});
+
+/** 반기 명단·로그인 계정·팀장 어디에도 걸리지 않은, 잘못 등록한 회원을 하나 만든다. */
+function addMistakenMember(call: Awaited<ReturnType<typeof setup>>['call']): ClubMember {
+  return call<ClubMember>('POST', '/api/v1/club-members', {
+    name: '잘못등록',
+    email: 'wrong@example.com',
+    phone: '010-0000-0000',
+    term: 27,
+    track: '분석',
+  });
+}
+
+test('삭제(DELETE)는 잘못 등록한 회원을 목록에서 지우고, 다시 읽으면 404다', async () => {
+  const { db, call } = await setup();
+  const mistaken = addMistakenMember(call);
+  // 추가하면 활동 명단 행이 생기므로, 반기 명단에 오르지 않은 상태인지 확인한다.
+  assert.equal(
+    queryAll(db, 'SELECT 1 FROM semester_members WHERE user_id = ?', [mistaken.id]).length,
+    0,
+  );
+
+  call('DELETE', `/api/v1/club-members/${mistaken.id}`);
+
+  assert.ok(!call<ClubMember[]>('GET', '/api/v1/club-members').some((m) => m.id === mistaken.id));
+  expectApiError(
+    () => call('PATCH', `/api/v1/club-members/${mistaken.id}`, { major: '통계학' }),
+    404,
+  );
+  // 행은 남는다(soft delete).
+  assert.equal(queryAll(db, 'SELECT 1 FROM users WHERE id = ?', [mistaken.id]).length, 1);
+});
+
+test('반기 명단에 오른 회원과 운영진은 삭제할 수 없다(409)', async () => {
+  const { db, call } = await setup();
+  const enrolled = queryAll<{ user_id: string }>(
+    db,
+    `SELECT user_id FROM semester_members
+      WHERE user_id NOT IN (SELECT user_id FROM admin) LIMIT 1`,
+  )[0].user_id;
+  const operator = queryAll<{ user_id: string }>(db, 'SELECT user_id FROM admin LIMIT 1')[0]
+    .user_id;
+
+  expectApiErrorCode(
+    () => call('DELETE', `/api/v1/club-members/${enrolled}`),
+    409,
+    'MEMBER_HAS_ENROLLMENTS',
+  );
+  expectApiErrorCode(
+    () => call('DELETE', `/api/v1/club-members/${operator}`),
+    409,
+    'MEMBER_IS_OPERATOR',
+  );
 });

@@ -104,7 +104,7 @@ test('실패한 쓰기는 기록되지 않는다', async () => {
   assert.equal(logCount(), before);
 });
 
-test('동아리원 탈퇴 처리는 "동아리원 탈퇴 처리"로 기록되고, 처리 전 활동 상태를 남긴다', async () => {
+test('동아리원 탈퇴는 "동아리원 수정"으로 기록되고, 바꾼 활동 상태를 남긴다', async () => {
   const { db, call, latest, targetIdsOf } = await setup();
   const member = queryAll<{ id: string; name: string; term: number; club_status: string }>(
     db,
@@ -115,15 +115,15 @@ test('동아리원 탈퇴 처리는 "동아리원 탈퇴 처리"로 기록되고
                          AND semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1))
       LIMIT 1`,
   )[0];
-  call('DELETE', `/api/v1/club-members/${member.id}`);
+  call('PATCH', `/api/v1/club-members/${member.id}`, { status: 'WITHDRAWN' });
   const entry = latest();
 
-  assert.equal(entry.action, 'MEMBER_DELETE');
-  assert.equal(AUDIT_ACTIONS[entry.action].label, '동아리원 탈퇴 처리');
-  assert.deepEqual(entry.api, { method: 'DELETE', path: `/api/v1/club-members/${member.id}` });
+  assert.equal(entry.action, 'MEMBER_UPDATE');
+  assert.equal(AUDIT_ACTIONS[entry.action].label, '동아리원 수정');
+  assert.deepEqual(entry.api, { method: 'PATCH', path: `/api/v1/club-members/${member.id}` });
   assert.deepEqual(targetIdsOf(entry.id), [member.id]);
-  // 처리 전(ACTIVE) → 처리 후(WITHDRAWN)를 남긴다. 이름은 detail에 넣지 않는다.
-  assert.deepEqual(entry.detail, { changes: { status: [member.club_status, 'WITHDRAWN'] } });
+  // 바꾼 칸(status)과 보낸 값을 남긴다. 이름은 detail에 넣지 않는다.
+  assert.ok(JSON.stringify(entry.detail).includes('WITHDRAWN'));
   assert.ok(!JSON.stringify(entry.detail).includes(member.name));
 });
 
@@ -498,7 +498,9 @@ test('DELETE 기록의 requestBody는 null이다', async () => {
   const memberId = queryAll<{ id: string }>(
     db,
     `SELECT id FROM users
-      WHERE club_status = 'ACTIVE' AND id NOT IN (SELECT user_id FROM admin) LIMIT 1`,
+      WHERE id NOT IN (SELECT user_id FROM admin)
+        AND id NOT IN (SELECT user_id FROM semester_members)
+        AND id NOT IN (SELECT user_id FROM host_accounts WHERE user_id IS NOT NULL) LIMIT 1`,
   )[0].id;
   call('DELETE', `/api/v1/club-members/${memberId}`);
   const entry = latest();

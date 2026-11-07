@@ -20,7 +20,8 @@ const SELECT_CLUB_MEMBERS = `
          ${CURRENT_LEADER_TEAMS} AS leaderTeams,
          (SELECT group_concat(h.username, ', ') FROM host_accounts h WHERE h.user_id = users.id)
            AS hostUsernames
-    FROM users`;
+    FROM users
+   WHERE deleted_at IS NULL`;
 
 /**
  * 임시 DB의 users 테이블에서 동아리원 목록을 읽는다. 화면은 정렬하지 않고 이 순서를 그대로 쓴다.
@@ -78,7 +79,7 @@ export function listClubMembersByTerm(
   return queryAll<ClubMember & Record<string, unknown>>(
     db,
     `${SELECT_CLUB_MEMBERS}
-     WHERE ${filter.sql} AND term = ?
+       AND ${filter.sql} AND term = ?
      ORDER BY CASE club_status WHEN 'ACTIVE' THEN 0 WHEN 'ALUMNI' THEN 1 ELSE 2 END,
               ${TRACK_ORDER},
               name, id`,
@@ -87,7 +88,7 @@ export function listClubMembersByTerm(
 }
 
 export function findClubMember(db: Database, id: string): ClubMember | undefined {
-  return queryAll<ClubMember & Record<string, unknown>>(db, `${SELECT_CLUB_MEMBERS} WHERE id = ?`, [
+  return queryAll<ClubMember & Record<string, unknown>>(db, `${SELECT_CLUB_MEMBERS} AND id = ?`, [
     id,
   ])[0];
 }
@@ -133,18 +134,6 @@ export function isOperator(db: Database, userId: string): boolean {
   return queryAll(db, 'SELECT 1 FROM admin WHERE user_id = ?', [userId]).length > 0;
 }
 
-/**
- * 동아리원을 탈퇴 처리한다. 회원 행은 지우지 않고 활동 상태만 탈퇴(WITHDRAWN)로 바꾼다.
- * 반기 명단·팀 소속·출결 기록은 그대로 남는다.
- * 로그인 계정이 있는 사람(운영진·HOST)과 현재 반기 팀장, 이미 탈퇴한 회원은 부르는 쪽에서 먼저 막는다.
- */
-export function withdrawClubMember(db: Database, userId: string): void {
-  execute(db, `UPDATE users SET club_status = ?, updated_at = datetime('now') WHERE id = ?`, [
-    'WITHDRAWN',
-    userId,
-  ]);
-}
-
 /** 탈퇴한 동아리원인지. 없는 회원이면 false다(없는 회원은 부르는 쪽이 따로 404로 막는다). */
 export function isWithdrawn(db: Database, userId: string): boolean {
   return (
@@ -188,4 +177,16 @@ export function updateClubMember(db: Database, member: ClubMember): void {
       member.id,
     ],
   );
+}
+
+/** 반기 명단에 오른 적이 있는지. 오른 회원은 출결 기록이 이어져 있어 지울 수 없다. */
+export function hasSemesterEnrollment(db: Database, userId: string): boolean {
+  return (
+    queryAll(db, 'SELECT 1 FROM semester_members WHERE user_id = ? LIMIT 1', [userId]).length > 0
+  );
+}
+
+/** 잘못 등록한 회원을 지운다. 행은 남기고 deleted_at만 적는다(목록·조회에서 빠진다). */
+export function deleteClubMember(db: Database, userId: string): void {
+  execute(db, "UPDATE users SET deleted_at = datetime('now') WHERE id = ?", [userId]);
 }

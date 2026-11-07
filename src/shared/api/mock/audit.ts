@@ -178,17 +178,6 @@ function valueChanges(before: Detail, after: Detail, keys: readonly string[]): D
 
 const firstTarget = (_request: MockRequest, targetIds: readonly string[]) => targetIds[0];
 
-/** 동아리원 한 명의 활동 상태(users.club_status). 회원이 없으면 빈 값이다. */
-function memberStatus(request: MockRequest, userId: string | undefined): Detail {
-  if (userId === undefined) return {};
-  const row = queryAll<{ club_status: string }>(
-    request.db,
-    'SELECT club_status FROM users WHERE id = ?',
-    [userId],
-  )[0];
-  return row ? { status: row.club_status } : {};
-}
-
 /** 바꾼 항목의 이름만 남긴다(값은 남기지 않는다. 비밀번호·연락처 같은 값이 기록에 들어가지 않게 한다). */
 const changedFields = (request: MockRequest): Detail => ({ fields: Object.keys(bodyOf(request)) });
 
@@ -378,16 +367,12 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     compareTable: 'users',
   },
   {
-    // 동아리원 탈퇴 처리. 행은 지우지 않고 활동 상태만 탈퇴(WITHDRAWN)로 바꾼다.
+    // 잘못 등록한 동아리원 삭제(soft delete). 탈퇴는 PATCH(MEMBER_UPDATE)의 활동 상태 변경으로 남는다.
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     action: 'MEMBER_DELETE',
     targetType: 'USER',
     targets: param('memberId'),
-    // 처리 전 활동 상태를 읽어 두고, 처리 뒤 상태와 함께 [전, 후]로 남긴다.
-    before: (r, ids) => memberStatus(r, ids[0]),
-    detail: (r, { before, targetIds }) =>
-      valueChanges(before, memberStatus(r, targetIds[0]), ['status']),
   },
 
   // 출결: 행사·점수 규칙·반기

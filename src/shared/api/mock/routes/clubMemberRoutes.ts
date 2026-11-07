@@ -17,7 +17,8 @@ import {
   listClubMembersByTerm,
   listClubMemberTerms,
   updateClubMember,
-  withdrawClubMember,
+  deleteClubMember,
+  hasSemesterEnrollment,
 } from '@/entities/club-member/api/clubMemberRepository';
 import {
   CLUB_MEMBER_PAGED_STATUSES,
@@ -78,17 +79,16 @@ function roleOf(db: Database, base: ClubMember, body: Body): ClubMemberRole {
 
 /**
  * 본문에 있는 값만 기존 동아리원 위에 덮어쓴다. 없는 키는 기존 값을 유지한다.
- * 탈퇴(WITHDRAWN)로 바꾸는 것은 탈퇴 처리(DELETE)로만 한다. 운영진 확인·HOST 계정 정지를 그 경로가 맡기 때문이다.
+ * 탈퇴(WITHDRAWN)로 바꾸면 운영진·HOST 계정·현재 반기 팀장인지 확인해, 걸리면 먼저 해지하라는 안내와 함께 409다.
  */
 function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember {
   const text = (key: string) => optionalString(body, key);
   const status = oneOf(text('status'), CLUB_MEMBER_STATUSES, 'status') ?? base.status;
   if (status === 'WITHDRAWN' && base.status !== 'WITHDRAWN') {
-    throw new ApiError(
-      400,
-      'WITHDRAW_BY_DELETE',
-      '탈퇴는 정보 수정이 아니라 탈퇴 처리로만 할 수 있습니다.',
-    );
+    // 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 먼저 해지해야 한다. 사유를 모두 모아 알린다.
+    const blocks = withdrawBlocksOf(base);
+    const message = withdrawBlockMessageOf(base.name, blocks);
+    if (message) throw new ApiError(409, blocks[0].code, message);
   }
   // 활동 중인 회원의 이름·기수·부문은 서류 평가 범위와 이어져 있어 화면에서 고치지 않는다(백엔드 협의 2026-11-05).
   // 고쳐야 하면 DB에서 직접 고친다.
@@ -121,14 +121,14 @@ function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember
 }
 
 /** 추가 요청을 동아리원 한 명으로 만든다. 활동 상태를 보내지 않으면 활동(ACTIVE)이다. */
-/** 추가할 때의 활동 상태. 없으면 활동기수다. 처음부터 탈퇴로 만들 수는 없다(탈퇴는 탈퇴 처리로만). */
+/** 추가할 때의 활동 상태. 없으면 활동기수다. 처음부터 탈퇴로 만들 수는 없다. */
 function newMemberStatusOf(body: Body): ClubMember['status'] {
   const status = oneOf(optionalString(body, 'status'), CLUB_MEMBER_STATUSES, 'status') ?? 'ACTIVE';
   if (status === 'WITHDRAWN') {
     throw new ApiError(
       400,
-      'WITHDRAW_BY_DELETE',
-      '탈퇴는 동아리원 추가가 아니라 탈퇴 처리로만 할 수 있습니다.',
+      'CANNOT_CREATE_WITHDRAWN',
+      '탈퇴한 상태로는 동아리원을 추가할 수 없습니다.',
     );
   }
   return status;
@@ -237,22 +237,32 @@ export const clubMemberRoutes: MockRoute[] = [
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     summary:
-      '동아리원 탈퇴 처리. 행은 지우지 않고 활동 상태를 탈퇴(WITHDRAWN)로 바꿔 바뀐 회원을 돌려준다. 반기 명단·팀 소속·출결 기록은 남는다. 운영진(MEMBER_IS_OPERATOR)·HOST 계정이 있음(MEMBER_HAS_HOST_ACCOUNT)·현재 반기 팀장(MEMBER_IS_TEAM_LEADER)이면 먼저 해지하라는 안내와 함께 409(사유가 여럿이면 메시지에 모두, 코드는 첫 사유), 이미 탈퇴했으면 409 ALREADY_WITHDRAWN',
+      '잘못 등록한 동아리원 삭제(soft delete, 행은 남기고 목록에서 뺀다). 반기 명단에 오른 적이 있으면 409 MEMBER_HAS_ENROLLMENTS, 운영진·HOST 계정이 있으면 409(MEMBER_IS_OPERATOR·MEMBER_HAS_HOST_ACCOUNT). 활동한 사람은 삭제가 아니라 활동 상태를 탈퇴로 바꾼다',
     handler: ({ db, params }) => {
       const member = findMember(db, params.memberId);
-      // 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 먼저 해지해야 한다. 사유를 모두 모아 알린다.
-      const blocks = withdrawBlocksOf(member);
-      const message = withdrawBlockMessageOf(member.name, blocks);
-      if (message) throw new ApiError(409, blocks[0].code, message);
-      if (member.status === 'WITHDRAWN') {
+      if (member.operatorTeam) {
         throw new ApiError(
           409,
-          'ALREADY_WITHDRAWN',
-          `${member.name}님은 이미 탈퇴한 동아리원입니다.`,
+          'MEMBER_IS_OPERATOR',
+          `${member.name}님은 운영진(${member.operatorTeam})입니다. 권한 관리에서 운영진 계정을 먼저 지워 주세요.`,
         );
       }
-      withdrawClubMember(db, member.id);
-      return findMember(db, member.id);
+      if (member.hostUsernames) {
+        throw new ApiError(
+          409,
+          'MEMBER_HAS_HOST_ACCOUNT',
+          `${member.name}님은 HOST 계정(${member.hostUsernames})이 있습니다. 출결의 그룹 계정 관리에서 계정을 먼저 지워 주세요.`,
+        );
+      }
+      if (hasSemesterEnrollment(db, member.id)) {
+        throw new ApiError(
+          409,
+          'MEMBER_HAS_ENROLLMENTS',
+          `${member.name}님은 반기 명단에 오른 적이 있어 지울 수 없습니다. 활동한 사람은 활동 상태를 탈퇴로 바꿔 주세요.`,
+        );
+      }
+      deleteClubMember(db, member.id);
+      return undefined;
     },
   },
 ];

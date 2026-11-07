@@ -61,6 +61,7 @@ CREATE TABLE users (
   -- 동아리원 관리 화면에서 고치는 값: 활동 상태(ACTIVE 활동기수, ALUMNI 수료, WITHDRAWN 탈퇴), 동아리 역할
   club_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (club_status IN ('ACTIVE', 'ALUMNI', 'NOT_COMPLETED', 'WITHDRAWN')),
   club_role   TEXT NOT NULL DEFAULT 'MEMBER' CHECK (club_role IN ('MEMBER', 'OPERATOR', 'PRESIDENT')),
+  deleted_at  TEXT,                                     -- 잘못 등록해 지운 회원(soft delete). 값이 있으면 목록에서 뺀다
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE (name, term)
