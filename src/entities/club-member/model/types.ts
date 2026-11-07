@@ -1,8 +1,8 @@
 import type { UserTrack } from '@/entities/user/model/types';
 
 export type ClubMemberTrack = UserTrack;
-/** 활동 상태: ACTIVE(활동기수), ALUMNI(수료), WITHDRAWN(탈퇴). */
-export type ClubMemberStatus = 'ACTIVE' | 'ALUMNI' | 'WITHDRAWN';
+/** 활동 상태: ACTIVE(활동기수), ALUMNI(수료), NOT_COMPLETED(미수료), WITHDRAWN(탈퇴). */
+export type ClubMemberStatus = 'ACTIVE' | 'ALUMNI' | 'NOT_COMPLETED' | 'WITHDRAWN';
 export type ClubMemberRole = 'MEMBER' | 'OPERATOR' | 'PRESIDENT';
 
 /** 동아리원 관리 화면의 한 행. 임시 DB의 users 테이블 한 행에서 읽는다(id = users.id). */
@@ -38,11 +38,16 @@ export interface ClubMember {
 }
 
 export const CLUB_MEMBER_TRACKS: readonly ClubMemberTrack[] = ['분석', '시각화', '엔지니어링'];
-export const CLUB_MEMBER_STATUSES: readonly ClubMemberStatus[] = ['ACTIVE', 'ALUMNI', 'WITHDRAWN'];
+export const CLUB_MEMBER_STATUSES: readonly ClubMemberStatus[] = [
+  'ACTIVE',
+  'ALUMNI',
+  'NOT_COMPLETED',
+  'WITHDRAWN',
+];
 export const CLUB_MEMBER_ROLES: readonly ClubMemberRole[] = ['MEMBER', 'OPERATOR', 'PRESIDENT'];
 
 /** 기수 하나씩 페이지로 나눠 읽는 활동 상태: 활동기수 목록(ACTIVE)·수료기수 목록(ALUMNI). */
-export type ClubMemberPagedStatus = Exclude<ClubMemberStatus, 'WITHDRAWN'>;
+export type ClubMemberPagedStatus = Exclude<ClubMemberStatus, 'WITHDRAWN' | 'NOT_COMPLETED'>;
 export const CLUB_MEMBER_PAGED_STATUSES: readonly ClubMemberPagedStatus[] = ['ACTIVE', 'ALUMNI'];
 
 /**
@@ -79,6 +84,7 @@ export interface ClubMemberTermPage {
 export const STATUS_LABELS: Record<ClubMemberStatus, string> = {
   ACTIVE: '활동',
   ALUMNI: '수료',
+  NOT_COMPLETED: '미수료',
   WITHDRAWN: '탈퇴',
 };
 

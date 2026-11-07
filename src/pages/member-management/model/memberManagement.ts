@@ -42,7 +42,8 @@ export const MEMBER_SHEETS: readonly MemberSheetItem[] = [
     status: null,
     track,
   })),
-  { id: 'withdrawn', label: '탈퇴', kind: 'status', status: 'WITHDRAWN', track: null },
+  // 미수료도 활동을 마치지 못하고 나간 사람이라 탈퇴 명단에 함께 둔다(백엔드 협의 2026-11-05).
+  { id: 'withdrawn', label: '탈퇴·미수료', kind: 'status', status: 'WITHDRAWN', track: null },
 ];
 
 export const isMemberSheet = (value: string): value is MemberSheet =>
@@ -57,15 +58,17 @@ export function termScopeOfSheet(sheet: MemberSheet | null): ClubMemberTermScope
   const item = MEMBER_SHEETS.find((candidate) => candidate.id === sheet);
   if (!item) return null;
   if (item.kind === 'track') return { track: item.track };
-  return item.status === 'WITHDRAWN' ? null : { status: item.status };
+  return item.status === 'ACTIVE' || item.status === 'ALUMNI' ? { status: item.status } : null;
 }
 
 /** 명단에 들어가는 사람인지. */
 export function isInSheet(member: ClubMember, sheet: MemberSheet): boolean {
   const item = MEMBER_SHEETS.find((candidate) => candidate.id === sheet);
   if (!item) return true;
-  if (item.kind === 'status') return member.status === item.status;
-  return member.track === item.track && member.status !== 'WITHDRAWN';
+  const isLeft = member.status === 'WITHDRAWN' || member.status === 'NOT_COMPLETED';
+  if (item.kind === 'status')
+    return item.status === 'WITHDRAWN' ? isLeft : member.status === item.status;
+  return member.track === item.track && !isLeft;
 }
 
 export interface ClubMemberFilter {

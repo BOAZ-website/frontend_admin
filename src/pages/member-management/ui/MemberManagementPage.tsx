@@ -110,6 +110,7 @@ const FIELD_SELECT =
 const STATUS_TEXT: Record<ClubMemberStatus, string> = {
   ACTIVE: 'text-slate-900 font-semibold',
   ALUMNI: 'text-slate-500',
+  NOT_COMPLETED: 'text-slate-500',
   WITHDRAWN: 'text-slate-500',
 };
 
@@ -122,7 +123,9 @@ const STATUS_OPTIONS = labelOptions(STATUS_LABELS);
  * 탈퇴를 뺀 활동 상태 선택지(활동기수·수료). 부문 명단의 필터(탈퇴한 사람은 탈퇴 명단에만 있다)와
  * 추가·수정 팝업(탈퇴는 탈퇴 처리 버튼으로만 한다)에 쓴다.
  */
-const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
+const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter(
+  (option) => option.value !== 'WITHDRAWN' && option.value !== 'NOT_COMPLETED',
+);
 
 /** 왼쪽 "전체 동아리원" 묶음: 분석·시각화·엔지니어링을 모두 담은 활동기수·수료기수 목록. */
 const ALL_TRACK_SHEETS = MEMBER_SHEETS.filter(
@@ -158,6 +161,7 @@ function focusIdOfHash(): string | null {
 const STATUS_SHEET: Readonly<Record<ClubMember['status'], MemberSheet>> = {
   ACTIVE: 'active',
   ALUMNI: 'alumni',
+  NOT_COMPLETED: 'withdrawn',
   WITHDRAWN: 'withdrawn',
 };
 

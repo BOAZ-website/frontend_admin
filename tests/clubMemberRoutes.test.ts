@@ -719,3 +719,20 @@ test('기수별 명단(track): status·track이 둘 다 없거나 track이 세 �
   expectApiError(get(`?status=WITHDRAWN&${trackQuery('분석')}`), 400);
   expectApiError(get(`?${trackQuery('분석')}&term=0`), 400);
 });
+
+test('활동 상태를 미수료(NOT_COMPLETED)로 바꿀 수 있고, 기수별 명단에는 나오지 않는다', async () => {
+  const { call } = await setup();
+
+  const updated = call<ClubMember>('PATCH', '/api/v1/club-members/u_28_01', {
+    status: 'NOT_COMPLETED',
+  });
+
+  assert.equal(updated.status, 'NOT_COMPLETED');
+  for (const status of ['ACTIVE', 'ALUMNI']) {
+    const page = call<{ members: ClubMember[] }>(
+      'GET',
+      `/api/v1/club-members/by-term?status=${status}`,
+    );
+    assert.ok(!page.members.some((member) => member.id === 'u_28_01'));
+  }
+});

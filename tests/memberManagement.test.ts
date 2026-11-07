@@ -4,6 +4,7 @@ import test from 'node:test';
 import type { ClubMember } from '../src/entities/club-member/model/types';
 import {
   filterClubMembers,
+  isInSheet,
   NOT_OPERATOR,
   termScopeOfSheet,
 } from '../src/pages/member-management/model/memberManagement';
@@ -132,4 +133,11 @@ test('기수 페이지 읽기 조건: 활동·수료 목록은 status, 부문 �
   assert.deepEqual(termScopeOfSheet('engineering'), { track: '엔지니어링' });
   assert.equal(termScopeOfSheet('withdrawn'), null);
   assert.equal(termScopeOfSheet(null), null);
+});
+
+test('미수료는 탈퇴 명단에 함께 나오고, 부문 명단에는 나오지 않는다', () => {
+  const member = { ...MEMBERS[0], status: 'NOT_COMPLETED' } as const;
+
+  assert.ok(isInSheet(member, 'withdrawn'));
+  assert.ok(!isInSheet(member, 'analysis'));
 });

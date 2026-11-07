@@ -33,7 +33,7 @@ export function listClubMembers(db: Database): ClubMember[] {
     db,
     `${SELECT_CLUB_MEMBERS}
      ORDER BY CASE club_status WHEN 'ACTIVE' THEN 0 WHEN 'ALUMNI' THEN 1 ELSE 2 END,
-              CASE WHEN club_status = 'WITHDRAWN' THEN -term ELSE 0 END,
+              CASE WHEN club_status IN ('NOT_COMPLETED', 'WITHDRAWN') THEN -term ELSE 0 END,
               ${TRACK_ORDER},
               name, id`,
   );
