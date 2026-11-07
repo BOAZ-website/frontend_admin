@@ -179,7 +179,7 @@ function guardLockout(db: Database, actor: AdminRow, pending: ReadonlyMap<number
 function requireValidCombination(role: string, teamName: string) {
   if (!isValidCombination(BASE_SET_RULES, role, teamName)) {
     throw badRequest(
-      'INVALID_ROLE_TEAM',
+      'INVALID_ROLE_TEAM_COMBINATION',
       `${role} · ${teamName}은 정해진 역할·부서 조합이 아니라 권한이 없는 계정이 됩니다.`,
     );
   }
@@ -425,6 +425,13 @@ export const adminAccountRoutes: MockRoute[] = [
       if (hasAdminAccount(db, userId)) {
         throw conflict('DUPLICATE_ADMIN_USER', '이 회원은 이미 운영진 계정이 있습니다.');
       }
+      // 서비스운영팀장은 한 명뿐이고 이월은 DB에서 직접 바꾼다(백엔드 협의 2026-11-05).
+      if (role === 'MASTER') {
+        throw badRequest(
+          'MASTER_NOT_CREATABLE',
+          '서비스운영팀장(MASTER) 계정은 새로 만들 수 없습니다.',
+        );
+      }
       const { username, password } = readCredentials(db, data);
       requireValidCombination(role, teamName);
       const id = insertAdmin(db, {
@@ -526,7 +533,7 @@ export const adminAccountRoutes: MockRoute[] = [
   {
     method: 'GET',
     pattern: '/api/v1/admin/permissions',
-    summary: '권한 카탈로그: 권한 41개(묶음별), 기본 권한 세트 7개와 규칙, 운영진 팀 목록',
+    summary: '권한 카탈로그: 권한 43개(묶음별), 기본 권한 세트 7개와 규칙, 운영진 팀 목록',
     handler: ({ db }) => {
       actorOf(db);
       return catalogOf(db);
@@ -539,6 +546,13 @@ export const adminAccountRoutes: MockRoute[] = [
     handler: ({ db, params, body }) => {
       const actor = requireAny(db, 'ADMIN_PERMISSION_WRITE');
       const target = findTarget(db, params.accountId);
+      // 서비스운영팀장 권한을 빼면 권한을 고칠 사람이 없어질 수 있어 계정별 수정을 막는다(백엔드 협의 2026-11-05).
+      if (target.role === 'MASTER') {
+        throw badRequest(
+          'PERMISSION_CUSTOM_NOT_ALLOWED',
+          '서비스운영팀장(MASTER) 계정의 권한은 계정별로 바꿀 수 없습니다.',
+        );
+      }
       const desired = new Set(readPermissionKeys(readBody(body)));
       const checked = Object.fromEntries(PERMISSIONS.map((p) => [p.key, desired.has(p.key)]));
       const overrides = toOverrides(checked, baseSetKeyOf(target.role, target.team_name));

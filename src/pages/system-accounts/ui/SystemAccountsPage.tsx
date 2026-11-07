@@ -135,7 +135,8 @@ export function SystemAccountsPage() {
           holder={permissionHolder}
           account={permissionHolder.adminAccount}
           accounts={accounts}
-          canEdit={canManagePermissions}
+          // 서비스운영팀장 권한은 계정별로 고칠 수 없다(서버도 400). 창은 보기 전용으로 연다.
+          canEdit={canManagePermissions && permissionHolder.adminAccount?.role !== 'MASTER'}
           onSave={page.handleSavePermissions}
           onClose={() => view.setPermissionTargetKey(null)}
         />

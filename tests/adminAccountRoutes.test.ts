@@ -116,7 +116,7 @@ test('새 팀으로 발급한 계정은 기타 운영진 권한을 받고, 다�
         teamName: '대표진',
       }),
     400,
-    'INVALID_ROLE_TEAM',
+    'INVALID_ROLE_TEAM_COMBINATION',
   );
   // 다른 회원이라도 같은 아이디는 쓸 수 없다.
   expectApiError(
@@ -153,35 +153,28 @@ test('권한 저장은 기본 세트와 다른 항목만 예외로 남긴다', a
   assert.deepEqual(saved.overrides, { APPLICANT_CSV_READ: true, FINAL_DECISION_READ: false });
 });
 
-test('"타 계정 정보 수정" 권한은 본인에게서, 또 마지막 보유자에게서 회수할 수 없다', async () => {
-  const { call } = await setup();
+test('"타 계정 정보 수정" 권한은 본인에게서 회수할 수 없고, 다른 계정에서는 회수할 수 있다', async () => {
+  const { call, loginAs } = await setup();
   const permissionsOf = (accountId: number) =>
     call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === accountId)!
       .effectivePermissions;
   const save = (accountId: number, permissions: string[]) =>
     call<AdminAccount>('PUT', `/api/v1/admin/accounts/${accountId}/permissions`, { permissions });
+  const without = (accountId: number) =>
+    permissionsOf(accountId).filter((key) => key !== 'ADMIN_ACCOUNT_WRITE');
+  // 서비스운영팀장(1번)은 계정별 권한 수정 대상이 아니라 늘 이 권한을 가진다. 5번에게 권한 수정 권한까지 준다.
+  save(5, [...permissionsOf(5), 'ADMIN_ACCOUNT_WRITE', 'ADMIN_PERMISSION_WRITE']);
+  loginAs(5);
 
-  expectApiError(
-    () =>
-      save(
-        1,
-        permissionsOf(1).filter((key) => key !== 'ADMIN_ACCOUNT_WRITE'),
-      ),
-    409,
-    'CANNOT_REVOKE_OWN_ACCOUNT_WRITE',
-  );
-  expectApiError(() => call('DELETE', '/api/v1/admin/accounts/1'), 400, 'CANNOT_DELETE_SELF');
+  expectApiError(() => save(5, without(5)), 409, 'CANNOT_REVOKE_OWN_ACCOUNT_WRITE');
+  expectApiError(() => call('DELETE', '/api/v1/admin/accounts/5'), 403);
 
-  // 다른 계정에 먼저 주면 보유자가 둘이 되어, 그 계정의 권한은 다시 회수할 수 있다.
-  save(5, [...permissionsOf(5), 'ADMIN_ACCOUNT_WRITE']);
-  const revoked = save(
-    5,
-    permissionsOf(5).filter((key) => key !== 'ADMIN_ACCOUNT_WRITE'),
-  );
+  loginAs(1);
+  const revoked = save(5, without(5));
   assert.ok(!revoked.effectivePermissions.includes('ADMIN_ACCOUNT_WRITE'));
 });
 
-test('"권한 부여" 권한도 본인에게서, 또 마지막 보유자에게서 회수할 수 없다', async () => {
+test('"권한 부여" 권한도 본인에게서 회수할 수 없다', async () => {
   const { call, loginAs } = await setup();
   const permissionsOf = (accountId: number) =>
     call<AdminAccount[]>('GET', '/api/v1/admin/accounts').find((a) => a.id === accountId)!
@@ -190,13 +183,9 @@ test('"권한 부여" 권한도 본인에게서, 또 마지막 보유자에게�
     call<AdminAccount>('PUT', `/api/v1/admin/accounts/${accountId}/permissions`, { permissions });
   const withoutGrant = (accountId: number) =>
     permissionsOf(accountId).filter((key) => key !== 'ADMIN_PERMISSION_WRITE');
-
-  expectApiError(() => save(1, withoutGrant(1)), 409, 'CANNOT_REVOKE_OWN_PERMISSION_WRITE');
-
-  // 5번에게 주고 5번으로 1번의 권한을 빼면, 이번에는 5번이 마지막 보유자라 본인 것을 뺄 수 없다.
   save(5, [...permissionsOf(5), 'ADMIN_PERMISSION_WRITE']);
   loginAs(5);
-  save(1, withoutGrant(1));
+
   expectApiError(() => save(5, withoutGrant(5)), 409, 'CANNOT_REVOKE_OWN_PERMISSION_WRITE');
 });
 
@@ -518,7 +507,7 @@ test('팀 이름의 앞뒤 공백은 지우고, 공백만 있으면 400이다', 
   expectApiError(
     () => call('PATCH', '/api/v1/admin/accounts/7', { teamName: '대표진 ' }),
     400,
-    'INVALID_ROLE_TEAM',
+    'INVALID_ROLE_TEAM_COMBINATION',
   );
 });
 
@@ -833,5 +822,30 @@ test('없는 회원을 운영진으로 지정하면 404 USER_NOT_FOUND', async (
       }),
     404,
     'USER_NOT_FOUND',
+  );
+});
+
+test('서비스운영팀장(MASTER) 계정의 권한은 계정별로 고칠 수 없다(400 PERMISSION_CUSTOM_NOT_ALLOWED)', async () => {
+  const { call } = await setup();
+
+  expectApiError(
+    () => call('PUT', '/api/v1/admin/accounts/1/permissions', { permissions: [] }),
+    400,
+    'PERMISSION_CUSTOM_NOT_ALLOWED',
+  );
+});
+
+test('운영진 추가로 서비스운영팀장(MASTER) 계정은 만들 수 없다(400 MASTER_NOT_CREATABLE)', async () => {
+  const { call } = await setup();
+
+  expectApiError(
+    () =>
+      call('POST', '/api/v1/admin/accounts', {
+        ...NEW_ACCOUNT,
+        role: 'MASTER',
+        teamName: '서비스운영팀',
+      }),
+    400,
+    'MASTER_NOT_CREATABLE',
   );
 });
