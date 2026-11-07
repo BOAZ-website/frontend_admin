@@ -29,7 +29,9 @@ import {
 import type { ClubMemberForm } from '@/entities/club-member/model/dto';
 import {
   CLUB_MEMBER_TRACKS,
-  STATUS_LABELS,
+  CLUB_MEMBER_STATUS_LABELS,
+  isIdentityLockedStatus,
+  isLeftClubStatus,
   type ClubMember,
   type ClubMemberStatus,
   type ClubMemberTermPage,
@@ -99,7 +101,7 @@ const FIELD_SELECT =
 /** 활동 상태 글자색. 색으로 꾸미지 않고 회색 진하기로만 구분한다(활동기수가 더 진하다). */
 const STATUS_TEXT: Record<ClubMemberStatus, string> = {
   ACTIVE: 'text-slate-900 font-semibold',
-  ALUMNI: 'text-slate-500',
+  COMPLETED: 'text-slate-500',
   NOT_COMPLETED: 'text-slate-500',
   WITHDRAWN: 'text-slate-500',
 };
@@ -108,20 +110,18 @@ const labelOptions = <T extends string>(labels: Record<T, string>) =>
   (Object.entries(labels) as [T, string][]).map(([value, label]) => ({ value, label }));
 
 const TRACK_OPTIONS = CLUB_MEMBER_TRACKS.map((track) => ({ value: track, label: track }));
-const STATUS_OPTIONS = labelOptions(STATUS_LABELS);
+const STATUS_OPTIONS = labelOptions(CLUB_MEMBER_STATUS_LABELS);
 /**
  * 탈퇴를 뺀 활동 상태 선택지(활동기수·수료). 부문 명단의 필터(탈퇴한 사람은 탈퇴 명단에만 있다)와
  * 추가·수정 팝업(탈퇴는 탈퇴 처리 버튼으로만 한다)에 쓴다.
  */
 /** 추가 창의 활동 상태 선택지. 처음부터 탈퇴로 만들 수는 없다(서버도 400 CANNOT_CREATE_WITHDRAWN). */
 const CREATE_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
-const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter(
-  (option) => option.value !== 'WITHDRAWN' && option.value !== 'NOT_COMPLETED',
-);
+const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => !isLeftClubStatus(option.value));
 
 /** 왼쪽 "전체 동아리원" 묶음: 분석·시각화·엔지니어링을 모두 담은 활동기수·수료기수 목록. */
 const ALL_TRACK_SHEETS = MEMBER_SHEETS.filter(
-  (item) => item.id === 'active' || item.id === 'alumni',
+  (item) => item.id === 'active' || item.id === 'completed',
 );
 const TRACK_SHEETS = MEMBER_SHEETS.filter((item) => item.kind === 'track');
 /** 늘 있는 열 수(이름·기수·이메일·연락처·대학교·전공·관리). 부문·운영진·활동 상태 열은 명단에 따라 더한다. */
@@ -152,7 +152,7 @@ function focusIdOfHash(): string | null {
 /** 사람이 들어 있는 상태 명단(활동기수·수료기수·탈퇴). */
 const STATUS_SHEET: Readonly<Record<ClubMember['status'], MemberSheet>> = {
   ACTIVE: 'active',
-  ALUMNI: 'alumni',
+  COMPLETED: 'completed',
   NOT_COMPLETED: 'withdrawn',
   WITHDRAWN: 'withdrawn',
 };
@@ -283,7 +283,7 @@ export function MemberManagementPage() {
   };
 
   // 활동 중인 회원의 이름·기수·부문은 서버도 막는다(400 ACTIVE_MEMBER_IDENTITY_LOCKED). 고쳐야 하면 운영진에게 요청한다.
-  const isIdentityLocked = editingMember?.status === 'ACTIVE';
+  const isIdentityLocked = editingMember ? isIdentityLockedStatus(editingMember.status) : false;
   const canSave =
     !isSaving &&
     form !== null &&
@@ -307,7 +307,7 @@ export function MemberManagementPage() {
       major: '',
       term: (isPagedSheet ? currentPage?.term : null) ?? terms[0] ?? 1,
       track: sheetItem?.track ?? CLUB_MEMBER_TRACKS[0],
-      status: sheet === 'alumni' ? 'ALUMNI' : 'ACTIVE',
+      status: sheet === 'completed' ? 'COMPLETED' : 'ACTIVE',
       role: 'MEMBER',
     });
   };
@@ -705,7 +705,7 @@ export function MemberManagementPage() {
                       )}
                       {hasStatusColumn && (
                         <td className={`${TD_CLASS} ${STATUS_TEXT[member.status]}`}>
-                          {STATUS_LABELS[member.status]}
+                          {CLUB_MEMBER_STATUS_LABELS[member.status]}
                         </td>
                       )}
                       <td className={`${TD_CLASS} text-slate-600`}>{member.email || EMPTY_CELL}</td>

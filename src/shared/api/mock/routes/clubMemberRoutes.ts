@@ -29,6 +29,7 @@ import {
   type ClubMemberRole,
   type ClubMemberTermPage,
   type ClubMemberTermScope,
+  isIdentityLockedStatus,
 } from '@/entities/club-member/model/types';
 import {
   withdrawBlockMessageOf,
@@ -94,7 +95,7 @@ function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember
   // 고쳐야 하면 DB에서 직접 고친다.
   // shortcut: 활동 → 수료로 바꿔 저장한 뒤 고치고 다시 활동으로 되돌리면 막지 못한다(상태 이력이 없다),
   // 백엔드가 변경 이력을 남기면 이력 기준으로 막는다.
-  if (base.status === 'ACTIVE' || status === 'ACTIVE') {
+  if (isIdentityLockedStatus(base.status) || isIdentityLockedStatus(status)) {
     const changed = [
       text('name') !== undefined && text('name') !== base.name,
       optionalNumber(body, 'term') !== undefined && optionalNumber(body, 'term') !== base.term,

@@ -477,7 +477,7 @@ test('POST 기록의 requestBody는 보낸 값 그대로이고, 이름·연락�
     major: '통계학과',
     term: 20,
     track: '시각화',
-    status: 'ALUMNI',
+    status: 'COMPLETED',
   };
   call('POST', '/api/v1/club-members', body);
   const entry = latest();

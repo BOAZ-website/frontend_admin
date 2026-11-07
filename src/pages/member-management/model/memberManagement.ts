@@ -4,6 +4,7 @@ import {
   type ClubMemberStatus,
   type ClubMemberTermScope,
   type ClubMemberTrack,
+  isLeftClubStatus,
 } from '@/entities/club-member/model/types';
 
 /** 운영진 필터에서 운영진이 아닌 사람을 고르는 값. 그 밖의 값은 운영진 팀 이름이다. */
@@ -17,7 +18,7 @@ const TRACK_SHEET_IDS = {
 } as const satisfies Record<ClubMemberTrack, string>;
 
 export type MemberSheet =
-  'active' | 'alumni' | 'withdrawn' | (typeof TRACK_SHEET_IDS)[ClubMemberTrack];
+  'active' | 'completed' | 'withdrawn' | (typeof TRACK_SHEET_IDS)[ClubMemberTrack];
 
 /** 왼쪽 목록의 명단 한 개. 활동 상태로 나눈 명단(status)과 부문 명단(track)이 있다. */
 export type MemberSheetItem = { id: MemberSheet; label: string } & (
@@ -34,7 +35,7 @@ export type MemberSheetItem = { id: MemberSheet; label: string } & (
  */
 export const MEMBER_SHEETS: readonly MemberSheetItem[] = [
   { id: 'active', label: '활동기수 목록', kind: 'status', status: 'ACTIVE', track: null },
-  { id: 'alumni', label: '수료기수 목록', kind: 'status', status: 'ALUMNI', track: null },
+  { id: 'completed', label: '수료기수 목록', kind: 'status', status: 'COMPLETED', track: null },
   ...CLUB_MEMBER_TRACKS.map((track): MemberSheetItem => ({
     id: TRACK_SHEET_IDS[track],
     label: track,
@@ -58,14 +59,14 @@ export function termScopeOfSheet(sheet: MemberSheet | null): ClubMemberTermScope
   const item = MEMBER_SHEETS.find((candidate) => candidate.id === sheet);
   if (!item) return null;
   if (item.kind === 'track') return { track: item.track };
-  return item.status === 'ACTIVE' || item.status === 'ALUMNI' ? { status: item.status } : null;
+  return item.status === 'ACTIVE' || item.status === 'COMPLETED' ? { status: item.status } : null;
 }
 
 /** 명단에 들어가는 사람인지. */
 export function isInSheet(member: ClubMember, sheet: MemberSheet): boolean {
   const item = MEMBER_SHEETS.find((candidate) => candidate.id === sheet);
   if (!item) return true;
-  const isLeft = member.status === 'WITHDRAWN' || member.status === 'NOT_COMPLETED';
+  const isLeft = isLeftClubStatus(member.status);
   if (item.kind === 'status')
     return item.status === 'WITHDRAWN' ? isLeft : member.status === item.status;
   return member.track === item.track && !isLeft;

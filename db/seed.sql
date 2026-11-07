@@ -1641,7 +1641,7 @@ UPDATE users SET major = CASE id
   WHEN 'u_28_13' THEN '통계학과'
   ELSE major
 END;
-UPDATE users SET club_status = 'ALUMNI' WHERE term <= 25;
+UPDATE users SET club_status = 'COMPLETED' WHERE term <= 25;
 UPDATE users SET club_status = 'WITHDRAWN' WHERE id IN (
   'u_27_07', 'u_28_14',
   'u_26_24', 'u_26_25', 'u_26_26', 'u_26_27', 'u_26_28', 'u_26_29', 'u_26_30'

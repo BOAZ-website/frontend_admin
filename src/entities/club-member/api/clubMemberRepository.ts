@@ -2,7 +2,7 @@ import type { Database } from 'sql.js';
 
 import { execute, queryAll } from '@/shared/db/createDatabase';
 
-import type { ClubMember, ClubMemberTermScope } from '../model/types';
+import { type ClubMember, type ClubMemberTermScope, LEFT_CLUB_STATUSES } from '../model/types';
 
 /** 부문 순서(분석 → 시각화 → 엔지니어링)는 tracks.sort_order를 따른다. 표에 없는 부문은 맨 뒤다. */
 const TRACK_ORDER = 'COALESCE((SELECT t.sort_order FROM tracks t WHERE t.name = users.track), 999)';
@@ -13,6 +13,9 @@ const CURRENT_LEADER_TEAMS = `(SELECT group_concat(t.team_name, ', ') FROM teams
      AND t.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1))`;
 
 /** 운영진 팀은 운영진 명단(admin)에서 읽는다. 운영진 계정 관리와 같은 데이터다. */
+/** SQL에 넣는 미수료·탈퇴 상태 목록. 코드 값은 LEFT_CLUB_STATUSES 한 곳에서 온다. */
+const LEFT_STATUS_SQL = LEFT_CLUB_STATUSES.map((status) => `'${status}'`).join(', ');
+
 const SELECT_CLUB_MEMBERS = `
   SELECT id, name, email, phone, university, major, term, track,
          club_status AS status, club_role AS role,
@@ -33,8 +36,8 @@ export function listClubMembers(db: Database): ClubMember[] {
   return queryAll<ClubMember & Record<string, unknown>>(
     db,
     `${SELECT_CLUB_MEMBERS}
-     ORDER BY CASE club_status WHEN 'ACTIVE' THEN 0 WHEN 'ALUMNI' THEN 1 ELSE 2 END,
-              CASE WHEN club_status IN ('NOT_COMPLETED', 'WITHDRAWN') THEN -term ELSE 0 END,
+     ORDER BY CASE club_status WHEN 'ACTIVE' THEN 0 WHEN 'COMPLETED' THEN 1 ELSE 2 END,
+              CASE WHEN club_status IN (${LEFT_STATUS_SQL}) THEN -term ELSE 0 END,
               ${TRACK_ORDER},
               name, id`,
   );
@@ -42,12 +45,12 @@ export function listClubMembers(db: Database): ClubMember[] {
 
 /**
  * 기수 페이지 조건(status·track)을 WHERE 조각과 바인딩 값으로 만든다. 값은 모두 ?로 넘긴다.
- * status가 없으면 활동·수료(ACTIVE·ALUMNI)만 고른다(탈퇴는 기수 페이지에 넣지 않는다).
+ * status가 없으면 활동·수료(ACTIVE·COMPLETED)만 고른다(탈퇴는 기수 페이지에 넣지 않는다).
  */
 function termScopeFilter(scope: ClubMemberTermScope): { sql: string; params: string[] } {
   const statusFilter = scope.status
     ? { sql: 'club_status = ?', params: [scope.status] }
-    : { sql: "club_status IN ('ACTIVE', 'ALUMNI')", params: [] };
+    : { sql: "club_status IN ('ACTIVE', 'COMPLETED')", params: [] };
   if (!scope.track) return statusFilter;
   return {
     sql: `${statusFilter.sql} AND track = ?`,
@@ -80,7 +83,7 @@ export function listClubMembersByTerm(
     db,
     `${SELECT_CLUB_MEMBERS}
        AND ${filter.sql} AND term = ?
-     ORDER BY CASE club_status WHEN 'ACTIVE' THEN 0 WHEN 'ALUMNI' THEN 1 ELSE 2 END,
+     ORDER BY CASE club_status WHEN 'ACTIVE' THEN 0 WHEN 'COMPLETED' THEN 1 ELSE 2 END,
               ${TRACK_ORDER},
               name, id`,
     [...filter.params, term],
