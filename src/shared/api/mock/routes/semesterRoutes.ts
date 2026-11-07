@@ -1,8 +1,9 @@
 /**
- * 반기 관리 API(계약 초안: docs/spec/06-system.md §4.6): 새 반기 시작(고른 명단과 함께, 바로 진행 반기가 됨) → 명단 수정(PUT /:semester/members).
- * 반기는 따로 종료하지 않는다. 새 반기를 시작하면 이전 진행 반기가 종료된다(HOST 팀 떼기는 반기 수정과 같다). 반기는 미리 만들지 않는다.
+ * 반기 관리 API(계약 초안: docs/spec/06-system.md §4.6): 진행 예정 반기 만들기(고른 명단과 함께) → 명단·일정 수정 → 활성화.
+ * 반기는 따로 종료하지 않는다. 진행 예정 반기를 활성화하면 이전 진행 반기가 종료된다(HOST 팀 떼기는 반기 수정과 같다).
+ * 진행 예정 반기는 한 번에 하나이고, 반기 관리의 '새 반기 시작'으로만 만든다.
  * 권한(ATTENDANCE_ROSTER_READ·WRITE)은 권한 목록에 아직 없고 임시 API는 경로별 권한을 검사하지 않는다.
- * 종료 반기는 서비스운영팀장(MASTER)만 일정·명단을 고치고 지운다. 반기 삭제는 행을 지우지 않고 deleted_at만 채운다.
+ * 일정·명단 수정과 삭제는 진행 예정 반기만 한다(진행 중·종료 반기는 조회만). 반기 삭제는 행을 지우지 않고 deleted_at만 채운다.
  */
 import type { Database } from 'sql.js';
 
@@ -15,17 +16,16 @@ import type { SemesterDto } from '@/entities/cohort/model/dto';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 import { localDateTime } from '@/shared/lib/date';
 
-import { insertSemester, resolveSemester, semesterByCohort, semesterWeeks } from '../queries';
+import { insertSemester, resolveSemester, semesterByCohort } from '../queries';
 import { ApiError, type MockRoute } from '../router';
 import {
   checkSchedule,
-  assertArchivedEditable,
+  assertPreparing,
   assertUsersExist,
   makeSemesterCurrent,
   replaceSemesterMemberIds,
-  semesterRecordCounts,
 } from '../semesterOps';
-import { type Body, oneOf, optionalNumber, readBody, stringArray } from '../validate';
+import { type Body, optionalNumber, readBody, stringArray } from '../validate';
 
 const SEMESTER_PATTERN = /^\d{2}-[12]$/;
 
@@ -50,10 +50,10 @@ const reread = (db: Database, cohort: number): SemesterDto => {
 const notStatus = (code: string, message: string) => new ApiError(409, code, message);
 
 /**
- * 새 반기 시작 요청을 검증한다: 표기 형식, 기수, 표기·기수 중복, 일정.
+ * 진행 예정 반기 만들기 요청을 검증한다: 표기 형식, 기수, 진행 예정 반기 중복, 표기·기수 중복, 일정.
  * 지운 반기는 중복 검사에서 빠진다. 같은 기수의 지운 반기는 만들 때 비운다(cohort가 키라서).
  */
-function checkStart(db: Database, body: unknown) {
+function checkPrepare(db: Database, body: unknown) {
   const input = readBody(body);
   const label = input.semester;
   if (typeof label !== 'string' || !SEMESTER_PATTERN.test(label)) {
@@ -69,6 +69,15 @@ function checkStart(db: Database, body: unknown) {
       400,
       'INVALID_TERM',
       'BASE 기수는 지금까지 등록된 반기보다 큰 기수여야 합니다.',
+    );
+  }
+  if (
+    queryAll(db, 'SELECT cohort FROM cohorts WHERE is_preparing = 1 AND deleted_at IS NULL')
+      .length > 0
+  ) {
+    throw notStatus(
+      'SEMESTER_PREPARING_EXISTS',
+      '진행 예정 반기가 이미 있습니다. 활성화하거나 삭제한 뒤 만드세요.',
     );
   }
   const clash = queryAll<{ cohort: number }>(
@@ -117,38 +126,21 @@ function assertNotWithdrawn(db: Database, userIds: readonly string[]): void {
   }
 }
 
-/** 진행 반기에 진행 중인 주차가 있으면 종료할 수 없다(409). 반기 관리에서 주차를 마감한 뒤 새 반기를 시작한다. */
-function assertNoOpenWeek(db: Database): void {
-  const current = queryAll<{ cohort: number; semester_label: string }>(
-    db,
-    'SELECT cohort, semester_label FROM cohorts WHERE is_current = 1',
-  )[0];
-  if (!current) return;
-  const openWeeks = semesterWeeks(db, current.cohort).filter((week) => week.status === 'OPEN');
-  if (openWeeks.length > 0) {
-    throw notStatus(
-      'SEMESTER_WEEK_IN_PROGRESS',
-      `${current.semester_label}에 진행 중인 주차(${openWeeks.map((week) => week.label).join(', ')})가 있어 종료할 수 없습니다. 주차를 마감한 뒤 새 반기를 시작하세요.`,
-    );
-  }
-}
-
 export const semesterRoutes: MockRoute[] = [
   {
     method: 'POST',
-    pattern: '/api/v1/semesters/start',
+    pattern: '/api/v1/semesters/prepare',
     summary:
-      '새 반기 시작: 반기 + 일정·시작일·무효 주차 + 고른 명단(userIds)을 저장하고 바로 진행 반기로 만든다. 이전 진행 반기는 종료(지난 반기 팀을 HOST 계정에서 뗌). 실패하면 모두 취소. 명단은 자동으로 채우지 않는다. 없는 회원은 400 USER_NOT_FOUND, 탈동 회원은 400 USER_WITHDRAWN, 빈 명단은 409 ROSTER_EMPTY, 이전 반기에 진행 중인 주차가 있으면 409 SEMESTER_WEEK_IN_PROGRESS',
+      '진행 예정 반기 만들기: 반기 + 일정·시작일·무효 주차 + 고른 명단(userIds) 저장(실패하면 모두 취소). 진행 반기는 바꾸지 않는다. 명단은 자동으로 채우지 않는다. 없는 회원은 400 USER_NOT_FOUND, 탈동 회원은 400 USER_WITHDRAWN, 빈 명단은 409 ROSTER_EMPTY, 진행 예정 반기가 이미 있으면 409 SEMESTER_PREPARING_EXISTS',
     handler: ({ db, body }) => {
-      const { input, label, baseTerm, advTerm, schedule } = checkStart(db, body);
+      const { input, label, baseTerm, advTerm, schedule } = checkPrepare(db, body);
       const userIds = stringArray(input, 'userIds');
       assertUsersExist(db, userIds);
       assertNotWithdrawn(db, userIds);
       if (userIds.length === 0) {
-        throw notStatus('ROSTER_EMPTY', '명단에 사람을 더한 뒤 반기를 시작하세요.');
+        throw notStatus('ROSTER_EMPTY', '명단에 사람을 더한 뒤 적용하세요.');
       }
-      assertNoOpenWeek(db);
-      // 같은 기수의 지운 반기가 남아 있으면 비운다(가리키는 팀·점수 규칙이 없는 것은 checkStart가 확인했다).
+      // 같은 기수의 지운 반기가 남아 있으면 비운다(가리키는 팀·점수 규칙이 없는 것은 checkPrepare가 확인했다).
       execute(db, 'DELETE FROM cohorts WHERE cohort = ? AND deleted_at IS NOT NULL', [baseTerm]);
 
       insertSemester(db, {
@@ -157,7 +149,7 @@ export const semesterRoutes: MockRoute[] = [
         startDate: schedule.vacation.startDate,
         endDate: schedule.term.endDate,
         isCurrent: false,
-        status: 'ACTIVE',
+        status: 'PREPARING',
         advTerm,
         memberTerms: [advTerm, baseTerm],
         currentWeekNum: null,
@@ -166,8 +158,24 @@ export const semesterRoutes: MockRoute[] = [
       });
       updateSemesterSchedule(db, baseTerm, schedule);
       replaceSemesterMemberIds(db, baseTerm, userIds);
-      makeSemesterCurrent(db, baseTerm);
       return reread(db, baseTerm);
+    },
+  },
+  {
+    method: 'POST',
+    pattern: '/api/v1/semesters/:semester/activate',
+    summary:
+      '진행 예정 반기 활성화: 진행 반기로 만들고 이전 진행 반기는 종료(지난 반기 팀을 HOST 계정에서 뗌). 진행 예정 반기가 아니면 409 SEMESTER_NOT_PREPARING, 명단이 비었으면 409 ROSTER_EMPTY. 이전 반기에 진행 중인 주차가 남아 있어도 막지 않는다',
+    handler: ({ db, params }) => {
+      const semester = resolveSemester(db, params.semester);
+      if (semester.status !== 'PREPARING') {
+        throw notStatus('SEMESTER_NOT_PREPARING', '진행 예정 반기만 활성화할 수 있습니다.');
+      }
+      if (listSemesterRoster(db, semester.cohort, semester.advTerm).members.length === 0) {
+        throw notStatus('ROSTER_EMPTY', '명단에 사람을 더한 뒤 활성화하세요.');
+      }
+      makeSemesterCurrent(db, semester.cohort);
+      return reread(db, semester.cohort);
     },
   },
   {
@@ -184,22 +192,10 @@ export const semesterRoutes: MockRoute[] = [
     method: 'DELETE',
     pattern: '/api/v1/semesters/:semester',
     summary:
-      '종료 반기 삭제(soft delete: deleted_at만 채우고 팀·출결·행사 기록은 남긴다). 진행 반기는 409, 종료 반기는 서비스운영팀장만. 종료 반기에 기록이 있으면 force=true일 때만 지운다',
-    handler: ({ db, params, query }) => {
+      '진행 예정 반기 삭제(soft delete: deleted_at만 채운다). 진행 중·종료 반기는 409 SEMESTER_LOCKED',
+    handler: ({ db, params }) => {
       const semester = resolveSemester(db, params.semester);
-      if (semester.status === 'ACTIVE') {
-        throw notStatus('SEMESTER_ACTIVE', '진행 중인 반기는 삭제할 수 없습니다.');
-      }
-      assertArchivedEditable(db, semester, '종료된 반기는 서비스운영팀장만 삭제할 수 있습니다.');
-      const isForced =
-        oneOf(query.get('force') ?? undefined, ['true', 'false'], 'force') === 'true';
-      const records = semesterRecordCounts(db, semester.cohort);
-      if (semester.status === 'ENDED' && !isForced && Object.values(records).some((n) => n > 0)) {
-        throw notStatus(
-          'SEMESTER_HAS_RECORDS',
-          `${semester.semester}에 팀 ${records.teams}개, 출결 ${records.attendance}건, 행사 ${records.events}개 기록이 있습니다. 반기를 지워도 이 기록은 지워지지 않습니다.`,
-        );
-      }
+      assertPreparing(semester, '진행 중이거나 종료된 반기는 삭제할 수 없습니다.');
       execute(db, 'UPDATE cohorts SET deleted_at = ? WHERE cohort = ?', [
         localDateTime(),
         semester.cohort,
@@ -221,11 +217,7 @@ export const semesterRoutes: MockRoute[] = [
       '반기 일정 통째로 저장(기간·시작일·무효 주차). 출결 생성 창이 읽는 주차 날짜(cohort_week_dates)도 시작일로 다시 채운다',
     handler: ({ db, params, body }) => {
       const semester = resolveSemester(db, params.semester);
-      assertArchivedEditable(
-        db,
-        semester,
-        '종료된 반기의 일정은 서비스운영팀장만 고칠 수 있습니다.',
-      );
+      assertPreparing(semester, '진행 중이거나 종료된 반기의 일정은 고칠 수 없습니다.');
       const { cohort } = semester;
       updateSemesterSchedule(db, cohort, checkSchedule(body));
       return findSemesterSchedule(db, cohort);

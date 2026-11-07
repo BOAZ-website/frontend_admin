@@ -10,11 +10,8 @@ import { ACTIVITY_WEEK_COUNT } from '@/entities/cohort/model/schedule';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 import { isValidIsoDate } from '@/shared/lib/date';
 
-import { findAdminRow } from '@/entities/admin-account/api/adminAccountRepository';
-
 import { detachTeamsFromHosts, teamIdsOfSemester } from './hostCleanup';
 import { ApiError } from './router';
-import { currentSession } from './session';
 import { readBody } from './validate';
 
 /** 1주차 시작일·무효 주차를 따로 정하는 활동. */
@@ -44,20 +41,12 @@ export function makeSemesterCurrent(db: Database, cohort: number): void {
   }
 }
 
-/** 지금 로그인한 계정이 서비스운영팀장(MASTER)인가. 종료 반기 수정·삭제는 이 계정만 한다. HOST·로그인 전은 아니다. */
-export function isMasterSession(db: Database): boolean {
-  const session = currentSession(db);
-  return session?.kind === 'ADMIN' && findAdminRow(db, session.adminId)?.role === 'MASTER';
-}
-
 /**
- * 지난 반기(현재 반기보다 작은 기수의 종료 반기)를 고치거나 지우려면 서비스운영팀장이어야 한다. 아니면 409 SEMESTER_ARCHIVED.
- * message는 막을 때 보일 문구다. 예: '종료된 반기의 일정은 서비스운영팀장만 고칠 수 있습니다.'
+ * 일정·명단 수정과 삭제는 진행 예정 반기만 한다. 진행 중·종료 반기는 조회만 한다(409 SEMESTER_LOCKED).
+ * message는 막을 때 보일 문구다. 예: '진행 중이거나 종료된 반기의 일정은 고칠 수 없습니다.'
  */
-export function assertArchivedEditable(db: Database, semester: SemesterDto, message: string): void {
-  const current = currentCohort(db);
-  const isPast = semester.status === 'ENDED' && current !== null && semester.cohort < current;
-  if (isPast && !isMasterSession(db)) throw new ApiError(409, 'SEMESTER_ARCHIVED', message);
+export function assertPreparing(semester: SemesterDto, message: string): void {
+  if (semester.status !== 'PREPARING') throw new ApiError(409, 'SEMESTER_LOCKED', message);
 }
 
 /** 반기에 묶인 기록 건수. 출결은 입력하지 않은 칸(unmarked)을 빼고 센다. 반기를 지워도 이 기록은 남는다. */

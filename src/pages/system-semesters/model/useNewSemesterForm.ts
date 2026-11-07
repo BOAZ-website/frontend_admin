@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { StartSemesterRequest, RosterKind, SemesterDto } from '@/entities/cohort/model/dto';
+import type { PrepareSemesterRequest, RosterKind, SemesterDto } from '@/entities/cohort/model/dto';
 import { alertApiError } from '@/shared/lib/alertApiError';
 
 import { rosterTermsOf } from './roster';
@@ -69,8 +69,8 @@ export interface NewSemesterFormState {
   /** 입력을 검사하고, 오류가 없으면 명단 확인 창을 연다. */
   handleSave: () => void;
   handleCloseRoster: () => void;
-  /** 명단 확인 창에서 확인한 명단으로 반기를 시작한다. */
-  handleStart: (userIds: string[]) => void;
+  /** 명단 확인 창에서 확인한 명단으로 진행 예정 반기를 만든다(적용). */
+  handleApply: (userIds: string[]) => void;
 }
 
 interface UseNewSemesterFormOptions {
@@ -79,23 +79,21 @@ interface UseNewSemesterFormOptions {
   /** 입력이 바뀔 때마다 부른다. 목록의 "예정" 칸 이름과 임시 저장에 쓴다. */
   onDraftChange: (draft: SemesterDraft) => void;
   existingNames: readonly string[];
-  /** 지금 진행 중인 반기 이름. 시작하면 이 반기가 종료된다. 없으면 null. */
-  currentName: string | null;
-  start: (request: StartSemesterRequest) => Promise<SemesterDto>;
-  onStarted: (semester: string) => void;
+  prepare: (request: PrepareSemesterRequest) => Promise<SemesterDto>;
+  onApplied: (semester: string) => void;
 }
 
 /**
- * 새 반기 작성: 입력(바뀔 때마다 임시 저장) → 저장 → 명단 확인 창 → 확인하면 반기 시작.
- * 시작에 실패하면 입력과 명단 확인 창을 그대로 둔다(R10-4).
+ * 새 반기 작성: 입력(바뀔 때마다 임시 저장) → 적용 → 명단 확인 창 → 확인하면 진행 예정 반기가 된다.
+ * 진행 반기는 바뀌지 않고, 목록에서 그 반기를 열어 활성화해야 진행 반기가 된다.
+ * 적용에 실패하면 입력과 명단 확인 창을 그대로 둔다(R10-4).
  */
 export function useNewSemesterForm({
   initialDraft,
   onDraftChange,
   existingNames,
-  currentName,
-  start,
-  onStarted,
+  prepare,
+  onApplied,
 }: UseNewSemesterFormOptions): NewSemesterFormState {
   const [draftName, setDraftName] = useState(initialDraft.name);
   const [draftBaseTerm, setDraftBaseTerm] = useState(initialDraft.baseTerm);
@@ -123,15 +121,11 @@ export function useNewSemesterForm({
     ...scheduleFieldErrors(draftForm),
   };
 
-  const startWith = async (userIds: string[]) => {
+  const applyWith = async (userIds: string[]) => {
     if (isSaving) return;
-    const message = currentName
-      ? `${draftName}을 시작할까요?\n${currentName}이 종료되고 ${draftName}이 진행 반기가 됩니다. ${currentName}에 연결된 HOST 계정의 팀이 해제되고, 팀·출결 기록은 그대로 남습니다.`
-      : `${draftName}을 시작할까요?\n${draftName}이 진행 반기가 됩니다.`;
-    if (!window.confirm(message)) return;
     setIsSaving(true);
     try {
-      await start({
+      await prepare({
         semester: draftName,
         baseTerm: draftBaseTerm,
         advTerm: draftAdvTerm,
@@ -144,7 +138,7 @@ export function useNewSemesterForm({
     } finally {
       setIsSaving(false);
     }
-    onStarted(draftName);
+    onApplied(draftName);
   };
 
   const kindOf = (term: number): RosterKind =>
@@ -185,6 +179,6 @@ export function useNewSemesterForm({
       setIsRosterOpen(true);
     },
     handleCloseRoster: () => setIsRosterOpen(false),
-    handleStart: (userIds) => void startWith(userIds),
+    handleApply: (userIds) => void applyWith(userIds),
   };
 }

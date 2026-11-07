@@ -20,11 +20,11 @@ interface RosterConfirmDialogProps {
   kindOf: (term: number) => RosterKind;
   isSaving: boolean;
   onCancel: () => void;
-  /** 확인한 명단으로 반기를 시작한다. */
+  /** 확인한 명단으로 진행 예정 반기를 만든다(적용). */
   onConfirm: (userIds: string[]) => void;
 }
 
-/** 새 반기 명단 확인 창. 미리 넣은 BASE·ADV 명단을 보고, 빼거나 다른 사람을 찾아 더한 뒤 시작한다. */
+/** 새 반기 명단 확인 창. 미리 넣은 BASE·ADV 명단을 보고, 빼거나 다른 사람을 찾아 더한 뒤 적용한다. */
 export function RosterConfirmDialog({
   semesterName,
   terms,
@@ -36,7 +36,7 @@ export function RosterConfirmDialog({
   const roster = useRosterConfirm(terms, kindOf);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  // 시작 요청 중에는 닫지 않는다(명단을 잃고 다시 시작하는 일을 막는다).
+  // 적용 요청 중에는 닫지 않는다(고른 명단을 잃는 일을 막는다).
   const requestClose = () => {
     if (!isSaving) onCancel();
   };
@@ -113,7 +113,7 @@ export function RosterConfirmDialog({
             <span className="font-semibold tabular-nums text-slate-900">
               {roster.userIds.length}
             </span>
-            명으로 시작
+            명으로 적용
           </span>
           <button
             type="button"
@@ -129,7 +129,7 @@ export function RosterConfirmDialog({
             disabled={isSaving || roster.userIds.length === 0}
             onClick={() => onConfirm(roster.userIds)}
           >
-            {isSaving ? '시작하는 중' : '반기 시작'}
+            {isSaving ? '적용하는 중' : '적용'}
           </button>
         </div>
       </div>

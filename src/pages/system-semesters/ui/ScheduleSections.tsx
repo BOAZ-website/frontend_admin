@@ -53,7 +53,7 @@ export function ScheduleSections({
   return (
     <>
       <SectionBox title="기간">
-        <div className="space-y-4">
+        <div className="space-y-2">
           {(
             [
               ['vacation', '방학'],
@@ -96,7 +96,7 @@ export function ScheduleSections({
       </SectionBox>
 
       <SectionBox title="활동 기간">
-        <div className="space-y-4">
+        <div className="space-y-2">
           {ACTIVITIES.map(({ value, label }) => (
             <LabeledRow key={value} label={label} error={errors[value]} errorId={errorIdFor(value)}>
               <div

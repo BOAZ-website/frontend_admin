@@ -1,4 +1,4 @@
-import type { StartSemesterRequest, SemesterDto } from '@/entities/cohort/model/dto';
+import type { PrepareSemesterRequest, SemesterDto } from '@/entities/cohort/model/dto';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { FIELD_INPUT, MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 
@@ -19,23 +19,21 @@ interface NewSemesterPanelProps {
   /** 임시 저장에 실패했다(저장소가 꽉 찼거나 쓸 수 없음). 화면을 떠나면 입력이 사라진다. */
   isDraftUnsaved: boolean;
   existingNames: readonly string[];
-  /** 지금 진행 중인 반기 이름. 시작하면 이 반기가 종료된다. 없으면 null. */
-  currentName: string | null;
-  start: (request: StartSemesterRequest) => Promise<SemesterDto>;
-  onStarted: (semester: string) => void;
+  prepare: (request: PrepareSemesterRequest) => Promise<SemesterDto>;
+  onApplied: (semester: string) => void;
   onCancel: () => void;
 }
 
-/** 새 반기 작성(입력은 임시 저장). 저장을 누르면 명단 확인 창이 뜨고, 확인하면 바로 진행 반기가 된다. */
+/** 새 반기 작성(입력은 임시 저장). 적용을 누르면 명단 확인 창이 뜨고, 확인하면 진행 예정 반기가 된다(활성화는 따로). */
 export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSemesterPanelProps) {
   const form = useNewSemesterForm(options);
   const nameError = form.shownErrors.name;
   const nameErrorId = nameError ? errorIdOf(NAME_ID) : undefined;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <SectionBox title="기본">
-        <div className="space-y-4">
+        <div className="space-y-2">
           <LabeledRow label="반기 이름" error={nameError} errorId={nameErrorId}>
             <input
               id={NAME_ID}
@@ -55,7 +53,7 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
       </SectionBox>
 
       <SectionBox title="기수 지정">
-        <div className="space-y-4">
+        <div className="space-y-2">
           <LabeledRow label="BASE 기수">
             <SelectDropdown
               ariaLabel="BASE 기수"
@@ -101,7 +99,7 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
           disabled={form.isSaving}
           onClick={form.handleSave}
         >
-          저장
+          적용
         </button>
       </div>
 
@@ -112,7 +110,7 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
           kindOf={form.kindOf}
           isSaving={form.isSaving}
           onCancel={form.handleCloseRoster}
-          onConfirm={form.handleStart}
+          onConfirm={form.handleApply}
         />
       )}
     </div>

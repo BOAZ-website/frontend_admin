@@ -178,6 +178,8 @@ test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한
     advTerm: 27,
     memberTerms: [27, 28],
   });
+  // 명단은 진행 예정 반기만 고친다(진행 중·종료 반기는 409 SEMESTER_LOCKED). 이 경로로 만든 반기를 진행 예정으로 둔다.
+  db.run('UPDATE cohorts SET is_preparing = 1 WHERE cohort = 28');
   assert.deepEqual(router.dispatch(db, 'GET', '/api/v1/users?semester=27-1', undefined), []);
 
   const registered = router.dispatch(db, 'PUT', '/api/v1/semesters/27-1/members', {
@@ -222,6 +224,8 @@ test('팀에는 해당 반기 명단에 등록된 회원만 추가할 수 있다
     advTerm: 27,
     memberTerms: [27, 28],
   });
+  // 명단은 진행 예정 반기만 고친다(진행 중·종료 반기는 409 SEMESTER_LOCKED). 이 경로로 만든 반기를 진행 예정으로 둔다.
+  db.run('UPDATE cohorts SET is_preparing = 1 WHERE cohort = 28');
   router.dispatch(db, 'PUT', '/api/v1/semesters/27-1/members', {
     userIds: ['u_28_01'],
   });

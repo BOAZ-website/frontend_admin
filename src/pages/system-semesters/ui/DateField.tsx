@@ -1,11 +1,12 @@
 import { DatePickerField } from '@/shared/ui/DatePickerField';
-import { FIELD_READONLY } from '@/shared/ui/systemStyles';
+
+import { READONLY_VALUE } from './SectionBox';
 
 interface DateFieldProps {
   value: string;
   onChange: (value: string) => void;
   ariaLabel: string;
-  /** 종료 반기이거나 저장하는 중이면 값만 보여 준다. */
+  /** 진행 중·종료 반기이거나 저장하는 중이면 값만 보여 준다. */
   isReadOnly: boolean;
   /** 달력에서 고를 수 있는 범위('YYYY-MM-DD'). */
   min?: string;
@@ -14,7 +15,7 @@ interface DateFieldProps {
   errorId?: string;
 }
 
-/** 수정할 수 있으면 날짜 입력, 지난 반기면 값만 보여 준다. */
+/** 수정할 수 있으면 날짜 입력, 고칠 수 없는 반기면 값만 보여 준다. */
 export function DateField({
   value,
   onChange,
@@ -26,7 +27,7 @@ export function DateField({
 }: DateFieldProps) {
   if (isReadOnly) {
     return (
-      <span className={`${FIELD_READONLY} w-full tabular-nums`} aria-label={ariaLabel}>
+      <span className={`${READONLY_VALUE} w-full`} aria-label={ariaLabel}>
         {value || '-'}
       </span>
     );

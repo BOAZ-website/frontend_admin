@@ -8,7 +8,7 @@ import type { WeekStatus } from '@/entities/attendance/model/week';
 /** 반기에 등록된 출결 구분. BASE·ADV·STUDY는 그 반기의 팀, EVENT는 그 반기의 행사가 있으면 등록된 것이다. */
 export type SemesterAttendanceKind = 'BASE' | 'ADV' | 'STUDY' | 'EVENT';
 
-/** 반기 상태: 준비(저장만 함)·진행(현재 반기)·종료. */
+/** 반기 상태: 진행 예정(적용만 함, 활성화 전)·진행(현재 반기)·종료. */
 export type SemesterStatus = 'PREPARING' | 'ACTIVE' | 'ENDED';
 
 export interface SemesterDto {
@@ -18,7 +18,7 @@ export interface SemesterDto {
   startDate: string;
   endDate: string;
   isCurrent: boolean;
-  /** 준비(저장만 함)·진행(현재 반기)·종료. 진행이면 isCurrent가 true다. */
+  /** 진행 예정(적용만 함)·진행(현재 반기)·종료. 진행이면 isCurrent가 true다. */
   status: SemesterStatus;
   /** 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 기수). */
   advTerm: number | null;
@@ -66,12 +66,6 @@ export interface UpdateSemesterRequest {
 /** 해당 반기의 출결·점수 회원 명단을 통째로 교체한다. */
 export interface ReplaceSemesterMembersRequest {
   userIds: string[];
-}
-
-export interface UpdateSemesterWeekRequest {
-  status?: WeekStatus;
-  /** YYYY-MM-DD. null이면 날짜 삭제. */
-  date?: string | null;
 }
 
 // ───────────────────────────── 반기 관리(새 반기 시작·일정) ─────────────────────────────
@@ -138,10 +132,10 @@ export interface SemesterRosterDto {
 }
 
 /**
- * 새 반기 시작: 반기·일정·무효 주차와 고른 명단을 저장하고 바로 진행 반기로 만든다(이전 진행 반기는 종료).
- * 명단은 자동으로 채우지 않는다. 반기 번호(cohort)는 BASE 기수와 같다.
+ * 진행 예정 반기 만들기: 반기·일정·무효 주차와 고른 명단을 저장한다. 명단은 자동으로 채우지 않는다.
+ * 반기 번호(cohort)는 BASE 기수와 같다. 활성화(POST /:semester/activate)해야 진행 반기가 된다.
  */
-export interface StartSemesterRequest {
+export interface PrepareSemesterRequest {
   /** 'YY-1' 또는 'YY-2'. */
   semester: string;
   baseTerm: number;

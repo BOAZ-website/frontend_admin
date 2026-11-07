@@ -473,8 +473,15 @@ export const AUDIT_RULES: readonly AuditRule[] = [
   },
   {
     method: 'POST',
-    pattern: '/api/v1/semesters/start',
+    pattern: '/api/v1/semesters/prepare',
     action: 'SEMESTER_CREATE',
+    targetType: 'SEMESTER',
+    targets: semesterOf,
+  },
+  {
+    method: 'POST',
+    pattern: '/api/v1/semesters/:semester/activate',
+    action: 'SEMESTER_ACTIVATE',
     targetType: 'SEMESTER',
     targets: semesterOf,
   },

@@ -5,22 +5,23 @@
 import { api, withQuery } from '@/shared/api/client';
 
 import type {
-  StartSemesterRequest,
+  PrepareSemesterRequest,
   ReplaceSemesterMembersRequest,
   SaveSemesterScheduleRequest,
   SemesterDto,
   SemesterRosterDto,
   SemesterScheduleDto,
   SemesterWeekDto,
-  UpdateSemesterWeekRequest,
 } from '../model/dto';
 import type { UserProfile } from '@/entities/user/model/types';
 
 const semesterPath = (semester: string) => `/api/v1/semesters/${encodeURIComponent(semester)}`;
 
-/** 진행·종료 반기(큰 기수부터). 반기 관리와 출결 화면의 반기 선택이 같은 목록을 쓴다. */
-export function fetchSemesters(): Promise<SemesterDto[]> {
-  return api.get('/api/v1/semesters');
+/** 진행·종료 반기(큰 기수부터). shouldIncludePreparing이면 진행 예정 반기도 함께 받는다(반기 관리 화면). */
+export function fetchSemesters(shouldIncludePreparing: boolean = false): Promise<SemesterDto[]> {
+  return api.get(
+    withQuery('/api/v1/semesters', { includePreparing: shouldIncludePreparing || undefined }),
+  );
 }
 
 /** 전역 사용자 중 이 반기의 출결·점수 시스템에서 사용할 회원 명단을 등록한다. */
@@ -36,18 +37,14 @@ export function fetchSemesterWeeks(semester: string): Promise<SemesterWeekDto[]>
   return api.get(`${semesterPath(semester)}/weeks`);
 }
 
-/** 한 주차의 진행 상태(열기·마감)나 날짜를 바꾼다. */
-export function updateSemesterWeek(
-  semester: string,
-  weekNum: number,
-  request: UpdateSemesterWeekRequest,
-): Promise<SemesterWeekDto> {
-  return api.patch(`${semesterPath(semester)}/weeks/${weekNum}`, request);
+/** 진행 예정 반기 만들기: 반기·일정·무효 주차와 고른 명단을 저장한다. 진행 반기는 바뀌지 않는다. */
+export function prepareSemester(request: PrepareSemesterRequest): Promise<SemesterDto> {
+  return api.post('/api/v1/semesters/prepare', request);
 }
 
-/** 준비 반기 만들기: 반기·일정·무효 주차를 저장하고 BASE·ADV 기수로 명단을 자동으로 만든다. */
-export function startSemester(request: StartSemesterRequest): Promise<SemesterDto> {
-  return api.post('/api/v1/semesters/start', request);
+/** 진행 예정 반기를 진행 반기로 만든다. 이전 진행 반기는 종료된다. */
+export function activateSemester(semester: string): Promise<SemesterDto> {
+  return api.post(`${semesterPath(semester)}/activate`, {});
 }
 
 /** 반기에 저장된 명단과 기수·구분별 인원. */
@@ -55,12 +52,9 @@ export function fetchSemesterRoster(semester: string): Promise<SemesterRosterDto
   return api.get(`${semesterPath(semester)}/roster`);
 }
 
-/**
- * 준비·종료 반기를 지운다(목록에서만 빠지고 팀·출결·행사 기록은 남는다). 종료 반기는 서비스운영팀장만.
- * 종료 반기에 기록이 있으면 409 SEMESTER_HAS_RECORDS이고, isForced로 다시 보내면 지운다.
- */
-export function deleteSemester(semester: string, isForced: boolean = false): Promise<SemesterDto> {
-  return api.delete(withQuery(semesterPath(semester), { force: isForced || undefined }));
+/** 진행 예정 반기를 지운다(soft delete). 진행 중·종료 반기는 409 SEMESTER_LOCKED. */
+export function deleteSemester(semester: string): Promise<SemesterDto> {
+  return api.delete(semesterPath(semester));
 }
 
 /** 반기 일정: 방학·학기 기간, 활동별 1주차 시작일과 주차 날짜, 무효 주차. */

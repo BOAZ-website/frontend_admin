@@ -5,11 +5,14 @@ interface SectionBoxProps {
   children: ReactNode;
 }
 
-/** 반기 관리 패널의 구역 카드. */
+/**
+ * 반기 관리 패널의 구역. 패널 안에 카드를 겹치지 않고 위쪽 구분선으로 나눈다.
+ * 패널의 첫 구역은 패널 제목 아래 선과 겹치지 않게 선을 뺀다.
+ */
 export function SectionBox({ title, children }: SectionBoxProps) {
   return (
-    <section className="rounded-md border border-slate-200 bg-white p-4">
-      <h4 className="mb-4 text-sm font-bold text-slate-900">{title}</h4>
+    <section className="border-t border-slate-200 pt-6 first:border-t-0 first:pt-0">
+      <h4 className="mb-4 text-base font-semibold text-slate-900">{title}</h4>
       {children}
     </section>
   );
@@ -24,12 +27,15 @@ interface LabeledRowProps {
   errorId?: string;
 }
 
+/** 고칠 수 없는 값(진행 중·종료 반기). 입력칸과 같은 높이의 글자로만 보여 준다. */
+export const READONLY_VALUE = 'flex h-10 items-center text-sm tabular-nums text-slate-900';
+
 /** 라벨 열(96px) + 값 한 줄. 오류가 있으면 값 칸 아래(라벨 열 + 간격만큼 들여서)에 붙인다. */
 export function LabeledRow({ label, children, error, errorId }: LabeledRowProps) {
   return (
     <div>
-      <div className="flex items-center gap-4">
-        <span className="w-24 shrink-0 text-xs font-semibold text-slate-500">{label}</span>
+      <div className="flex min-h-10 items-center gap-4">
+        <span className="w-24 shrink-0 text-sm font-medium text-slate-600">{label}</span>
         <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
       </div>
       {error && (

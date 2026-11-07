@@ -68,7 +68,7 @@ export const AUDIT_ACTIONS = {
   SCORE_RULE_UPDATE: { label: '점수 규칙 수정', category: 'ATTENDANCE' },
   SCORE_RULE_ACTIVATE: { label: '점수 규칙 적용', category: 'ATTENDANCE' },
   SCORE_RULE_DELETE: { label: '점수 규칙 삭제', category: 'ATTENDANCE' },
-  SEMESTER_CREATE: { label: '새 반기 준비', category: 'ATTENDANCE' },
+  SEMESTER_CREATE: { label: '새 반기 적용', category: 'ATTENDANCE' },
   SEMESTER_ACTIVATE: { label: '반기 활성화', category: 'ATTENDANCE' },
   SEMESTER_DELETE: { label: '준비 반기 삭제', category: 'ATTENDANCE' },
   SEMESTER_UPDATE: { label: '반기 수정', category: 'ATTENDANCE' },

@@ -27,11 +27,7 @@ import {
   weekIdOf,
 } from '../queries';
 import { ApiError, type MockRoute } from '../router';
-import {
-  assertArchivedEditable,
-  makeSemesterCurrent,
-  replaceSemesterMemberIds,
-} from '../semesterOps';
+import { assertPreparing, makeSemesterCurrent, replaceSemesterMemberIds } from '../semesterOps';
 import {
   type Body,
   oneOf,
@@ -204,12 +200,7 @@ export const commonRoutes: MockRoute[] = [
     handler: ({ db, params, body }) => {
       const semester = resolveSemester(db, params.semester);
       const { cohort } = semester;
-      // 종료(지난) 반기 명단은 서비스운영팀장만 고친다.
-      assertArchivedEditable(
-        db,
-        semester,
-        '종료된 반기의 명단은 서비스운영팀장만 고칠 수 있습니다.',
-      );
+      assertPreparing(semester, '진행 중이거나 종료된 반기의 명단은 고칠 수 없습니다.');
       const userIds = stringArray(readBody(body), 'userIds', { required: true });
       replaceSemesterMemberIds(db, cohort, userIds);
       return listSemesterUsers(db, cohort);
