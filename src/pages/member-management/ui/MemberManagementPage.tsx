@@ -91,7 +91,7 @@ const HEADER_ICON_BTN =
 // ─── 출결 화면(행사 출결·그룹 계정 관리)과 같은 입력칸·표·팝업 스타일 ───
 /** 도구 줄의 검색칸. */
 const TOOLBAR_FIELD =
-  'h-9 rounded-sm border border-slate-200 bg-white text-xs font-medium text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
+  'h-9 rounded-sm border border-slate-200 bg-white text-xs font-normal text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
 /** 팝업 안 드롭다운 버튼. 옆 입력칸(FIELD_INPUT)과 글자 크기·정렬·안쪽 여백을 맞추고 그림자를 뺀다. */
 const FIELD_SELECT =
   'h-10 w-full text-left pl-3! text-sm! font-normal! text-slate-900! shadow-none!';
@@ -622,7 +622,7 @@ export function MemberManagementPage() {
                   }
                   placeholder="검색"
                   aria-label="이름, 이메일, 연락처 검색"
-                  className={`w-44 pl-8 pr-3 font-medium placeholder:font-normal placeholder:text-slate-400 ${TOOLBAR_FIELD}`}
+                  className={`w-44 pl-8 pr-3 placeholder:font-normal placeholder:text-slate-400 ${TOOLBAR_FIELD}`}
                 />
               </div>
             </div>
@@ -840,10 +840,12 @@ export function MemberManagementPage() {
                 />
               </div>
               <div>
-                <span className={FIELD_LABEL}>부문</span>
+                <span id="member-track-label" className={FIELD_LABEL}>
+                  부문
+                </span>
                 {isIdentityLocked ? (
                   <span
-                    aria-label="부문"
+                    aria-labelledby="member-track-label"
                     className="flex h-10 items-center rounded-sm border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500"
                   >
                     {form.track}
