@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from 'react';
 import { KeyRound, ShieldCheck, Trash2 } from 'lucide-react';
 
-import { NEXT_PRESIDENT_TEAM, TEAMS_WITHOUT_LEAD } from '@/entities/admin-account/model/teams';
+import { TEAMS_WITHOUT_LEAD } from '@/entities/admin-account/model/teams';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { ICON_BTN, ID_CHIP, TABLE_BOX, TD_CLASS, TH_CLASS } from '@/shared/ui/systemStyles';
@@ -48,7 +48,7 @@ function IconAction({ label, blockReason, onClick, children, isDanger, align }: 
 }
 
 interface OperatorRosterTableProps {
-  /** 팀 순서대로 묶은 운영진. 팀 안의 순서도 부르는 쪽이 정한다(대표진 묶음은 대표진 → 차기대표진). */
+  /** 팀 순서대로 묶은 운영진. 팀 안의 순서도 부르는 쪽이 정한다. */
   teamGroups: readonly { teamName: string; members: readonly AdminAccount[] }[];
   actions: AccountActions;
   /** 이름이나 권한 버튼을 누르면 그 사람의 권한 창을 연다. */
@@ -69,14 +69,12 @@ const COLUMNS: readonly { label: string; width: string; isKey?: boolean }[] = [
 ];
 
 /**
- * 구분 칸의 글자. 팀장을 두지 않는 팀(대표진 묶음)은 대표진·차기대표진, 다른 팀은 팀장·팀원이다.
- * 대표진·팀장은 진하게, 차기대표진·팀원은 옅게 쓴다(배지 없이 글자만).
+ * 구분 칸의 글자. 팀장을 두지 않는 팀(대표진·차기대표진)은 그 팀 이름, 다른 팀은 팀장·팀원이다.
+ * 팀 이름·팀장은 진하게, 팀원은 옅게 쓴다(배지 없이 글자만).
  */
 function seatOf(account: AdminAccount, hasLead: boolean): { label: string; isPrimary: boolean } {
-  if (!hasLead) {
-    const isNextPresident = account.teamName === NEXT_PRESIDENT_TEAM;
-    return { label: account.teamName, isPrimary: !isNextPresident };
-  }
+  // 팀장을 두지 않는 팀(대표진·차기대표진)은 팀 이름을 그대로 쓴다.
+  if (!hasLead) return { label: account.teamName, isPrimary: true };
   return account.isTeamLead
     ? { label: '팀장', isPrimary: true }
     : { label: '팀원', isPrimary: false };
@@ -93,7 +91,7 @@ const DIVIDER_RIGHT = 'border-r border-r-slate-200';
 
 /**
  * 운영진 계정: 모든 팀의 운영진을 한 표로 본다. 왼쪽 팀 칸이 소속 인원 수만큼 세로로 이어지고,
- * 팀 사이는 진한 선으로 나눈다. 구분 칸은 대표진 묶음이면 대표진·차기대표진, 다른 팀이면 팀장·팀원이다.
+ * 팀 사이는 진한 선으로 나눈다. 구분 칸은 대표진·차기대표진이면 팀 이름, 다른 팀이면 팀장·팀원이다.
  * 이름이나 권한 버튼을 누르면 그 사람의 권한 창이 열리고, 관리 칸에서 비밀번호 재설정·계정 삭제를 한다.
  */
 export function OperatorRosterTable({
