@@ -8,7 +8,7 @@
 | 상태 | **v1.4** — §3.4 기능별 권한 매트릭스로 대표진·차기대표진(SUPER) 기본 세트 확정(SYS-A-5 해결). v1.3에서 SYS-ACC와 SYS-PERM을 사이드바 `권한 관리` 한 화면으로 합치고, 권한 편집을 작은 창(팝업)으로 바꾼 구성 반영(2026-10-22 결정, SYS-B-1 수정). v1.2에서 4.2 진입 방식·편집 방식과 역할별 기본 권한 조회 반영. v1.1에서 권한 재설계 문서 기준으로 4.2 · 3장 · 6장 정리. 화면 레이아웃은 PoC |
 | 미결 항목 | 매트릭스 행 확인 1건(`SYS-A-6` 콘텐츠 조회·본인 계정 조회 행) · 백엔드 협의 2건(`SYS-A-2` 감사 로그, `SYS-A-7` 기본 세트 조회 API) · 기획·디자인 정리 3건 (6장) |
 
-> **이 문서는 당위 문서이며, 권한 체계의 정본이다.** [`spec/02-role-model.md`](02-role-model.md) §2의 Permission 10종을 **41개 카탈로그로 대체한다.** 역할 4종(`MASTER` · `SUPER` · `TEAM` · `HOST`) 정의는 그대로 유효하며, `TeamName`에 `그룹리더`가 추가된다.
+> **이 문서는 당위 문서이며, 권한 체계의 정본이다.** [`spec/02-role-model.md`](02-role-model.md) §2의 Permission 10종을 **43개 카탈로그로 대체한다.** 역할 4종(`MASTER` · `SUPER` · `TEAM` · `HOST`) 정의는 그대로 유효하며, `TeamName`에 `그룹리더`가 추가된다.
 > 현재 화면에 무엇이 구현되어 있는지는 [`screens/05-system.md`](../screens/05-system.md), 개발 순서와 규모는 [`01-wbs.md`](../01-wbs.md)의 Epic 4를 본다.
 > 본 문서의 화면 ID(`SYS-*`)와 기능 ID(`ACC-01` 등)는 WBS의 티켓 키·하위 항목과 1:1로 대응한다.
 
@@ -73,7 +73,7 @@
 - `HOST` 계정 발급은 **출결 관리 탭 소관**이다. 이 탭은 운영진 계정만 다룬다.
     - 화면 정의서가 가리키던 `SET-HOST`는 출결 v2.0에서 **`ATT-GROUP` 스터디·팀 관리에 흡수**됐다 → [`spec/05-attendance.md`](05-attendance.md) §4.10
 
-### 3.3 Permission 카탈로그 (41개)
+### 3.3 Permission 카탈로그 (43개)
 
 | 묶음 | permission |
 | --- | --- |
@@ -83,11 +83,11 @@
 | 평가·합불 | `EVALUATION_OWN_TRACK_WRITE` `EVALUATION_ALL_TRACK_WRITE` `FINAL_DECISION_READ/WRITE` |
 | 출결 관리 | `ATTENDANCE_{BASE,ADV,STUDY,EVENT,SCORE}_{READ,WRITE}` |
 | 출결 입력탭 | `ATTENDANCE_{ADV,STUDY}_ENTRY_{READ,WRITE}` · `ATTENDANCE_{ADV,STUDY}_ENTRY_OWN_GROUP_{READ,WRITE}` |
-| 기타 | `HOST_ACCOUNT_READ/WRITE` `SCORE_RULE_READ/WRITE` |
+| 기타 | `HOST_ACCOUNT_READ/WRITE` `SCORE_RULE_READ/WRITE` `ATTENDANCE_ROSTER_READ/WRITE` |
 
 - 이름 규칙 `<대상>_<동작>`, 동작은 `READ` / `WRITE` 둘뿐.
 - `_OWN_GROUP_` 4개는 기본 세트에 없고 **담당 그룹에서 계산**된다. 계정별 권한 화면에서 체크로 켜고 끌 수 없다.
-- PoC 화면의 `ACCOUNT_MANAGE` · `CONTENT_MANAGE` 등 10개 묶음 이름은 **폐기**. 실제 키는 위 41개다.
+- PoC 화면의 `ACCOUNT_MANAGE` · `CONTENT_MANAGE` 등 10개 묶음 이름은 **폐기**. 실제 키는 위 43개다. `ATTENDANCE_ROSTER_READ/WRITE`(반기 조회·CUD)는 2026-11-05 권한 매트릭스 최신화로 더했다.
 
 ### 3.4 기능별 권한 매트릭스
 
@@ -134,13 +134,15 @@
 | HOST 계정 발급 조회 | O | O | O | X | O | X | X | X |
 | 점수 규칙 CUD | O | O | O | X | O | X | X | X |
 | 점수 규칙 조회 (R) | O | O | O | X | O | X | X | X |
+| 반기 CUD `ATTENDANCE_ROSTER_WRITE` | O | O | O | O | O | X | X | X |
+| 반기 조회 (R) `ATTENDANCE_ROSTER_READ` | O | O | O | O | O | X | X | X |
 | 본인 부문 서류 평가 CRUD | X | O | O | O | O | O | X | X |
 | 다른 부문 서류 평가 CRUD | X | X | O | X | X | X | X | X |
 | 최종 합불 CUD | X | O | O | X | X | X | X | X |
 | 최종 합불 조회 (R) | X | O | O | O | O | O | X | X |
 
 - 스터디장·ADV 팀장 열의 출결 입력 권한은 기본 세트가 아니라 담당 그룹에서 계산되는 리더십 파생 권한이다(§3.1).
-- 코드는 이 표를 §3.3의 permission 41개 단위로 옮긴다. 열은 §3.2의 기본 세트 키 7개이며, 스터디장·ADV 팀장 열은 그룹리더 하나로 합치고 출결 입력 칸은 담당 그룹에서 계산한다. 백엔드는 `DefaultPermissions.java`, 프로토타입은 `src/entities/admin-account/model/permissions.ts`가 이 표를 담는다.
+- 코드는 이 표를 §3.3의 permission 43개 단위로 옮긴다. 열은 §3.2의 기본 세트 키 7개이며, 스터디장·ADV 팀장 열은 그룹리더 하나로 합치고 출결 입력 칸은 담당 그룹에서 계산한다. 백엔드는 `DefaultPermissions.java`, 프로토타입은 `src/entities/admin-account/model/permissions.ts`가 이 표를 담는다.
 - 기타 운영진 열은 이름으로 정한 자리가 없는 TEAM 팀 전부에 적용된다(현재 기획팀·대외협력팀·디자인팀·자료연구팀). 운영진 팀이 새로 생겨도 이 표와 코드를 고치지 않으며, 그 팀의 권한이 기타 운영진과 달라야 할 때만 기본 세트 키를 추가한다.
 - **권한 재설계 문서와 행 구성이 한 군데 다르다(`SYS-A-6`).** 재설계 문서의 43행에는 `콘텐츠 조회` 행이 있고(`CONTENT_READ`) `본인 계정 정보 조회` 행은 없다("내 정보 보기"는 permission 없이 `/me`). 이 표는 반대다. 확인 전까지 프로토타입은 `CONTENT_READ`를 `CONTENT_WRITE`와 같은 값으로 두고, `/me`는 로그인한 계정 모두에게 연다.
 
@@ -209,12 +211,12 @@
 
 | ID | 기능 | 설명 |
 | --- | --- | --- |
-| PERM-01 | 권한 목록 렌더 | `Permission.values()` API로 41개를 두 목록으로 렌더: 왼쪽은 그 계정이 가진 권한, 오른쪽은 추가할 수 있는 권한. 버튼으로 두 목록 사이를 옮긴다. **프론트 하드코딩 없음.** 3.3절 7묶음으로 그룹핑 |
+| PERM-01 | 권한 목록 렌더 | `Permission.values()` API로 43개를 두 목록으로 렌더: 왼쪽은 그 계정이 가진 권한, 오른쪽은 추가할 수 있는 권한. 버튼으로 두 목록 사이를 옮긴다. **프론트 하드코딩 없음.** 3.3절 7묶음으로 그룹핑 |
 | PERM-02 | 기본 세트 표시 | 해당 계정 `(role, teamName)` 기본 세트가 왼쪽 목록의 시작값. 오버라이드로 바뀐 항목만 **표시** — 기본에 없는데 더한 권한은 왼쪽에 `추가`, 기본인데 뺀 권한은 오른쪽에 `기본에서 제외`. 표시된 것이 곧 커스텀 내역 |
 | PERM-03 | 리더십 파생 표시 | `_OWN_GROUP_` 4개는 담당 그룹에서 계산되므로 **읽기 전용**, 체크 불가. 담당 그룹 목록 함께 표시 |
 | PERM-04 | 저장 | 체크된 **최종 집합**을 PUT. GRANT/REVOKE 계산은 서버. 저장 시 해당 계정 오버라이드 전삭제 후 재삽입 |
 | PERM-05 | 오류 처리 | 자기 자신의 `ADMIN_ACCOUNT_WRITE`·`ADMIN_PERMISSION_WRITE` 회수 거부 · 마지막 보유자 회수 거부 → 사유 표시 |
-| PERM-06 | 역할별 기본 권한 조회 | 권한 41개 × 기본 세트 7개 표. 기본 세트에 포함된 칸만 표시하고, 리더십 파생 권한은 그룹리더 열에 `자동`으로 표시. **조회 전용**, 계정별 예외는 보여 주지 않음 |
+| PERM-06 | 역할별 기본 권한 조회 | 권한 43개 × 기본 세트 7개 표. 기본 세트에 포함된 칸만 표시하고, 리더십 파생 권한은 그룹리더 열에 `자동`으로 표시. **조회 전용**, 계정별 예외는 보여 주지 않음 |
 
 **접근**: `ADMIN_PERMISSION_WRITE` 보유자 (기본 세트에서는 `(MASTER, 서비스운영팀)`)
 
@@ -278,7 +280,7 @@
 | API | 내용 | 사용 화면 |
 | --- | --- | --- |
 | `GET /admin/accounts/me` | 유효 permission 목록 포함 → 프론트 게이팅 근거 | 전 화면 |
-| `Permission.values()` 엔드포인트 | 41개 전체 목록 | SYS-PERM |
+| `Permission.values()` 엔드포인트 | 43개 전체 목록 | SYS-PERM |
 | 권한 커스텀 API | 최종 집합 PUT, 서버 diff | SYS-PERM |
 | 기본 세트 조회 **(협의 필요, `SYS-A-7`)** | 기본 세트 7개의 권한 목록 (`DefaultPermissions` 기준). 백엔드와 합의하기 전까지 확정된 API가 아니다 | SYS-PERM (PERM-06) |
 | `AdminAccountResponse` · `AdminMeResponse` 확장 | 리더십 행 기준 소속 표시 | SYS-ACC |
