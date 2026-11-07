@@ -1,4 +1,5 @@
 import type { AccountHolder } from '@/entities/admin-account/model/types';
+import { TABLE_BOX, TD_CLASS, TH_CLASS } from '@/shared/ui/systemStyles';
 
 /** 값이 없을 때 표시. */
 const EMPTY = '-';
@@ -13,10 +14,8 @@ const COLUMNS: readonly { label: string; width: string }[] = [
 ];
 
 /*
- * 출결 스터디 표·운영진 계정 표와 같은 모양이다: 위쪽 회색 머리 칸, 머리 칸·줄 모두 44px(아래 운영 권한 표와 같은 높이), 옅은 세로 구분선, 가운데 정렬.
+ * 출결 스터디 표·운영진 계정 표와 같은 모양이다: 위쪽 회색 머리 칸, 머리 칸·줄 모두 44px(아래 운영 권한 표와 같은 높이), 세로 구분선, 가운데 정렬.
  */
-const TH = 'px-2 py-1 text-center font-bold bg-slate-100/90 text-slate-700';
-const CELL = 'px-3 py-2 text-center text-xs';
 
 /**
  * 고른 사람의 인적 사항 표: 기수, 부문, 소속 운영진(팀), ADV 권한(팀장인 ADV 팀), 스터디 권한(스터디장인 스터디).
@@ -36,7 +35,7 @@ export function HolderProfileTable({ holder }: { holder: AccountHolder }) {
   ];
 
   return (
-    <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xs">
+    <div className={TABLE_BOX}>
       <div className="overflow-x-auto">
         <table
           className="w-full min-w-[520px] table-fixed border-collapse text-xs"
@@ -47,23 +46,21 @@ export function HolderProfileTable({ holder }: { holder: AccountHolder }) {
               <col key={column.label} className={column.width} />
             ))}
           </colgroup>
-          <thead className="select-none bg-slate-50/80">
-            <tr className="h-11 divide-x divide-slate-200/70 border-b border-slate-200 text-xs whitespace-nowrap">
+          <thead className="select-none">
+            <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200">
               {COLUMNS.map((column) => (
-                <th key={column.label} scope="col" className={TH}>
+                <th key={column.label} scope="col" className={`${TH_CLASS} text-xs`}>
                   {column.label}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            <tr className="h-11 divide-x divide-slate-200/70">
+            <tr className="h-11 divide-x divide-slate-200">
               {plainCells.map((value, cellIndex) => (
                 <td
                   key={COLUMNS[cellIndex].label}
-                  className={`${CELL} ${value === EMPTY ? 'text-slate-500' : 'text-slate-800'} ${
-                    cellIndex === 0 ? 'font-mono' : ''
-                  }`}
+                  className={`${TD_CLASS} ${value === EMPTY ? 'text-slate-500' : 'text-slate-800'}`}
                 >
                   {value}
                 </td>
@@ -84,7 +81,7 @@ export function HolderProfileTable({ holder }: { holder: AccountHolder }) {
  */
 function GroupCell({ names }: { names: readonly string[] }) {
   if (names.length === 0) {
-    return <td className={`${CELL} text-slate-500`}>{EMPTY}</td>;
+    return <td className={`${TD_CLASS} text-slate-500`}>{EMPTY}</td>;
   }
   return (
     <td className="p-0 align-middle text-xs text-slate-800">

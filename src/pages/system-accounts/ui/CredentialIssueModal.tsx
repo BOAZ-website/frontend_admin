@@ -71,13 +71,13 @@ const CANDIDATE_GRID =
   'grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)] divide-x divide-slate-100';
 const CANDIDATE_CELL = 'px-3 py-2 text-center';
 /**
- * 고른 줄은 바탕을 한 단계 진한 회색으로 칠하고 글자를 모두 굵고 진하게 한다.
+ * 고른 줄은 바탕을 한 단계 진한 회색으로 칠하고 글자를 모두 진하게, 이름만 굵게 한다.
  * 고르지 않은 줄은 보통 굵기이고, 마우스를 올리면 연한 회색으로 바뀐다.
  */
-const CANDIDATE_SELECTED = 'bg-slate-100 font-bold text-slate-900';
+const CANDIDATE_SELECTED = 'bg-slate-100 text-slate-900';
 const CANDIDATE_IDLE = 'hover:bg-slate-50';
-/** 고르지 않은 줄의 칸 글자. 이름만 조금 진하게 둔다. */
-const CANDIDATE_NAME_IDLE = 'font-medium text-slate-900';
+/** 고르지 않은 줄의 칸 글자. 이름만 진한 색으로 둔다. */
+const CANDIDATE_NAME_IDLE = 'text-slate-900';
 const CANDIDATE_TEXT_IDLE = 'text-slate-600';
 /** 운영진 열에서 운영진이 아닌 사람의 칸. */
 const NOT_OPERATOR_CELL = '-';
@@ -401,7 +401,7 @@ export function CredentialIssueModal({
                     {/* 표처럼 이름·기수·부문·운영진을 칸으로 나눈다. 머리 줄은 목록을 내려도 위에 남는다. */}
                     <div
                       aria-hidden="true"
-                      className={`sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-500 ${CANDIDATE_GRID}`}
+                      className={`sticky top-0 z-10 border-b border-slate-200 bg-slate-100/90 text-xs font-bold text-slate-700 ${CANDIDATE_GRID}`}
                     >
                       <span className={CANDIDATE_CELL}>이름</span>
                       <span className={CANDIDATE_CELL}>기수</span>
@@ -412,7 +412,7 @@ export function CredentialIssueModal({
                       {visibleCandidates.map((member) => {
                         const isSelected = member.id === selected?.id;
                         // 고른 줄은 글자색을 줄 전체 스타일에 맡긴다.
-                        const nameText = isSelected ? '' : CANDIDATE_NAME_IDLE;
+                        const nameText = isSelected ? 'font-semibold' : CANDIDATE_NAME_IDLE;
                         const cellText = isSelected ? '' : CANDIDATE_TEXT_IDLE;
                         return (
                           <li key={member.id}>

@@ -4,7 +4,7 @@ import { KeyRound, ShieldCheck, Trash2 } from 'lucide-react';
 import { NEXT_PRESIDENT_TEAM, TEAMS_WITHOUT_LEAD } from '@/entities/admin-account/model/teams';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { Tooltip } from '@/shared/ui/Tooltip';
-import { ICON_BTN, ID_CHIP } from '@/shared/ui/systemStyles';
+import { ICON_BTN, ID_CHIP, TABLE_BOX, TD_CLASS, TH_CLASS } from '@/shared/ui/systemStyles';
 
 /**
  * 운영진 행의 관리 버튼(비밀번호 재설정·삭제)을 쓸 수 없는 사유. null이면 쓸 수 있다.
@@ -84,15 +84,12 @@ function seatOf(account: AdminAccount, hasLead: boolean): { label: string; isPri
 
 /*
  * 출결 스터디 표(InternalCategoryAttendancePage의 스터디별 표)와 같은 모양이다:
- * 진한 회색 머리 칸, 46px 줄, 옅은 세로 구분선(출결 표보다 조금 진하게), 묶음(팀)이 끝나는 줄 아래의 진한 가로선,
- * 이름은 굵게.
+ * 회색 머리 칸, 44px 줄, 세로 구분선, 묶음(팀)이 끝나는 줄 아래의 진한 가로선, 이름만 굵게.
  */
-const TH = 'px-2 py-1 text-center font-bold bg-slate-100/90';
-const CELL = 'px-2 py-2 text-center text-xs';
 /** 팀이 끝나는 줄 아래 선. 출결 표에서 한 사람(멘멘·친바 두 줄)이 끝날 때 긋는 선과 같다. */
 const GROUP_END = 'border-b border-b-slate-300';
 /** 팀 열 오른쪽 선. 다른 세로선과 같은 색이다. 팀 칸이 여러 줄에 걸쳐 있어 줄마다 붙는 세로선(divide-x)이 닿지 않는 곳까지 긋는다. */
-const DIVIDER_RIGHT = 'border-r border-r-slate-200/70';
+const DIVIDER_RIGHT = 'border-r border-r-slate-200';
 
 /**
  * 운영진 계정: 모든 팀의 운영진을 한 표로 본다. 왼쪽 팀 칸이 소속 인원 수만큼 세로로 이어지고,
@@ -111,7 +108,7 @@ export function OperatorRosterTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xs">
+    <div className={TABLE_BOX}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] table-fixed border-collapse text-xs">
           <colgroup>
@@ -119,12 +116,12 @@ export function OperatorRosterTable({
               <col key={column.label} className={column.width} />
             ))}
           </colgroup>
-          <thead className="select-none bg-slate-50/80">
-            <tr className="h-11 divide-x divide-slate-200/70 border-b border-slate-200 text-xs font-semibold whitespace-nowrap text-slate-700">
+          <thead className="select-none">
+            <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200">
               {COLUMNS.map((column) => (
                 <th
                   key={column.label}
-                  className={`${TH} ${column.isKey ? 'text-slate-900' : 'text-slate-700'} ${
+                  className={`${TH_CLASS} text-xs ${column.isKey ? 'text-slate-900' : ''} ${
                     column.label === '팀' ? DIVIDER_RIGHT : ''
                   }`}
                 >
@@ -145,7 +142,7 @@ export function OperatorRosterTable({
                     return (
                       <tr
                         key={account.id}
-                        className={`h-[46px] divide-x divide-slate-200/70 transition-colors hover:bg-slate-50/70 ${
+                        className={`h-11 divide-x divide-slate-200 transition-colors hover:bg-slate-50/70 ${
                           isGroupEnd ? '[&>td]:border-b [&>td]:border-b-slate-300' : ''
                         }`}
                       >
@@ -154,7 +151,7 @@ export function OperatorRosterTable({
                           <th
                             scope="rowgroup"
                             rowSpan={members.length}
-                            className={`bg-white px-2 py-2 text-center align-middle text-xs font-bold break-keep text-slate-900 ${DIVIDER_RIGHT} ${
+                            className={`bg-white px-2 py-2 text-center align-middle text-xs font-semibold break-keep text-slate-900 ${DIVIDER_RIGHT} ${
                               isLastGroup ? '' : GROUP_END
                             }`}
                           >
@@ -162,13 +159,11 @@ export function OperatorRosterTable({
                           </th>
                         )}
                         <td
-                          className={`${CELL} ${
-                            seat.isPrimary ? 'font-semibold text-slate-900' : 'text-slate-500'
-                          }`}
+                          className={`${TD_CLASS} ${seat.isPrimary ? 'text-slate-900' : 'text-slate-500'}`}
                         >
                           {seat.label}
                         </td>
-                        <td className={`${CELL} font-bold text-slate-900`}>
+                        <td className={`${TD_CLASS} font-bold text-slate-900`}>
                           <button
                             type="button"
                             onClick={() => onPermissions(account)}
@@ -178,12 +173,14 @@ export function OperatorRosterTable({
                             {account.name}
                           </button>
                         </td>
-                        <td className={`${CELL} tabular-nums text-slate-600`}>{account.term}기</td>
-                        <td className={`${CELL} text-slate-600`}>{account.track || '-'}</td>
-                        <td className={CELL}>
+                        <td className={`${TD_CLASS} tabular-nums text-slate-600`}>
+                          {account.term}기
+                        </td>
+                        <td className={`${TD_CLASS} text-slate-600`}>{account.track || '-'}</td>
+                        <td className={TD_CLASS}>
                           <span className={ID_CHIP}>{account.username}</span>
                         </td>
-                        <td className={CELL}>
+                        <td className={TD_CLASS}>
                           <div className="flex items-center justify-center gap-1">
                             <IconAction
                               label="권한"

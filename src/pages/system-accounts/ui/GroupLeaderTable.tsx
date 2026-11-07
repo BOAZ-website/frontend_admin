@@ -95,7 +95,7 @@ function HolderRows({
       {Array.from({ length: rowCount }, (_, rowIndex) => (
         <tr
           key={rowIndex}
-          className={`h-[46px] transition-colors group-hover:bg-slate-50/70 ${
+          className={`h-11 transition-colors group-hover:bg-slate-50/70 ${
             rowIndex > 0 ? 'border-t border-slate-100' : ''
           }`}
         >
@@ -118,7 +118,7 @@ function HolderRows({
               </td>
               <td rowSpan={rowCount} className={`${MULTI_CELL} ${CELL_BORDER}`}>
                 {holder.hostLogins.length > 0 ? (
-                  <span className="flex flex-wrap justify-center gap-1">
+                  <span className="flex flex-wrap justify-center gap-x-2 gap-y-1">
                     {holder.hostLogins.map((login) => (
                       <span key={login.id} className={ID_CHIP}>
                         {login.username}

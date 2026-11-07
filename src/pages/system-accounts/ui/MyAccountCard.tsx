@@ -25,24 +25,17 @@ export function MyAccountCard({ catalog, me, canEditSelf, onChangePassword }: My
   ];
 
   return (
-    <section className={`${TABLE_BOX} max-w-2xl p-6`} aria-labelledby="my-account-name">
+    <section className={`${TABLE_BOX} max-w-2xl p-4`} aria-labelledby="my-account-name">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-full bg-slate-100 text-base font-bold text-slate-700">
-            {me.name.charAt(0)}
-          </div>
-          <div>
-            <h2
-              id="my-account-name"
-              className="flex items-center gap-2 text-base font-bold text-slate-900"
-            >
-              <span>{me.name}</span>
-              <span className="rounded-full border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600">
-                {me.role}
-              </span>
-            </h2>
-            <p className="mt-1 font-mono text-xs text-slate-500">{me.username}</p>
-          </div>
+        <div>
+          <h2
+            id="my-account-name"
+            className="flex items-baseline gap-2 text-base font-bold text-slate-900"
+          >
+            <span>{me.name}</span>
+            <span className="text-xs font-normal text-slate-500">{me.role}</span>
+          </h2>
+          <p className="mt-1 font-mono text-xs text-slate-500">{me.username}</p>
         </div>
 
         {canEditSelf && (
@@ -57,7 +50,7 @@ export function MyAccountCard({ catalog, me, canEditSelf, onChangePassword }: My
         {items.map(({ label, value }) => (
           <div key={label}>
             <dt className="text-xs font-semibold text-slate-500">{label}</dt>
-            <dd className="mt-1 text-sm font-semibold text-slate-900">{value}</dd>
+            <dd className="mt-1 text-xs font-semibold text-slate-900">{value}</dd>
           </div>
         ))}
       </dl>
