@@ -104,7 +104,7 @@ export function AccountsTab({
             <h2 id="accounts-all-heading" className={LIST_SECTION_TITLE}>
               계정
             </h2>
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               <li>
                 <SplitListItem
                   label="운영진 계정"
