@@ -8,10 +8,11 @@ import {
 } from '@/entities/admin-account/api/adminAccountApi';
 import { can } from '@/entities/admin-account/model/can';
 import type { AdminPasswordRequest } from '@/entities/admin-account/model/dto';
-import type { AdminAccount } from '@/entities/admin-account/model/types';
+import type { AccountHolder, AdminAccount } from '@/entities/admin-account/model/types';
 import type { ClubMember } from '@/entities/club-member/model/types';
 import { buildAccountDelivery } from '@/features/account-delivery/model/accountDeliveryMessages';
 import { ApiError } from '@/shared/api/apiError';
+import { PAGE_LABELS } from '@/shared/config/pageLabels';
 import { alertApiError } from '@/shared/lib/alertApiError';
 
 import type { IssueCredentials } from '../ui/CredentialIssueModal';
@@ -41,11 +42,62 @@ interface Delivery {
   text: string;
 }
 
+/** 읽은 데이터에서 계산한 화면 값과, 데이터가 있어야 쓰는 처리 함수. */
+export interface AccountsPageDerived {
+  actions: AccountActions;
+  pageTitle: string;
+  /** 권한 창에 보일 사람. 창이 닫혀 있으면 null. */
+  permissionHolder: AccountHolder | null;
+  /** 그룹 리더 계정 표의 사람(이름순). */
+  groupLeaders: AccountHolder[];
+  canWriteSelf: boolean;
+  canManagePermissions: boolean;
+  canIssueAccounts: boolean;
+  isSelf: (account: AdminAccount) => boolean;
+  handleOpenPermissions: (account: AdminAccount) => void;
+  handleSubmitOwnPassword: (request: AdminPasswordRequest) => Promise<boolean>;
+  handleResetOthersPassword: (newPassword: string) => Promise<void>;
+  handleIssueCredentials: (
+    member: ClubMember,
+    request: IssueCredentials,
+    teamName: string,
+  ) => Promise<boolean>;
+  handleChangeOperator: (
+    account: AdminAccount,
+    teamName: string,
+    change: { username: string; password: string | null },
+  ) => Promise<boolean>;
+  handleDeleteAccount: (account: AdminAccount) => void;
+  handleSavePermissions: (account: AdminAccount, permissions: string[]) => Promise<boolean>;
+}
+
+/** useAccountsPage가 돌려주는 값. */
+export interface AccountsPageState {
+  /** 처음 읽는 중이면 null. 다시 읽는 동안에는 앞의 값을 그대로 둔다. */
+  data: AdminConsoleData | null;
+  /** 처음 읽는 중이면 true. */
+  isLoading: boolean;
+  error: Error | null;
+  reload: () => Promise<boolean>;
+  /** 그룹 리더(HOST) 세션이라 이 화면을 쓸 수 없다. */
+  isForbidden: boolean;
+  derive: (loaded: AdminConsoleData) => AccountsPageDerived;
+  permissionTargetKey: string | null;
+  setPermissionTargetKey: (key: string | null) => void;
+  passwordTarget: AdminAccount | null;
+  setPasswordTarget: (account: AdminAccount | null) => void;
+  isIssueOpen: boolean;
+  setIsIssueOpen: (isOpen: boolean) => void;
+  delivery: Delivery | null;
+  setDelivery: (delivery: Delivery | null) => void;
+  handleChangeDeliveryText: (text: string) => void;
+}
+
 /**
  * 권한 관리 화면 상태와 처리 함수. 쓰기는 API로 보내고 성공하면 목록을 다시 읽는다(R7-6).
  * 데이터에서 계산하는 값(권한별 버튼 막기 이유, 권한 창 대상 등)은 derive(data)로 얻는다.
  */
-export function useAccountsPage() {
+export function useAccountsPage(): AccountsPageState {
   const { data, error, reload } = useAdminConsole();
   /**
    * 권한 창을 연 사람(AccountHolder.key, 회원 id). 주소 '#system-accounts/<key>'에 남겨,
@@ -69,7 +121,7 @@ export function useAccountsPage() {
   const isForbidden = !data && error instanceof ApiError && error.status === HTTP_FORBIDDEN;
 
   /** 읽은 데이터에서 화면이 쓰는 값과 처리 함수를 만든다. */
-  const derive = (loaded: AdminConsoleData) => {
+  const derive = (loaded: AdminConsoleData): AccountsPageDerived => {
     const { me, accounts, holders } = loaded;
     const isSelf = (account: AdminAccount) => account.id === me.id;
     const canWriteOthers = can(me, 'ADMIN_ACCOUNT_WRITE');
@@ -95,7 +147,7 @@ export function useAccountsPage() {
         return null;
       },
     };
-    const pageTitle = accounts ? '권한 관리' : '내 계정 정보';
+    const pageTitle = accounts ? PAGE_LABELS['system-accounts'] : '내 계정 정보';
     /** 권한 창에 보일 사람(운영진 또는 HOST 계정만 있는 사람). 계정 목록에 없으면 창을 열지 않는다. */
     const permissionHolder = holders?.find((holder) => holder.key === permissionTargetKey) ?? null;
     /** 그룹 리더 계정 표의 사람: 그룹을 맡았거나 HOST 계정이 있는 사람(운영진 여부와 관계없이), 이름순. */
@@ -146,7 +198,8 @@ export function useAccountsPage() {
     const handleResetOthersPassword = async (newPassword: string) => {
       if (!passwordTarget) return;
       const target = passwordTarget;
-      if (!window.confirm(`${target.name}님 계정의 비밀번호를 정말 재설정할까요?`)) return;
+      const message = `${target.name}님 계정의 비밀번호를 재설정할까요?\n기존 로그인이 모두 해제되고, 계정·권한은 그대로 남습니다.`;
+      if (!window.confirm(message)) return;
       const isReset = await run(() => changeAdminPassword(target.id, { newPassword }));
       if (!isReset) return;
       setPasswordTarget(null);
@@ -222,7 +275,8 @@ export function useAccountsPage() {
     };
 
     const handleDeleteAccount = (account: AdminAccount) => {
-      if (!window.confirm(`운영진 '${account.username} (${account.name})'을(를) 삭제할까요?`)) {
+      const message = `운영진 '${account.username} (${account.name})'을(를) 삭제할까요?\n로그인 계정과 개별 권한이 지워지고, 동아리원 정보와 감사 로그는 그대로 남습니다.`;
+      if (!window.confirm(message)) {
         return;
       }
       void run(() => deleteAdminAccount(account.id), '계정을 삭제했습니다.');
@@ -254,6 +308,7 @@ export function useAccountsPage() {
     data,
     error,
     reload,
+    isLoading: !data && !error,
     isForbidden,
     derive,
     permissionTargetKey,

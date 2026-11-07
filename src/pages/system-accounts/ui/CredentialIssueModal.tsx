@@ -273,8 +273,11 @@ export function CredentialIssueModal({
     if (isDone) onClose();
   };
   // 요청 중에는 닫지 않는다. 닫으면 결과를 알 수 없고 같은 요청을 다시 보낼 수 있다.
+  const isDirty = Boolean(nameInput || termInput || trackInput || password || pickedId);
   const handleClose = () => {
-    if (!isSaving) onClose();
+    if (isSaving) return;
+    if (isDirty && !window.confirm('입력한 내용을 저장하지 않고 닫을까요?')) return;
+    onClose();
   };
   const panelRef = useRef<HTMLFormElement>(null);
   useDialogKeyboard(panelRef, handleClose);

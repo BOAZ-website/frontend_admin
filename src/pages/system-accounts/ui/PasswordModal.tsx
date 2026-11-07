@@ -53,8 +53,11 @@ export function PasswordModal({ account, isSelf, onClose, onSubmit }: PasswordMo
     if (isSaved) onClose();
   };
   // 요청 중에는 닫지 않는다. 닫으면 결과를 알 수 없고 같은 요청을 다시 보낼 수 있다.
+  const isDirty = Boolean(currentPassword || newPassword || confirmPassword);
   const handleClose = () => {
-    if (!isSaving) onClose();
+    if (isSaving) return;
+    if (isDirty && !window.confirm('입력한 비밀번호를 저장하지 않고 닫을까요?')) return;
+    onClose();
   };
   const panelRef = useRef<HTMLFormElement>(null);
   useDialogKeyboard(panelRef, handleClose);
