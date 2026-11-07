@@ -824,3 +824,41 @@ test('수료·탈동에서 활동으로 되돌리면서 이름·기수·부문�
     'ACTIVE_MEMBER_IDENTITY_LOCKED',
   );
 });
+
+test('생년월일·병행 부문은 추가·수정으로 저장되고, null이면 지우고 보내지 않으면 그대로다', async () => {
+  const { call } = await setup();
+  const created = call<ClubMember>('POST', '/api/v1/club-members', {
+    name: '홍길동',
+    email: 'gildong@example.com',
+    phone: '010-0000-0000',
+    term: 20,
+    track: '시각화',
+    status: 'COMPLETED',
+    birthDate: '2000-01-31',
+    parallelTrack: '분석',
+  });
+  assert.equal(created.birthDate, '2000-01-31');
+  assert.equal(created.parallelTrack, '분석');
+
+  const path = `/api/v1/club-members/${created.id}`;
+  const kept = call<ClubMember>('PATCH', path, { major: '통계학' });
+  assert.equal(kept.birthDate, '2000-01-31');
+  assert.equal(kept.parallelTrack, '분석');
+
+  const cleared = call<ClubMember>('PATCH', path, { birthDate: null, parallelTrack: null });
+  assert.equal(cleared.birthDate, null);
+  assert.equal(cleared.parallelTrack, null);
+});
+
+test('생년월일 형식이 틀리거나 병행 부문이 부문과 같으면 400이다', async () => {
+  const { call } = await setup();
+  const path = '/api/v1/club-members/u_28_01';
+  const track = call<ClubMember[]>('GET', '/api/v1/club-members').find(
+    (m) => m.id === 'u_28_01',
+  )?.track;
+
+  expectApiError(() => call('PATCH', path, { birthDate: '' }), 400);
+  expectApiError(() => call('PATCH', path, { birthDate: '2000/01/31' }), 400);
+  expectApiError(() => call('PATCH', path, { parallelTrack: '없는부문' }), 400);
+  expectApiError(() => call('PATCH', path, { parallelTrack: track }), 400);
+});

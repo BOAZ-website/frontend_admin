@@ -29,6 +29,7 @@ import {
   type ClubMemberRole,
   type ClubMemberTermPage,
   type ClubMemberTermScope,
+  type ClubMemberTrack,
   isIdentityLockedStatus,
 } from '@/entities/club-member/model/types';
 import {
@@ -78,6 +79,25 @@ function roleOf(db: Database, base: ClubMember, body: Body): ClubMemberRole {
   return derived;
 }
 
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** 생년월일. 키가 없으면 fallback, null이면 지운다. YYYY-MM-DD가 아니면 400(빈 문자열도 400). */
+function birthDateOf(body: Body, fallback: string | null): string | null {
+  if (!('birthDate' in body)) return fallback;
+  const value = optionalString(body, 'birthDate');
+  if (value === undefined) return null;
+  if (!DATE_PATTERN.test(value) || Number.isNaN(Date.parse(value))) {
+    throw badRequest('birthDate 값은 YYYY-MM-DD 형식이어야 합니다.');
+  }
+  return value;
+}
+
+/** 병행 부문. 키가 없으면 fallback, null이면 지운다. */
+function parallelTrackOf(body: Body, fallback: ClubMemberTrack | null): ClubMemberTrack | null {
+  if (!('parallelTrack' in body)) return fallback;
+  return oneOf(optionalString(body, 'parallelTrack'), CLUB_MEMBER_TRACKS, 'parallelTrack') ?? null;
+}
+
 /**
  * 본문에 있는 값만 기존 동아리원 위에 덮어쓴다. 없는 키는 기존 값을 유지한다.
  * 탈동(WITHDRAWN)로 바꾸면 운영진·HOST 계정·현재 반기 팀장인지 확인해, 걸리면 먼저 해지하라는 안내와 함께 409다.
@@ -118,6 +138,8 @@ function applyMemberBody(db: Database, base: ClubMember, body: Body): ClubMember
     major: text('major') ?? base.major,
     term: optionalNumber(body, 'term') ?? base.term,
     track: oneOf(text('track'), CLUB_MEMBER_TRACKS, 'track') ?? base.track,
+    parallelTrack: parallelTrackOf(body, base.parallelTrack),
+    birthDate: birthDateOf(body, base.birthDate),
     status,
     role: roleOf(db, base, body),
   };
@@ -153,6 +175,8 @@ function newMemberOf(body: Body): ClubMember {
     major: (optionalString(body, 'major') ?? '').trim(),
     term,
     track,
+    parallelTrack: parallelTrackOf(body, null),
+    birthDate: birthDateOf(body, null),
     status: newMemberStatusOf(body),
     role: 'MEMBER',
     operatorTeam: null,
@@ -168,6 +192,9 @@ function validateMember(db: Database, member: ClubMember): void {
     throw badRequest('email 값은 이메일 형식이어야 합니다.');
   }
   if (!member.phone) throw badRequest('phone 값이 필요합니다.');
+  if (member.parallelTrack === member.track) {
+    throw badRequest('병행 부문은 부문과 달라야 합니다.');
+  }
   if (hasNameConflict(db, member.name, member.term, member.id)) {
     throw new ApiError(
       409,

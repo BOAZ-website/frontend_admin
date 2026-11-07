@@ -55,7 +55,9 @@ CREATE TABLE users (
   minor_double_major TEXT NOT NULL DEFAULT '[]',             -- JSON 배열
   last_semester INTEGER,
   military_status TEXT CHECK (military_status IN ('COMPLETED_OR_EXEMPT', 'NOT_COMPLETED')),
-  birth_date TEXT,
+  birth_date TEXT CHECK (birth_date IS NULL OR birth_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'), -- 생년월일
+  -- 병행 부문: 자기 부문(track) 말고 함께 활동하는 부문. 없으면 NULL
+  parallel_track TEXT REFERENCES tracks (name) CHECK (parallel_track IS NULL OR parallel_track <> track),
   graduation_date TEXT CHECK (graduation_date IS NULL OR graduation_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
   grad_school_plan INTEGER NOT NULL DEFAULT 0 CHECK (grad_school_plan IN (0, 1)),
   -- 동아리원 관리 화면에서 고치는 값: 활동 상태(ACTIVE 활동기수, COMPLETED 수료, WITHDRAWN 탈동), 동아리 역할

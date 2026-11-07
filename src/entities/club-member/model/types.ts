@@ -28,6 +28,10 @@ export interface ClubMember {
   /** 기수 (예: 28) */
   term: number;
   track: ClubMemberTrack;
+  /** 병행 부문: 자기 부문(track) 말고 함께 활동하는 부문. 없으면 null. track과 같을 수 없다. */
+  parallelTrack: ClubMemberTrack | null;
+  /** 생년월일(YYYY-MM-DD). 기록이 없으면 null. */
+  birthDate: string | null;
   status: ClubMemberStatus;
   role: ClubMemberRole;
   /**

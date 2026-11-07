@@ -18,6 +18,7 @@ const LEFT_STATUS_SQL = LEFT_CLUB_STATUSES.map((status) => `'${status}'`).join('
 
 const SELECT_CLUB_MEMBERS = `
   SELECT id, name, email, phone, university, major, term, track,
+         parallel_track AS parallelTrack, birth_date AS birthDate,
          club_status AS status, club_role AS role,
          (SELECT a.team_name FROM admin a WHERE a.user_id = users.id) AS operatorTeam,
          ${CURRENT_LEADER_TEAMS} AS leaderTeams,
@@ -116,8 +117,9 @@ export function hasNameConflict(
 export function insertClubMember(db: Database, member: ClubMember): void {
   execute(
     db,
-    `INSERT INTO users (id, name, term, track, email, phone, university, major, club_status, club_role)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'MEMBER')`,
+    `INSERT INTO users (id, name, term, track, email, phone, university, major,
+                        parallel_track, birth_date, club_status, club_role)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'MEMBER')`,
     [
       member.id,
       member.name,
@@ -127,6 +129,8 @@ export function insertClubMember(db: Database, member: ClubMember): void {
       member.phone,
       member.university,
       member.major,
+      member.parallelTrack,
+      member.birthDate,
       member.status,
     ],
   );
@@ -165,7 +169,7 @@ export function updateClubMember(db: Database, member: ClubMember): void {
     db,
     `UPDATE users
         SET name = ?, term = ?, track = ?, email = ?, phone = ?, university = ?, major = ?,
-            club_status = ?, club_role = ?, updated_at = datetime('now')
+            parallel_track = ?, birth_date = ?, club_status = ?, club_role = ?, updated_at = datetime('now')
       WHERE id = ?`,
     [
       member.name,
@@ -175,6 +179,8 @@ export function updateClubMember(db: Database, member: ClubMember): void {
       member.phone,
       member.university,
       member.major,
+      member.parallelTrack,
+      member.birthDate,
       member.status,
       member.role,
       member.id,

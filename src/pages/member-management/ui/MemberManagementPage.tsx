@@ -60,6 +60,8 @@ const toForm = (member: ClubMember): ClubMemberForm => ({
   major: member.major,
   term: member.term,
   track: member.track,
+  parallelTrack: member.parallelTrack,
+  birthDate: member.birthDate,
   status: member.status,
   role: member.role,
 });
@@ -111,6 +113,13 @@ const labelOptions = <T extends string>(labels: Record<T, string>) =>
   (Object.entries(labels) as [T, string][]).map(([value, label]) => ({ value, label }));
 
 const TRACK_OPTIONS = CLUB_MEMBER_TRACKS.map((track) => ({ value: track, label: track }));
+/** 병행 부문 선택지에서 '없음'을 뜻하는 값. */
+const NO_PARALLEL_TRACK = 'NONE';
+/** 병행 부문 선택지: 없음 + 자기 부문을 뺀 부문. */
+const parallelTrackOptions = (track: ClubMemberTrack) => [
+  { value: NO_PARALLEL_TRACK, label: '없음' },
+  ...TRACK_OPTIONS.filter((option) => option.value !== track),
+];
 const STATUS_OPTIONS = labelOptions(CLUB_MEMBER_STATUS_LABELS);
 /**
  * 탈동을 뺀 활동 상태 선택지(활동기수·수료). 부문 명단의 필터(탈동한 사람은 탈동 명단에만 있다)와
@@ -127,8 +136,8 @@ const ALL_TRACK_SHEETS = MEMBER_SHEETS.filter(
   (item) => item.id === 'active' || item.id === 'completed',
 );
 const TRACK_SHEETS = MEMBER_SHEETS.filter((item) => item.kind === 'track');
-/** 늘 있는 열 수(이름·기수·이메일·연락처·대학교·전공·관리). 부문·운영진·활동 상태 열은 명단에 따라 더한다. */
-const BASE_COLUMN_COUNT = 7;
+/** 늘 있는 열 수(이름·기수·병행 부문·이메일·연락처·생년월일·대학교·전공·관리). 부문·운영진·활동 상태 열은 명단에 따라 더한다. */
+const BASE_COLUMN_COUNT = 9;
 
 const MEMBERS_HASH = 'system-members';
 
@@ -310,6 +319,8 @@ export function MemberManagementPage() {
       major: '',
       term: (isPagedSheet ? currentPage?.term : null) ?? terms[0] ?? 1,
       track: sheetItem?.track ?? CLUB_MEMBER_TRACKS[0],
+      parallelTrack: null,
+      birthDate: null,
       status: sheet === 'completed' ? 'COMPLETED' : 'ACTIVE',
       role: 'MEMBER',
     });
@@ -357,7 +368,18 @@ export function MemberManagementPage() {
     setIsSaving(true);
     try {
       // 추가는 역할을 보내지 않는다(일반 회원으로 시작한다. 운영진 지정은 권한 관리에서 한다).
-      const { name, email, phone, university, major, term, track, status } = request;
+      const {
+        name,
+        email,
+        phone,
+        university,
+        major,
+        term,
+        track,
+        parallelTrack,
+        birthDate,
+        status,
+      } = request;
       const saved = editingMember
         ? await updateClubMember(editingMember.id, request)
         : await createClubMember({
@@ -368,6 +390,8 @@ export function MemberManagementPage() {
             major,
             term,
             track,
+            parallelTrack,
+            birthDate,
             status,
           });
       setHasSaved(true);
@@ -638,16 +662,18 @@ export function MemberManagementPage() {
           className="overflow-hidden rounded-md border border-slate-200 bg-white"
         >
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1070px] border-collapse text-xs">
+            <table className="w-full min-w-[1270px] border-collapse text-xs">
               <thead>
                 <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-xs">
                   <th className={`${TH_CLASS} w-[120px] text-slate-900`}>이름</th>
                   <th className={`${TH_CLASS} w-[80px]`}>기수</th>
                   {hasTrackColumn && <th className={`${TH_CLASS} w-[100px]`}>부문</th>}
+                  <th className={`${TH_CLASS} w-[100px]`}>병행 부문</th>
                   {hasOperatorColumn && <th className={`${TH_CLASS} w-[120px]`}>운영진</th>}
                   {hasStatusColumn && <th className={`${TH_CLASS} w-[90px]`}>활동 상태</th>}
                   <th className={TH_CLASS}>이메일</th>
                   <th className={`${TH_CLASS} w-[130px]`}>연락처</th>
+                  <th className={`${TH_CLASS} w-[100px]`}>생년월일</th>
                   <th className={`${TH_CLASS} w-[130px]`}>대학교</th>
                   <th className={`${TH_CLASS} w-[130px]`}>전공</th>
                   <th className={`${TH_CLASS} w-[88px]`}>관리</th>
@@ -698,6 +724,9 @@ export function MemberManagementPage() {
                       {hasTrackColumn && (
                         <td className={`${TD_CLASS} text-slate-700`}>{member.track}</td>
                       )}
+                      <td className={`${TD_CLASS} text-slate-700`}>
+                        {member.parallelTrack ?? EMPTY_CELL}
+                      </td>
                       {hasOperatorColumn && (
                         <td className={`${TD_CLASS} text-slate-700`}>{operatorLabelOf(member)}</td>
                       )}
@@ -709,6 +738,9 @@ export function MemberManagementPage() {
                       <td className={`${TD_CLASS} text-slate-600`}>{member.email || EMPTY_CELL}</td>
                       <td className={`${TD_CLASS} tabular-nums text-slate-600`}>
                         {member.phone || EMPTY_CELL}
+                      </td>
+                      <td className={`${TD_CLASS} tabular-nums text-slate-600`}>
+                        {member.birthDate ?? EMPTY_CELL}
                       </td>
                       <td className={`${TD_CLASS} text-slate-600`}>
                         {member.university || EMPTY_CELL}
@@ -863,12 +895,33 @@ export function MemberManagementPage() {
                       ariaLabel="부문"
                       value={form.track}
                       options={TRACK_OPTIONS}
-                      onChange={(track) => updateForm({ track })}
+                      // 병행 부문이 새 부문과 같아지면 지운다(서버도 같은 값을 400으로 막는다).
+                      onChange={(track) =>
+                        updateForm({
+                          track,
+                          ...(form.parallelTrack === track ? { parallelTrack: null } : {}),
+                        })
+                      }
                       buttonClassName={FIELD_SELECT}
                     />
                   </div>
                 </>
               )}
+              <div>
+                <span className={FIELD_LABEL}>병행 부문</span>
+                <SelectDropdown
+                  ariaLabel="병행 부문"
+                  value={form.parallelTrack ?? NO_PARALLEL_TRACK}
+                  options={parallelTrackOptions(form.track)}
+                  onChange={(value) =>
+                    updateForm({
+                      parallelTrack:
+                        value === NO_PARALLEL_TRACK ? null : (value as ClubMemberTrack),
+                    })
+                  }
+                  buttonClassName={FIELD_SELECT}
+                />
+              </div>
               {editingMember && (
                 <div>
                   <span id="member-operator-label" className={FIELD_LABEL}>
@@ -913,6 +966,19 @@ export function MemberManagementPage() {
                   className={FIELD_INPUT}
                   value={form.phone}
                   onChange={(event) => updateForm({ phone: event.target.value })}
+                />
+              </div>
+              <div>
+                <label htmlFor="member-birth-date" className={FIELD_LABEL}>
+                  생년월일
+                </label>
+                {/* 비우면 null로 보낸다(빈 문자열은 서버가 400으로 막는다). */}
+                <input
+                  id="member-birth-date"
+                  type="date"
+                  className={`${FIELD_INPUT} tabular-nums`}
+                  value={form.birthDate ?? ''}
+                  onChange={(event) => updateForm({ birthDate: event.target.value || null })}
                 />
               </div>
               <div>
