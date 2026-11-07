@@ -60,7 +60,7 @@ export function SplitView({
             width: isOpen ? `${splitRatio}%` : '100%',
             minWidth: isOpen ? '200px' : undefined,
           }}
-          className={`flex h-full shrink-0 flex-col gap-2.5 ${isOpen ? 'pr-1.5' : ''}`}
+          className={`flex h-full shrink-0 flex-col gap-2 ${isOpen ? 'pr-2' : ''}`}
           aria-label={listLabel}
         >
           <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>
@@ -80,7 +80,7 @@ export function SplitView({
             event.preventDefault();
             startDragging();
           }}
-          className={`group z-20 -mx-0.5 flex w-4 shrink-0 cursor-col-resize select-none items-center justify-center self-stretch py-12 transition-colors ${
+          className={`group z-20 -mx-1 flex w-4 shrink-0 cursor-col-resize select-none items-center justify-center self-stretch py-12 transition-colors ${
             isDragging ? 'bg-slate-200/50' : 'hover:bg-slate-100/80'
           }`}
           title="마우스로 드래그하여 패널 너비 조절"
@@ -107,18 +107,18 @@ export function SplitView({
             width: isFullScreen ? '100%' : `${100 - splitRatio}%`,
             minWidth: isFullScreen ? undefined : '340px',
           }}
-          className="h-full min-w-0 flex-1 space-y-4 overflow-y-auto rounded-md border border-slate-200/90 bg-white p-6 shadow-sm animate-in slide-in-from-right duration-150 [scrollbar-gutter:stable] lg:p-7"
+          className="h-full min-w-0 flex-1 space-y-4 overflow-y-auto rounded-md border border-slate-200/90 bg-white p-6 animate-in slide-in-from-right duration-150 [scrollbar-gutter:stable] lg:p-7"
           aria-label={panelTitle}
         >
           <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
-            <h3 className="min-w-0 truncate text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
+            <h3 className="min-w-0 truncate text-xl font-bold leading-snug tracking-tight text-slate-950 sm:text-2xl">
               {panelTitle}
             </h3>
             <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
                 onClick={() => setIsFullScreen(!isFullScreen)}
-                className="hidden cursor-pointer items-center rounded-sm p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:flex"
+                className="hidden cursor-pointer items-center rounded-sm p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:flex"
                 title={isFullScreen ? '분할 뷰로 축소' : '전체 화면으로 확장'}
                 aria-label={isFullScreen ? '분할 뷰로 축소' : '전체 화면으로 확장'}
               >
@@ -127,7 +127,7 @@ export function SplitView({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex cursor-pointer items-center rounded-sm p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                className="flex cursor-pointer items-center rounded-sm p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
                 title="사이드 패널 닫기"
                 aria-label="사이드 패널 닫기"
               >
@@ -164,8 +164,8 @@ export function SplitListItem({ label, isSelected, onSelect, onDelete }: SplitLi
           onDelete ? 'pr-12' : ''
         } ${
           isSelected
-            ? 'border-slate-300 bg-slate-100/80 shadow-2xs'
-            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-2xs'
+            ? 'border-slate-300 bg-slate-100/80'
+            : 'border-slate-200 bg-white hover:border-slate-300'
         }`}
       >
         <span
