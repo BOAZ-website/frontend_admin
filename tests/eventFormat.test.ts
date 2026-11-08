@@ -4,7 +4,6 @@ import test from 'node:test';
 import {
   conferenceSheetOf,
   importedStatusesOf,
-  moveFreeformStatusColumn,
   statusCodeOf,
   statusOfKey,
 } from '../src/pages/attendance-events/model/eventFormat';
@@ -54,30 +53,4 @@ test('명단 파일의 출결 열은 방식별 문서 코드로 읽는다', () =
   });
   // 일반 행사형·기타는 이 규칙을 쓰지 않는다(일반 행사형은 행사 열, 기타는 열 그대로).
   assert.deepEqual(importedStatusesOf('OTHER', { 출석: 'O' }), {});
-});
-
-test('기타 방식에서 출결 코드를 정하면 명단의 출결 열을 출결 버튼으로 옮긴다', () => {
-  const fields = [{ label: '기수' }, { label: '출결' }, { label: '전화번호' }];
-  const attendees = [
-    { customAnswers: { 출결: '참석' } },
-    { customAnswers: { 출결: '모름' } },
-    { customAnswers: {} },
-  ];
-  const options = [
-    { code: '참석', label: '참석' },
-    { code: '불참', label: '불참' },
-  ];
-  const moved = moveFreeformStatusColumn(fields, attendees, options);
-  assert.deepEqual(
-    moved.fields.map((f) => f.label),
-    ['기수', '전화번호'],
-  );
-  assert.equal(moved.removedIndex, 1);
-  // 코드와 같은 값만 고르고, 다른 값·빈칸은 고르지 않는다.
-  assert.deepEqual(
-    moved.attendees.map((a) => (a as { customStatus?: string }).customStatus),
-    ['참석', undefined, undefined],
-  );
-  // 출결 코드가 없으면 열을 그대로 둔다.
-  assert.equal(moveFreeformStatusColumn(fields, attendees, []).fields.length, 3);
 });

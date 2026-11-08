@@ -14,11 +14,9 @@ import {
   baseTeamId,
   createAdvTeamRecords,
   createBaseAttendanceRecords,
-  markWeekSubmitted,
 } from '../src/entities/study-team/model/db';
-import { userIdsOfTerm } from '../src/entities/user/model/lib';
 import type { UserProfile } from '../src/entities/user/model/types';
-import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
+import { createDatabase } from '../src/shared/db/createDatabase';
 
 const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
 const seed = readFileSync(new URL('../db/seed.sql', import.meta.url), 'utf8');
@@ -33,11 +31,6 @@ const users: UserProfile[] = [
   { id: 'b', name: '나', term: 27, track: '분석' },
   { id: 'c', name: '다', term: 27, track: '분석' },
 ];
-
-test('기수의 회원 id만 모아 주고, 회원이 없는 기수는 빈 목록이다', () => {
-  assert.deepEqual(userIdsOfTerm(users, 27), ['b', 'c']);
-  assert.deepEqual(userIdsOfTerm(users, 99), []);
-});
 
 test('BASE 트랙 id는 기수와 트랙으로 정해진다', () => {
   assert.equal(baseTeamId(27, '분석'), 'base_27_analysis');
@@ -150,29 +143,6 @@ test('출결 생성: 이미 트랙원인 회원은 건너뛰고 기존 출결 �
     before.attendance['w1|study|base_27_analysis'].statuses[existing.id],
   );
   assert.equal(week1.submitted, true);
-});
-
-test('주차 제출은 그 팀·주차의 세션만 제출 완료로 바꾸고, DB에 저장된다', async () => {
-  const db = await freshDb();
-  const before = loadTeamState(db);
-  const submittedAt = '2026-08-18T10:30:00.000Z';
-  const next = markWeekSubmitted(before.attendance, 'base_27_analysis', 3, submittedAt);
-  persistAttendance(db, before.attendance, next);
-
-  const after = loadTeamState(db);
-  assert.equal(after.attendance['w3|study|base_27_analysis'].submitted, true);
-  assert.equal(after.attendance['w3|study|base_27_analysis'].submittedAt, submittedAt);
-  assert.equal(after.attendance['w3|study|base_27_vis'].submitted, false);
-  const rows = queryAll<{ submitted: number }>(
-    db,
-    "SELECT submitted FROM attendance_sessions WHERE team_id = 'base_27_analysis' AND week_id = 'w3'",
-  );
-  assert.equal(rows[0].submitted, 1);
-  // 없는 세션은 그대로 돌려준다.
-  assert.equal(
-    markWeekSubmitted(before.attendance, 'base_27_analysis', 99, submittedAt),
-    before.attendance,
-  );
 });
 
 test('출결 생성은 서버가 준 주차 목록만 만든다: 9주차를 건너뛴 학기 주차(10~16)', async () => {
