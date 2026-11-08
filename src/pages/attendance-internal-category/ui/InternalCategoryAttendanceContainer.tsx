@@ -13,14 +13,7 @@ type PageProps = ComponentProps<typeof InternalCategoryAttendancePage>;
 /** 화면이 API로 직접 읽는 값은 빼고, 반기 기준 데이터와 화면 설정만 위에서 받는다. */
 type ContainerProps = Pick<
   PageProps,
-  | 'category'
-  | 'weeks'
-  | 'cohorts'
-  | 'currentCohort'
-  | 'canCreateNextSemester'
-  | 'onAdvanceSemester'
-  | 'cohortLabels'
-  | 'tracks'
+  'category' | 'weeks' | 'cohorts' | 'currentCohort' | 'cohortLabels' | 'tracks'
 > & {
   /** 반기 목록(반기 API). 주차 날짜와 생성 요청의 반기 표기를 찾는 데 쓴다. */
   semesters: readonly SemesterDto[];

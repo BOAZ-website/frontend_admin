@@ -28,4 +28,5 @@ export type ActivePage =
   | 'system'
   | 'system-members'
   | 'system-accounts'
+  | 'system-semesters'
   | 'system-audit';

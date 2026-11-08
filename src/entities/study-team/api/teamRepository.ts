@@ -80,15 +80,17 @@ export function loadTeamState(
     cohort: row.cohort,
   });
 
+  // 이름은 동아리원 명단(users)의 지금 값을 쓴다. 기수·부문은 팀에 넣을 때의 값(members)을 남긴다(기수별 이력).
   const memberRows = queryAll<{
     id: string;
     team_id: string;
+    user_id: string;
     name: string;
     term: number;
     track: string;
   }>(
     db,
-    `SELECT m.id, m.team_id, COALESCE(mem.name, u.name) AS name,
+    `SELECT m.id, m.team_id, m.user_id, u.name AS name,
               COALESCE(mem.term, u.term) AS term, COALESCE(mem.track, u.track) AS track
          FROM team_members m
          JOIN teams t ON t.id = m.team_id
@@ -103,6 +105,7 @@ export function loadTeamState(
   memberRows.forEach((row) => {
     members[row.team_id].push({
       id: row.id,
+      userId: row.user_id,
       name: row.name,
       year: String(row.term),
       track: row.track,
@@ -379,14 +382,24 @@ function findUserId(db: Database, name: string): string | null {
   );
 }
 
-/** 로그인 계정(users)과 활동 명단(members)을 함께 보장한다. */
+/**
+ * 로그인 계정(users)과 활동 명단(members)을 함께 보장한다.
+ * 회원은 id로 찾는다(member.userId, 없으면 이미 저장된 팀원 행의 회원). 이름으로 찾으면 개명한 회원 대신
+ * 예전 이름의 새 회원이 생기므로, 이름·기수로 찾는 것은 회원 id를 모를 때(예전 데이터)만 한다.
+ */
 function ensureMember(db: Database, member: Member): { memberId: string; userId: string } {
   const term = Number(member.year) || 0;
-  const existing = queryAll<{ id: string }>(
-    db,
-    'SELECT id FROM users WHERE name = ? AND term = ?',
-    [member.name, term],
-  )[0];
+  const knownUserId =
+    member.userId ??
+    queryAll<{ user_id: string }>(db, 'SELECT user_id FROM team_members WHERE id = ?', [
+      member.id,
+    ])[0]?.user_id;
+  const existing = knownUserId
+    ? queryAll<{ id: string }>(db, 'SELECT id FROM users WHERE id = ?', [knownUserId])[0]
+    : queryAll<{ id: string }>(db, 'SELECT id FROM users WHERE name = ? AND term = ?', [
+        member.name,
+        term,
+      ])[0];
   const userId =
     existing?.id ??
     `u_${term}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;

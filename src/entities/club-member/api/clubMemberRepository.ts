@@ -12,13 +12,16 @@ const CURRENT_LEADER_TEAMS = `(SELECT group_concat(t.team_name, ', ') FROM teams
    WHERE t.leader_id = users.id
      AND t.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1))`;
 
-/** 운영진 팀은 운영진 명단(admin)에서 읽는다. 운영진 계정 관리와 같은 데이터다. */
+/**
+ * 운영진 팀은 운영진 명단(admin, HOST가 아닌 계정)에서 읽는다. 운영진 계정 관리와 같은 데이터다.
+ * 스터디장·ADV 팀장의 HOST 계정도 admin 표에 있지만(role = 'HOST') 운영진이 아니라 아이디만 따로 읽는다.
+ */
 const SELECT_CLUB_MEMBERS = `
   SELECT id, name, email, phone, university, major, term, track,
          club_status AS status, club_role AS role,
-         (SELECT a.team_name FROM admin a WHERE a.user_id = users.id) AS operatorTeam,
+         (SELECT a.team_name FROM admin a WHERE a.user_id = users.id AND a.role <> 'HOST') AS operatorTeam,
          ${CURRENT_LEADER_TEAMS} AS leaderTeams,
-         (SELECT group_concat(h.username, ', ') FROM host_accounts h WHERE h.user_id = users.id)
+         (SELECT a.username FROM admin a WHERE a.user_id = users.id AND a.role = 'HOST')
            AS hostUsernames
     FROM users`;
 
@@ -128,9 +131,11 @@ export function insertClubMember(db: Database, member: ClubMember): void {
   );
 }
 
-/** 운영진 명단(admin)에 있는 회원인지. 운영진은 운영진에서 먼저 빼야 탈퇴 처리할 수 있다. */
+/** 운영진 명단(admin, HOST 계정 제외)에 있는 회원인지. 운영진은 운영진에서 먼저 빼야 탈퇴 처리할 수 있다. */
 export function isOperator(db: Database, userId: string): boolean {
-  return queryAll(db, 'SELECT 1 FROM admin WHERE user_id = ?', [userId]).length > 0;
+  return (
+    queryAll(db, "SELECT 1 FROM admin WHERE user_id = ? AND role <> 'HOST'", [userId]).length > 0
+  );
 }
 
 /**

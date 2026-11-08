@@ -69,6 +69,37 @@ test('저장된 체크 상태는 맡은 그룹 권한을 빼고, 기본 권한�
   assert.deepEqual(new Set(baseCheckedOf(catalog, account)), saved);
 });
 
+test('스터디를 맡은 계정은 담당 그룹 권한을 끌 수 있고, 끄면 기본에서 제외로 표시한다', () => {
+  const ownWrite = 'ATTENDANCE_STUDY_ENTRY_OWN_GROUP_WRITE';
+  const leader = accountOf(
+    {},
+    {
+      leadership: ['STUDY'],
+      effectivePermissions: [
+        ...accountOf({}).effectivePermissions,
+        ownWrite,
+        'ATTENDANCE_STUDY_ENTRY_OWN_GROUP_READ',
+      ],
+    },
+  );
+  const saved = new Set(savedCheckedOf(catalog, leader));
+  assert.ok(saved.has(ownWrite));
+  assert.deepEqual(changeCountsOf(catalog, leader, saved), { added: 0, removed: 0 });
+
+  const revoked = new Set([...saved].filter((key) => key !== ownWrite));
+  assert.equal(changeMarkOf(catalog, leader, permissionOf(ownWrite), revoked), 'removed');
+  // 맡지 않은 ADV 담당 그룹 권한은 켜고 끌 대상이 아니다.
+  assert.equal(
+    changeMarkOf(
+      catalog,
+      leader,
+      permissionOf('ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE'),
+      new Set([...saved, 'ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE']),
+    ),
+    null,
+  );
+});
+
 test('기본 권한에 없는 것을 체크하면 추가, 기본 권한을 풀면 제외로 표시한다', () => {
   const account = accountOf({ CONTENT_WRITE: true, FINAL_DECISION_READ: false });
   const checked = new Set(savedCheckedOf(catalog, account));

@@ -1,5 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { ChevronRight, ChevronsRight, GripVertical, Maximize2, Minimize2 } from 'lucide-react';
+import {
+  ChevronRight,
+  ChevronsRight,
+  GripVertical,
+  Maximize2,
+  Minimize2,
+  Trash2,
+} from 'lucide-react';
 
 import { useSplitRatio } from '@/shared/lib/useSplitRatio';
 
@@ -42,7 +49,7 @@ export function SplitView({
   return (
     <div
       ref={containerRef}
-      className={`relative h-[calc(100vh-11rem)] min-h-[420px] w-full ${
+      className={`relative h-[calc(100vh-12rem)] min-h-[420px] w-full ${
         isOpen && !isFullScreen ? 'flex min-w-0 flex-row gap-0' : 'block'
       }`}
     >
@@ -53,10 +60,10 @@ export function SplitView({
             width: isOpen ? `${splitRatio}%` : '100%',
             minWidth: isOpen ? '200px' : undefined,
           }}
-          className={`flex h-full shrink-0 flex-col gap-2.5 ${isOpen ? 'pr-1.5' : ''}`}
+          className={`flex h-full shrink-0 flex-col gap-2 ${isOpen ? 'pr-2' : ''}`}
           aria-label={listLabel}
         >
-          <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{list}</div>
         </aside>
       )}
 
@@ -73,7 +80,7 @@ export function SplitView({
             event.preventDefault();
             startDragging();
           }}
-          className={`group z-20 -mx-0.5 flex w-4 shrink-0 cursor-col-resize select-none items-center justify-center self-stretch py-12 transition-colors ${
+          className={`group z-20 -mx-1 flex w-4 shrink-0 cursor-col-resize select-none items-center justify-center self-stretch py-12 transition-colors ${
             isDragging ? 'bg-slate-200/50' : 'hover:bg-slate-100/80'
           }`}
           title="마우스로 드래그하여 패널 너비 조절"
@@ -100,18 +107,18 @@ export function SplitView({
             width: isFullScreen ? '100%' : `${100 - splitRatio}%`,
             minWidth: isFullScreen ? undefined : '340px',
           }}
-          className="h-full min-w-0 flex-1 space-y-4 overflow-y-auto rounded-md border border-slate-200/90 bg-white p-6 shadow-sm animate-in slide-in-from-right duration-150 [scrollbar-gutter:stable] lg:p-7"
+          className="h-full min-w-0 flex-1 space-y-4 overflow-y-auto overscroll-contain rounded-md border border-slate-200/90 bg-white p-6 animate-in slide-in-from-right duration-150 [scrollbar-gutter:stable] lg:p-7"
           aria-label={panelTitle}
         >
           <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
-            <h3 className="min-w-0 truncate text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
+            <h3 className="min-w-0 truncate text-xl font-bold leading-snug tracking-tight text-slate-950 sm:text-2xl">
               {panelTitle}
             </h3>
             <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
                 onClick={() => setIsFullScreen(!isFullScreen)}
-                className="hidden cursor-pointer items-center rounded-sm p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:flex"
+                className="hidden cursor-pointer items-center rounded-sm p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800 sm:flex"
                 title={isFullScreen ? '분할 뷰로 축소' : '전체 화면으로 확장'}
                 aria-label={isFullScreen ? '분할 뷰로 축소' : '전체 화면으로 확장'}
               >
@@ -120,7 +127,7 @@ export function SplitView({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex cursor-pointer items-center rounded-sm p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                className="flex cursor-pointer items-center rounded-sm p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
                 title="사이드 패널 닫기"
                 aria-label="사이드 패널 닫기"
               >
@@ -140,37 +147,57 @@ interface SplitListItemProps {
   label: string;
   isSelected: boolean;
   onSelect: () => void;
+  /** 있으면 오른쪽 화살표 자리에 휴지통 버튼을 둔다. */
+  onDelete?: () => void;
 }
 
 /** 분할 화면 목록의 한 칸: 이름만 보여 준다. 출결 분할 화면의 팀 카드와 같은 모양이다. */
-export function SplitListItem({ label, isSelected, onSelect }: SplitListItemProps) {
+export function SplitListItem({ label, isSelected, onSelect, onDelete }: SplitListItemProps) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-current={isSelected ? 'true' : undefined}
-      className={`group relative flex w-full shrink-0 cursor-pointer select-none items-center justify-between gap-3 rounded-md border p-4 text-left transition-all ${
-        isSelected
-          ? 'border-slate-300 bg-slate-100/80 shadow-2xs'
-          : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-2xs'
-      }`}
-    >
-      <span
-        className={`min-w-0 flex-1 truncate text-sm font-bold ${
-          isSelected ? 'text-slate-950' : 'text-slate-900 group-hover:text-slate-950'
+    // 버튼 안에 버튼을 둘 수 없어 휴지통은 칸 위에 겹쳐 놓는다.
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-current={isSelected ? 'true' : undefined}
+        className={`group relative flex w-full shrink-0 cursor-pointer select-none items-center justify-between gap-3 rounded-md border p-4 text-left transition-all ${
+          onDelete ? 'pr-12' : ''
+        } ${
+          isSelected
+            ? 'border-slate-300 bg-slate-100/80'
+            : 'border-slate-200 bg-white hover:border-slate-300'
         }`}
       >
-        {label}
-      </span>
-      <ChevronRight
-        size={16}
-        aria-hidden="true"
-        className={`shrink-0 transition-transform ${
-          isSelected
-            ? 'translate-x-0.5 text-slate-500'
-            : 'text-slate-300 group-hover:text-slate-500'
-        }`}
-      />
-    </button>
+        <span
+          className={`min-w-0 flex-1 truncate text-sm font-bold ${
+            isSelected ? 'text-slate-950' : 'text-slate-900 group-hover:text-slate-950'
+          }`}
+        >
+          {label}
+        </span>
+        {!onDelete && (
+          <ChevronRight
+            size={16}
+            aria-hidden="true"
+            className={`shrink-0 transition-transform ${
+              isSelected
+                ? 'translate-x-0.5 text-slate-500'
+                : 'text-slate-300 group-hover:text-slate-500'
+            }`}
+          />
+        )}
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`${label} 삭제`}
+          title={`${label} 삭제`}
+          className="absolute right-3 top-1/2 inline-flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+        >
+          <Trash2 size={15} />
+        </button>
+      )}
+    </div>
   );
 }

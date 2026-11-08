@@ -12,14 +12,20 @@ import {
   persistTeams,
 } from '../src/entities/study-team/api/teamRepository';
 import { applyAttendanceChange, createStudyRecords } from '../src/entities/study-team/model/db';
-import { loadWeeks } from '../src/entities/attendance/api/weekRepository';
-import { loadCohorts } from '../src/entities/cohort/api/cohortRepository';
 import { listUsers } from '../src/entities/user/api/usersRepository';
+import { currentSemester, listSemesters, semesterWeeks } from '../src/shared/api/mock/queries';
 import { createDatabase, inTransaction, queryAll } from '../src/shared/db/createDatabase';
-import { SAMPLE_MENTORING_PDF_PATH } from '../src/shared/lib/file';
 
-const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
-const seed = readFileSync(new URL('../db/seed.sql', import.meta.url), 'utf8');
+// 유저 DB + 행사 DB(앱과 같은 순서로 함께 올린다)
+const read = (file: string) => readFileSync(new URL(`../db/${file}`, import.meta.url), 'utf8');
+const schema = `${read('schema.sql')}\n${read('event-schema.sql')}`;
+const seed = `${read('seed.sql')}\n${read('event-seed.sql')}`;
+
+/** 시드(db/seed.sql)가 멘멘 스터디 출결에 붙여 둔 샘플 PDF 경로. */
+const SAMPLE_MENTORING_PDF_PATH = 'files/study/sample-mentoring-report.pdf';
+
+/** 현재 반기의 주차 목록(반기별 상태는 semester_weeks에 있다). */
+const currentWeeks = (db: Database) => semesterWeeks(db, currentSemester(db).cohort);
 
 async function freshDb(): Promise<Database> {
   const SQL = await initSqlJs();
@@ -99,6 +105,7 @@ test('스터디를 만들면 팀·팀원·전 주차 출결이 DB에 저장되�
     studyKind: 'MENTORING',
     track: '분석',
     isVacation: true,
+    cohort: 27,
     leaderName: '남민서',
     members: listUsers(db).slice(0, 2),
   });
@@ -122,15 +129,21 @@ test('팀과 팀원 저장 뒤 오류가 나면 팀 생성 전체를 되돌린�
     studyKind: 'GENERAL',
     track: '분석',
     isVacation: true,
+    cohort: 27,
     leaderName: null,
     members: [],
   });
-  assert.throws(() =>
-    inTransaction(db, () => {
-      persistTeams(db, before.studyTeams, [...before.studyTeams, created.team], 'STUDY');
-      persistMembers(db, before.members, { ...before.members, [created.team.id]: created.members });
-      throw new Error('출결 저장 실패');
-    }),
+  assert.throws(
+    () =>
+      inTransaction(db, () => {
+        persistTeams(db, before.studyTeams, [...before.studyTeams, created.team], 'STUDY');
+        persistMembers(db, before.members, {
+          ...before.members,
+          [created.team.id]: created.members,
+        });
+        throw new Error('출결 저장 실패');
+      }),
+    /출결 저장 실패/,
   );
   assert.equal(queryAll(db, 'SELECT id FROM teams WHERE id = ?', [created.team.id]).length, 0);
 });
@@ -144,6 +157,7 @@ test('부문이 다르면 같은 이름의 스터디를 만들 수 있고, 두 �
     studyKind: 'GENERAL',
     track: '분석',
     isVacation: true,
+    cohort: 27,
     leaderName: null,
     members: users.slice(0, 2),
   });
@@ -182,6 +196,7 @@ test('같은 부문 안에서는 이름이 겹치면 DB가 거부하고, 실패�
     studyKind: 'GENERAL',
     track: '엔지니어링', // 시드의 '테라폼 스터디'와 같은 부문
     isVacation: true,
+    cohort: 27,
     leaderName: null,
     members: [],
   });
@@ -340,9 +355,9 @@ test('DB 제약: 멘멘/친바 출결 줄은 멘멘 스터디에만 저장할 �
   assert.doesNotThrow(() => insertRecord('study_a', 'a1', '멘멘'));
 });
 
-test('주차 활성 상태는 DB의 weeks 값에서 오고, 값을 바꾸면 그대로 반영된다', async () => {
+test('주차 활성 상태는 DB의 semester_weeks 값에서 오고, 값을 바꾸면 그대로 반영된다', async () => {
   const db = await freshDb();
-  const before = loadWeeks(db);
+  const before = currentWeeks(db);
   assert.equal(before.length, 16);
   assert.deepEqual(
     before.filter((w) => w.status === 'OPEN').map((w) => w.weekNum),
@@ -356,16 +371,19 @@ test('주차 활성 상태는 DB의 weeks 값에서 오고, 값을 바꾸면 그
   );
   assert.equal(count, 0);
 
-  db.run("UPDATE weeks SET status = 'CLOSED' WHERE id = 'w3'");
-  db.run("UPDATE weeks SET status = 'OPEN' WHERE id = 'w4'");
-  const after = loadWeeks(db);
+  const { cohort } = currentSemester(db);
+  db.run("UPDATE semester_weeks SET status = 'CLOSED' WHERE cohort = ? AND week_id = 'w3'", [
+    cohort,
+  ]);
+  db.run("UPDATE semester_weeks SET status = 'OPEN' WHERE cohort = ? AND week_id = 'w4'", [cohort]);
+  const after = currentWeeks(db);
   assert.equal(after.find((w) => w.weekNum === 3)?.status, 'CLOSED');
   assert.equal(after.find((w) => w.weekNum === 4)?.status, 'OPEN');
 });
 
 test('DB 제약: 주차 상태는 정해진 값만, 출결 세션은 존재하는 주차만 가리킨다', async () => {
   const db = await freshDb();
-  assert.throws(() => db.run("UPDATE weeks SET status = 'ACTIVE' WHERE id = 'w1'"));
+  assert.throws(() => db.run("UPDATE semester_weeks SET status = 'ACTIVE' WHERE week_id = 'w1'"));
   assert.throws(() =>
     db.run(
       "INSERT INTO attendance_sessions (team_id, week_id, submitted) VALUES ('study_a', 'w99', 0)",
@@ -462,6 +480,7 @@ test('이름 중복 제한은 기수 안에서만 적용된다(다른 기수의 
     studyKind: 'MENTORING',
     track: '분석',
     isVacation: true,
+    cohort: 27,
     leaderName: null,
     members: [],
   });
@@ -484,10 +503,10 @@ test('이름 중복 제한은 기수 안에서만 적용된다(다른 기수의 
   assert.equal(loadTeamState(db).studyTeams.find((t) => t.id === 'study_new28')?.cohort, 28);
 });
 
-test('기수 목록은 DB의 cohorts에서 큰 기수부터 읽고, 20~27기가 들어 있다', async () => {
+test('기수 목록은 DB의 cohorts에서 큰 기수부터 읽고, 26·27기가 들어 있다', async () => {
   const db = await freshDb();
-  const cohorts = loadCohorts(db);
-  assert.deepEqual(cohorts, [27, 26, 25, 24, 23, 22, 21, 20]);
+  const cohorts = listSemesters(db).map((semester) => semester.cohort);
+  assert.deepEqual(cohorts, [27, 26]);
   // 팀이 있는 기수는 모두 목록에 있어야 한다.
   const teamCohorts = new Set(loadTeamState(db).studyTeams.map((team) => team.cohort));
   teamCohorts.forEach((cohort) => assert.ok(cohorts.includes(cohort as number), String(cohort)));

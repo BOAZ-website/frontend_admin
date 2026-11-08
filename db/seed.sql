@@ -10,16 +10,11 @@ INSERT INTO tracks (name, sort_order) VALUES
   ('엔지니어링', 3);
 
 -- ── cohorts ────────────────────────────────────────────
--- 20~27기(23-1 ~ 26-2 반기). 27기(26-2 반기)가 현재 반기이고 나머지는 지난 반기다. 다음 반기(27-1)는 등록하지 않았고,
+-- 26·27기(26-1·26-2 반기)만 둔다. 팀·명단 기록이 있는 반기만 남겼다(2026-11-07). 27기(26-2 반기)가 현재 반기다. 다음 반기(27-1)는 등록하지 않았고,
 -- BASE 출결 생성·ADV 팀 개설을 하면 API가 그때 등록한다.
 -- 반기마다 직전 기수가 ADV를 진행한다(예: 26-2 반기 → 26기 ADV).
+-- 지운 반기는 없다(deleted_at은 모두 NULL).
 INSERT INTO cohorts (cohort, semester_label, start_date, end_date, is_current, adv_term) VALUES
-  (20, '23-1', '2023-01-01', '2023-06-30', 0, 19),
-  (21, '23-2', '2023-07-01', '2023-12-31', 0, 20),
-  (22, '24-1', '2024-01-01', '2024-06-30', 0, 21),
-  (23, '24-2', '2024-07-01', '2024-12-31', 0, 22),
-  (24, '25-1', '2025-01-01', '2025-06-30', 0, 23),
-  (25, '25-2', '2025-07-01', '2025-12-31', 0, 24),
   (26, '26-1', '2026-01-01', '2026-06-30', 0, 25),
   (27, '26-2', '2026-07-01', '2026-12-31', 1, 26);
 
@@ -28,6 +23,25 @@ INSERT INTO semester_member_terms (cohort, term)
 SELECT cohort, cohort - 1 FROM cohorts
 UNION ALL
 SELECT cohort, cohort FROM cohorts;
+
+-- 반기별 방학·학기 기간과 활동별 1주차 시작일. 반기마다 네 활동의 시작일을 모두 둔다. 27(26-2)의 BASE 1~8주차 날짜는 아래 cohort_week_dates와 같다.
+-- 26(26-1)은 지난 반기 화면을 보여 주기 위한 예시 일정이다(2026-11-07 추가).
+INSERT INTO semester_periods (cohort, period, start_date, end_date) VALUES
+  (26, '방학', '2026-01-01', '2026-02-28'),
+  (26, '학기', '2026-03-02', '2026-06-30'),
+  (27, '방학', '2026-07-01', '2026-08-31'),
+  (27, '학기', '2026-09-01', '2026-12-31');
+INSERT INTO semester_activity_starts (cohort, activity, start_date) VALUES
+  (26, 'BASE', '2026-01-06'),
+  (26, 'ADV', '2026-01-07'),
+  (26, 'STUDY_VACATION', '2026-01-08'),
+  (26, 'STUDY_TERM', '2026-03-04'),
+  (27, 'BASE', '2026-07-07'),
+  (27, 'ADV', '2026-07-08'),
+  (27, 'STUDY_VACATION', '2026-07-07'),
+  (27, 'STUDY_TERM', '2026-09-02');
+INSERT INTO semester_invalid_weeks (cohort, activity, week_num, reason) VALUES
+  (26, 'BASE', 7, '설 연휴');
 
 -- ── users ──────────────────────────────────────────────
 INSERT INTO users (id, name, term, track) VALUES
@@ -162,9 +176,7 @@ INSERT INTO score_rules (id, version, term, name, start_date, end_date, status, 
   ('rule-27', 3, 27, 'Version 3', '2026-07-01', NULL, 'ACTIVE', '2026-07-01', '27기 대표진',
    '27기 하계 방학 세션 및 2학기 정규활동/스터디 출결 배점 규정', 0, -3, -4, -1, -1, -4, -5, 3, 1, 1),
   ('rule-26', 2, 26, 'Version 2', '2026-01-01', '2026-06-30', 'INACTIVE', '2026-01-01', '26기 대표진',
-   '26기 동계 방학 및 1학기 출결 배점 규정 (과거 이력 보존)', 0, -3, -4, -1, -1, -4, -5, 3, 1, 1),
-  ('rule-25', 1, 25, 'Version 1', '2025-07-01', '2025-12-31', 'INACTIVE', '2025-07-01', '25기 대표진',
-   '25기 하계 방학 및 2학기 출결 배점 규정 (과거 이력 보존)', 0, -2, -3, -0.5, -0.5, -3, -4, 2, 1, 1);
+   '26기 동계 방학 및 1학기 출결 배점 규정 (과거 이력 보존)', 0, -3, -4, -1, -1, -4, -5, 3, 1, 1);
 
 -- members: 로그인 계정과 분리된 기수별 동아리원 명단
 INSERT INTO members (id, user_id, term, track, name)
@@ -1572,46 +1584,6 @@ SELECT ts.semester_cohort, tm.user_id, u.name, u.term, u.track
 INSERT OR IGNORE INTO semester_members (cohort, user_id, name, term, track)
 SELECT (SELECT cohort FROM cohorts WHERE is_current = 1), id, name, term, track FROM users;
 
--- ─────────────────────────── HOST 계정 (mock 데이터) ───────────────────────────
--- ADV·스터디 팀장을 겸하는 경우:
---   · 고준서: ADV 분석 1팀 + LLM Agent & RAG 스터디. 계정(host_adv_ana1)이 두 권한을 모두 가진다.
---   · 강태양: ADV 엔지 1팀 + 테라폼 스터디 + 쿠버네티스 스터디. 계정(host_adv_eng1)은 ADV 권한만 있다(스터디 권한 추가 흐름 확인용).
---   · 송하늘: B조 스터디 + ADV 지리공간 맵핑. 계정(host_b)은 스터디 권한만 있다(ADV 권한 추가 흐름 확인용).
-
-INSERT INTO host_accounts (id, username, initial_password, user_id, host_name, generation, track, role, team_id,
-                           group_type, account_type, created_at, active, last_login) VALUES
-  ('h1', 'host_a', 'boaz2026!a', 'u_26_01', NULL, NULL, NULL, '그룹리더', 'study_a',
-   '스터디', 'STUDY', '2025-02-28', 1, '2025-03-18 19:30'),
-  ('h3', 'host_c', 'boaz2026!c', 'u_27_01', NULL, NULL, NULL, '그룹리더', 'study_c',
-   '스터디', 'STUDY', '2025-02-28', 1, '2025-03-11 20:40'),
-  ('h_adv1', 'host_adv_ana1', 'boaz2026!adv1', 'u_27_02', NULL, NULL, NULL, '그룹리더', 'adv_t1',
-   'ADV', 'ADV', '2025-02-28', 1, '2025-03-19 14:20'),
-  ('h_adv2', 'host_adv_vis1', 'boaz2026!adv2', 'u_28_08', NULL, NULL, NULL, '그룹리더', 'adv_t4',
-   'ADV', 'ADV', '2025-02-28', 1, '2025-03-19 15:10'),
-  ('h_adv3', 'host_adv_eng1', 'boaz2026!adv3', 'u_28_04', NULL, NULL, NULL, '그룹리더', 'adv_t7',
-   'ADV', 'ADV', '2025-02-28', 1, '2025-03-19 16:05'),
-  ('h_m2', 'host_b', 'boaz2026!b', 'u_27_06', NULL, NULL, NULL, '그룹리더', 'study_m2',
-   '스터디', 'STUDY', '2026-08-01', 1, NULL);
-
-INSERT INTO host_permissions (host_id, position, permission) VALUES
-  ('h1', 0, 'STUDY'),
-  ('h3', 0, 'STUDY'),
-  ('h_adv1', 0, 'ADV'),
-  ('h_adv1', 1, 'STUDY'),
-  ('h_adv2', 0, 'ADV'),
-  ('h_adv3', 0, 'ADV'),
-  ('h_m2', 0, 'STUDY');
-
-INSERT INTO host_assigned_groups (host_id, position, team_id) VALUES
-  ('h_adv1', 0, 'adv_t1'),
-  ('h_adv1', 1, 'study_d'),
-  ('h_adv3', 0, 'adv_t7');
-
-INSERT INTO host_concurrent_roles (host_id, position, role) VALUES
-  ('h1', 0, '운영진'),
-  ('h_adv1', 0, '운영진'),
-  ('h_adv1', 1, 'LLM Agent & RAG 스터디');
-
 -- ── 동아리원 관리 화면 예시 값 ─────────────────────────────
 -- 탈퇴 명단 쪽 넘김(한 쪽 7명)을 볼 수 있게 탈퇴 회원을 더 넣는다. 팀·반기 명단·출결에는 넣지 않는다.
 -- 25기 이하는 모두 수료로 두므로 26기로 넣는다.
@@ -1700,9 +1672,24 @@ UPDATE admin SET is_team_lead = 1 WHERE id IN (1, 4, 6, 7, 14, 24);
 
 
 -- 운영진 계정(admin 행)이 있는 회원은 동아리원 관리에서도 운영진 역할로 보이게 맞춘다.
--- 역할은 admin 행이 있는지로만 정한다(admin 행 없이 OPERATOR인 회원을 두지 않는다). 대표(PRESIDENT)는 그대로 둔다.
+-- 역할은 운영진 계정(HOST가 아닌 admin 행)이 있는지로만 정한다(그런 행 없이 OPERATOR인 회원을 두지 않는다). 대표(PRESIDENT)는 그대로 둔다.
 UPDATE users SET club_role = 'OPERATOR'
- WHERE id IN (SELECT user_id FROM admin) AND club_role <> 'PRESIDENT';
+ WHERE id IN (SELECT user_id FROM admin WHERE role <> 'HOST') AND club_role <> 'PRESIDENT';
+
+-- ─────────────────────────── HOST 계정 (mock 데이터) ───────────────────────────
+-- 스터디장·ADV 팀장의 HOST 계정. 운영진 계정과 같은 admin 표에 role = 'HOST'로 들어간다.
+-- 계정은 회원에 묶이고, 맡은 그룹은 teams.leader_id로 정해진다(계정에 팀을 따로 저장하지 않는다).
+--   · 고준서(host_adv_ana1): ADV 분석 1팀 + LLM Agent & RAG 스터디를 계정 하나로 맡는다.
+--   · 강태양(host_adv_eng1): ADV 엔지 1팀 + 테라폼 스터디 + 쿠버네티스 스터디.
+--   · 송하늘(host_b): B조 스터디 + ADV 시각화 2팀.
+--   · A조 스터디장(u_26_01)은 운영진 계정(boaz_master)이 있어 HOST 계정을 따로 두지 않는다.
+-- 임시 비밀번호는 아이디마다 다르다.
+INSERT INTO admin (id, user_id, username, password, role, team_name, created_by, created_at, updated_at) VALUES
+  (101, 'u_27_01', 'host_c', 'boaz2026!c', 'HOST', '그룹리더', 4, '2026-07-10 10:00:00', '2026-07-10 10:00:00'),
+  (102, 'u_27_02', 'host_adv_ana1', 'boaz2026!adv1', 'HOST', '그룹리더', 4, '2026-07-10 10:10:00', '2026-07-10 10:10:00'),
+  (103, 'u_28_08', 'host_adv_vis1', 'boaz2026!adv2', 'HOST', '그룹리더', 4, '2026-07-10 10:20:00', '2026-07-10 10:20:00'),
+  (104, 'u_28_04', 'host_adv_eng1', 'boaz2026!adv3', 'HOST', '그룹리더', 4, '2026-07-10 10:30:00', '2026-07-10 10:30:00'),
+  (105, 'u_27_06', 'host_b', 'boaz2026!b', 'HOST', '그룹리더', 4, '2026-08-01 10:00:00', '2026-08-01 10:00:00');
 
 -- 기획팀장에게 콘텐츠 CUD를 열어 준 예외 한 건(기타 운영진 기본 세트에는 없다).
 INSERT INTO admin_permission_override (id, admin_id, permission, effect, granted_by, created_at) VALUES
@@ -1741,8 +1728,8 @@ INSERT INTO audit_log (occurred_at, actor_admin_id, action, target_type, target_
   ('2026-10-14 11:36:52', 3, 'SCORE_RULE_ACTIVATE', 'SCORE_RULE', '["rule-27"]', 'POST', '/api/v1/score-rules/rule-27/activate', '{"label":"Version 3"}', '10.0.12.25'),
   ('2026-10-17 18:02:26', 1, 'HOST_ACCOUNT_UPDATE', 'HOST', '["h1"]', 'PATCH', '/api/v1/hosts/h1', '{"fields":["permissions"],"label":"host_a","request":{"permissions":["STUDY"]}}', '10.0.12.7');
 
--- HOST(그룹 계정)가 한 기록과, 지금은 운영진 계정이 지워진 사람(admin.id 99)이 한 기록.
+-- HOST 계정(admin.id 101, host_c)이 한 기록과, 지금은 운영진 계정이 지워진 사람(admin.id 99)이 한 기록.
 -- 수행자 회원 id와 등급을 함께 남긴다(위 예시는 비워 두어, 조회할 때 지금 계정에서 찾는다).
 INSERT INTO audit_log (occurred_at, actor_admin_id, actor_user_id, actor_role, action, target_type, target_ids, api_method, api_path, detail, ip) VALUES
   ('2026-08-20 17:42:05', 99, 'u_25_03', 'TEAM', 'CONTENT_UPDATE', 'CONTENT', '["faq-12"]', 'PATCH', '/api/v1/admin/faqs/faq-12', '{"kind":"FAQ","label":"지원 자격이 있나요?","fields":["body"],"request":{"answer":"BOAZ에 지원하려면 대학생 또는 대학원생이어야 하며, 전공은 상관없습니다. 활동 기간(1년) 동안 매주 세션에 참여할 수 있어야 합니다."}}', '10.0.12.39'),
-  ('2026-09-23 22:05:13', NULL, 'u_27_01', 'HOST', 'ATTENDANCE_SUBMIT', 'TEAM', '["study_c"]', 'POST', '/api/v1/study-teams/study_c/weeks/3/submit', '{"group":"STUDY","week":3,"label":"태블로 & D3.js 스터디","request":{"records":[{"memberId":"c1","subType":"","status":"absent","memo":"개인 일정으로 인한 결석"},{"memberId":"c2","subType":"","status":"present"},{"memberId":"c3","subType":"","status":"present"},{"memberId":"c4","subType":"","status":"present"}]}}', '10.0.12.88');
+  ('2026-09-23 22:05:13', 101, 'u_27_01', 'HOST', 'ATTENDANCE_SUBMIT', 'TEAM', '["study_c"]', 'POST', '/api/v1/study-teams/study_c/weeks/3/submit', '{"group":"STUDY","week":3,"label":"태블로 & D3.js 스터디","request":{"records":[{"memberId":"c1","subType":"","status":"absent","memo":"개인 일정으로 인한 결석"},{"memberId":"c2","subType":"","status":"present"},{"memberId":"c3","subType":"","status":"present"},{"memberId":"c4","subType":"","status":"present"}]}}', '10.0.12.88');
