@@ -4,10 +4,8 @@ import test from 'node:test';
 import {
   applyAttendanceChange,
   createStudyRecords,
-  describeStudyCreateError,
   getStudyCell,
   studyDisplayName,
-  studyLeaderLabel,
 } from '../src/entities/study-team/model/db';
 import type { StudyTeamInfo } from '../src/entities/study-team/model/types';
 import type { UserProfile } from '../src/entities/user/model/types';
@@ -130,25 +128,7 @@ test('없는 주차 레코드에 대한 변경은 무시한다', () => {
   assert.deepEqual(next, {});
 });
 
-test('스터디장 라벨과 제목을 만든다', () => {
-  const t = team('A팀', { leaderName: '남민서', studyName: '논문 리뷰' });
-  assert.equal(
-    studyLeaderLabel(t, [{ id: 'a1', name: '남민서', year: '26', track: '분석' }]),
-    '26기 분석 남민서',
-  );
-  assert.equal(studyLeaderLabel(t, []), '남민서');
-  assert.equal(studyDisplayName(t), 'A팀 (논문 리뷰)');
-});
-
-test('같은 부문 이름 중복으로 저장이 거부되면 알아보기 쉬운 문구로 바꾸고, 그 외 사유는 원문을 덧붙인다', () => {
-  assert.equal(
-    describeStudyCreateError(
-      new Error('UNIQUE constraint failed: teams.cohort, teams.track, teams.team_name'),
-    ),
-    '같은 기수·부문에 이미 사용 중인 스터디 이름입니다. 다른 이름을 쓰거나 다른 부문으로 만들어 주세요.',
-  );
-  assert.equal(
-    describeStudyCreateError(new Error('database is locked')),
-    '스터디를 만들지 못했습니다. (database is locked)',
-  );
+test('팀 카드 제목은 설정한 스터디 이름이고, 없으면 팀 이름이다', () => {
+  assert.equal(studyDisplayName(team('A팀', { studyName: '논문 리뷰' })), '논문 리뷰');
+  assert.equal(studyDisplayName(team('A팀', { studyName: '' })), 'A팀');
 });
