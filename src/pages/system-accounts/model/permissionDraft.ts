@@ -12,20 +12,38 @@ import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/m
 /** 기본 권한과 비교한 표시. added: 기본에 없는데 체크 · removed: 기본에 있는데 체크 해제 */
 export type PermissionChangeMark = 'added' | 'removed' | null;
 
-/** 화면에서 켜고 끌 수 있는 권한. 맡은 그룹에서 자동으로 붙는 권한(_OWN_GROUP_)은 뺀다. */
-const editablePermissions = (catalog: PermissionCatalog): PermissionDef[] =>
-  permissionsIn(catalog).filter((permission) => !permission.ownGroup);
+/**
+ * 이 계정의 기본 권한인지. 담당 그룹 권한(_OWN_GROUP_)은 그 종류의 그룹을 맡았으면 기본으로 생기는 권한으로 본다.
+ */
+const isInAccountBase = (
+  catalog: PermissionCatalog,
+  account: AdminAccount,
+  permission: PermissionDef,
+): boolean =>
+  permission.ownGroup
+    ? account.leadership.includes(permission.ownGroup)
+    : isInBaseOf(catalog, permission, account.baseSetKey);
+
+/**
+ * 화면에서 켜고 끌 수 있는 권한. 담당 그룹 권한은 그 종류의 그룹을 맡은 계정에서만 끌(회수할) 수 있다.
+ * 맡지 않은 계정에는 그룹을 맡아야 생기므로 추가할 수 없다.
+ */
+export const isEditablePermission = (account: AdminAccount, permission: PermissionDef): boolean =>
+  !permission.ownGroup || account.leadership.includes(permission.ownGroup);
+
+const editablePermissions = (catalog: PermissionCatalog, account: AdminAccount): PermissionDef[] =>
+  permissionsIn(catalog).filter((permission) => isEditablePermission(account, permission));
 
 /** 저장된 체크 상태: 유효 권한 중 화면에서 켜고 끌 수 있는 것. */
 export const savedCheckedOf = (catalog: PermissionCatalog, account: AdminAccount): string[] =>
-  editablePermissions(catalog)
+  editablePermissions(catalog, account)
     .filter((permission) => account.effectivePermissions.includes(permission.key))
     .map((permission) => permission.key);
 
 /** 기본 권한만 체크한 상태. "기본 권한으로 되돌리기"에 쓴다. */
 export const baseCheckedOf = (catalog: PermissionCatalog, account: AdminAccount): string[] =>
-  editablePermissions(catalog)
-    .filter((permission) => isInBaseOf(catalog, permission, account.baseSetKey))
+  editablePermissions(catalog, account)
+    .filter((permission) => isInAccountBase(catalog, account, permission))
     .map((permission) => permission.key);
 
 export const changeMarkOf = (
@@ -34,8 +52,8 @@ export const changeMarkOf = (
   permission: PermissionDef,
   checked: ReadonlySet<string>,
 ): PermissionChangeMark => {
-  if (permission.ownGroup) return null;
-  const isInBase = isInBaseOf(catalog, permission, account.baseSetKey);
+  if (!isEditablePermission(account, permission)) return null;
+  const isInBase = isInAccountBase(catalog, account, permission);
   const isChecked = checked.has(permission.key);
   if (isChecked && !isInBase) return 'added';
   if (!isChecked && isInBase) return 'removed';
@@ -48,7 +66,7 @@ export const changeCountsOf = (
   account: AdminAccount,
   checked: ReadonlySet<string>,
 ): { added: number; removed: number } => {
-  const marks = editablePermissions(catalog).map((permission) =>
+  const marks = editablePermissions(catalog, account).map((permission) =>
     changeMarkOf(catalog, account, permission, checked),
   );
   return {

@@ -9,8 +9,10 @@ import { createDatabase } from '../src/shared/db/createDatabase';
 import { createRouter } from '../src/shared/api/mock/router';
 import { teamRoutes } from '../src/shared/api/mock/routes/teamRoutes';
 
-const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
-const seed = readFileSync(new URL('../db/seed.sql', import.meta.url), 'utf8');
+// 유저 DB + 행사 DB(앱과 같은 순서로 함께 올린다)
+const read = (file: string) => readFileSync(new URL(`../db/${file}`, import.meta.url), 'utf8');
+const schema = `${read('schema.sql')}\n${read('event-schema.sql')}`;
+const seed = `${read('seed.sql')}\n${read('event-seed.sql')}`;
 
 test('현재 팀 목록은 sessions 포함 여부와 무관하게 현재 반기·현재 기간의 같은 팀을 반환한다', async () => {
   const SQL = await initSqlJs();

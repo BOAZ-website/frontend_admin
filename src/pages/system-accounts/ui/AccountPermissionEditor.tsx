@@ -6,7 +6,7 @@ import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/m
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 
-import { changeMarkOf, lockReasonOf } from '../model/permissionDraft';
+import { changeMarkOf, isEditablePermission, lockReasonOf } from '../model/permissionDraft';
 import { usePermissionDraft } from '../model/usePermissionDraft';
 import { PermissionLabel } from './PermissionLabel';
 
@@ -34,10 +34,6 @@ interface Tag {
 const SMALL_TAG = 'text-xs font-semibold whitespace-nowrap';
 const ADDED_TAG: Tag = { text: '추가', className: 'text-emerald-700' };
 const REMOVED_TAG: Tag = { text: '기본에서 제외', className: 'text-red-600' };
-/** 맡은 그룹에서 자동으로 붙는 권한의 잠금 사유. 글자 대신 자물쇠에 마우스를 올리면 보인다. */
-const OWN_GROUP_LOCK_REASON =
-  '맡은 그룹에서 자동으로 붙는 권한이라 뺄 수 없습니다. 출결 › 그룹 계정 관리에서 바꿉니다.';
-
 /** 이 표들은 패널 안에 놓이므로 공통 표 상자(TABLE_BOX)와 달리 그림자 없이 테두리만 둔다. */
 const LIST_BOX = 'overflow-hidden rounded-md border border-slate-200 bg-white';
 
@@ -62,7 +58,8 @@ const ACTION = {
  * 운영진 한 명의 권한 편집(SYS-PERM). 왼쪽은 지금 가진 권한, 오른쪽은 추가할 수 있는 권한이다.
  * 권한은 양쪽 다 카탈로그 묶음과 순서를 그대로 지켜, 옮겨도 같은 자리에 들어간다.
  * 기본 권한에 없는데 더한 권한은 왼쪽에 "추가", 기본 권한인데 뺀 권한은 오른쪽에 "기본에서 제외"로 표시한다.
- * 맡은 그룹에서 자동으로 붙는 권한과 회수할 수 없는 권한은 뺄 수 없다. 저장은 가진 권한의 최종 집합을 한 번에 보낸다.
+ * 맡은 그룹에서 붙는 담당 그룹 권한은 뺄(회수할) 수 있지만, 그룹을 맡지 않은 계정에 더할 수는 없다.
+ * 회수할 수 없는 권한(잠금 방지)은 뺄 수 없다. 저장은 가진 권한의 최종 집합을 한 번에 보낸다.
  */
 export function AccountPermissionEditor({
   catalog,
@@ -86,18 +83,13 @@ export function AccountPermissionEditor({
     handleSave,
   } = usePermissionDraft({ catalog, account, me, accounts, onSave, onDirtyChange });
 
-  const isHeld = (permission: PermissionDef): boolean =>
-    permission.ownGroup
-      ? account.effectivePermissions.includes(permission.key)
-      : checked.has(permission.key);
-  // 맡은 그룹 권한은 그룹을 맡아야 생기므로 여기서 추가할 수 없다.
+  const isHeld = (permission: PermissionDef): boolean => checked.has(permission.key);
+  // 담당 그룹 권한은 그룹을 맡아야 생기므로, 맡은 계정에서 회수한 것을 되돌릴 때만 추가할 수 있다.
   const isAddable = (permission: PermissionDef): boolean =>
-    !permission.ownGroup && !checked.has(permission.key);
+    isEditablePermission(account, permission) && !checked.has(permission.key);
 
   const renderHeld = (permission: PermissionDef) => {
-    const lockReason = permission.ownGroup
-      ? OWN_GROUP_LOCK_REASON
-      : lockReasonOf(permission, account, me, accounts);
+    const lockReason = lockReasonOf(permission, account, me, accounts);
     const canRemove = canEdit && lockReason === null;
     const mark = changeMarkOf(catalog, account, permission, checked);
     return (

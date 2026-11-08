@@ -20,21 +20,55 @@ CREATE TABLE tracks (
 -- 팀·출결이 아직 없는 반기도 이 목록에는 있을 수 있다(그 반기를 고르면 빈 화면이 보인다).
 CREATE TABLE cohorts (
   cohort         INTEGER PRIMARY KEY CHECK (cohort > 0),
-  semester_label TEXT    NOT NULL UNIQUE CHECK (semester_label GLOB '[0-9][0-9]-[12]'),
+  semester_label TEXT    NOT NULL CHECK (semester_label GLOB '[0-9][0-9]-[12]'),
   start_date     TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   end_date       TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   is_current     INTEGER NOT NULL DEFAULT 0 CHECK (is_current IN (0, 1)),
+  is_preparing   INTEGER NOT NULL DEFAULT 0 CHECK (is_preparing IN (0, 1)), -- 준비: 저장했지만 아직 활성화하지 않은 반기. 진행·종료는 is_current로 가른다
   adv_term       INTEGER CHECK (adv_term > 0),             -- 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 teams.cohort). 없으면 NULL
-  CHECK (start_date <= end_date)
+  deleted_at     TEXT,                                     -- 반기를 지운 시각(soft delete). 지운 반기는 목록·조회·중복 검사에서 빠지고, 그 반기의 팀·출결·행사 기록은 남는다
+  CHECK (start_date <= end_date),
+  CHECK (is_current = 0 OR is_preparing = 0)
 );
+-- 표기·준비 반기·ADV 기수가 겹치지 않는지는 지우지 않은 반기끼리만 본다.
+CREATE UNIQUE INDEX idx_cohorts_label ON cohorts (semester_label) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_cohorts_single_preparing ON cohorts (is_preparing) WHERE is_preparing = 1 AND deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_cohorts_single_current ON cohorts (is_current) WHERE is_current = 1;
-CREATE UNIQUE INDEX idx_cohorts_adv_term ON cohorts (adv_term) WHERE adv_term IS NOT NULL;
+CREATE UNIQUE INDEX idx_cohorts_adv_term ON cohorts (adv_term) WHERE adv_term IS NOT NULL AND deleted_at IS NULL;
 
 -- 반기별 출결 점수 집계 대상 회원 기수(예: 26-2 반기 → 26기·27기).
 CREATE TABLE semester_member_terms (
   cohort INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
   term   INTEGER NOT NULL CHECK (term > 0),
   PRIMARY KEY (cohort, term)
+);
+
+-- 반기의 방학·학기 기간. cohorts.start_date·end_date는 방학 시작 ~ 학기 종료와 같게 맞춘다. 정하지 않은 옛 반기는 행이 없다.
+-- 스터디는 자기 기간이 끝나면 종료된 그룹으로 본다(그룹 계정 관리 표·HOST 계정 정리). 백엔드의 season_period 자리다.
+CREATE TABLE semester_periods (
+  cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  period     TEXT    NOT NULL CHECK (period IN ('방학', '학기')),
+  start_date TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  end_date   TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  PRIMARY KEY (cohort, period),
+  CHECK (start_date <= end_date)
+);
+
+-- 활동별 1주차 시작일. 이후 주차는 7일씩 더해 계산한다. 출결 주차 날짜(cohort_week_dates)와는 따로 관리한다.
+CREATE TABLE semester_activity_starts (
+  cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  activity   TEXT    NOT NULL CHECK (activity IN ('BASE', 'ADV', 'STUDY_VACATION', 'STUDY_TERM')),
+  start_date TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  PRIMARY KEY (cohort, activity)
+);
+
+-- 무효 주차(휴강): 그 활동의 출결에서 제외되는 주차(RULE-02). 변경 이력은 감사 로그의 요청 본문에 남는다.
+CREATE TABLE semester_invalid_weeks (
+  cohort   INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  activity TEXT    NOT NULL CHECK (activity IN ('BASE', 'ADV', 'STUDY_VACATION', 'STUDY_TERM')),
+  week_num INTEGER NOT NULL CHECK (week_num BETWEEN 1 AND 8),
+  reason   TEXT    NOT NULL DEFAULT '',
+  PRIMARY KEY (cohort, activity, week_num)
 );
 
 -- 동아리원. 스터디원·ADV 팀원·스터디장 후보는 모두 이 테이블의 사람을 가리킨다.
@@ -55,16 +89,20 @@ CREATE TABLE users (
   minor_double_major TEXT NOT NULL DEFAULT '[]',             -- JSON 배열
   last_semester INTEGER,
   military_status TEXT CHECK (military_status IN ('COMPLETED_OR_EXEMPT', 'NOT_COMPLETED')),
-  birth_date TEXT,
+  birth_date TEXT CHECK (birth_date IS NULL OR birth_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'), -- 생년월일
+  -- 병행 부문: 자기 부문(track) 말고 함께 활동하는 부문. 없으면 NULL
+  parallel_track TEXT REFERENCES tracks (name) CHECK (parallel_track IS NULL OR parallel_track <> track),
   graduation_date TEXT CHECK (graduation_date IS NULL OR graduation_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
   grad_school_plan INTEGER NOT NULL DEFAULT 0 CHECK (grad_school_plan IN (0, 1)),
-  -- 동아리원 관리 화면에서 고치는 값: 활동 상태(ACTIVE 활동기수, ALUMNI 수료, WITHDRAWN 탈퇴), 동아리 역할
-  club_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (club_status IN ('ACTIVE', 'ALUMNI', 'WITHDRAWN')),
+  -- 동아리원 관리 화면에서 고치는 값: 활동 상태(ACTIVE 활동기수, COMPLETED 수료, WITHDRAWN 탈동), 동아리 역할
+  club_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (club_status IN ('ACTIVE', 'COMPLETED', 'NOT_COMPLETED', 'WITHDRAWN')),
   club_role   TEXT NOT NULL DEFAULT 'MEMBER' CHECK (club_role IN ('MEMBER', 'OPERATOR', 'PRESIDENT')),
+  deleted_at  TEXT,                                     -- 잘못 등록해 지운 회원(soft delete). 값이 있으면 목록에서 뺀다
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (name, term)
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- 같은 기수에 같은 이름은 한 명. 잘못 등록해 지운 회원(deleted_at)은 빼고 본다.
+CREATE UNIQUE INDEX idx_users_name_term ON users (name, term) WHERE deleted_at IS NULL;
 
 -- 출결·점수 시스템에서 사용하는 반기별 회원 명단. users는 전역 계정/프로필이고,
 -- 이 테이블에 등록된 사람만 해당 반기의 팀원·팀장 후보로 조회된다. 새 반기는 빈 명단으로 시작한다.
@@ -259,53 +297,10 @@ CREATE UNIQUE INDEX idx_score_rules_single_active ON score_rules (status) WHERE 
 
 
 
--- ─────────────────────────── HOST 계정 ───────────────────────────
--- 스터디장·ADV 팀장이 로그인하는 HOST 계정. 계정마다 담당 팀 이름(team)이 하나 있고,
--- 여러 팀을 맡거나 겸직이면 아래 자식 테이블에 함께 남는다.
-CREATE TABLE host_accounts (
-  id               TEXT PRIMARY KEY,
-  username         TEXT NOT NULL UNIQUE,
-  initial_password TEXT,
-  user_id          TEXT REFERENCES users (id) ON DELETE SET NULL, -- 계정 주인(동아리원). 이름·기수·부문은 users에서 읽는다
-  host_name        TEXT,                                       -- user_id가 없을 때만 쓰는 이름
-  generation       TEXT,                                       -- user_id가 없을 때만 쓰는 기수(예: '26기')
-  track            TEXT,                                       -- user_id가 없을 때만 쓰는 부문
-  role             TEXT,                                       -- 예: '그룹리더'
-  team_id          TEXT REFERENCES teams (id) ON DELETE SET NULL, -- 담당 팀. 팀 이름·부문은 teams에서 읽는다. 아직 팀이 없으면 NULL(팀 개설 대기)
-  group_type       TEXT,                                       -- 'ADV' | '스터디'
-  account_type     TEXT CHECK (account_type IN ('STUDY', 'ADV')),
-  created_at       TEXT NOT NULL,
-  active           INTEGER NOT NULL DEFAULT 1,
-  last_login       TEXT
-);
-
--- 계정이 가진 권한(ADV/STUDY). ADV와 스터디를 함께 맡는 계정은 두 줄이다.
-CREATE TABLE host_permissions (
-  host_id    TEXT    NOT NULL REFERENCES host_accounts (id) ON DELETE CASCADE,
-  position   INTEGER NOT NULL,
-  permission TEXT    NOT NULL CHECK (permission IN ('ADV', 'STUDY')),
-  PRIMARY KEY (host_id, position)
-);
-
--- 계정이 맡은 그룹(팀) 목록. 스터디·ADV 팀 출결이 쓰는 teams를 그대로 가리킨다.
-CREATE TABLE host_assigned_groups (
-  host_id  TEXT    NOT NULL REFERENCES host_accounts (id) ON DELETE CASCADE,
-  position INTEGER NOT NULL,
-  team_id  TEXT    NOT NULL REFERENCES teams (id) ON DELETE CASCADE,
-  PRIMARY KEY (host_id, position)
-);
-
--- 겸직 표시(운영진, 다른 팀 등).
-CREATE TABLE host_concurrent_roles (
-  host_id  TEXT    NOT NULL REFERENCES host_accounts (id) ON DELETE CASCADE,
-  position INTEGER NOT NULL,
-  role     TEXT    NOT NULL,
-  PRIMARY KEY (host_id, position)
-);
-
 -- ─────────────────────────── 운영진 계정·권한 ───────────────────────────
--- 운영진(관리자) 계정. HOST 계정은 위 host_accounts가 따로 맡는다.
--- 운영진은 모두 회원(users)이다. 계정은 user_id로 회원 한 명을 가리키고, 이름·기수·부문은 users에서 읽는다
+-- 운영진(관리자) 계정과 스터디장·ADV 팀장의 HOST 계정(role = 'HOST', team_name = '그룹리더').
+-- 계정 주인은 모두 회원(users)이다. 회원 한 명에 계정은 하나라서, 운영진이 팀장이면 HOST 계정을 따로 두지 않는다
+-- (백엔드 HOST 계정·그룹 리더 설계문서 2026-11-06판 1.2·3.1). 계정은 user_id로 회원 한 명을 가리키고, 이름·기수·부문은 users에서 읽는다
 -- (계정에 따로 저장하지 않아 동아리원 관리에서 고친 값이 그대로 반영된다).
 -- 권한은 (role, team_name) 조합의 기본 권한 세트(코드) + 계정별 예외(admin_permission_override)
 -- + 맡은 그룹에서 계산되는 권한(admin_group_leader)으로 정해진다. docs/spec/06-system.md §3.
@@ -314,7 +309,7 @@ CREATE TABLE admin (
   user_id    TEXT    NOT NULL UNIQUE REFERENCES users (id) ON DELETE RESTRICT, -- 계정 주인(회원). 회원 한 명에 계정 하나, 계정이 있는 회원은 지울 수 없다
   username   TEXT    NOT NULL UNIQUE,                      -- 로그인 아이디. 운영진이면 반드시 계정이 있다(운영진 지정 때 함께 만든다)
   password   TEXT    NOT NULL,                             -- 임시 DB 전용 평문(실제 서버는 해시)
-  role       TEXT    NOT NULL CHECK (role IN ('MASTER', 'SUPER', 'TEAM')),
+  role       TEXT    NOT NULL CHECK (role IN ('MASTER', 'SUPER', 'TEAM', 'HOST')),
   team_name  TEXT    NOT NULL,                             -- 운영진의 자리(대표진·서비스운영팀 등). 새 팀이 생길 수 있어 값을 제한하지 않는다
   is_team_lead INTEGER NOT NULL DEFAULT 0 CHECK (is_team_lead IN (0, 1)), -- 그 팀의 팀장인지. 대표진은 쓰지 않는다. 권한과는 관계없다
   created_by INTEGER REFERENCES admin (id) ON DELETE SET NULL,
@@ -334,7 +329,10 @@ CREATE TABLE admin_permission_override (
   UNIQUE (admin_id, permission)
 );
 
--- 운영진이 맡은 그룹(ADV 팀·스터디). 백엔드의 activity_group 자리를 teams가 대신한다.
+-- 계정 주인이 맡은 그룹(ADV 팀·스터디). 백엔드의 activity_group 자리를 teams가 대신한다.
+-- 팀장이 계정을 가지고 있으면(운영진·HOST 모두) 팀장으로 지정되는 순간 이 행이 생겨 권한이 붙는다.
+-- 백엔드는 이 표에 반기 등록 id·해임 시각(revoked_at)을 두어 이력을 남기지만, 임시 DB는 이력을 보여 주는 화면이 없어
+-- 현재 팀장만 둔다. 팀장의 원본은 teams.leader_id다.
 -- 맡은 그룹의 종류(ADV·STUDY)에 따라 출결 입력 권한(_OWN_GROUP_)이 매 요청 계산된다.
 -- 행은 직접 넣지 않는다. 팀장(teams.leader_id)이 바뀌거나 팀장인 회원에게 계정이 생기면 아래 트리거가 맞춘다.
 CREATE TABLE admin_group_leader (

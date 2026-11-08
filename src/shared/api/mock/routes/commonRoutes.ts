@@ -8,11 +8,10 @@ import type { Database } from 'sql.js';
 import type { WeekStatus } from '@/entities/attendance/model/week';
 import type { AttendanceMetaResponse } from '@/entities/attendance/model/dto';
 import type { SemesterDto } from '@/entities/cohort/model/dto';
-import { listSemesterUsers, listUsers } from '@/entities/user/api/usersRepository';
+import { listSemesterUsers } from '@/entities/user/api/usersRepository';
 import type { UserTrack } from '@/entities/user/model/types';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 
-import { detachTeamsFromHosts, teamIdsOfSemester } from '../hostCleanup';
 import {
   currentSemester,
   canCreateNextSemester,
@@ -28,6 +27,7 @@ import {
   weekIdOf,
 } from '../queries';
 import { ApiError, type MockRoute } from '../router';
+import { assertPreparing, makeSemesterCurrent, replaceSemesterMemberIds } from '../semesterOps';
 import {
   type Body,
   oneOf,
@@ -109,8 +109,13 @@ export const commonRoutes: MockRoute[] = [
     method: 'GET',
     pattern: '/api/v1/semesters',
     summary:
-      '반기 목록(현재 반기와 지난 반기, 큰 기수부터): 반기 표기·기간·현재 여부·ADV 기수·점수 집계 대상 기수·지금 주차와 기간',
-    handler: ({ db }) => listSemesters(db),
+      '반기 목록(진행·종료 반기, 큰 기수부터. includePreparing=true면 준비 반기도): 반기 표기·기간·상태·ADV 기수·점수 집계 대상 기수·지금 주차와 기간',
+    handler: ({ db, query }) =>
+      listSemesters(
+        db,
+        oneOf(query.get('includePreparing') ?? undefined, ['true', 'false'], 'includePreparing') ===
+          'true',
+      ),
   },
   {
     method: 'POST',
@@ -135,6 +140,7 @@ export const commonRoutes: MockRoute[] = [
         startDate,
         endDate,
         isCurrent: false,
+        status: 'ENDED',
         advTerm: optionalNumber(input, 'advTerm') ?? null,
         memberTerms: termsOf(input, 'memberTerms') ?? [],
         currentWeekNum: null,
@@ -148,7 +154,7 @@ export const commonRoutes: MockRoute[] = [
     method: 'PATCH',
     pattern: '/api/v1/semesters/:semester',
     summary:
-      '반기 수정(기간·ADV 기수·점수 집계 대상 기수). 다른 반기를 isCurrent: true로 바꾸면 지난 반기 팀을 HOST 계정에서 떼고(맡은 팀이 없어진 계정은 삭제) 팀·출결은 보존한다',
+      '반기 수정(기간·ADV 기수·점수 집계 대상 기수). 다른 반기를 isCurrent: true로 바꾸면 시작 전·진행 중인 그룹을 맡지 않은 HOST 계정을 삭제하고 팀·출결은 보존한다(준비 반기는 409, 활성화 API로)',
     handler: ({ db, params, body }) => {
       const semester = resolveSemester(db, params.semester);
       const input = readBody(body);
@@ -160,15 +166,14 @@ export const commonRoutes: MockRoute[] = [
         );
       }
       if (optionalBoolean(input, 'isCurrent') === true) {
-        const isRollover = currentSemester(db).cohort !== semester.cohort;
-        execute(db, 'UPDATE cohorts SET is_current = 0 WHERE is_current = 1');
-        execute(db, 'UPDATE cohorts SET is_current = 1 WHERE cohort = ?', [semester.cohort]);
-        if (isRollover) {
-          // 새 현재 반기에 없는 팀(지난 반기 팀)은 HOST 계정에서 떼고, 맡은 팀이 남지 않은 계정은 지운다.
-          // 이 요청의 트랜잭션 안에서 함께 처리되므로 중간에 실패하면 반기 전환도 취소된다.
-          const keep = teamIdsOfSemester(db, semester.cohort);
-          detachTeamsFromHosts(db, (teamId) => !keep.has(teamId));
+        if (semester.status === 'PREPARING') {
+          throw new ApiError(
+            409,
+            'SEMESTER_PREPARING',
+            '준비 반기는 활성화 API로 진행 반기로 만듭니다.',
+          );
         }
+        makeSemesterCurrent(db, semester.cohort);
       }
       execute(
         db,
@@ -193,26 +198,11 @@ export const commonRoutes: MockRoute[] = [
     summary:
       '반기별 출결 회원 명단 전체 등록. 본문에 없는 기존 명단은 빠지고 전역 사용자 정보는 유지된다',
     handler: ({ db, params, body }) => {
-      const { cohort } = resolveSemester(db, params.semester);
+      const semester = resolveSemester(db, params.semester);
+      const { cohort } = semester;
+      assertPreparing(semester, '진행 중이거나 종료된 반기의 명단은 고칠 수 없습니다.');
       const userIds = stringArray(readBody(body), 'userIds', { required: true });
-      const existingIds = new Set(listUsers(db).map((user) => user.id));
-      const missing = userIds.filter((id) => !existingIds.has(id));
-      if (missing.length > 0) {
-        throw new ApiError(
-          400,
-          'USER_NOT_FOUND',
-          `등록되지 않은 사용자입니다: ${missing.join(', ')}`,
-        );
-      }
-      execute(db, 'DELETE FROM semester_members WHERE cohort = ?', [cohort]);
-      [...new Set(userIds)].forEach((userId) =>
-        execute(
-          db,
-          `INSERT INTO semester_members (cohort, user_id, name, term, track)
-           SELECT ?, id, name, term, track FROM users WHERE id = ?`,
-          [cohort, userId],
-        ),
-      );
+      replaceSemesterMemberIds(db, cohort, userIds);
       return listSemesterUsers(db, cohort);
     },
   },

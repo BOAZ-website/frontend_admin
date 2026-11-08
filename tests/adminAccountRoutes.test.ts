@@ -42,11 +42,12 @@ function expectApiError(work: () => unknown, status: number, code?: string) {
 
 /**
  * 운영진이면서 스터디장·ADV 팀장인 경우를 만든다. 시드의 출결 데이터는 건드리지 않고, 이 테스트 DB에서만
- * 고준서가 맡던 그룹(adv_t1·study_d)과 HOST 계정(host_adv_ana1)을 운영지원팀 운영진 전혜린(8번 계정)에게 옮긴다.
+ * 고준서가 맡던 그룹(adv_t1·study_d)을 운영지원팀 운영진 전혜린(8번 계정)에게 옮긴다.
+ * 회원 한 명에 계정은 하나라 운영진에게는 HOST 계정을 따로 두지 않으므로, 고준서의 HOST 계정(host_adv_ana1)은 지운다.
  */
 function makeDualLeader(db: Awaited<ReturnType<typeof setup>>['db']) {
   execute(db, "UPDATE teams SET leader_id = 'u_27_26' WHERE id IN ('adv_t1', 'study_d')");
-  execute(db, "UPDATE host_accounts SET user_id = 'u_27_26' WHERE id = 'h_adv1'");
+  execute(db, "DELETE FROM admin WHERE username = 'host_adv_ana1'");
 }
 
 // 박지훈(u_28_11)은 아직 운영진 계정이 없는 회원이다.
@@ -400,17 +401,14 @@ test('계정 통합 목록은 운영진 계정과 HOST 계정을 회원 단위�
   makeDualLeader(db);
   const holders = call<AccountHolder[]>('GET', '/api/v1/admin/account-holders');
 
-  // 운영진 40명 + HOST 계정만 있는 4명(문지훈·강태양·최민혁·송하늘)
+  // 운영진 40명 + HOST 계정만 있는 4명(host_c·host_adv_vis1·host_adv_eng1·host_b의 주인)
   assert.equal(holders.length, 44);
   assert.equal(new Set(holders.map((holder) => holder.key)).size, holders.length);
 
-  // 운영지원팀 운영진이면서 ADV·스터디 팀장인 전혜린: 한 사람으로 합쳐진다
+  // 운영지원팀 운영진이면서 ADV·스터디 팀장인 전혜린: 운영진 계정 하나로 두 그룹을 맡는다(HOST 계정 없음)
   const dual = holders.find((holder) => holder.userId === 'u_27_26')!;
   assert.equal(dual.adminAccount?.teamName, '운영지원팀');
-  assert.deepEqual(
-    dual.hostLogins.map((login) => login.username),
-    ['host_adv_ana1'],
-  );
+  assert.deepEqual(dual.hostLogins, []);
   assert.deepEqual(dual.leaderGroups.map((group) => group.teamId).sort(), ['adv_t1', 'study_d']);
 
   // HOST 계정만 있는 사람은 운영진 계정이 없다
@@ -633,7 +631,7 @@ test('이미 운영진의 아이디를 다른 운영진·HOST 아이디로 바�
     'DUPLICATE_USERNAME',
   );
   expectApiError(
-    () => change({ teamName: '디자인팀', username: 'host_a' }),
+    () => change({ teamName: '디자인팀', username: 'host_c' }),
     409,
     'DUPLICATE_USERNAME',
   );

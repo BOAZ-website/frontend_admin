@@ -298,29 +298,39 @@ export interface PermissionSubject {
   overrides: PermissionOverrides;
 }
 
-/** 유효 권한. 담당 그룹 권한은 맡은 그룹 종류로만 정해지고 예외로 바꿀 수 없다. */
+/**
+ * 유효 권한. 담당 그룹 권한은 그 종류의 그룹을 맡아야 생기고, 계정 예외로 회수(REVOKE)하면 빠진다.
+ * 추가(GRANT)는 맡은 그룹 없이 의미가 없어 보지 않는다(HOST 계정·그룹 리더 설계문서 2026-11-06판 5.3 2단계).
+ */
 export const isEffectivelyAllowed = (
   permission: PermissionDef,
   subject: PermissionSubject,
 ): boolean => {
-  if (permission.ownGroup) return subject.leadership.includes(permission.ownGroup);
+  if (permission.ownGroup) {
+    return (
+      subject.leadership.includes(permission.ownGroup) &&
+      subject.overrides[permission.key] !== false
+    );
+  }
   const base = isInBaseSet(permission, baseSetKeyOf(subject.role, subject.teamName));
   return subject.overrides[permission.key] ?? base;
 };
 
 /**
  * 체크된 최종 집합에서 기본 세트와 다른 항목만 남긴다. 실제 API에서는 최종 집합을 보내고 이 계산은 서버가 한다.
- * 담당 그룹 권한은 예외 대상이 아니라 제외한다.
+ * 담당 그룹 권한은 맡은 그룹(leadership)에서 생긴 것을 체크 해제했을 때만 회수(false)로 남긴다.
  */
 export const toOverrides = (
   checked: Readonly<Record<string, boolean>>,
   key: BaseSetKey | null,
+  leadership: readonly LeadershipGroup[] = [],
 ): PermissionOverrides =>
   Object.fromEntries(
-    PERMISSIONS.filter(
-      (permission) =>
-        !permission.ownGroup &&
-        permission.key in checked &&
-        checked[permission.key] !== isInBaseSet(permission, key),
-    ).map((permission) => [permission.key, checked[permission.key]] as const),
+    PERMISSIONS.filter((permission) => {
+      if (!(permission.key in checked)) return false;
+      if (permission.ownGroup) {
+        return leadership.includes(permission.ownGroup) && !checked[permission.key];
+      }
+      return checked[permission.key] !== isInBaseSet(permission, key);
+    }).map((permission) => [permission.key, checked[permission.key]] as const),
   );

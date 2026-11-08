@@ -15,6 +15,8 @@ import {
 
 export const ADMIN_ROLES = ['MASTER', 'SUPER', 'TEAM'] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
+/** admin 표의 역할. 스터디장·ADV 팀장의 HOST 계정도 같은 표에 role = 'HOST'로 있다. */
+export type AccountRole = AdminRole | 'HOST';
 
 /**
  * 운영진 팀(자리) 목록. 새 팀이 생기면 여기에 더한다. 이름으로 정한 기본 권한 세트가 없는 팀은
@@ -46,7 +48,7 @@ export interface AdminAccount {
   username: string;
   /** 회원 이름(users.name). */
   name: string;
-  role: AdminRole;
+  role: AccountRole;
   /** 회원 부문(users.track). 예: '분석' */
   track: string;
   /** 회원 기수(users.term). */
@@ -103,7 +105,7 @@ export interface HostLogin {
  * 백엔드 설계(2026-10-16)는 두 계정을 admin 하나로 합치므로, 실서버에서는 응답 형태가 바뀔 수 있다.
  */
 export interface AccountHolder {
-  /** 회원 id(users.id). HOST 계정에 회원이 연결되지 않았으면 'host:{계정 id}' */
+  /** 회원 id(users.id). */
   key: string;
   userId: string | null;
   name: string;

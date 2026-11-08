@@ -1,38 +1,18 @@
 /**
  * HOST 계정 API 호출. 화면은 경로를 직접 쓰지 않고 이 함수들을 부른다.
+ * 비밀번호 초기화는 운영진 계정과 같은 API(changeAdminPassword)를 쓴다.
  */
-import type { TeamDto } from '@/entities/study-team/model/dto';
-import { api, withQuery } from '@/shared/api/client';
+import { api } from '@/shared/api/client';
 
-import type { HostListQuery, HostUpsertRequest } from '../model/dto';
-import type { HostAccount } from '../model/types';
+import type { HostIssueRequest, HostIssueResponse } from '../model/dto';
+import type { GroupLeaderAccount } from '../model/types';
 
-const hostPath = (hostId: string) => `/api/v1/hosts/${encodeURIComponent(hostId)}`;
-
-export function fetchHosts(query: HostListQuery = {}): Promise<HostAccount[]> {
-  return api.get(withQuery('/api/v1/hosts', { ...query }));
+/** 진행 중인 그룹마다 현재 팀장과 그 계정(그룹 계정 관리 표). */
+export function fetchGroupLeaderAccounts(): Promise<GroupLeaderAccount[]> {
+  return api.get('/api/v1/hosts');
 }
 
-export function fetchHost(hostId: string): Promise<HostAccount> {
-  return api.get(hostPath(hostId));
-}
-
-/** HOST가 출결을 입력할 수 있는 팀(담당 팀 + 맡은 그룹 중 권한이 있는 팀). */
-export function fetchHostTeams(hostId: string): Promise<TeamDto[]> {
-  return api.get(`${hostPath(hostId)}/teams`);
-}
-
-export function createHost(
-  request: HostUpsertRequest & { username: string },
-): Promise<HostAccount> {
+/** 계정이 없는 팀장에게 HOST 계정을 발급한다. */
+export function issueHostAccount(request: HostIssueRequest): Promise<HostIssueResponse> {
   return api.post('/api/v1/hosts', request);
-}
-
-export function deleteHost(hostId: string): Promise<{ deleted: string }> {
-  return api.delete(hostPath(hostId));
-}
-
-/** 보낸 값만 바뀐다. active로 활성화·비활성화, linkLeader로 팀장 연결. */
-export function updateHost(hostId: string, request: HostUpsertRequest): Promise<HostAccount> {
-  return api.patch(hostPath(hostId), request);
 }

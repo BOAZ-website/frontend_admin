@@ -11,6 +11,7 @@ import { AUDIT_RULES, IGNORED_WRITES, recordWrite } from '../src/shared/api/mock
 import { MOCK_ROUTES } from '../src/shared/api/mock/mockRoutes';
 import { ApiError } from '../src/shared/api/apiError';
 import { createRouter } from '../src/shared/api/mock/router';
+import { filesOfBody } from '../src/pages/system-audit/model/bodyFiles';
 import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
 
 const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
@@ -99,30 +100,30 @@ test('실패한 쓰기는 기록되지 않는다', async () => {
   const { call, logCount } = await setup();
   const before = logCount();
 
-  expectApiError(() => call('PATCH', '/api/v1/club-members/u_28_02', { name: '김서하' }), 409);
+  // 활동 중인 회원의 이름은 고칠 수 없어 400으로 거절된다.
+  expectApiError(() => call('PATCH', '/api/v1/club-members/u_28_02', { name: '김서하' }), 400);
   assert.equal(logCount(), before);
 });
 
-test('동아리원 탈퇴 처리는 "동아리원 탈퇴 처리"로 기록되고, 처리 전 활동 상태를 남긴다', async () => {
+test('동아리원 탈동은 "동아리원 수정"으로 기록되고, 바꾼 활동 상태를 남긴다', async () => {
   const { db, call, latest, targetIdsOf } = await setup();
   const member = queryAll<{ id: string; name: string; term: number; club_status: string }>(
     db,
     `SELECT id, name, term, club_status FROM users
       WHERE club_status = 'ACTIVE' AND id NOT IN (SELECT user_id FROM admin)
-        AND id NOT IN (SELECT user_id FROM host_accounts WHERE user_id IS NOT NULL)
         AND id NOT IN (SELECT leader_id FROM teams WHERE leader_id IS NOT NULL
                          AND semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1))
       LIMIT 1`,
   )[0];
-  call('DELETE', `/api/v1/club-members/${member.id}`);
+  call('PATCH', `/api/v1/club-members/${member.id}`, { status: 'WITHDRAWN' });
   const entry = latest();
 
-  assert.equal(entry.action, 'MEMBER_DELETE');
-  assert.equal(AUDIT_ACTIONS[entry.action].label, '동아리원 탈퇴 처리');
-  assert.deepEqual(entry.api, { method: 'DELETE', path: `/api/v1/club-members/${member.id}` });
+  assert.equal(entry.action, 'MEMBER_UPDATE');
+  assert.equal(AUDIT_ACTIONS[entry.action].label, '동아리원 수정');
+  assert.deepEqual(entry.api, { method: 'PATCH', path: `/api/v1/club-members/${member.id}` });
   assert.deepEqual(targetIdsOf(entry.id), [member.id]);
-  // 처리 전(ACTIVE) → 처리 후(WITHDRAWN)를 남긴다. 이름은 detail에 넣지 않는다.
-  assert.deepEqual(entry.detail, { changes: { status: [member.club_status, 'WITHDRAWN'] } });
+  // 바꾼 칸(status)과 보낸 값을 남긴다. 이름은 detail에 넣지 않는다.
+  assert.ok(JSON.stringify(entry.detail).includes('WITHDRAWN'));
   assert.ok(!JSON.stringify(entry.detail).includes(member.name));
 });
 
@@ -178,7 +179,7 @@ test('수행자 선택지는 기록에 나온 계정이다', async () => {
 
 test('HOST 계정이 한 기록도 수행자 선택지에 나오고 actorUserId로 찾는다', async () => {
   const { call } = await setup();
-  // 시드의 HOST 계정(host_c, 계정 주인 u_27_01). 운영진 계정은 없다.
+  // 시드의 HOST 계정(host_c, admin 101번, 계정 주인 u_27_01). 운영진 계정은 없다.
   const hostUserId = 'u_27_01';
   call('POST', '/api/v1/auth/login', { username: 'host_c', password: 'boaz2026!c' });
   call('PATCH', '/api/v1/club-members/u_28_01', { major: '통계학과' });
@@ -187,12 +188,12 @@ test('HOST 계정이 한 기록도 수행자 선택지에 나오고 actorUserId�
   const actors = call<AuditActorOption[]>('GET', '/api/v1/admin/audit-logs/actors');
   const option = actors.find((actor) => actor.userId === hostUserId);
   assert.ok(option);
-  assert.equal(option.id, null);
+  assert.equal(option.id, 101);
   assert.equal(option.role, 'HOST');
 
   const byHost = call<AuditLogPage>('GET', `/api/v1/admin/audit-logs?actorUserId=${hostUserId}`);
   assert.ok(byHost.total >= 1);
-  assert.ok(byHost.items.every((entry) => entry.actorId === null && entry.actorRole === 'HOST'));
+  assert.ok(byHost.items.every((entry) => entry.actorId === 101 && entry.actorRole === 'HOST'));
 
   // 운영진이 한 기록도 회원 id로 찾으면 운영진 계정 id로 찾은 것과 같다.
   const masterUserId = actors.find((actor) => actor.id === 1)?.userId;
@@ -476,7 +477,7 @@ test('POST 기록의 requestBody는 보낸 값 그대로이고, 이름·연락�
     major: '통계학과',
     term: 20,
     track: '시각화',
-    status: 'ALUMNI',
+    status: 'COMPLETED',
   };
   call('POST', '/api/v1/club-members', body);
   const entry = latest();
@@ -497,7 +498,8 @@ test('DELETE 기록의 requestBody는 null이다', async () => {
   const memberId = queryAll<{ id: string }>(
     db,
     `SELECT id FROM users
-      WHERE club_status = 'ACTIVE' AND id NOT IN (SELECT user_id FROM admin) LIMIT 1`,
+      WHERE id NOT IN (SELECT user_id FROM admin WHERE user_id IS NOT NULL)
+        AND id NOT IN (SELECT user_id FROM semester_members) LIMIT 1`,
   )[0].id;
   call('DELETE', `/api/v1/club-members/${memberId}`);
   const entry = latest();
@@ -548,4 +550,73 @@ test('비밀번호 변경 기록의 requestBody는 새 비밀번호·현재 비�
   assert.deepEqual(entry.requestBody, { newPassword: '(비공개)', currentPassword: '(비공개)' });
   assert.ok(!JSON.stringify(entry).includes('New!Pass2027'));
   assert.ok(!JSON.stringify(entry).includes('Old!Pass2026'));
+});
+
+test('객체 기본 속성 이름(toString 등)은 감사 액션으로 받지 않는다', async () => {
+  const { call } = await setup();
+
+  for (const action of ['toString', 'constructor', 'hasOwnProperty']) {
+    expectApiError(() => call('GET', `/api/v1/admin/audit-logs?action=${action}`), 400);
+  }
+});
+
+test('대상 id 칸이 배열이 아닌 기록이 섞여 있어도 목록 조회가 실패하지 않는다', async () => {
+  const { db, call } = await setup();
+  const before = call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=200').total;
+  queryAll(
+    db,
+    `INSERT INTO audit_log (occurred_at, actor_admin_id, action, target_type, target_ids, ip)
+     VALUES ('2026-10-01 10:00:00', 1, 'SCORE_RULE_CREATE', 'SCORE_RULE', '{"id":"x"}', '127.0.0.1')`,
+  );
+
+  const page = call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=200');
+
+  assert.equal(page.total, before + 1);
+});
+
+test('조회 날짜는 달력에 있는 날짜여야 하고, 시작일이 종료일보다 늦으면 400이다', async () => {
+  const { call } = await setup();
+
+  expectApiError(() => call('GET', '/api/v1/admin/audit-logs?from=2026-02-30'), 400);
+  expectApiError(() => call('GET', '/api/v1/admin/audit-logs?from=2026-10-02&to=2026-10-01'), 400);
+});
+
+test('상세 창 파일: 주소에 쿼리 문자열이 붙어도 사진으로 보고, http·https가 아닌 주소는 링크로 쓰지 않는다', () => {
+  const files = filesOfBody(
+    {
+      files: [
+        { name: '표지', url: 'https://example.com/a.png?v=2' },
+        { name: '위험', url: 'javascript:alert(1)' },
+        '이름만.pdf',
+        { url: 'https://example.com/no-name.png' },
+      ],
+    },
+    'https://admin.example.com',
+  );
+
+  assert.deepEqual(files, [
+    { name: '표지', url: 'https://example.com/a.png?v=2', isImage: true },
+    { name: '위험', url: null, isImage: false },
+    { name: '이름만.pdf', url: null, isImage: false },
+  ]);
+});
+
+test('상세 칸이 깨진 JSON·배열이거나 대상 id 배열에 문자열이 아닌 값이 섞여도 목록 조회가 실패하지 않는다', async () => {
+  const { db, call } = await setup();
+  const before = call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=200').total;
+  queryAll(
+    db,
+    `INSERT INTO audit_log (occurred_at, actor_admin_id, action, target_type, target_ids, detail, ip) VALUES
+       ('2026-10-01 10:00:00', 1, 'SCORE_RULE_CREATE', 'SCORE_RULE', '["a", 3, null]', '{깨짐', '127.0.0.1'),
+       ('2026-10-01 10:00:01', 1, 'SCORE_RULE_CREATE', 'SCORE_RULE', 'null', '[1, 2]', '127.0.0.1')`,
+  );
+
+  const page = call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=200');
+
+  assert.equal(page.total, before + 2);
+  assert.ok(
+    page.items.every(
+      (entry) => entry.requestBody === null || typeof entry.requestBody === 'object',
+    ),
+  );
 });

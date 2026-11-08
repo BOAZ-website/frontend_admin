@@ -49,6 +49,7 @@ import {
   type AdminRole,
   type PermissionCatalog,
 } from '@/entities/admin-account/model/types';
+import { queryAll } from '@/shared/db/createDatabase';
 
 import { notFound } from '../queries';
 import { ApiError, type MockRoute } from '../router';
@@ -71,14 +72,11 @@ const conflict = (code: string, message: string) => new ApiError(409, code, mess
 
 // ─── 요청자(임시 API 세션) ───
 /**
- * 지금 로그인한 운영진 계정. 세션이 없거나 세션의 계정이 지워졌으면 401이다.
- * HOST 세션은 운영진 계정 API를 쓸 수 없어 403이다(내 계정 정보 /me 포함).
+ * 지금 로그인한 계정(운영진·HOST). 세션이 없거나 세션의 계정이 지워졌으면 401이다.
+ * HOST 계정은 기본 권한 세트(그룹리더)에 있는 권한만 가지므로 운영진 기능은 권한 확인에서 403이 된다.
  */
 function actorOf(db: Database): AdminRow {
   const session = currentSession(db);
-  if (session?.kind === 'HOST') {
-    throw new ApiError(403, 'FORBIDDEN', 'HOST 계정으로는 운영진 계정 기능을 쓸 수 없습니다.');
-  }
   const actor = session ? findAdminRow(db, session.adminId) : undefined;
   if (!actor) throw new ApiError(401, 'UNAUTHORIZED', '로그인해 주세요.');
   return actor;
@@ -123,6 +121,30 @@ function requireAccountWrite(db: Database, accountId: string) {
   if (isSelf) requireAny(db, 'ADMIN_ACCOUNT_SELF_WRITE', 'ADMIN_ACCOUNT_WRITE');
   else requireAny(db, 'ADMIN_ACCOUNT_WRITE');
   return { actor, isSelf, target: findTarget(db, accountId) };
+}
+
+/**
+ * 비밀번호 변경의 권한 확인(HOST 계정·그룹 리더 설계문서 2026-11-06판 3.5).
+ *   · 본인: "본인 계정 수정" 또는 "타 계정 정보 수정"
+ *   · 다른 계정: "타 계정 정보 수정"이면 모든 계정, "HOST 계정 발급 CUD"만 있으면 HOST 계정만(운영진 계정은 403)
+ */
+function requirePasswordWrite(db: Database, accountId: string) {
+  const actor = actorOf(db);
+  if (String(actor.id) === accountId || hasPermission(db, actor, 'ADMIN_ACCOUNT_WRITE')) {
+    return requireAccountWrite(db, accountId);
+  }
+  requireAny(db, 'HOST_ACCOUNT_WRITE');
+  // 없는 계정도 운영진 계정과 같은 403으로 답해, id를 넣어 보며 운영진 계정을 가려낼 수 없게 한다.
+  const id = Number(accountId);
+  const target = Number.isInteger(id) ? findAdminRow(db, id) : undefined;
+  if (target?.role !== 'HOST') {
+    throw new ApiError(
+      403,
+      'FORBIDDEN',
+      '운영진 계정의 비밀번호는 "타 계정 정보 수정" 권한이 있어야 재설정할 수 있습니다.',
+    );
+  }
+  return { actor, isSelf: false, target };
 }
 
 /** 팀 이름의 앞뒤 공백을 지운다. '대표진 '처럼 공백만 다른 이름이 새 팀으로 저장되지 않게 한다. */
@@ -339,6 +361,21 @@ function requireNotWithdrawn(db: Database, userId: string): void {
   }
 }
 
+/**
+ * 회원 한 명에 계정은 하나다(설계문서 2026-11-06판 1.2). 스터디장·ADV 팀장의 HOST 계정이 있는 회원은
+ * 운영진 계정을 새로 만들 수 없어 409다.
+ */
+function requireNoHostAccount(db: Database, userId: string): void {
+  const hasHost =
+    queryAll(db, "SELECT 1 FROM admin WHERE user_id = ? AND role = 'HOST'", [userId]).length > 0;
+  if (hasHost) {
+    throw conflict(
+      'DUPLICATE_MEMBER_ACCOUNT',
+      '이 회원은 스터디장·ADV 팀장 HOST 계정이 있어 운영진 계정을 따로 만들 수 없습니다.',
+    );
+  }
+}
+
 /** 운영진이 아닌 회원을 그 팀 운영진으로 정하고, 받은 아이디·비밀번호로 계정을 만든다. */
 function addOperator(
   db: Database,
@@ -351,6 +388,7 @@ function addOperator(
   if (!userExists(db, userId))
     throw new ApiError(404, 'USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
   requireNotWithdrawn(db, userId);
+  requireNoHostAccount(db, userId);
   const role = roleForTeam(teamName);
   requireValidCombination(role, teamName);
   const { username, password } = readCredentials(db, data);
@@ -384,7 +422,7 @@ const mockSessionSwitchRoute: MockRoute = {
     }
     const row = findAdminRow(db, data.accountId);
     if (!row) throw notFound('운영진 계정을 찾을 수 없습니다.');
-    setSession(db, { kind: 'ADMIN', adminId: row.id });
+    setSession(db, { adminId: row.id });
     return toAdminAccount(db, row);
   },
 };
@@ -431,6 +469,7 @@ export const adminAccountRoutes: MockRoute[] = [
         throw badRequest('USER_NOT_FOUND', '동아리원 명단에 없는 회원입니다.');
       }
       requireNotWithdrawn(db, userId);
+      requireNoHostAccount(db, userId);
       if (hasAdminAccount(db, userId)) {
         throw conflict('DUPLICATE_ADMIN_USER', '이 회원은 이미 운영진 계정이 있습니다.');
       }
@@ -462,6 +501,13 @@ export const adminAccountRoutes: MockRoute[] = [
       '역할·부서 수정(보낸 값만 바뀐다). 이름·기수·부문은 회원 정보에서 고친다. 본인 역할·부서 변경은 400, 역할·부서가 바뀌면 권한 예외를 모두 지운다',
     handler: ({ db, params, body }) => {
       const { actor, isSelf, target } = requireAccountWrite(db, params.accountId);
+      // HOST 계정의 역할·부서는 팀장 지정으로만 정해진다. 운영진 역할로 바꾸면 계정 정리 대상에서 빠진다.
+      if (!isSelf && target.role === 'HOST') {
+        throw badRequest(
+          'HOST_ACCOUNT_NOT_EDITABLE',
+          'HOST 계정의 역할·부서는 바꿀 수 없습니다. 그룹 계정 관리에서 관리해 주세요.',
+        );
+      }
 
       const data = readBody(body);
       const teamNameInput = optionalString(data, 'teamName');
@@ -497,9 +543,9 @@ export const adminAccountRoutes: MockRoute[] = [
     method: 'PATCH',
     pattern: '/api/v1/admin/accounts/:accountId/password',
     summary:
-      '비밀번호 변경. 본인은 현재 비밀번호가 필요하고, 다른 계정은 "타 계정 정보 수정" 권한으로 재설정한다',
+      '비밀번호 변경. 본인은 현재 비밀번호가 필요하고, 다른 계정은 "타 계정 정보 수정" 권한으로 재설정한다. "HOST 계정 발급 CUD" 권한만 있으면 HOST 계정만 재설정할 수 있다(그 밖의 계정은 403)',
     handler: ({ db, params, body }) => {
-      const { isSelf, target } = requireAccountWrite(db, params.accountId);
+      const { isSelf, target } = requirePasswordWrite(db, params.accountId);
 
       const data = readBody(body);
       const newPassword = requiredString(data, 'newPassword');
@@ -551,7 +597,8 @@ export const adminAccountRoutes: MockRoute[] = [
   {
     method: 'PUT',
     pattern: '/api/v1/admin/accounts/:accountId/permissions',
-    summary: '계정별 권한 저장. 체크된 최종 집합을 받아 기본 세트와의 차이만 예외로 저장한다',
+    summary:
+      '계정별 권한 저장. 체크된 최종 집합을 받아 기본 세트와의 차이만 예외로 저장한다. 맡은 그룹에서 생긴 담당 그룹 권한을 빼면 회수로 남고, 지금 맡지 않은 종류의 회수는 그대로 둔다',
     handler: ({ db, params, body }) => {
       const actor = requireAny(db, 'ADMIN_PERMISSION_WRITE');
       const target = findTarget(db, params.accountId);
@@ -564,7 +611,18 @@ export const adminAccountRoutes: MockRoute[] = [
       }
       const desired = new Set(readPermissionKeys(readBody(body)));
       const checked = Object.fromEntries(PERMISSIONS.map((p) => [p.key, desired.has(p.key)]));
-      const overrides = toOverrides(checked, baseSetKeyOf(target.role, target.team_name));
+      const { leadership } = toAdminAccount(db, target);
+      const previous = overridesOf(db, target.id);
+      // 지금 맡지 않은 종류의 담당 그룹 권한 회수는 화면에 보이지 않으므로 다른 권한을 저장할 때 지우지 않는다.
+      const dormantRevokes = Object.fromEntries(
+        PERMISSIONS.filter(
+          (p) => p.ownGroup && !leadership.includes(p.ownGroup) && previous[p.key] === false,
+        ).map((p) => [p.key, false] as const),
+      );
+      const overrides = {
+        ...dormantRevokes,
+        ...toOverrides(checked, baseSetKeyOf(target.role, target.team_name), leadership),
+      };
       guardLockout(db, actor, new Map([[target.id, { overrides }]]));
       replaceOverrides(db, target.id, overrides, actor.id);
       return toAdminAccount(db, target);

@@ -4,6 +4,7 @@ import test from 'node:test';
 import type { ClubMember } from '../src/entities/club-member/model/types';
 import {
   filterClubMembers,
+  isInSheet,
   NOT_OPERATOR,
   termScopeOfSheet,
 } from '../src/pages/member-management/model/memberManagement';
@@ -32,7 +33,7 @@ const MEMBERS: ClubMember[] = [
     major: '',
     term: 29,
     track: '시각화',
-    status: 'ALUMNI',
+    status: 'COMPLETED',
     role: 'MEMBER',
   },
   {
@@ -110,10 +111,10 @@ test('운영진 필터로 팀별 운영진이나 운영진이 아닌 동아리�
   assert.equal(filterClubMembers(members, base).length, members.length);
 });
 
-test('부문 명단은 그 부문에서 탈퇴하지 않은 사람, 탈퇴 명단은 부문과 관계없이 탈퇴한 사람이다', () => {
+test('부문 명단은 그 부문에서 탈동하지 않은 사람, 탈동 명단은 부문과 관계없이 탈동한 사람이다', () => {
   const withdrawn: ClubMember = { ...MEMBERS[0], id: 'member-4', status: 'WITHDRAWN' };
   const members = [...MEMBERS, withdrawn];
-  const idsOf = (sheet: 'active' | 'alumni' | 'analysis' | 'engineering' | 'withdrawn') =>
+  const idsOf = (sheet: 'active' | 'completed' | 'analysis' | 'engineering' | 'withdrawn') =>
     filterClubMembers(members, { ...ALL_FILTER, sheet }).map((member) => member.id);
 
   assert.deepEqual(idsOf('analysis'), ['member-1']);
@@ -121,15 +122,22 @@ test('부문 명단은 그 부문에서 탈퇴하지 않은 사람, 탈퇴 명�
   assert.deepEqual(idsOf('withdrawn'), ['member-4']);
   // 활동기수·수료기수 목록은 부문과 관계없이 그 활동 상태인 사람이다.
   assert.deepEqual(idsOf('active'), ['member-1', 'member-3']);
-  assert.deepEqual(idsOf('alumni'), ['member-2']);
+  assert.deepEqual(idsOf('completed'), ['member-2']);
 });
 
-test('기수 페이지 읽기 조건: 활동·수료 목록은 status, 부문 명단은 track, 탈퇴 명단과 닫힌 상태는 null이다', () => {
+test('기수 페이지 읽기 조건: 활동·수료 목록은 status, 부문 명단은 track, 탈동 명단과 닫힌 상태는 null이다', () => {
   assert.deepEqual(termScopeOfSheet('active'), { status: 'ACTIVE' });
-  assert.deepEqual(termScopeOfSheet('alumni'), { status: 'ALUMNI' });
+  assert.deepEqual(termScopeOfSheet('completed'), { status: 'COMPLETED' });
   assert.deepEqual(termScopeOfSheet('analysis'), { track: '분석' });
   assert.deepEqual(termScopeOfSheet('visualization'), { track: '시각화' });
   assert.deepEqual(termScopeOfSheet('engineering'), { track: '엔지니어링' });
   assert.equal(termScopeOfSheet('withdrawn'), null);
   assert.equal(termScopeOfSheet(null), null);
+});
+
+test('미수료는 탈동 명단에 함께 나오고, 부문 명단에는 나오지 않는다', () => {
+  const member = { ...MEMBERS[0], status: 'NOT_COMPLETED' } as const;
+
+  assert.ok(isInSheet(member, 'withdrawn'));
+  assert.ok(!isInSheet(member, 'analysis'));
 });

@@ -14,6 +14,11 @@ const MAX_DATE_DIGITS = 8;
 const YEAR_DIGITS = 4;
 const YEAR_MONTH_DIGITS = 6;
 
+/** 'YYYY-MM-DD' → 'MM-DD'. 주차 버튼처럼 좁은 자리에 쓴다. 날짜 형식이 아니면 빈 문자열. */
+export function monthDayOf(isoDate: string): string {
+  return isValidIsoDate(isoDate) ? isoDate.slice(5) : '';
+}
+
 /**
  * 입력한 글자를 YYYY-MM-DD로 맞춘다. 숫자만 남기고(최대 8자리) 하이픈을 자동으로 넣는다.
  * 연도 4자리를 다 쓰면 바로 "2026-"이 되고, 월 2자리를 쓰면 "2026-08-"이 된다.
@@ -39,4 +44,15 @@ export function formatDateInput(raw: string, previous = ''): string {
 export function localDateTime(date: Date = new Date()): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+/** 'YYYY-MM-DD…'의 연도를 두 자리로 줄인다. 예: '2026-10-12 16:21:03' → '26-10-12 16:21:03'. */
+export function twoDigitYearOf(value: string): string {
+  return value.slice(2);
+}
+
+/** 날짜(로컬 시간)를 'YYYY-MM-DD'로 쓴다. */
+export function isoDateOf(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }

@@ -41,9 +41,9 @@
 | Epic 1 리크루팅 | REC-POST · REC-QST · REC-PRV · REC-CSV · REC-ALM | 5 | M1 · M3a |
 | Epic 2 서류 평가 | EVL-DASH · EVL-ALL · EVL-PROM · EVL-DEL | 4 | M2 · M3a |
 | Epic 3 출결 | ATT-ROSTER · ATT-GROUP · SET-RULE · ATT-LDR · ATT-ADV · ATT-STD · ATT-BASE · ATT-EVT · ATT-VIEW · ATT-SUM · ATT-TL | 11 | M4 · M5 |
-| Epic 4 시스템·계정 | SYS-GATE · SYS-ACC · SYS-PERM · SYS-MEM · SYS-LOG | 5 | M2 · M6 · M7 이후 |
+| Epic 4 시스템·계정 | SYS-GATE · SYS-ACC · SYS-PERM · SYS-MEM · SYS-SEM · SYS-LOG | 6 | M2 · M4 · M6 · M7 이후 |
 | Epic 5 콘텐츠 | CNT-FAQ · CNT-ARC · CNT-REV · CNT-CUR | 4 | M0 · M7 |
-| **합계** | | **42** | |
+| **합계** | | **43** | |
 
 ### 진행 현황표
 
@@ -62,7 +62,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 | PLT-FORM | 일부 | M0 |  |  | 공통 검증, 페이징, 명단 CSV 검증(행 번호 오류 표시·전체 취소), 지정 화면 공통 적용 |
 | PLT-CONFIRM | 없음 | M0 |  |  | 티켓 전체(본문 What·Acceptance 참고) |
 | PLT-PILOT | 없음 | M0 |  |  | 티켓 전체(본문 What·Acceptance 참고) |
-| PLT-TEST | 일부 | M0 |  |  | `package.json`에 테스트 실행 스크립트 추가, PR CI에 테스트 단계 추가. 현재 76개 중 14개 실패(10개는 테스트가 가져오는 함수가 코드에 없음). |
+| PLT-TEST | 일부 | M0 |  |  | `package.json`에 테스트 실행 스크립트 추가, PR CI에 테스트 단계 추가. 기존 테스트 실패는 #54에서 정리함(실패 0개). |
 | PLT-MONITOR | 없음 | M0 |  |  | 티켓 전체(본문 What·Acceptance 참고) |
 | REC-POST | 완료 (목업) | M1 |  | 등록 | 기수 중복 차단, 지원서가 있는 공고의 삭제 차단, 전형 일정 편집(POST-06, 현재 표시만), 삭제 확인을 공용 확인 모달로 교체(PLT-CONFIRM) |
 | REC-QST | 완료 (목업) | M1 |  | 등록 | 문항 라벨 중복 검증 |
@@ -73,9 +73,9 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 | EVL-ALL | 완료 (목업) | M2 |  | 등록 | 작성 중 지원서의 평가 버튼 숨김, 작성 중 인원 집계(현재 제출 완료만 셈) |
 | EVL-PROM | 완료 (목업) | M3a |  | 등록 | 실패 명단 표시(현재 실패 목록이 항상 비어 있음), "되돌릴 수 없음" 안내 문구 |
 | EVL-DEL | 없음 | M3a |  |  | 티켓 전체(본문 What·Acceptance 참고) |
-| ATT-ROSTER | 임시 API | M4 | (#30 닫힘) | 등록 | 개별·CSV 등록(ROS-02), 그룹 속성(멘멘·스터디·팀·병행·비고, ROS-03), 행사 참여 상태·임의 컬럼·변경 이력(ROS-04~06), 그룹 필터 |
-| ATT-GROUP | 임시 API | M4 | (#18 닫힘) | 등록 | 스터디 총 횟수 입력(GRP-02 필수값)과 정정(GRP-07). HOST 계정 회수·비활성화 전용 화면(GRP-06, 현재는 팀 삭제·팀장 변경 때만 회수). |
-| SET-RULE | 임시 API | M4 · M5 | (#18 닫힘) | 등록 | 무효 주차 지정(RULE-02), 규칙 변경 이력. 행사 점수 예외(RULE-04)는 협의 대기. Term 설정 전용 화면(주차별 날짜는 BASE·ADV·스터디 생성 창에서 입력 중). 점수 규칙 활성화·삭제는 API 함수만 있고 화면 호출 없음. |
+| ATT-ROSTER | 임시 API | M4 | (#30 닫힘) · #83 | 등록 | 개별·CSV 등록(ROS-02), 그룹 속성(멘멘·스터디·팀·병행·비고, ROS-03), 행사 참여 상태·임의 컬럼·변경 이력(ROS-04~06), 그룹 필터 |
+| ATT-GROUP | 임시 API | M4 | (#18 닫힘) · #52 | 등록 | 스터디 총 횟수 입력(GRP-02 필수값)과 정정(GRP-07). HOST 계정은 회원에 묶어 계정이 없는 장에게만 발급하고, 팀장 변경·팀 삭제·반기 전환 때 서버가 정리한다(#52, 회수 전용 화면은 두지 않음). |
+| SET-RULE | 임시 API | M4 · M5 | (#18 닫힘) | 등록 | 규칙 변경 이력. 행사 점수 예외(RULE-04)는 협의 대기. 점수 규칙 활성화·삭제는 API 함수만 있고 화면 호출 없음. Term 설정(RULE-01)과 무효 주차 지정(RULE-02)은 SYS-SEM으로 옮김(2026-11-03). |
 | ATT-LDR | 임시 API | M4 | (#18 닫힘) | 등록 | 반려 사유 표시와 재제출(LDR-05), `확인 대기` 상태 |
 | ATT-ADV | 임시 API | M4 | (#18 닫힘) | 등록 | 인증 확인·반려와 사유 입력(ADV-02, 코드에서 "반려" 0건) |
 | ATT-STD | 임시 API | M4 | (#18 닫힘) | 등록 | 인증 확인·반려(STD-03), 총 회차 기반 그리드, 출석률·판정(STD-05) |
@@ -88,6 +88,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 | SYS-ACC | 임시 API | M6 | #46 | 등록 | 실제 API 연동. 운영진 지정과 계정 발급을 한 요청으로 처리하는 방식은 백엔드 확인 필요 |
 | SYS-PERM | 완료 (임시 API) | M6 | #47 | 등록 | 실제 API 연동, 동시 수정 시 덮어쓰기 방지(기대 버전 비교)를 백엔드와 협의 |
 | SYS-MEM | 임시 API | M6 | (#30 닫힘) | 등록 | 승격 일시·처리자·출신 지원서 기수(MEM-02). MEM-03은 ATT-TL(M5) 뒤. 동아리원 API 권한 확인(#59). 탈퇴 명단의 쪽 나눔을 서버에서 할지 백엔드 협의 |
+| SYS-SEM | 임시 API | M4 | #78 | | `ATTENDANCE_ROSTER_READ`·`WRITE` 권한 판정(SYS-GATE 뒤), 무효 주차 변경 이력 표시(RULE-02), 실제 API 연동(계약 초안은 `spec/06-system.md` §4.6, SYS-API-4) |
 | SYS-LOG | 완료 (임시 API) | M7 이후 | #48 | 등록 | 실제 저장·보관 기간(SYS-A-2, BE 몫), 콘텐츠 API 연결 뒤 파일 주소 기록 |
 | CNT-FAQ | 완료 (목업) | M0 |  | 등록 | 드래그 순서 변경(명세). 실데이터 완주는 PLT-PILOT(M0)에서 진행 예정(미착수) |
 | CNT-ARC | 완료 (목업) | M7 |  | 등록 | 삭제 확인을 브라우저 기본 창 대신 확인 모달로 교체(PLT-CONFIRM) |
@@ -381,7 +382,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 
 마일스톤 M4(2027-01-04 전): 명단 등록 · 그룹 편성 + 리더 매주 입력·컨펌. M5(2027-01 중순): 운영지원팀 직접 기록 + 종합 조회 + 집계·export.
 
-권장 순서: `ATT-ROSTER`(ROS-01·02) → `ATT-GROUP` → `ATT-ROSTER`(ROS-03) → `SET-RULE`(RULE-01·02) → `ATT-LDR` · `ATT-ADV` · `ATT-STD` → M5 티켓
+권장 순서: `ATT-ROSTER`(ROS-01·02) → `ATT-GROUP` → `ATT-ROSTER`(ROS-03) → `SYS-SEM`(반기·주차·무효 주차) → `ATT-LDR` · `ATT-ADV` · `ATT-STD` → M5 티켓
 
 ### ATT-ROSTER 명단 관리 (SOT)
 
@@ -410,8 +411,8 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
   - GRP-02 스터디 등록 — 총 횟수 필수
   - GRP-03 ADV 팀 등록
   - GRP-04 장 지정 — 그룹당 1인
-  - GRP-05 HOST 계정 발급 — 기존 계정 CRUD(ACC-03) 경로 호출
-  - GRP-06 계정 회수
+  - GRP-05 HOST 계정 발급 — 계정이 없는 장에게만. 기존 계정 CRUD(ACC-03) 경로 호출
+  - GRP-06 계정 회수 — 팀장 변경·그룹 삭제·반기 종료 때 서버가 정리(전용 화면 없음)
   - GRP-07 총 횟수 정정 — 운영지원팀만
 - **Acceptance:**
   - [ ] 임시 API 단계: 7개 기능이 임시 API로 동작한다
@@ -422,16 +423,15 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 
 - 규모 `2~3주` · 현재 상태: 임시 API (`src/pages/attendance-rules/ui/RulesPage.tsx`) · 기존 이슈 #18(닫힘)
 - **선행:** API-09(BE). ⏳ RULE-04는 ATT-B-1(점수 규칙 Term 보관 + 행사 오버라이드, 백엔드 검토 중) 회신 전 착수 불가
-- **Why:** 주차 구조(RULE-01·02)가 있어야 리더가 주차를 고를 수 있고(M4), 점수값(RULE-03)이 있어야 집계가 나온다(M5).
+- **Why:** 점수값(RULE-03)이 있어야 집계가 나온다(M5). 주차 구조(RULE-01·02)는 2026-11-03에 SYS-SEM으로 옮겼다.
 - **What:** FE 기능 ID
-  - RULE-01 Term 설정 — 방학·학기 기간, 주차별 날짜 (M4)
-  - RULE-02 무효 주차 지정 — 변경 이력 표시 (M4)
+  - ~~RULE-01 Term 설정 — 방학·학기 기간, 주차별 날짜 (M4)~~ → SYS-SEM
+  - ~~RULE-02 무효 주차 지정 — 변경 이력 표시 (M4)~~ → SYS-SEM
   - RULE-03 상태별 점수값 설정 — 종료된 Term 수정 차단 표시 (M5)
   - RULE-04 ⏳ 행사 단위 점수 오버라이드 (M5)
 - **제외(BE 몫):** RULE-05 Term별 규칙 보관
 - **Acceptance:**
-  - [ ] 임시 API 단계: RULE-01~03이 임시 API로 동작한다
-  - [ ] (M4) 실제 API로 Term·주차·무효 주차를 저장하고 리더 입력 화면에 반영된다
+  - [ ] 임시 API 단계: RULE-03이 임시 API로 동작한다
   - [ ] (M5) 점수값 변경이 집계 화면에 반영된다
 
 > 이 티켓은 M4와 M5에 걸친다. 이슈는 하나로 두고 완료 조건 체크로 마일스톤을 구분한다.
@@ -439,7 +439,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 ### ATT-LDR 리더 전용 출결 입력
 
 - 규모 `2~3주` · 현재 상태: 임시 API (`src/pages/attendance-input/ui/InputPage.tsx`) · 기존 이슈 #18(닫힘)
-- **선행:** ATT-GROUP · SET-RULE(RULE-01·02) · API-03·05(BE) · SYS-AUTH · PLT-FORM(업로드)
+- **선행:** ATT-GROUP · SYS-SEM(주차·무효 주차) · API-03·05(BE) · SYS-AUTH · PLT-FORM(업로드)
 - **Why:** 스터디장·ADV 팀장이 매주 출결을 입력하고 인증 사진을 낸다. 2027-01-04 출결 시작일의 핵심 동작이다.
 - **What:** FE 기능 ID
   - LDR-01 담당 그룹 목록 — 겸임 시 ADV·스터디 모두
@@ -589,6 +589,24 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 > 탈퇴 명단은 기수 페이지가 없어, 화면이 전체 목록(`GET /api/v1/club-members`)을 받아 7명씩 나눠 보여 준다.
 > 실제 백엔드가 탈퇴 명단도 서버에서 나눠 준다면(쪽 번호·크기 요청, 전체 인원 응답) 화면의 탈퇴 명단 부분을 그 API에 맞춰 다시 짜야 한다. 요청·응답 형식을 백엔드와 정한다.
 
+### SYS-SEM 반기 관리
+
+- 규모 `2주` · 현재 상태: 임시 API (`src/pages/system-semesters/`의 반기 관리 화면에서 준비 반기 저장 → 명단 확인·예외 수정 → 활성화(이전 반기 종료)까지 동작. 출결 화면의 "새 반기 시작" 버튼은 지움, 2026-11-05) · GitHub 이슈 #78
+- **추가 이유(2026-11-03):** 백엔드와의 시스템 계정·출결 인터페이스 협의 회의에서, 흩어져 있던 반기 설정(출결 화면의 "새 반기 시작", BASE·ADV·스터디 생성 창의 주차 날짜 입력)을 시스템 계정 탭의 반기 관리 화면 하나로 모으기로 했다. 기존 WBS에 해당 티켓이 없어 추가하고, SET-RULE의 RULE-01·02를 이 티켓으로 옮겼다.
+- **선행:** API-09(BE) · SYS-GATE(`ATTENDANCE_ROSTER_READ`·`ATTENDANCE_ROSTER_WRITE` 판정)
+- **Why:** 반기·주차·명단이 정해져야 출결 입력(ATT-LDR·ATT-ADV·ATT-STD)과 집계가 그 반기 기준으로 동작한다(M4).
+- **What:**
+  - 기본: 반기 이름(예: 26-2), 상태(준비·진행·종료)와 활성화·종료 버튼
+  - 기수 지정: 이번 반기의 BASE 기수·ADV 기수
+  - RULE-01 기간과 주차: 방학·학기 시작일·종료일, BASE·ADV·방학 스터디·학기 스터디별 1주차 시작일 입력 → 이후 주차 날짜 자동 계산
+  - RULE-02 무효 주차(휴강 등) 지정 — 변경 이력 표시
+  - 명단: 입력한 정보를 보낸 뒤 자동 생성된 반기 명단 미리보기(기수·구분별 인원), 예외 수정, 확인 후 반기 확정
+- **제외:** 출결 탭에 남기는 것(BASE 계획일, ADV 팀·스터디와 그 계획일, 행사), 실제 API 연동
+- **Acceptance:**
+  - [x] 임시 API 단계: 반기 생성부터 명단 확인·확정까지 반기 관리 화면에서 동작한다
+  - [ ] `ATTENDANCE_ROSTER_READ`가 없는 계정에는 화면이 보이지 않고, `ATTENDANCE_ROSTER_WRITE`가 없는 계정은 저장·확정할 수 없다
+  - [ ] (M4) 실제 API로 반기·주차·무효 주차를 저장하고 리더 입력 화면에 반영된다
+
 ### SYS-LOG 보안 감사 로그
 
 - 규모 `한 주` · 현재 상태: 완료 (임시 API) (`src/pages/system-audit/`의 감사 로그 화면, `src/shared/api/mock/routes/auditLogRoutes.ts`. 예전 목업 화면은 지우고 새로 만들었다) · GitHub 이슈 #48 (#38에서 분할)
@@ -659,7 +677,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 | M1 | 2026-11 말 | REC-POST · REC-QST · REC-PRV · REC-ALM |
 | M2 | 2026-12 중순 | EVL-DASH · EVL-ALL · SYS-GATE |
 | M3a | 2026-12 중순 | REC-CSV · EVL-PROM · EVL-DEL |
-| M4 | 2027-01-04 전 | ATT-ROSTER · ATT-GROUP · SET-RULE(RULE-01·02) · ATT-LDR · ATT-ADV · ATT-STD |
+| M4 | 2027-01-04 전 | ATT-ROSTER · ATT-GROUP · SYS-SEM · ATT-LDR · ATT-ADV · ATT-STD |
 | M5 | 2027-01 중순 | ATT-BASE · ATT-EVT · ATT-VIEW · ATT-SUM · ATT-TL · SET-RULE(RULE-03·04) |
 | M6 | 2027-01 말 | SYS-ACC · SYS-PERM · SYS-MEM |
 | M7 | 2027-02 | CNT-ARC · CNT-REV · CNT-CUR. SYS-LOG는 이후 별도 착수 |

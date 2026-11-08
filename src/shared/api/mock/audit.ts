@@ -14,6 +14,7 @@ import { TEAM_API_PATHS } from '@/entities/study-team/model/dto';
 import { queryAll } from '@/shared/db/createDatabase';
 
 import type { HttpMethod, MockRequest, MockRoute } from './router';
+import { semesterRecordCounts } from './semesterOps';
 import { currentSession } from './session';
 
 /** 임시 API는 요청한 곳의 IP를 알 수 없어 이 컴퓨터 주소로 남긴다. */
@@ -26,7 +27,14 @@ type Detail = Record<string, unknown>;
  * 보낸 값과 바뀌기 전·후 값 모두 HIDDEN_VALUE로 바꾼다. 이름은 대상 이름으로 따로 보이므로(지금 DB에서 찾는다) 값은 남기지 않는다.
  * 실제 백엔드 계약이 snake_case(new_password)여도 같은 키로 본다.
  */
-const SENSITIVE_KEYS: ReadonlySet<string> = new Set(['name', 'phone', 'email', 'birth', 'address']);
+const SENSITIVE_KEYS: ReadonlySet<string> = new Set([
+  'name',
+  'phone',
+  'email',
+  'birth',
+  'birthdate',
+  'address',
+]);
 /** 이 글자가 이름에 들어간 키는 목록에 없어도 가린다(initialPassword, access_token 등). */
 const SENSITIVE_KEY_PARTS: readonly string[] = ['password', 'token', 'secret'];
 export const HIDDEN_VALUE = '(비공개)';
@@ -178,17 +186,6 @@ function valueChanges(before: Detail, after: Detail, keys: readonly string[]): D
 
 const firstTarget = (_request: MockRequest, targetIds: readonly string[]) => targetIds[0];
 
-/** 동아리원 한 명의 활동 상태(users.club_status). 회원이 없으면 빈 값이다. */
-function memberStatus(request: MockRequest, userId: string | undefined): Detail {
-  if (userId === undefined) return {};
-  const row = queryAll<{ club_status: string }>(
-    request.db,
-    'SELECT club_status FROM users WHERE id = ?',
-    [userId],
-  )[0];
-  return row ? { status: row.club_status } : {};
-}
-
 /** 바꾼 항목의 이름만 남긴다(값은 남기지 않는다. 비밀번호·연락처 같은 값이 기록에 들어가지 않게 한다). */
 const changedFields = (request: MockRequest): Detail => ({ fields: Object.keys(bodyOf(request)) });
 
@@ -332,32 +329,14 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     targetType: 'HOST',
     targets: resultId,
     // 어느 팀 출결을 맡는 계정인지 남긴다.
-    detail: (r, { targetIds }) => {
-      const row = queryAll<{ team_name: string | null; account_type: string | null }>(
+    detail: (r) => {
+      const row = queryAll<{ team_name: string; group_type: string }>(
         r.db,
-        `SELECT t.team_name, h.account_type
-           FROM host_accounts h LEFT JOIN teams t ON t.id = h.team_id
-          WHERE h.id = ?`,
-        [targetIds[0] ?? ''],
+        'SELECT team_name, group_type FROM teams WHERE id = ?',
+        [String(bodyOf(r).teamId ?? '')],
       )[0];
-      return row ? { teamName: row.team_name, group: row.account_type } : {};
+      return row ? { teamName: row.team_name, group: row.group_type } : {};
     },
-  },
-  {
-    method: 'PATCH',
-    pattern: '/api/v1/hosts/:hostId',
-    action: 'HOST_ACCOUNT_UPDATE',
-    targetType: 'HOST',
-    targets: param('hostId'),
-    detail: changedFields,
-    compareTable: 'host_accounts',
-  },
-  {
-    method: 'DELETE',
-    pattern: '/api/v1/hosts/:hostId',
-    action: 'HOST_ACCOUNT_DELETE',
-    targetType: 'HOST',
-    targets: param('hostId'),
   },
 
   // 동아리원
@@ -378,16 +357,12 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     compareTable: 'users',
   },
   {
-    // 동아리원 탈퇴 처리. 행은 지우지 않고 활동 상태만 탈퇴(WITHDRAWN)로 바꾼다.
+    // 잘못 등록한 동아리원 삭제(soft delete). 탈동은 PATCH(MEMBER_UPDATE)의 활동 상태 변경으로 남는다.
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     action: 'MEMBER_DELETE',
     targetType: 'USER',
     targets: param('memberId'),
-    // 처리 전 활동 상태를 읽어 두고, 처리 뒤 상태와 함께 [전, 후]로 남긴다.
-    before: (r, ids) => memberStatus(r, ids[0]),
-    detail: (r, { before, targetIds }) =>
-      valueChanges(before, memberStatus(r, targetIds[0]), ['status']),
   },
 
   // 출결: 행사·점수 규칙·반기
@@ -471,6 +446,44 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     targets: semesterOf,
   },
   {
+    method: 'POST',
+    pattern: '/api/v1/semesters/prepare',
+    action: 'SEMESTER_CREATE',
+    targetType: 'SEMESTER',
+    targets: semesterOf,
+  },
+  {
+    method: 'POST',
+    pattern: '/api/v1/semesters/:semester/activate',
+    action: 'SEMESTER_ACTIVATE',
+    targetType: 'SEMESTER',
+    targets: semesterOf,
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/v1/semesters/:semester',
+    action: 'SEMESTER_DELETE',
+    targetType: 'SEMESTER',
+    targets: semesterOf,
+    // 반기를 지워도 남는 팀·출결·행사 기록 건수를 함께 남긴다(지우기 전에 센다).
+    before: (r, ids) => {
+      const cohort = queryAll<{ cohort: number }>(
+        r.db,
+        'SELECT cohort FROM cohorts WHERE semester_label = ? AND deleted_at IS NULL',
+        [ids[0] ?? ''],
+      )[0]?.cohort;
+      return cohort === undefined ? {} : { ...semesterRecordCounts(r.db, cohort) };
+    },
+    detail: (_r, { before }) => before,
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/v1/semesters/:semester/schedule',
+    action: 'SEMESTER_SCHEDULE_SET',
+    targetType: 'SEMESTER',
+    targets: semesterOf,
+  },
+  {
     method: 'PATCH',
     pattern: '/api/v1/semesters/:semester',
     action: 'SEMESTER_UPDATE',
@@ -527,7 +540,7 @@ function nonPersonLabel(db: Database, type: AuditTargetType, id: string): string
     case 'SCORE_RULE':
       return first('SELECT name AS value FROM score_rules WHERE id = ?');
     case 'HOST':
-      return first('SELECT username AS value FROM host_accounts WHERE id = ?');
+      return first('SELECT username AS value FROM admin WHERE id = ?');
     case 'EVENT':
       return loadEventState(db).events.find((event) => event.id === id)?.title;
     case 'SEMESTER':
@@ -539,7 +552,7 @@ function nonPersonLabel(db: Database, type: AuditTargetType, id: string): string
 
 /**
  * 요청한 계정과 그 회원 id·등급. 계정이 나중에 지워지거나 등급이 바뀌어도 기록에는 그때 값이 남는다.
- * HOST 세션이면 운영진 계정 id는 없고(null), 회원 id는 HOST 계정 주인, 등급은 HOST다.
+ * HOST 계정도 admin 표에 있어 운영진 계정과 같이 남는다(등급 HOST).
  * 세션이 없으면(로그인 전에 부른 임시 API) 수행자를 모두 비운다.
  */
 function actorSnapshot(
@@ -547,14 +560,6 @@ function actorSnapshot(
 ): Pick<AuditLogInsert, 'actorId' | 'actorUserId' | 'actorRole'> {
   const session = currentSession(db);
   if (!session) return { actorId: null, actorUserId: null, actorRole: null };
-  if (session.kind === 'HOST') {
-    const userId = queryAll<{ user_id: string | null }>(
-      db,
-      'SELECT user_id FROM host_accounts WHERE id = ?',
-      [session.hostId],
-    )[0]?.user_id;
-    return { actorId: null, actorUserId: userId ?? null, actorRole: 'HOST' };
-  }
   const admin = findAdminRow(db, session.adminId);
   return {
     actorId: session.adminId,

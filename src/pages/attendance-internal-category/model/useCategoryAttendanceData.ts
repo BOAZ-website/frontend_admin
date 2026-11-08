@@ -103,7 +103,10 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-/** 반기별 주차(진행 상태·날짜)를 화면이 쓰는 키(활동 기수, ADV는 ADV 기수)로 모은다. */
+/**
+ * 반기별 주차(진행 상태·날짜)를 화면이 쓰는 키(활동 기수, ADV는 ADV 기수)로 모은다.
+ * 출결 주차는 주차 API 값만 쓴다. 반기 관리의 1주차 시작일·휴강과는 따로 관리한다.
+ */
 async function loadSemesterWeeks(
   semesters: readonly SemesterDto[],
   group: TeamGroup,

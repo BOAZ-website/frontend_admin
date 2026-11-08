@@ -4,7 +4,6 @@ import test from 'node:test';
 
 import initSqlJs from 'sql.js';
 
-import { loadHosts } from '../src/entities/host-account/api/hostRepository';
 import type { TeamListResponse } from '../src/entities/study-team/model/dto';
 import type { AttendanceMetaResponse } from '../src/entities/attendance/model/dto';
 import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
@@ -12,18 +11,34 @@ import { createRouter } from '../src/shared/api/mock/router';
 import { commonRoutes } from '../src/shared/api/mock/routes/commonRoutes';
 import { userRoutes } from '../src/shared/api/mock/routes/userRoutes';
 import { eventRoutes } from '../src/shared/api/mock/routes/eventRoutes';
+import { semesterRoutes } from '../src/shared/api/mock/routes/semesterRoutes';
 import { teamRoutes } from '../src/shared/api/mock/routes/teamRoutes';
 
 // 유저 DB + 행사 DB(앱과 같은 순서로 함께 올린다)
 const read = (file: string) => readFileSync(new URL(`../db/${file}`, import.meta.url), 'utf8');
 const schema = `${read('schema.sql')}\n${read('event-schema.sql')}`;
 const seed = `${read('seed.sql')}\n${read('event-seed.sql')}`;
-const router = createRouter([...commonRoutes, ...userRoutes, ...teamRoutes, ...eventRoutes]);
+const router = createRouter([
+  ...commonRoutes,
+  ...userRoutes,
+  ...teamRoutes,
+  ...eventRoutes,
+  ...semesterRoutes,
+]);
 
 async function freshDb() {
   const SQL = await initSqlJs();
   return createDatabase(SQL, schema, seed);
 }
+
+/** HOST 계정 id(운영진 계정과 같은 admin 표에 role = 'HOST'로 있다). */
+const hostIdsOf = (db: Awaited<ReturnType<typeof freshDb>>) =>
+  queryAll<{ id: number }>(db, "SELECT id FROM admin WHERE role = 'HOST' ORDER BY id").map(
+    (row) => row.id,
+  );
+const operatorCountOf = (db: Awaited<ReturnType<typeof freshDb>>) =>
+  queryAll<{ count: number }>(db, "SELECT COUNT(*) AS count FROM admin WHERE role <> 'HOST'")[0]
+    .count;
 
 test('현재 반기가 넘어가면 HOST 계정만 삭제하고 지난 팀·출결은 조회용으로 보존한다', async () => {
   const db = await freshDb();
@@ -37,7 +52,7 @@ test('현재 반기가 넘어가면 HOST 계정만 삭제하고 지난 팀·출�
     db,
     'SELECT COUNT(*) AS count FROM attendance_records',
   )[0].count;
-  assert.ok(loadHosts(db).length > 0);
+  assert.ok(hostIdsOf(db).length > 0);
 
   router.dispatch(db, 'POST', '/api/v1/semesters', {
     cohort: 28,
@@ -49,7 +64,7 @@ test('현재 반기가 넘어가면 HOST 계정만 삭제하고 지난 팀·출�
   });
   router.dispatch(db, 'PATCH', '/api/v1/semesters/27-1', { isCurrent: true });
 
-  assert.equal(loadHosts(db).length, 0);
+  assert.equal(hostIdsOf(db).length, 0);
   assert.equal(
     queryAll<{ count: number }>(db, 'SELECT COUNT(*) AS count FROM attendance_records')[0].count,
     oldRecordCount,
@@ -68,14 +83,11 @@ test('현재 반기가 넘어가면 HOST 계정만 삭제하고 지난 팀·출�
 
 test('이미 현재인 반기를 다시 저장해도 HOST 계정은 삭제하지 않는다', async () => {
   const db = await freshDb();
-  const before = loadHosts(db).map((host) => host.id);
+  const before = hostIdsOf(db);
 
   router.dispatch(db, 'PATCH', '/api/v1/semesters/26-2', { isCurrent: true });
 
-  assert.deepEqual(
-    loadHosts(db).map((host) => host.id),
-    before,
-  );
+  assert.deepEqual(hostIdsOf(db), before);
 });
 
 test('반기 API가 다음 반기의 등록 여부를 내려주고 등록 뒤에는 중복 생성을 막는다', async () => {
@@ -107,16 +119,12 @@ test('반기 API가 다음 반기의 등록 여부를 내려주고 등록 뒤에
   assert.equal(after.nextSemester.semester, before.nextSemester.semester);
 });
 
-test('반기 전환은 출결 HOST 테이블과 운영진의 맡은 그룹 외의 데이터는 변경하지 않는다', async () => {
+test('반기 전환은 HOST 계정과 맡은 그룹 외의 데이터는 변경하지 않는다', async () => {
   const db = await freshDb();
+  // HOST 계정은 admin 표에 있어 admin은 따로 본다(운영진 계정 수는 그대로여야 한다).
   // 맡은 그룹(admin_group_leader)은 현재 반기 팀 기준이라 반기를 넘기면 다시 만들어진다.
-  const hostTables = new Set([
-    'host_accounts',
-    'host_permissions',
-    'host_assigned_groups',
-    'host_concurrent_roles',
-    'admin_group_leader',
-  ]);
+  const hostTables = new Set(['admin', 'admin_group_leader']);
+  const operatorsBefore = operatorCountOf(db);
   const tables = queryAll<{ name: string }>(
     db,
     "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
@@ -155,7 +163,8 @@ test('반기 전환은 출결 HOST 테이블과 운영진의 맡은 그룹 외�
   // 반기 생성 자체가 추가하는 기준 행은 전환 전에 생긴다. 전환은 그 외 테이블을 더 건드리지 않는다.
   assert.deepEqual(countsAfterRollover, countsAfterCreation);
   assert.ok(Object.keys(countsBefore).length > 0);
-  assert.equal(loadHosts(db).length, 0);
+  assert.equal(hostIdsOf(db).length, 0);
+  assert.equal(operatorCountOf(db), operatorsBefore);
   // 새 반기에는 아직 팀이 없어 지난 반기 팀의 맡은 그룹 연결이 남지 않는다.
   assert.equal(
     queryAll<{ count: number }>(db, 'SELECT COUNT(*) AS count FROM admin_group_leader')[0].count,
@@ -178,6 +187,8 @@ test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한
     advTerm: 27,
     memberTerms: [27, 28],
   });
+  // 명단은 진행 예정 반기만 고친다(진행 중·종료 반기는 409 SEMESTER_LOCKED). 이 경로로 만든 반기를 진행 예정으로 둔다.
+  db.run('UPDATE cohorts SET is_preparing = 1 WHERE cohort = 28');
   assert.deepEqual(router.dispatch(db, 'GET', '/api/v1/users?semester=27-1', undefined), []);
 
   const registered = router.dispatch(db, 'PUT', '/api/v1/semesters/27-1/members', {
@@ -194,12 +205,7 @@ test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한
     ['u_28_01', 'u_27_01'],
   );
 
-  const registeredName = (
-    router.dispatch(db, 'GET', '/api/v1/users?semester=27-1', undefined) as {
-      id: string;
-      name: string;
-    }[]
-  ).find(({ id }) => id === 'u_27_01')?.name;
+  // 이름은 동아리원 명단(회원 마스터)의 지금 값을 따른다(#83).
   db.run("UPDATE users SET name = '변경된 시스템 계정 이름' WHERE id = 'u_27_01'");
   assert.equal(
     (
@@ -208,7 +214,7 @@ test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한
         name: string;
       }[]
     ).find(({ id }) => id === 'u_27_01')?.name,
-    registeredName,
+    '변경된 시스템 계정 이름',
   );
 });
 
@@ -222,9 +228,13 @@ test('팀에는 해당 반기 명단에 등록된 회원만 추가할 수 있다
     advTerm: 27,
     memberTerms: [27, 28],
   });
+  // 명단은 진행 예정 반기만 고친다(진행 중·종료 반기는 409 SEMESTER_LOCKED). 이 경로로 만든 반기를 진행 예정으로 둔다.
+  db.run('UPDATE cohorts SET is_preparing = 1 WHERE cohort = 28');
   router.dispatch(db, 'PUT', '/api/v1/semesters/27-1/members', {
     userIds: ['u_28_01'],
   });
+  // 미래 반기에는 팀을 만들 수 없으므로 먼저 현재 반기로 바꾼다(진행 예정 반기는 활성화 API로).
+  router.dispatch(db, 'POST', '/api/v1/semesters/27-1/activate', undefined);
 
   assert.throws(
     () =>

@@ -55,8 +55,8 @@ export const AUDIT_ACTIONS = {
 
   MEMBER_CREATE: { label: '동아리원 추가', category: 'SYSTEM' },
   MEMBER_UPDATE: { label: '동아리원 수정', category: 'SYSTEM' },
-  /** 행을 지우지 않고 활동 상태를 탈퇴로 바꾼다(DELETE /api/v1/club-members/:memberId). */
-  MEMBER_DELETE: { label: '동아리원 탈퇴 처리', category: 'SYSTEM' },
+  /** 행을 지우지 않고 활동 상태를 탈동으로 바꾼다(DELETE /api/v1/club-members/:memberId). */
+  MEMBER_DELETE: { label: '잘못 등록한 동아리원 삭제', category: 'SYSTEM' },
 
   ATTENDANCE_EDIT: { label: '출결 수정', category: 'ATTENDANCE' },
   ATTENDANCE_SUBMIT: { label: '출결 제출', category: 'ATTENDANCE' },
@@ -68,11 +68,14 @@ export const AUDIT_ACTIONS = {
   SCORE_RULE_UPDATE: { label: '점수 규칙 수정', category: 'ATTENDANCE' },
   SCORE_RULE_ACTIVATE: { label: '점수 규칙 적용', category: 'ATTENDANCE' },
   SCORE_RULE_DELETE: { label: '점수 규칙 삭제', category: 'ATTENDANCE' },
-  SEMESTER_CREATE: { label: '새 반기 시작', category: 'ATTENDANCE' },
+  SEMESTER_CREATE: { label: '새 반기 적용', category: 'ATTENDANCE' },
+  SEMESTER_ACTIVATE: { label: '반기 활성화', category: 'ATTENDANCE' },
+  SEMESTER_DELETE: { label: '준비 반기 삭제', category: 'ATTENDANCE' },
   SEMESTER_UPDATE: { label: '반기 수정', category: 'ATTENDANCE' },
   SEMESTER_MEMBERS_SET: { label: '반기 명단 변경', category: 'ATTENDANCE' },
   SEMESTER_WEEK_UPDATE: { label: '주차 상태 변경', category: 'ATTENDANCE' },
   SEMESTER_WEEK_DATES: { label: '주차 날짜 변경', category: 'ATTENDANCE' },
+  SEMESTER_SCHEDULE_SET: { label: '반기 일정 변경', category: 'ATTENDANCE' },
 
   TEAM_CREATE: { label: '팀·스터디 생성', category: 'ATTENDANCE' },
   TEAM_UPDATE: { label: '팀·스터디 수정', category: 'ATTENDANCE' },
@@ -95,7 +98,9 @@ export const AUDIT_ACTIONS = {
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
 
-export const isAuditAction = (value: string): value is AuditAction => value in AUDIT_ACTIONS;
+/** 정해진 감사 액션인지. `in`은 toString 같은 기본 속성도 찾으므로 자기 속성만 본다. */
+export const isAuditAction = (value: string): value is AuditAction =>
+  Object.hasOwn(AUDIT_ACTIONS, value);
 
 /** 분류에 속한 액션 목록(목록에 적은 순서). */
 export const actionsOf = (category: AuditCategory | null): AuditAction[] =>
@@ -105,12 +110,6 @@ export const actionsOf = (category: AuditCategory | null): AuditAction[] =>
 
 /** 권한 안에서 한 일. CUD 권한이면 그 가운데 무엇을 했는지다. */
 export type AuditOperation = 'CREATE' | 'UPDATE' | 'DELETE';
-
-export const AUDIT_OPERATION_LABELS: Readonly<Record<AuditOperation, string>> = {
-  CREATE: '생성',
-  UPDATE: '수정',
-  DELETE: '삭제',
-};
 
 /** 기록 한 줄이 쓴 권한(권한 매트릭스의 항목). */
 export interface AuditUsedPermission {

@@ -77,7 +77,7 @@ function actionPermission(input: ActionPermissionInput): ActionPermission {
     case 'MEMBER_UPDATE':
       return { key: null, operation: 'UPDATE' };
     case 'MEMBER_DELETE':
-      // 행을 지우지 않고 활동 상태만 탈퇴로 바꾸므로 수정이다.
+      // 행을 지우지 않고 활동 상태만 탈동으로 바꾸므로 수정이다.
       return { key: null, operation: 'UPDATE' };
 
     case 'ATTENDANCE_EDIT':
@@ -106,10 +106,14 @@ function actionPermission(input: ActionPermissionInput): ActionPermission {
       return { key: 'SCORE_RULE_WRITE', operation: 'DELETE' };
     case 'SEMESTER_CREATE':
       return { key: null, operation: 'CREATE' };
+    case 'SEMESTER_DELETE':
+      return { key: null, operation: 'DELETE' };
     case 'SEMESTER_UPDATE':
+    case 'SEMESTER_ACTIVATE':
     case 'SEMESTER_MEMBERS_SET':
     case 'SEMESTER_WEEK_UPDATE':
     case 'SEMESTER_WEEK_DATES':
+    case 'SEMESTER_SCHEDULE_SET':
       return { key: null, operation: 'UPDATE' };
 
     case 'TEAM_CREATE':

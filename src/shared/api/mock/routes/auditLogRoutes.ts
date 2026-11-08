@@ -12,18 +12,13 @@ import {
   isPermissionFilter,
 } from '@/entities/audit-log/model/categoryPermissions';
 import type { AuditLogQuery } from '@/entities/audit-log/model/dto';
-import {
-  AUDIT_CATEGORIES,
-  isAuditAction,
-  type AuditCategory,
-} from '@/entities/audit-log/model/types';
+import { AUDIT_CATEGORIES, isAuditAction } from '@/entities/audit-log/model/types';
+import { isValidIsoDate } from '@/shared/lib/date';
 
 import { ApiError, type MockRoute } from '../router';
 import { requireAny } from './adminAccountRoutes';
 
 const MAX_PAGE_SIZE = 200;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
 const badRequest = (message: string) => new ApiError(400, 'BAD_REQUEST', message);
 
 const positiveInt = (value: string | null, key: string): number | undefined => {
@@ -36,7 +31,8 @@ const positiveInt = (value: string | null, key: string): number | undefined => {
 
 const dateOf = (value: string | null, key: string): string | undefined => {
   if (value === null || value === '') return undefined;
-  if (!DATE_PATTERN.test(value)) throw badRequest(`${key} 값은 YYYY-MM-DD 형식이어야 합니다.`);
+  if (!isValidIsoDate(value))
+    throw badRequest(`${key} 값은 YYYY-MM-DD 형식의 실제 날짜여야 합니다.`);
   return value;
 };
 
@@ -55,14 +51,17 @@ function queryOf(query: URLSearchParams): AuditLogQuery {
   }
   const size = positiveInt(query.get('size'), 'size') ?? DEFAULT_AUDIT_PAGE_SIZE;
   if (size > MAX_PAGE_SIZE) throw badRequest(`size 값은 ${MAX_PAGE_SIZE} 이하여야 합니다.`);
+  const from = dateOf(query.get('from'), 'from');
+  const to = dateOf(query.get('to'), 'to');
+  if (from && to && from > to) throw badRequest('from 값은 to 값보다 늦을 수 없습니다.');
   return {
-    category: category as AuditCategory | undefined,
+    category: AUDIT_CATEGORIES.find((item) => item.id === category)?.id,
     action,
     permission,
     actorId: positiveInt(query.get('actorId'), 'actorId'),
     actorUserId: query.get('actorUserId')?.trim() || undefined,
-    from: dateOf(query.get('from'), 'from'),
-    to: dateOf(query.get('to'), 'to'),
+    from,
+    to,
     q: query.get('q') ?? undefined,
     page: positiveInt(query.get('page'), 'page'),
     size,
