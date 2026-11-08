@@ -356,8 +356,6 @@ export interface InternalCategoryAttendancePageProps {
   /** 반기 API의 기수 목록과 현재 기수. 현재보다 작은 기수는 지난 기수로 조회만 할 수 있다. ADV 화면은 ADV 기수다. */
   cohorts?: readonly number[];
   currentCohort: number;
-  canCreateNextSemester: boolean;
-  onAdvanceSemester: () => Promise<void>;
   /** 기수 → 반기 표기(반기 API 응답). */
   cohortLabels: Readonly<Record<number, string>>;
   /** 부문 목록(반기 API 응답). */
@@ -405,8 +403,6 @@ export function InternalCategoryAttendancePage({
   weeks: weeksProp = NO_WEEKS,
   cohorts,
   currentCohort,
-  canCreateNextSemester,
-  onAdvanceSemester,
   cohortLabels,
   tracks,
   onCreateStudy,
@@ -2528,8 +2524,6 @@ export function InternalCategoryAttendancePage({
             cohorts={cohortOptions}
             labels={cohortLabels}
             onChange={handleChangeCohort}
-            canCreateNextSemester={canCreateNextSemester}
-            onAdvanceSemester={onAdvanceSemester}
           />
         </div>
       </div>
@@ -2560,7 +2554,7 @@ export function InternalCategoryAttendancePage({
           <button
             type="button"
             onClick={() => setSelectedWeek(0)}
-            className={`w-[74px] h-[34px] rounded-sm text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
+            className={`w-[74px] h-11 rounded-sm text-xs font-bold transition-colors cursor-pointer flex items-center justify-center shrink-0 select-none ${
               selectedWeek === 0
                 ? BRAND_SELECTED
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-white border border-slate-200/90 shadow-2xs'
@@ -2584,7 +2578,7 @@ export function InternalCategoryAttendancePage({
                     ? 'ADV 팀 개설 전 주차는 팀별 출결을 조회할 수 없습니다.'
                     : undefined
                 }
-                className={`w-[58px] h-[34px] rounded-sm text-xs font-bold transition-colors flex items-center justify-center shrink-0 select-none ${
+                className={`w-[58px] h-11 rounded-sm text-xs font-bold transition-colors flex flex-col items-center justify-center shrink-0 select-none ${
                   isDisabledBeforeAdvTeamCreation
                     ? 'cursor-not-allowed border border-slate-200/60 bg-slate-100/60 text-slate-300'
                     : isActive
@@ -3107,6 +3101,11 @@ export function InternalCategoryAttendancePage({
                             ? '학기 전체 (9~16주차)'
                             : `학기 ${selectedWeek}주차`}{' '}
                       {category !== 'STUDY' && '출결 명단'}
+                      {selectedWeek !== 0 && dbWeekDates?.[selectedWeek] && (
+                        <span className="ml-2 font-medium tabular-nums text-slate-500">
+                          {dbWeekDates[selectedWeek]}
+                        </span>
+                      )}
                     </h4>
 
                     {/* Track Filter Pill Buttons (스터디 및 BASE 출결에서는 숨김) */}

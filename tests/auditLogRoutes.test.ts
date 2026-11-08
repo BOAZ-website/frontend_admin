@@ -110,7 +110,6 @@ test('동아리원 탈동은 "동아리원 수정"으로 기록되고, 바꾼 �
     db,
     `SELECT id, name, term, club_status FROM users
       WHERE club_status = 'ACTIVE' AND id NOT IN (SELECT user_id FROM admin)
-        AND id NOT IN (SELECT user_id FROM host_accounts WHERE user_id IS NOT NULL)
         AND id NOT IN (SELECT leader_id FROM teams WHERE leader_id IS NOT NULL
                          AND semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1))
       LIMIT 1`,
@@ -179,7 +178,7 @@ test('수행자 선택지는 기록에 나온 계정이다', async () => {
 
 test('HOST 계정이 한 기록도 수행자 선택지에 나오고 actorUserId로 찾는다', async () => {
   const { call } = await setup();
-  // 시드의 HOST 계정(host_c, 계정 주인 u_27_01). 운영진 계정은 없다.
+  // 시드의 HOST 계정(host_c, admin 101번, 계정 주인 u_27_01). 운영진 계정은 없다.
   const hostUserId = 'u_27_01';
   call('POST', '/api/v1/auth/login', { username: 'host_c', password: 'boaz2026!c' });
   call('PATCH', '/api/v1/club-members/u_28_01', { major: '통계학과' });
@@ -188,12 +187,12 @@ test('HOST 계정이 한 기록도 수행자 선택지에 나오고 actorUserId�
   const actors = call<AuditActorOption[]>('GET', '/api/v1/admin/audit-logs/actors');
   const option = actors.find((actor) => actor.userId === hostUserId);
   assert.ok(option);
-  assert.equal(option.id, null);
+  assert.equal(option.id, 101);
   assert.equal(option.role, 'HOST');
 
   const byHost = call<AuditLogPage>('GET', `/api/v1/admin/audit-logs?actorUserId=${hostUserId}`);
   assert.ok(byHost.total >= 1);
-  assert.ok(byHost.items.every((entry) => entry.actorId === null && entry.actorRole === 'HOST'));
+  assert.ok(byHost.items.every((entry) => entry.actorId === 101 && entry.actorRole === 'HOST'));
 
   // 운영진이 한 기록도 회원 id로 찾으면 운영진 계정 id로 찾은 것과 같다.
   const masterUserId = actors.find((actor) => actor.id === 1)?.userId;
@@ -498,9 +497,8 @@ test('DELETE 기록의 requestBody는 null이다', async () => {
   const memberId = queryAll<{ id: string }>(
     db,
     `SELECT id FROM users
-      WHERE id NOT IN (SELECT user_id FROM admin)
-        AND id NOT IN (SELECT user_id FROM semester_members)
-        AND id NOT IN (SELECT user_id FROM host_accounts WHERE user_id IS NOT NULL) LIMIT 1`,
+      WHERE id NOT IN (SELECT user_id FROM admin WHERE user_id IS NOT NULL)
+        AND id NOT IN (SELECT user_id FROM semester_members) LIMIT 1`,
   )[0].id;
   call('DELETE', `/api/v1/club-members/${memberId}`);
   const entry = latest();

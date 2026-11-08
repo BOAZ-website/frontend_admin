@@ -6,15 +6,7 @@ import { useEventPageData } from '../model/useEventPageData';
 import { EventAttendanceManagePage } from './EventAttendanceManagePage';
 
 type PageProps = ComponentProps<typeof EventAttendanceManagePage>;
-type ContainerProps = Pick<
-  PageProps,
-  | 'cohorts'
-  | 'currentCohort'
-  | 'cohortLabels'
-  | 'canCreateNextSemester'
-  | 'onAdvanceSemester'
-  | 'listRequest'
->;
+type ContainerProps = Pick<PageProps, 'cohorts' | 'currentCohort' | 'cohortLabels' | 'listRequest'>;
 
 /**
  * 행사 출결 탭. 탭을 열면 행사·참가자를 API로 읽어 표를 그리고,

@@ -68,6 +68,7 @@ export function createStudyRecords(
   };
   const members: Member[] = input.members.map((user) => ({
     id: `${input.id}_${user.id}`,
+    userId: user.id,
     name: user.name,
     year: String(user.term),
     track: user.track,
@@ -193,6 +194,7 @@ export function createBaseAttendanceRecords(
   const addedMembers: Member[] = input.members
     .map((user) => ({
       id: `${id}_${user.id}`,
+      userId: user.id,
       name: user.name,
       year: String(user.term),
       track: user.track,
@@ -288,6 +290,7 @@ export function createAdvTeamRecords(
   };
   const members: Member[] = input.members.map((user) => ({
     id: `${id}_${user.id}`,
+    userId: user.id,
     name: user.name,
     year: String(user.term),
     track: user.track,

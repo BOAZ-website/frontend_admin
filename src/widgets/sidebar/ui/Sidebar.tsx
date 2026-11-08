@@ -124,6 +124,10 @@ const SIDEBAR_NAV = [
         ],
       },
       {
+        title: '운영',
+        pages: [{ id: 'system-semesters', label: '반기 관리' }],
+      },
+      {
         title: '보안',
         pages: [{ id: 'system-audit', label: '감사 로그' }],
       },

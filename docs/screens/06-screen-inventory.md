@@ -39,6 +39,7 @@
 | 22 | 시스템·계정 | 계정 및 권한 | 운영진 계정 관리 (CRUD) | `system-accounts` | 운영진 계정 관리 | [05](05-system.md) |
 | 23 | 시스템·계정 | 계정 및 권한 | 권한 매트릭스 (10대 Permission) | `system-permissions` | 권한 매트릭스 | [05](05-system.md) |
 | 24 | 시스템·계정 | 보안 | 보안 감사 로그 | `system-audit` | 보안 감사 로그 | [05](05-system.md) |
+| 25 | 시스템·계정 | 출결 기준 | 반기 관리 | `system-semesters` | 반기 관리 (2026-11-05 추가) | [05](05-system.md) |
 
 ---
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChevronRight, PanelLeft, User, X } from 'lucide-react';
 
@@ -17,6 +17,7 @@ import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentM
 import { MemberManagementPage } from '@/pages/member-management/ui/MemberManagementPage';
 import { AuditLogPage } from '@/pages/system-audit/ui/AuditLogPage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
+import { SemesterManagementPage } from '@/pages/system-semesters/ui/SemesterManagementPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
@@ -25,16 +26,13 @@ import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
 import boazLogo from '@/shared/assets/boaz-logo.png';
 import { useAttendanceMeta } from '@/entities/attendance/model/useAttendanceMeta';
 import { useCurrentTeams } from '@/entities/study-team/model/useCurrentTeams';
-import { useHosts } from '@/entities/host-account/model/useHosts';
 import { changeAdminPassword } from '@/entities/admin-account/api/adminAccountApi';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { SERVICE_OPERATIONS_TEAM } from '@/entities/admin-account/model/teams';
 import { logout, openDevDefaultSession, restoreSession } from '@/entities/auth/api/authApi';
 import type { AuthSession } from '@/entities/auth/model/types';
-import type { SemesterAttendanceKind, SemesterDto } from '@/entities/cohort/model/dto';
-import { createSemester, updateSemester } from '@/entities/cohort/api/semesterApi';
+import type { SemesterDto } from '@/entities/cohort/model/dto';
 import type { WeekInfo } from '@/entities/attendance/model/week';
-import type { HostAccount } from '@/entities/host-account/model/types';
 import { useScoreRules } from '@/entities/score-rule/model/useScoreRules';
 import type { StudyTeamInfo } from '@/entities/study-team/model/types';
 import type { UserRole, UserTrack } from '@/entities/user/model/types';
@@ -43,7 +41,6 @@ import { isActivePage, PAGE_LABELS } from '@/shared/config/pageLabels';
 import { confirmLeave } from '@/shared/lib/leaveGuard';
 
 const NO_TEAMS: StudyTeamInfo[] = [];
-const NO_HOSTS: HostAccount[] = [];
 const NO_SEMESTERS: SemesterDto[] = [];
 const NO_TRACKS: UserTrack[] = [];
 const NO_WEEKS: WeekInfo[] = [];
@@ -122,8 +119,7 @@ function sessionOfAccount(account: AdminAccount): AuthSession {
     role: account.role,
     teamName: account.teamName,
     accountId: account.id,
-    hostId: null,
-    hostTeamId: null,
+    leaderTeamIds: [],
   };
 }
 
@@ -200,28 +196,13 @@ export default function App() {
   const semesters = attendanceMeta?.semesters ?? NO_SEMESTERS;
   const currentSemester = attendanceMeta?.currentSemester ?? null;
   const nextSemester = attendanceMeta?.nextSemester ?? null;
-  // 반기 선택 목록은 그 화면의 출결이 등록된 반기만 보여 준다(반기 API의 attendanceKinds 기준).
-  // 현재 반기는 출결을 새로 만들 수 있어야 하므로 비어 있어도 늘 넣는다.
-  const cohortsWith = useCallback(
-    (kind: SemesterAttendanceKind) =>
-      semesters
-        .filter((semester) => semester.isCurrent || semester.attendanceKinds.includes(kind))
-        .map((semester) => semester.cohort),
-    [semesters],
-  );
-  const baseCohorts = useMemo(() => cohortsWith('BASE'), [cohortsWith]);
-  const studyCohorts = useMemo(() => cohortsWith('STUDY'), [cohortsWith]);
-  const eventCohorts = useMemo(() => cohortsWith('EVENT'), [cohortsWith]);
+  // 반기 선택 목록은 반기 관리 목록과 같다(같은 반기 API). 출결 기록이 없는 반기도 보인다.
+  // 준비 반기는 아직 시작하지 않아 출결 화면에는 넣지 않는다(반기 API가 빼고 준다).
+  const semesterCohorts = useMemo(() => semesters.map((semester) => semester.cohort), [semesters]);
   const currentCohort = currentSemester?.cohort ?? null;
   // ADV 팀의 기수는 회원 기수다. 반기마다 ADV를 진행하는 기수(advTerm)가 정해져 있다.
   const advCohorts = useMemo(
-    () =>
-      semesters.flatMap((semester) =>
-        semester.advTerm === null ||
-        !(semester.isCurrent || semester.attendanceKinds.includes('ADV'))
-          ? []
-          : [semester.advTerm],
-      ),
+    () => semesters.flatMap((semester) => (semester.advTerm === null ? [] : [semester.advTerm])),
     [semesters],
   );
   const advCurrentCohort = currentSemester?.advTerm ?? null;
@@ -248,21 +229,9 @@ export default function App() {
   const advTeams = currentTeams?.adv ?? NO_TEAMS;
   const studyTeams = currentTeams?.study ?? NO_TEAMS;
   const tracks = attendanceMeta?.tracks ?? NO_TRACKS;
-  async function handleAdvanceSemester(): Promise<void> {
-    if (!nextSemester || !attendanceMeta) throw new Error('다음 반기 정보를 불러오지 못했습니다.');
-    if (attendanceMeta.canCreateNextSemester) {
-      await createSemester({
-        cohort: nextSemester.cohort,
-        semester: nextSemester.semester,
-        startDate: nextSemester.startDate,
-        endDate: nextSemester.endDate,
-        advTerm: nextSemester.advTerm,
-        memberTerms: nextSemester.memberTerms,
-      });
-    }
-    await updateSemester(nextSemester.semester, { isCurrent: true });
+  // 반기 관리 화면에서 반기를 시작하거나 일정을 바꾸면, 출결 화면이 함께 쓰는 반기·HOST 계정·팀을 다시 읽는다.
+  function handleSemesterChanged(): void {
     reloadAttendanceMeta();
-    reloadHosts();
     refreshTeamState();
   }
   // 현재 반기의 주차와 진행 상태(semester_weeks). 화면이 쓰는 주차 모양(WeekInfo)으로만 바꾼다.
@@ -283,11 +252,7 @@ export default function App() {
   ) : (
     <p className="py-8 text-center text-xs text-slate-400">반기 정보를 불러오는 중입니다.</p>
   );
-  // HOST 계정도 임시 DB가 원본이다. 발급·삭제하면 DB에 바로 저장된다.
-  // 로그인할 때 담당 팀을 찾는 데 쓰는 HOST 계정 목록(API). HOST 관리 화면은 자기 데이터를 따로 읽는다.
-  const { hosts: hostRows, error: hostDbError, reload: reloadHosts } = useHosts();
-  const hosts = hostRows ?? NO_HOSTS;
-  // 로그인 세션은 임시 API(DB의 admin·host_accounts)가 원본이다. 세션이 없으면 로그인 창만 보여 준다.
+  // 로그인 세션은 임시 API(DB의 admin)가 원본이다. 운영진 계정과 HOST 계정이 같은 표에 있다. 세션이 없으면 로그인 창만 보여 준다.
   // 브라우저에는 아이디와 로그인 여부만 남긴다. 비밀번호는 저장하지 않는다.
   // 새로고침하면 임시 DB가 새로 만들어져 세션이 사라지는데, 비밀번호 없이 세션을 되살리는 경로는 개발 모드에만 있다.
   // 그래서 개발 모드에서만 남긴 아이디(없으면 첫 운영진 계정)로 되살리고, 배포 빌드는 다시 로그인하게 한다.
@@ -301,7 +266,8 @@ export default function App() {
     }
   });
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const loggedHostTeam = session?.hostTeamId ?? '';
+  // HOST 진입 화면은 로그인 세션이 알려 준 맡은 그룹(현재 반기 팀장인 팀)의 첫 팀으로 정한다.
+  const loggedHostTeam = session?.leaderTeamIds[0] ?? '';
   const loggedUsername = session?.username ?? '';
   const displayName = session?.name ?? '';
 
@@ -376,14 +342,12 @@ export default function App() {
   }
 
   /**
-   * 로그인한 HOST 계정이 맡은 팀(DB의 host_accounts·host_assigned_groups) 중 그 출결 입력 탭(ADV/스터디)의 팀을 고른다.
-   * ADV와 스터디를 함께 맡은 계정은 탭마다 자기 팀이 열리고, 못 찾으면 로그인 때 넘어온 팀으로 대신한다.
+   * 로그인한 계정이 맡은 그룹(세션의 leaderTeamIds) 중 그 출결 입력 탭(ADV/스터디)의 팀을 고른다.
+   * ADV와 스터디를 함께 맡은 계정은 탭마다 자기 팀이 열리고, 못 찾으면 맡은 그룹의 첫 팀으로 대신한다.
    */
   function resolveHostTeamFor(isAdvTab: boolean): string {
     const tabTeams = isAdvTab ? advTeams : studyTeams;
-    const host = hosts.find((account) => account.username === loggedUsername);
-    const ownedIds = [host?.teamId, ...(host?.assignedGroups ?? []).map((group) => group.teamId)];
-    const mine = ownedIds.find((id) => id && tabTeams.some((team) => team.id === id));
+    const mine = session?.leaderTeamIds.find((id) => tabTeams.some((team) => team.id === id));
     return mine ?? resolveTeamId(loggedHostTeam);
   }
 
@@ -395,7 +359,7 @@ export default function App() {
     } catch {}
     const role = userRoleOf(next);
     if (role === 'HOST') {
-      const isAdvTeam = advTeams.some((team) => team.id === next.hostTeamId);
+      const isAdvTeam = advTeams.some((team) => team.id === next.leaderTeamIds[0]);
       setActivePage(isAdvTeam ? 'att-input-adv' : 'att-input-study');
     } else if (role === 'CONTENT_ADMIN') {
       setActivePage('content-archive');
@@ -414,10 +378,10 @@ export default function App() {
     setMyPwError('');
   }
 
-  /** 본인 비밀번호를 바꾼다(운영진 계정만). 현재 비밀번호는 서버가 확인한다. */
+  /** 본인 비밀번호를 바꾼다(운영진·HOST 계정). 현재 비밀번호는 서버가 확인한다. */
   async function handleSaveMyPassword() {
     setMyPwError('');
-    if (!session?.accountId) return;
+    if (!session) return;
     if (!myCurrentPw.trim() || !myNewPw.trim() || !myConfirmPw.trim()) {
       setMyPwError('모든 항목을 입력해 주세요.');
       return;
@@ -445,7 +409,7 @@ export default function App() {
   const isContentPage = Boolean(activePage?.startsWith('content'));
   const isAttendancePage = Boolean(activePage?.startsWith('att-'));
 
-  if (isRestoringSession || (!currentTeams && !teamDbError) || (!hostRows && !hostDbError)) {
+  if (isRestoringSession || (!currentTeams && !teamDbError)) {
     return (
       <div className="flex h-screen items-center justify-center text-sm text-slate-500">
         데이터를 불러오는 중...
@@ -586,7 +550,7 @@ export default function App() {
           className="flex-1 overflow-y-auto overscroll-y-none px-8 py-7"
           style={{ scrollbarWidth: 'none' }}
         >
-          {(teamDbError || hostDbError) && isAttendancePage && (
+          {teamDbError && isAttendancePage && (
             <DataLoadFailedNotice onRetry={() => window.location.reload()} />
           )}
           {/* 1. Recruiting Management */}
@@ -635,10 +599,8 @@ export default function App() {
                 category="SESSION"
                 semesters={semesters}
                 weeks={weeks}
-                cohorts={baseCohorts}
+                cohorts={semesterCohorts}
                 currentCohort={currentCohort}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 cohortLabels={cohortLabels}
                 tracks={tracks}
                 onDataChanged={refreshTeamState}
@@ -654,8 +616,6 @@ export default function App() {
                 weeks={weeks}
                 cohorts={advCohorts}
                 currentCohort={advCurrentCohort}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 cohortLabels={advCohortLabels}
                 tracks={tracks}
                 onDataChanged={refreshTeamState}
@@ -669,10 +629,8 @@ export default function App() {
                 category="STUDY"
                 semesters={semesters}
                 weeks={weeks}
-                cohorts={studyCohorts}
+                cohorts={semesterCohorts}
                 currentCohort={currentCohort}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 cohortLabels={cohortLabels}
                 tracks={tracks}
                 onDataChanged={refreshTeamState}
@@ -683,11 +641,9 @@ export default function App() {
               semesterNotice
             ) : (
               <EventAttendanceContainer
-                cohorts={eventCohorts}
+                cohorts={semesterCohorts}
                 currentCohort={currentCohort}
                 cohortLabels={cohortLabels}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 listRequest={eventListRequest}
               />
             ))}
@@ -708,14 +664,7 @@ export default function App() {
               onDataChanged={refreshTeamState}
             />
           )}
-          {activePage === 'att-hosts' && (
-            <HostsPage
-              onDataChanged={() => {
-                reloadHosts();
-                refreshTeamState();
-              }}
-            />
-          )}
+          {activePage === 'att-hosts' && <HostsPage onDataChanged={refreshTeamState} />}
           {activePage === 'att-rules' && (
             <RulesPage rules={scoreRules} onRulesChanged={reloadScoreRules} />
           )}
@@ -745,6 +694,9 @@ export default function App() {
             />
           )}
           {(activePage === 'system' || activePage === 'system-accounts') && <SystemAccountsPage />}
+          {activePage === 'system-semesters' && (
+            <SemesterManagementPage onSemesterChanged={handleSemesterChanged} />
+          )}
         </main>
       </div>
 
@@ -790,78 +742,73 @@ export default function App() {
                 )}
               </dl>
 
-              {session.kind === 'HOST' ? (
-                <p className="border-t border-slate-200 pt-4 text-xs text-slate-500">
-                  그룹 리더(HOST) 계정의 비밀번호는 출결의 HOST 화면에서 바꿉니다.
-                </p>
-              ) : (
-                <form
-                  className="space-y-3 border-t border-slate-200 pt-4"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void handleSaveMyPassword();
-                  }}
-                >
-                  {[
-                    {
-                      id: 'my-current-pw',
-                      label: '현재 비밀번호',
-                      value: myCurrentPw,
-                      onChange: setMyCurrentPw,
-                      autoComplete: 'current-password',
-                    },
-                    {
-                      id: 'my-new-pw',
-                      label: '새 비밀번호',
-                      value: myNewPw,
-                      onChange: setMyNewPw,
-                      autoComplete: 'new-password',
-                    },
-                    {
-                      id: 'my-confirm-pw',
-                      label: '새 비밀번호 확인',
-                      value: myConfirmPw,
-                      onChange: setMyConfirmPw,
-                      autoComplete: 'new-password',
-                    },
-                  ].map((field) => (
-                    <div key={field.id}>
-                      <label htmlFor={field.id} className="mb-1 block text-xs text-slate-500">
-                        {field.label}
-                      </label>
-                      <input
-                        id={field.id}
-                        type="password"
-                        autoComplete={field.autoComplete}
-                        value={field.value}
-                        onChange={(event) => field.onChange(event.target.value)}
-                        className="h-10 w-full rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none hover:border-slate-300 focus:border-slate-400"
-                      />
-                    </div>
-                  ))}
-                  {myPwError && (
-                    <p role="alert" className="text-xs text-red-600">
-                      {myPwError}
-                    </p>
-                  )}
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={closeMyProfile}
-                      className="h-9 cursor-pointer rounded-sm px-4 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                    >
-                      취소
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSavingMyPw}
-                      className="h-9 cursor-pointer rounded-sm bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      비밀번호 변경
-                    </button>
+              {/* HOST 계정도 admin 표에 있어 운영진 계정과 같은 API로 본인 비밀번호를 바꾼다. */}
+              <form
+                className="space-y-3 border-t border-slate-200 pt-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleSaveMyPassword();
+                }}
+              >
+                {[
+                  {
+                    id: 'my-current-pw',
+                    label: '현재 비밀번호',
+                    value: myCurrentPw,
+                    onChange: setMyCurrentPw,
+                    autoComplete: 'current-password',
+                  },
+                  {
+                    id: 'my-new-pw',
+                    label: '새 비밀번호',
+                    value: myNewPw,
+                    onChange: setMyNewPw,
+                    autoComplete: 'new-password',
+                  },
+                  {
+                    id: 'my-confirm-pw',
+                    label: '새 비밀번호 확인',
+                    value: myConfirmPw,
+                    onChange: setMyConfirmPw,
+                    autoComplete: 'new-password',
+                  },
+                ].map((field) => (
+                  <div key={field.id}>
+                    <label htmlFor={field.id} className="mb-1 block text-xs text-slate-500">
+                      {field.label}
+                    </label>
+                    <input
+                      id={field.id}
+                      type="password"
+                      autoComplete={field.autoComplete}
+                      value={field.value}
+                      onChange={(event) => field.onChange(event.target.value)}
+                      className="h-10 w-full rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none hover:border-slate-300 focus:border-slate-400"
+                    />
                   </div>
-                </form>
-              )}
+                ))}
+                {myPwError && (
+                  <p role="alert" className="text-xs text-red-600">
+                    {myPwError}
+                  </p>
+                )}
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={closeMyProfile}
+                    className="h-9 cursor-pointer rounded-sm px-4 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingMyPw}
+                    className="h-9 cursor-pointer rounded-sm bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    비밀번호 변경
+                  </button>
+                </div>
+              </form>
             </div>
           </MyProfilePanel>
         </div>

@@ -244,14 +244,13 @@ function activeLeaderId(db: Awaited<ReturnType<typeof setup>>['db']): string {
     `SELECT tm.user_id AS id FROM team_members tm JOIN users u ON u.id = tm.user_id
       WHERE u.club_status = 'ACTIVE'
         AND NOT EXISTS (SELECT 1 FROM admin a WHERE a.user_id = tm.user_id)
-        AND NOT EXISTS (SELECT 1 FROM host_accounts h WHERE h.user_id = tm.user_id)
         AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.leader_id = tm.user_id AND t.${CURRENT_TEAM})
         AND EXISTS (SELECT 1 FROM attendance_records r WHERE r.member_id = tm.id)
       LIMIT 1`,
   )[0].id;
 }
 
-/** 운영진이 아닌 현재 반기 팀장(활동 회원)과 그 팀 id. */
+/** 계정(운영진·HOST)이 없는 현재 반기 팀장(활동 회원)과 그 팀 id. */
 function currentLeaderOf(db: Awaited<ReturnType<typeof setup>>['db']) {
   return queryAll<{ userId: string; teamId: string; teamName: string }>(
     db,
@@ -268,7 +267,6 @@ test('현재 반기 팀장은 탈동 처리할 수 없고(409), 팀장을 바꾸
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
   assert.ok(leader);
-  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
   const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find(
     (m) => m.id === leader.userId,
   );
@@ -295,7 +293,6 @@ test('현재 반기 팀장은 탈동 처리할 수 없고(409), 팀장을 바꾸
 test('지난 반기 팀장은 탈동을 막지 않는다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
-  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
   // 반기를 넘겨 지금 팀이 지난 반기 팀이 되게 한다.
   const current = queryAll<{ cohort: number }>(
     db,
@@ -342,9 +339,10 @@ test('탈동 처리는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 
   assert.deepEqual(linkedRowCounts(db, target), before);
 });
 
-test('팀장이 아닌데 HOST 계정이 있으면 탈동 처리할 수 없고(409), 계정을 지우면 탈동 처리된다', async () => {
+test('팀장이 아닌데 HOST 계정이 있으면 탈동 처리할 수 없고(409), 계정이 정리되면 탈동 처리된다', async () => {
   const { db, call } = await setup();
   // 시드의 HOST 계정 host_c(계정 주인 u_27_01). 팀장 사유는 따로 보므로 팀장을 먼저 비운다.
+  // (API가 아닌 SQL로 비워 계정 정리가 돌지 않으므로 계정이 남는다. 다음 반기 팀장처럼 계정만 남은 경우다.)
   execute(db, 'UPDATE teams SET leader_id = NULL WHERE leader_id = ?', ['u_27_01']);
   const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === 'u_27_01');
   assert.equal(listed?.hostUsernames, 'host_c');
@@ -355,9 +353,9 @@ test('팀장이 아닌데 HOST 계정이 있으면 탈동 처리할 수 없고(4
     'MEMBER_HAS_HOST_ACCOUNT',
   );
   // 계정은 그대로이고 활동 상태도 바뀌지 않는다.
-  assert.equal(queryAll(db, "SELECT 1 FROM host_accounts WHERE username = 'host_c'").length, 1);
+  assert.equal(queryAll(db, "SELECT 1 FROM admin WHERE username = 'host_c'").length, 1);
 
-  execute(db, "DELETE FROM host_accounts WHERE username = 'host_c'");
+  execute(db, "DELETE FROM admin WHERE username = 'host_c'");
   assert.equal(
     call<ClubMember>('PATCH', '/api/v1/club-members/u_27_01', { status: 'WITHDRAWN' }).status,
     'WITHDRAWN',
@@ -367,10 +365,10 @@ test('팀장이 아닌데 HOST 계정이 있으면 탈동 처리할 수 없고(4
 test('HOST 계정이 있는 현재 반기 팀장은 팀장 사유 하나로 409를 받고, 팀장을 바꾸라고 알린다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
-  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
   execute(
     db,
-    "INSERT INTO host_accounts (id, username, initial_password, user_id, created_at) VALUES ('h_t', 'host_t', 'x', ?, '2026-10-25 10:00')",
+    `INSERT INTO admin (user_id, username, password, role, team_name, created_at, updated_at)
+     VALUES (?, 'host_t', 'x', 'HOST', '그룹리더', '2026-10-25 10:00', '2026-10-25 10:00')`,
     [leader.userId],
   );
   assert.throws(
@@ -764,11 +762,10 @@ function addMistakenMember(call: Awaited<ReturnType<typeof setup>>['call']): Clu
 test('삭제(DELETE)는 잘못 등록한 회원을 목록에서 지우고, 다시 읽으면 404다', async () => {
   const { db, call } = await setup();
   const mistaken = addMistakenMember(call);
-  // 추가하면 활동 명단 행이 생기므로, 반기 명단에 오르지 않은 상태인지 확인한다.
-  assert.equal(
-    queryAll(db, 'SELECT 1 FROM semester_members WHERE user_id = ?', [mistaken.id]).length,
-    0,
-  );
+  // 활동 회원을 추가하면 현재 반기 명단에 자동으로 들어간다. 팀 활동이 없으니 그래도 지울 수 있다.
+  const rosterRows = () =>
+    queryAll(db, 'SELECT 1 FROM semester_members WHERE user_id = ?', [mistaken.id]).length;
+  assert.equal(rosterRows(), 1);
 
   call('DELETE', `/api/v1/club-members/${mistaken.id}`);
 
@@ -779,14 +776,16 @@ test('삭제(DELETE)는 잘못 등록한 회원을 목록에서 지우고, 다�
   );
   // 행은 남는다(soft delete).
   assert.equal(queryAll(db, 'SELECT 1 FROM users WHERE id = ?', [mistaken.id]).length, 1);
+  // 자동으로 들어갔던 반기 명단 행은 함께 빠진다.
+  assert.equal(rosterRows(), 0);
 });
 
-test('반기 명단에 오른 회원과 운영진은 삭제할 수 없다(409)', async () => {
+test('팀에서 활동한 회원과 운영진은 삭제할 수 없다(409)', async () => {
   const { db, call } = await setup();
   const enrolled = queryAll<{ user_id: string }>(
     db,
-    `SELECT user_id FROM semester_members
-      WHERE user_id NOT IN (SELECT user_id FROM admin) LIMIT 1`,
+    `SELECT user_id FROM team_members
+      WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT user_id FROM admin) LIMIT 1`,
   )[0].user_id;
   const operator = queryAll<{ user_id: string }>(db, 'SELECT user_id FROM admin LIMIT 1')[0]
     .user_id;
@@ -859,6 +858,10 @@ test('생년월일 형식이 틀리거나 병행 부문이 부문과 같으면 4
 
   expectApiError(() => call('PATCH', path, { birthDate: '' }), 400);
   expectApiError(() => call('PATCH', path, { birthDate: '2000/01/31' }), 400);
+  // 형식은 맞지만 없는 날짜, 오늘 뒤의 날짜도 400이다.
+  expectApiError(() => call('PATCH', path, { birthDate: '2001-02-30' }), 400);
+  expectApiError(() => call('PATCH', path, { birthDate: '2000-13-01' }), 400);
+  expectApiError(() => call('PATCH', path, { birthDate: '2999-01-01' }), 400);
   expectApiError(() => call('PATCH', path, { parallelTrack: '없는부문' }), 400);
   expectApiError(() => call('PATCH', path, { parallelTrack: track }), 400);
 });

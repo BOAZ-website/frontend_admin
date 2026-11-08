@@ -12,17 +12,20 @@ const CURRENT_LEADER_TEAMS = `(SELECT group_concat(t.team_name, ', ') FROM teams
    WHERE t.leader_id = users.id
      AND t.semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1))`;
 
-/** 운영진 팀은 운영진 명단(admin)에서 읽는다. 운영진 계정 관리와 같은 데이터다. */
 /** SQL에 넣는 미수료·탈동 상태 목록. 코드 값은 LEFT_CLUB_STATUSES 한 곳에서 온다. */
 const LEFT_STATUS_SQL = LEFT_CLUB_STATUSES.map((status) => `'${status}'`).join(', ');
 
+/**
+ * 운영진 팀은 운영진 명단(admin, HOST가 아닌 계정)에서 읽는다. 운영진 계정 관리와 같은 데이터다.
+ * 스터디장·ADV 팀장의 HOST 계정도 admin 표에 있지만(role = 'HOST') 운영진이 아니라 아이디만 따로 읽는다.
+ */
 const SELECT_CLUB_MEMBERS = `
   SELECT id, name, email, phone, university, major, term, track,
          parallel_track AS parallelTrack, birth_date AS birthDate,
          club_status AS status, club_role AS role,
-         (SELECT a.team_name FROM admin a WHERE a.user_id = users.id) AS operatorTeam,
+         (SELECT a.team_name FROM admin a WHERE a.user_id = users.id AND a.role <> 'HOST') AS operatorTeam,
          ${CURRENT_LEADER_TEAMS} AS leaderTeams,
-         (SELECT group_concat(h.username, ', ') FROM host_accounts h WHERE h.user_id = users.id)
+         (SELECT a.username FROM admin a WHERE a.user_id = users.id AND a.role = 'HOST')
            AS hostUsernames
     FROM users
    WHERE deleted_at IS NULL`;
@@ -136,9 +139,11 @@ export function insertClubMember(db: Database, member: ClubMember): void {
   );
 }
 
-/** 운영진 명단(admin)에 있는 회원인지. 운영진은 운영진에서 먼저 빼야 탈동 처리할 수 있다. */
+/** 운영진 명단(admin, HOST 계정 제외)에 있는 회원인지. 운영진은 운영진에서 먼저 빼야 탈동 처리할 수 있다. */
 export function isOperator(db: Database, userId: string): boolean {
-  return queryAll(db, 'SELECT 1 FROM admin WHERE user_id = ?', [userId]).length > 0;
+  return (
+    queryAll(db, "SELECT 1 FROM admin WHERE user_id = ? AND role <> 'HOST'", [userId]).length > 0
+  );
 }
 
 /** 탈동한 동아리원인지. 없는 회원이면 false다(없는 회원은 부르는 쪽이 따로 404로 막는다). */
@@ -188,14 +193,27 @@ export function updateClubMember(db: Database, member: ClubMember): void {
   );
 }
 
-/** 반기 명단에 오른 적이 있는지. 오른 회원은 출결 기록이 이어져 있어 지울 수 없다. */
-export function hasSemesterEnrollment(db: Database, userId: string): boolean {
+/**
+ * 활동 기록이 있는 회원인지: 팀원(팀 명단)이었거나 팀장이었으면 true. 출결 기록은 팀원 행에 붙어 있어 함께 잡힌다.
+ * 반기 명단(semester_members)만 있는 것은 활동 기록으로 보지 않는다(추가하면 현재 반기 명단에 자동으로 들어가기 때문).
+ */
+export function hasActivityRecords(db: Database, userId: string): boolean {
   return (
-    queryAll(db, 'SELECT 1 FROM semester_members WHERE user_id = ? LIMIT 1', [userId]).length > 0
+    queryAll(
+      db,
+      `SELECT 1 FROM team_members
+        WHERE user_id = ? OR member_id IN (SELECT id FROM members WHERE user_id = ?)
+       UNION ALL
+       SELECT 1 FROM teams WHERE leader_id = ?
+       LIMIT 1`,
+      [userId, userId, userId],
+    ).length > 0
   );
 }
 
-/** 잘못 등록한 회원을 지운다. 행은 남기고 deleted_at만 적는다(목록·조회에서 빠진다). */
+/** 잘못 등록한 회원을 지운다. 회원 행은 남기고 deleted_at만 적는다(목록·조회에서 빠진다). */
 export function deleteClubMember(db: Database, userId: string): void {
   execute(db, "UPDATE users SET deleted_at = datetime('now') WHERE id = ?", [userId]);
+  // 활동 기록이 없을 때만 지우므로, 남은 반기 명단 행(추가할 때 자동으로 들어간 것)도 함께 뺀다.
+  execute(db, 'DELETE FROM semester_members WHERE user_id = ?', [userId]);
 }

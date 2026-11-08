@@ -18,7 +18,7 @@ import {
   listClubMemberTerms,
   updateClubMember,
   deleteClubMember,
-  hasSemesterEnrollment,
+  hasActivityRecords,
 } from '@/entities/club-member/api/clubMemberRepository';
 import {
   CLUB_MEMBER_PAGED_STATUSES,
@@ -36,7 +36,10 @@ import {
   withdrawBlockMessageOf,
   withdrawBlocksOf,
 } from '@/entities/club-member/model/withdrawBlock';
+import { addToCurrentSemester } from '@/entities/user/api/usersRepository';
 import { ensureMemberProfile } from '@/entities/study-team/api/teamRepository';
+import { isoOfLocalDate } from '@/shared/lib/calendar';
+import { isValidIsoDate } from '@/shared/lib/date';
 
 import { notFound } from '../queries';
 import { ApiError, type MockRoute } from '../router';
@@ -79,15 +82,17 @@ function roleOf(db: Database, base: ClubMember, body: Body): ClubMemberRole {
   return derived;
 }
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-/** 생년월일. 키가 없으면 fallback, null이면 지운다. YYYY-MM-DD가 아니면 400(빈 문자열도 400). */
+/** 생년월일. 키가 없으면 fallback, null이면 지운다. 실제 있는 날짜(YYYY-MM-DD)가 아니거나 오늘 뒤면 400(빈 문자열도 400). */
 function birthDateOf(body: Body, fallback: string | null): string | null {
   if (!('birthDate' in body)) return fallback;
   const value = optionalString(body, 'birthDate');
   if (value === undefined) return null;
-  if (!DATE_PATTERN.test(value) || Number.isNaN(Date.parse(value))) {
-    throw badRequest('birthDate 값은 YYYY-MM-DD 형식이어야 합니다.');
+  // Date.parse는 2026-02-30 같은 없는 날을 다음 달로 넘겨 받아 주므로 날짜를 되짚어 확인한다.
+  if (!isValidIsoDate(value)) {
+    throw badRequest('birthDate 값은 YYYY-MM-DD 형식의 실제 날짜여야 합니다.');
+  }
+  if (value > isoOfLocalDate(new Date())) {
+    throw badRequest('birthDate는 오늘 이후일 수 없습니다.');
   }
   return value;
 }
@@ -246,6 +251,8 @@ export const clubMemberRoutes: MockRoute[] = [
       validateMember(db, member);
       insertClubMember(db, member);
       ensureMemberProfile(db, member.id, member.term, member.track, member.name);
+      // 활동 회원은 현재 반기 명단에도 넣어 스터디·팀 생성 창에서 고를 수 있게 한다.
+      addToCurrentSemester(db, member.id);
       return findMember(db, member.id);
     },
   },
@@ -260,6 +267,8 @@ export const clubMemberRoutes: MockRoute[] = [
       validateMember(db, member);
       updateClubMember(db, member);
       ensureMemberProfile(db, member.id, member.term, member.track, member.name);
+      // 수료에서 활동으로 되돌린 회원도 현재 반기 명단에 넣는다.
+      addToCurrentSemester(db, member.id);
       return findMember(db, member.id);
     },
   },
@@ -267,7 +276,7 @@ export const clubMemberRoutes: MockRoute[] = [
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     summary:
-      '잘못 등록한 동아리원 삭제(soft delete, 행은 남기고 목록에서 뺀다). 반기 명단에 오른 적이 있으면 409 MEMBER_HAS_ENROLLMENTS, 운영진·HOST 계정이 있으면 409(MEMBER_IS_OPERATOR·MEMBER_HAS_HOST_ACCOUNT). 활동한 사람은 삭제가 아니라 활동 상태를 탈동으로 바꾼다',
+      '잘못 등록한 동아리원 삭제(soft delete, 행은 남기고 목록에서 뺀다). 팀원·팀장으로 활동한 기록이 있으면 409 MEMBER_HAS_ENROLLMENTS(반기 명단만 있으면 그 행과 함께 지운다), 운영진·HOST 계정이 있으면 409(MEMBER_IS_OPERATOR·MEMBER_HAS_HOST_ACCOUNT). 활동한 사람은 삭제가 아니라 활동 상태를 탈동으로 바꾼다',
     handler: ({ db, params }) => {
       const member = findMember(db, params.memberId);
       if (member.operatorTeam) {
@@ -284,11 +293,11 @@ export const clubMemberRoutes: MockRoute[] = [
           `${member.name}님은 HOST 계정(${member.hostUsernames})이 있습니다. 출결의 그룹 계정 관리에서 계정을 먼저 지워 주세요.`,
         );
       }
-      if (hasSemesterEnrollment(db, member.id)) {
+      if (hasActivityRecords(db, member.id)) {
         throw new ApiError(
           409,
           'MEMBER_HAS_ENROLLMENTS',
-          `${member.name}님은 반기 명단에 오른 적이 있어 지울 수 없습니다. 활동한 사람은 활동 상태를 탈동으로 바꿔 주세요.`,
+          `${member.name}님은 팀에서 활동한 기록이 있어 지울 수 없습니다. 활동한 사람은 활동 상태를 탈동으로 바꿔 주세요.`,
         );
       }
       deleteClubMember(db, member.id);

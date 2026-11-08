@@ -1,17 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, Copy, KeyRound, Plus, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, KeyRound, X } from 'lucide-react';
 
-import type { AssignedGroup, GroupType, HostAccount } from '@/entities/host-account/model/types';
+import type { LeaderAccount } from '@/entities/host-account/model/types';
 import { studyDisplayName } from '@/entities/study-team/model/db';
-import type { StudyPeriodType, StudyTeamInfo } from '@/entities/study-team/model/types';
-import type { UserProfile } from '@/entities/user/model/types';
-import {
-  addPermissionToHost,
-  findHostAccountByIdentity,
-  getHostPermissions,
-  type HostPermission,
-} from '@/pages/attendance-hosts/model/accountLookup';
-import { resolveConfiguredTeam } from '@/pages/attendance-hosts/model/teamSelection';
+import type { StudyTeamInfo } from '@/entities/study-team/model/types';
 import { useHostsPageData } from '@/pages/attendance-hosts/model/useHostsPageData';
 import { buildAccountDelivery } from '@/features/account-delivery/model/accountDeliveryMessages';
 import { alertApiError } from '@/shared/lib/alertApiError';
@@ -20,493 +12,195 @@ import { Tooltip } from '@/shared/ui/Tooltip';
 import { CreateButton } from '@/shared/ui/CreateButton';
 import { PageLoadingBody } from '@/widgets/page-loading/ui/PageLoadingState';
 
-export type HostCategory = 'ADV' | 'STUDY' | string;
+export type HostCategory = 'ADV' | 'STUDY';
 
-type AccountLookupState =
-  { status: 'idle' } | { status: 'found'; account: HostAccount } | { status: 'not-found' };
+type TrackFilter = 'ALL' | '분석' | '시각화' | '엔지니어링';
+const TRACK_FILTERS: readonly { value: TrackFilter; label: string }[] = [
+  { value: 'ALL', label: '전체' },
+  { value: '분석', label: '분석' },
+  { value: '시각화', label: '시각화' },
+  { value: '엔지니어링', label: '엔지니어링' },
+];
 
-// 겸직 감지 헬퍼 함수
-const detectConcurrentRoles = (
-  leaderName: string,
-  currentTeam: string,
-  hosts: HostAccount[],
-): string[] => {
-  if (!leaderName.trim()) return [];
-  const clean = leaderName.replace(/\s*\(.*\)/, '').trim();
-  const roles: string[] = [];
+/** 아이디 형식: 4~20자, 영문 소문자·숫자·밑줄(서버의 발급 검증과 같은 규칙). */
+const USERNAME_PATTERN = /^[a-z0-9_]{4,20}$/;
+const COPIED_NOTICE_MS = 2000;
 
-  // hosts 내 다른 팀 그룹리더 확인
-  hosts.forEach((h) => {
-    const hName = (h.hostName || '').replace(/\s*\(.*\)/, '').trim();
-    if (hName === clean && h.team !== currentTeam) {
-      const typeLabel = h.groupType || (h.accountType === 'ADV' ? 'ADV' : '스터디');
-      const roleStr = `${typeLabel} ${h.team}`;
-      if (!roles.includes(roleStr)) {
-        roles.push(roleStr);
-      }
-    }
-  });
-
-  // 운영진 겸직 대상자 (고준서, 이민준)
-  if (['고준서', '이민준'].includes(clean) && !roles.includes('운영진')) {
-    roles.unshift('운영진');
-  }
-
-  return roles;
-};
-
-/** 스터디 유형 표시: 멘멘 스터디인지 일반 스터디인지. 팀이 아직 없으면 '-'. */
-const studyKindLabel = (kind: StudyTeamInfo['studyKind']): string =>
-  kind === 'MENTORING' ? '멘멘 스터디' : kind === 'GENERAL' ? '일반 스터디' : '-';
-
-/** 표의 "팀 이름": 행이 가리키는 팀 이름을 쓰고, 팀이 아직 없으면 계정에 저장된 담당 팀(없으면 '팀 개설 대기')을 쓴다. */
-const teamNameOf = (account: HostAccount | undefined, rowTeamName?: string): string =>
-  rowTeamName?.trim() || account?.team?.trim() || '팀 개설 대기';
-
-/** 표의 이름·기수·부문 칸에 보여 줄 사람. */
-interface RowPerson {
+/** 표의 한 행: 진행 중인 그룹 하나와 그 현재 팀장, 팀장의 계정. */
+interface LeaderRow {
+  teamId: string;
+  teamTitle: string;
+  track: string;
+  studyKind: StudyTeamInfo['studyKind'];
   name: string;
   generation: string;
-  track: string;
+  memberTrack: string;
+  /** 없으면 "발급 필요". 운영진이 팀장이면 운영진 계정이다. */
+  account: LeaderAccount | null;
 }
 
+/** 스터디 유형 표시: 멘멘 스터디인지 일반 스터디인지. */
+const studyKindLabel = (kind: StudyTeamInfo['studyKind']): string =>
+  kind === 'MENTORING' ? '멘멘 스터디' : '일반 스터디';
+
 /**
- * 팀이 있는 행은 팀 API의 현재 팀장을 보여 준다.
- * 팀이 없는 계정 행(팀 개설 대기·겸직)은 계정 주인을 보여 준다. 아직 계정이 없는 팀이면 account가 없다.
+ * 그룹 계정 관리. 진행 중인 그룹마다 현재 팀장과 그 계정을 보여 주고, 계정이 없는 팀장에게 HOST 계정을 발급한다.
+ * 계정은 사람(회원)에 묶여 있어 계정이 있는 팀장은 지정되는 순간 권한이 생긴다. 그래서 권한 추가 단계가 없고,
+ * 계정 삭제도 없다(팀장 변경·팀 삭제·반기 전환 때 서버가 정리한다). 백엔드 HOST 계정·그룹 리더 설계문서 2026-11-06판 9.1·9.2.
  */
-const rowPersonOf = (
-  team: { id: string; leaderId?: string; defaultLeader?: string },
-  account: HostAccount | undefined,
-  users: readonly UserProfile[],
-): RowPerson => {
-  const isTeamRow = !team.id.startsWith('extra_');
-  const owner: RowPerson = {
-    name: account?.hostName || '—',
-    generation: account ? generationLabel(account.generation) : '-',
-    track: account?.track || '-',
-  };
-  if (!isTeamRow) return owner;
-  const leader = users.find((user) => user.id === team.leaderId);
-  if (!leader) {
-    return { ...owner, name: team.leaderId ? team.defaultLeader || '팀장 미정' : '팀장 미정' };
-  }
-  return { name: leader.name, generation: `${leader.term}기`, track: leader.track };
-};
-
-/** 계정이 가진 권한 이름. 예: 'ADV', 'ADV·스터디' */
-const permissionLabelsOf = (account: HostAccount): string =>
-  getHostPermissions(account)
-    .map((permission) => (permission === 'ADV' ? 'ADV' : '스터디'))
-    .join('·');
-
-const generationLabel = (year?: string): string => {
-  const value = year?.trim();
-  if (!value) return '기수 미정';
-  return value.endsWith('기') ? value : `${value}기`;
-};
-
 export function HostsPage({
   onDataChanged,
 }: {
-  /** 계정을 저장·삭제한 뒤 다른 화면(로그인·팀 데이터)도 다시 읽게 한다. */
+  /** 계정을 발급하거나 비밀번호를 바꾼 뒤 다른 화면(팀 데이터)도 다시 읽게 한다. */
   onDataChanged?: () => void;
 }) {
-  // HOST 계정·팀·회원은 이 화면을 열 때 API로 읽고, 저장·삭제도 API로 한다.
   const {
     status: dataStatus,
     error: dataError,
-    hosts,
+    leaders,
     advTeams,
     studyTeams,
     users,
-    saveHost,
+    issueAccount,
     resetPassword,
   } = useHostsPageData(onDataChanged);
-  // 1. 좌측 2개 네비게이션: 'ADV' 또는 'STUDY'
   const [activeCategory, setActiveCategory] = useState<HostCategory>('ADV');
+  const [trackFilter, setTrackFilter] = useState<TrackFilter>('ALL');
 
-  // 2. ADV 우측 본문 부문 필터
-  const [trackFilter, setTrackFilter] = useState<'ALL' | '분석' | '시각화' | '엔지니어링'>('ALL');
-
-  // 복사 알림 토글
   const [copiedNotice, setCopiedNotice] = useState(false);
-  const [passwordResetTarget, setPasswordResetTarget] = useState<HostAccount | null>(null);
+  const [passwordResetTarget, setPasswordResetTarget] = useState<LeaderRow | null>(null);
   const [newPassword, setNewPassword] = useState('');
 
-  // 계정 발급 폼 오픈 여부
+  // 계정 발급 창
   const [showIssueCard, setShowIssueCard] = useState(false);
+  const [formTeamId, setFormTeamId] = useState('');
+  const [isTeamMenuOpen, setIsTeamMenuOpen] = useState(false);
+  const [formUsername, setFormUsername] = useState('');
+  const [formPassword, setFormPassword] = useState('');
+  const [showRequiredErrors, setShowRequiredErrors] = useState(false);
   const issueTeamRef = useRef<HTMLButtonElement>(null);
-  const deliveryTextRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (showIssueCard) issueTeamRef.current?.focus();
   }, [showIssueCard]);
 
-  // 발급 폼 상태 (이름, 기수, 부문 기반 계정 발급)
-  const [formGroupType, setFormGroupType] = useState<GroupType>('ADV');
-  const [formTeamId, setFormTeamId] = useState<string>('');
-  const [isTeamMenuOpen, setIsTeamMenuOpen] = useState(false);
-  const [formLeaderName, setFormLeaderName] = useState<string>('');
-  const [formGeneration, setFormGeneration] = useState<string>('27기');
-  const [formTrack, setFormTrack] = useState<string>('분석');
-  const [formUsername, setFormUsername] = useState<string>('');
-  const [formPassword, setFormPassword] = useState<string>('');
-  const [showRequiredErrors, setShowRequiredErrors] = useState(false);
-  const [accountLookup, setAccountLookup] = useState<AccountLookupState>({ status: 'idle' });
-  const targetPermission: HostPermission = formGroupType === 'ADV' ? 'ADV' : 'STUDY';
-  const targetPermissionLabel = targetPermission === 'ADV' ? 'ADV' : '스터디';
-  const lookupPermissions =
-    accountLookup.status === 'found' ? getHostPermissions(accountLookup.account) : [];
-  const hasTargetPermission = lookupPermissions.includes(targetPermission);
-  // 찾은 계정이 고른 팀을 이미 맡고 있는지. 권한이 있어도 이 팀을 맡지 않으면 이 팀을 더해야 한다.
-  const managesFormTeam =
-    accountLookup.status === 'found' &&
-    (accountLookup.account.teamId === formTeamId ||
-      (accountLookup.account.assignedGroups ?? []).some((group) => group.teamId === formTeamId));
-  const isAccountReady = hasTargetPermission && managesFormTeam;
-
-  // 모달 상태
-  const [deliveryModal, setDeliveryModal] = useState<{
-    host: HostAccount;
-    title: string;
-    text: string;
-  } | null>(null);
+  const [deliveryModal, setDeliveryModal] = useState<{ title: string; text: string } | null>(null);
+  const deliveryTextRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (deliveryModal) deliveryTextRef.current?.focus();
   }, [deliveryModal]);
 
-  // ADV 팀 목록 (App.tsx 및 InputPage에서 개설된 팀들 포함)
-  const effectiveAdvTeams = useMemo(() => {
-    return (advTeams ?? []).map((t, idx) => ({
-      id: t.id || `adv_${idx}`,
-      leaderId: t.leaderId,
-      track: t.category || '분석',
-      teamName: t.teamName,
-      title: studyDisplayName(t),
-      topic: t.studyName || t.description || '정규 ADV 프로젝트',
-      defaultLeader: t.leaderName || '팀장 미정',
-    }));
-  }, [advTeams]);
+  // 계정 API가 준 행(진행 중인 그룹의 현재 팀장)에 팀 이름·유형과 팀장의 기수·부문을 붙인다.
+  const rowsByCategory = useMemo(() => {
+    const teams = new Map([...advTeams, ...studyTeams].map((team) => [team.id, team]));
+    const people = new Map(users.map((user) => [user.id, user]));
+    const toRow = (leader: (typeof leaders)[number]): LeaderRow => {
+      const team = teams.get(leader.teamId);
+      const person = people.get(leader.leaderUserId);
+      return {
+        teamId: leader.teamId,
+        teamTitle: team ? studyDisplayName(team) : leader.teamId,
+        track: team?.track || team?.category || '-',
+        studyKind: team?.studyKind,
+        name: person?.name ?? team?.leaderName ?? '-',
+        generation: person ? `${person.term}기` : '-',
+        memberTrack: person?.track ?? '-',
+        account: leader.account,
+      };
+    };
+    return {
+      ADV: leaders.filter((leader) => leader.groupType === 'ADV').map(toRow),
+      STUDY: leaders.filter((leader) => leader.groupType === 'STUDY').map(toRow),
+    };
+  }, [leaders, advTeams, studyTeams, users]);
 
-  // 스터디 팀 목록 (App.tsx 및 InputPage에서 개설된 팀들 포함)
-  const effectiveStudyTeams = useMemo(() => {
-    return (studyTeams ?? []).map((t, idx) => ({
-      id: t.id || `study_${idx}`,
-      leaderId: t.leaderId,
-      teamName: t.teamName,
-      title: studyDisplayName(t),
-      studyName: t.studyName || t.teamName,
-      defaultLeader: t.leaderName || '팀장 미정',
-      studyType: (t.studyType || '방학 스터디') as StudyPeriodType,
-      studyKind: t.studyKind,
-      track: t.track || t.category || '분석',
-    }));
-  }, [studyTeams]);
-
-  const configuredTeams = useMemo(
-    () =>
-      formGroupType === 'ADV'
-        ? effectiveAdvTeams
-        : [...effectiveStudyTeams].sort(
-            (a, b) => Number(b.studyKind === 'MENTORING') - Number(a.studyKind === 'MENTORING'),
-          ),
-    [effectiveAdvTeams, effectiveStudyTeams, formGroupType],
+  const visibleRows = rowsByCategory[activeCategory].filter(
+    (row) => activeCategory !== 'ADV' || trackFilter === 'ALL' || row.track === trackFilter,
   );
-  // 팀 API가 내려준 현재 반기 ADV 팀에 teamId로 연결된 계정만 붙인다.
-  const advTeamRows = useMemo(() => {
-    return effectiveAdvTeams.map((team, idx) => {
-      const leaderName = team.defaultLeader;
+  // 발급 창의 팀 목록: 표에서 "발급 필요"인 팀만(설계 9.2).
+  const issuableRows = rowsByCategory[activeCategory].filter((row) => row.account === null);
+  const selectedIssueRow = issuableRows.find((row) => row.teamId === formTeamId) ?? null;
+  const categoryLabel = activeCategory === 'ADV' ? 'ADV' : '스터디';
+  const isUsernameValid = USERNAME_PATTERN.test(formUsername.trim());
 
-      // 계정 매핑: 계정의 담당 팀(teamId) 또는 담당 그룹에 이 팀이 있는 계정.
-      // 팀장 이름이 같다는 이유로 다른 팀의 계정을 잇지 않는다(팀장이 바뀌면 엉뚱한 계정이 붙는다).
-      const account = hosts.find(
-        (h) => h.teamId === team.id || h.assignedGroups?.some((g) => g.teamId === team.id),
-      );
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedNotice(true);
+      setTimeout(() => setCopiedNotice(false), COPIED_NOTICE_MS);
+    } catch {
+      window.alert('클립보드에 복사하지 못했습니다. 직접 선택해 복사해 주세요.');
+    }
+  };
 
-      const effectiveLeader = account?.hostName || leaderName;
-      const concurrent =
-        account?.concurrentRoles || detectConcurrentRoles(effectiveLeader, team.teamName, hosts);
+  const openNewIssueForm = () => {
+    setFormTeamId('');
+    setFormUsername('');
+    setFormPassword('');
+    setShowRequiredErrors(false);
+    setIsTeamMenuOpen(false);
+    setShowIssueCard(true);
+  };
 
-      return {
-        idx: idx + 1,
-        team,
-        account,
-        concurrent,
-        isIssued: !!account,
-      };
-    });
-  }, [effectiveAdvTeams, hosts]);
+  const handleIssueAccount = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const username = formUsername.trim();
+    const password = formPassword.trim();
+    if (!selectedIssueRow || !isUsernameValid || !password) {
+      setShowRequiredErrors(true);
+      return;
+    }
+    try {
+      await issueAccount({ teamId: selectedIssueRow.teamId, username, password });
+    } catch (error) {
+      alertApiError(error);
+      return;
+    }
+    // 비밀번호는 서버 응답에 없으므로 운영지원팀이 입력한 값으로 전달문을 만든다(설계 3.5).
+    setDeliveryModal(
+      buildAccountDelivery('hostIssue', {
+        name: selectedIssueRow.name,
+        generation: selectedIssueRow.generation,
+        track: selectedIssueRow.memberTrack,
+        groupType: categoryLabel,
+        teamName: selectedIssueRow.teamTitle,
+        username,
+        password,
+      }),
+    );
+    setShowIssueCard(false);
+  };
 
-  // 팀 API가 내려준 현재 반기 스터디 팀에 teamId로 연결된 계정만 붙인다.
-  const studyTeamRows = useMemo(() => {
-    return effectiveStudyTeams.map((team, idx) => {
-      const leaderName = team.defaultLeader;
-
-      // 계정 매핑: 계정의 담당 팀(teamId) 또는 담당 그룹에 이 팀이 있는 계정.
-      // 팀장 이름이 같다는 이유로 다른 팀의 계정을 잇지 않는다(팀장이 바뀌면 엉뚱한 계정이 붙는다).
-      const account = hosts.find(
-        (h) => h.teamId === team.id || h.assignedGroups?.some((g) => g.teamId === team.id),
-      );
-
-      const effectiveLeader = account?.hostName || leaderName;
-      const concurrent =
-        account?.concurrentRoles || detectConcurrentRoles(effectiveLeader, team.teamName, hosts);
-
-      return {
-        idx: idx + 1,
-        team,
-        account,
-        concurrent,
-        isIssued: !!account,
-      };
-    });
-  }, [effectiveStudyTeams, hosts]);
-
-  // 우측 필터링된 행 목록
-  const filteredAdvRows = useMemo(() => {
-    // 팀이 있으면 계정이 아직 없어도 보여 준다(아이디 칸이 비어 있어 계정이 없음을 알 수 있다).
-    return advTeamRows.filter((row) => {
-      const effectiveTrack = row.account?.track || row.team.track;
-      if (trackFilter !== 'ALL' && effectiveTrack !== trackFilter && row.team.track !== '겸직 연동')
-        return false;
-      return true;
-    });
-  }, [advTeamRows, trackFilter]);
-
-  // 팀이 있으면 계정이 아직 없어도 보여 준다. 순서(멘멘 스터디 → 일반 스터디)는 API가 정한다.
-  const filteredStudyRows = studyTeamRows;
-
-  const openPasswordReset = (account: HostAccount) => {
-    setPasswordResetTarget(account);
+  const openPasswordReset = (row: LeaderRow) => {
+    setPasswordResetTarget(row);
     setNewPassword('');
   };
 
   const handleResetPassword = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!passwordResetTarget || !newPassword.trim()) return;
-    const owner = passwordResetTarget.hostName || passwordResetTarget.username;
-    if (!window.confirm(`${owner}님 계정의 비밀번호를 정말 재설정할까요?`)) return;
+    const account = passwordResetTarget?.account;
+    if (!passwordResetTarget || !account || !newPassword.trim()) return;
+    if (!window.confirm(`${passwordResetTarget.name}님 계정의 비밀번호를 정말 재설정할까요?`)) {
+      return;
+    }
     try {
-      await resetPassword(passwordResetTarget.id, newPassword);
-      setDeliveryModal({
-        host: { ...passwordResetTarget, initialPassword: newPassword },
-        ...buildAccountDelivery('hostPasswordReset', {
-          name: owner,
-          username: passwordResetTarget.username,
-          password: newPassword,
-        }),
-      });
-      setPasswordResetTarget(null);
-      setNewPassword('');
+      // 운영진 계정이면 "타 계정 정보 수정" 권한이 없는 한 서버가 403으로 거절하고, 그 사유를 알린다(설계 9.1).
+      await resetPassword(account.id, newPassword);
     } catch (error) {
       alertApiError(error);
-    }
-  };
-
-  const renderResetCell = (account: HostAccount) => (
-    <td className="px-2 py-2 text-center whitespace-nowrap">
-      {/* 다른 아이콘 버튼과 같은 모양: 평소에는 연한 회색, 마우스를 올리면 진해지고 연한 배경이 깔린다. */}
-      <Tooltip label="비밀번호 재설정">
-        <button
-          type="button"
-          onClick={() => openPasswordReset(account)}
-          aria-label={`${account.hostName || account.username} 비밀번호 재설정`}
-          className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
-        >
-          <KeyRound size={14} aria-hidden="true" />
-        </button>
-      </Tooltip>
-    </td>
-  );
-
-  // 최상단 '+ 신규 계정 발급' 버튼 클릭 시 모달 열기 (이름, 기수, 부문 기반)
-  const openNewIssueForm = () => {
-    const targetType = activeCategory === 'ADV' ? 'ADV' : '스터디';
-    setFormGroupType(targetType);
-    setFormTeamId('');
-    setFormLeaderName('');
-    setFormGeneration('27기');
-    const defaultTrack = trackFilter !== 'ALL' ? trackFilter : '분석';
-    setFormTrack(defaultTrack);
-    setFormUsername('');
-    setFormPassword('');
-    setShowRequiredErrors(false);
-    setAccountLookup({ status: 'idle' });
-    setShowIssueCard(true);
-  };
-
-  const resetAccountLookup = () => {
-    setAccountLookup({ status: 'idle' });
-    setFormUsername('');
-    setFormPassword('');
-    setShowRequiredErrors(false);
-  };
-
-  const handleSelectTeam = (teamId: string) => {
-    const selectedTeam = configuredTeams.find((team) => team.id === teamId);
-    const leaderName =
-      selectedTeam?.defaultLeader === '팀장 미정' ? '' : (selectedTeam?.defaultLeader ?? '');
-    const selectedLeader =
-      users.find((user) => user.id === selectedTeam?.leaderId) ??
-      users.find((user) => user.name === leaderName);
-    resetAccountLookup();
-    setFormTeamId(teamId);
-    setFormLeaderName(leaderName);
-    setFormGeneration(generationLabel(selectedLeader?.term.toString()));
-    setFormTrack(selectedLeader?.track || selectedTeam?.track || '부문 미정');
-    setIsTeamMenuOpen(false);
-  };
-
-  const resolveTargetTeamInfo = (): { teamName: string; teamId?: string } => {
-    const matchedTeam = resolveConfiguredTeam(
-      formGroupType,
-      formTeamId,
-      effectiveAdvTeams,
-      effectiveStudyTeams,
-    );
-    return matchedTeam
-      ? { teamName: matchedTeam.teamName, teamId: matchedTeam.id }
-      : { teamName: '팀 개설 대기' };
-  };
-
-  const handleLookupAccount = () => {
-    const leaderId = configuredTeams.find((team) => team.id === formTeamId)?.leaderId;
-    const matchedAccount =
-      (leaderId ? hosts.find((host) => host.userId === leaderId) : undefined) ??
-      findHostAccountByIdentity(hosts, {
-        name: formLeaderName,
-        generation: formGeneration,
-        track: formTrack,
-      });
-
-    setAccountLookup(
-      matchedAccount ? { status: 'found', account: matchedAccount } : { status: 'not-found' },
-    );
-    setFormUsername('');
-    setFormPassword('');
-  };
-
-  const handleAddPermission = async () => {
-    if (accountLookup.status !== 'found' || isAccountReady) return;
-
-    const existingAccount = accountLookup.account;
-    const confirmMessage = hasTargetPermission
-      ? `이미 ${permissionLabelsOf(existingAccount)} 권한이 있습니다.\n이 계정에 고른 팀 담당을 추가할까요?`
-      : `이미 ${permissionLabelsOf(existingAccount)} 권한이 있습니다.\n${targetPermissionLabel} 권한도 추가할까요?`;
-    if (!window.confirm(confirmMessage)) return;
-
-    const { teamName: finalTeam, teamId: finalTeamId } = resolveTargetTeamInfo();
-    const assignedGroup =
-      finalTeam === '팀 개설 대기'
-        ? undefined
-        : { type: formGroupType, teamName: finalTeam, teamId: finalTeamId };
-    const updatedAccount = addPermissionToHost(existingAccount, targetPermission, assignedGroup);
-
-    try {
-      await saveHost(updatedAccount);
-    } catch (error) {
-      window.alert(
-        `권한을 추가하지 못했습니다. (${error instanceof Error ? error.message : String(error)})`,
-      );
       return;
     }
-
-    // 권한을 더하면 바로 안내할 수 있게 전달문을 만들어 보여 준다(아이디·비밀번호는 그대로).
-    const leaderName = formLeaderName.trim();
-    const teamTitle = configuredTeams.find((team) => team.id === formTeamId)?.title ?? finalTeam;
-    setDeliveryModal({
-      host: updatedAccount,
-      ...buildAccountDelivery('hostPermissionAdd', {
-        name: leaderName,
-        generation: formGeneration,
-        track: formTrack,
-        permission: targetPermissionLabel,
-        teamName: teamTitle,
-        username: existingAccount.username,
-        menuName: targetPermissionLabel === 'ADV' ? 'ADV Term 출결 입력' : '스터디 출결 입력',
+    setDeliveryModal(
+      buildAccountDelivery('hostPasswordReset', {
+        name: passwordResetTarget.name,
+        username: account.username,
+        password: newPassword,
       }),
-    });
-    setShowIssueCard(false);
+    );
+    setPasswordResetTarget(null);
+    setNewPassword('');
   };
 
-  // 조회 결과가 없을 때 신규 계정 발급
-  const handleSaveAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (accountLookup.status !== 'not-found') return;
-
-    const leaderClean = formLeaderName.trim();
-    const username = formUsername.trim();
-    const password = formPassword.trim();
-    if (!formTeamId || !leaderClean || !username || !password) {
-      setShowRequiredErrors(true);
-      return;
-    }
-
-    const finalType = formGroupType;
-    if (hosts.some((host) => host.username === username)) {
-      window.alert('이미 사용 중인 로그인 아이디입니다.');
-      return;
-    }
-    const { teamName: finalTeam, teamId: finalTeamId } = resolveTargetTeamInfo();
-    const concurrent = detectConcurrentRoles(leaderClean, finalTeam, hosts);
-    const assignedGroups: AssignedGroup[] =
-      finalTeam === '팀 개설 대기'
-        ? []
-        : [{ type: finalType, teamName: finalTeam, teamId: finalTeamId }];
-
-    const newHostAccount: HostAccount = {
-      id: `h_${Date.now()}`,
-      username,
-      initialPassword: password,
-      hostName: leaderClean,
-      generation: formGeneration.trim() || '27기',
-      track: formTrack.trim() || '분석',
-      role: '그룹리더',
-      team: finalTeam,
-      ...(finalTeamId ? { teamId: finalTeamId } : {}),
-      groupType: finalType,
-      permissions: [targetPermission],
-      assignedGroups,
-      concurrentRoles: concurrent,
-      createdAt: new Date().toISOString().slice(0, 10),
-      active: true,
-      accountType: finalType === 'ADV' ? 'ADV' : 'STUDY',
-    };
-
-    try {
-      await saveHost(newHostAccount);
-    } catch (error) {
-      window.alert(
-        `계정을 만들지 못했습니다. (${error instanceof Error ? error.message : String(error)})`,
-      );
-      return;
-    }
-
-    setDeliveryModal({
-      host: newHostAccount,
-      ...buildAccountDelivery('hostIssue', {
-        name: leaderClean,
-        generation: formGeneration.trim() || '27기',
-        track: formTrack.trim() || '분석',
-        groupType: finalType,
-        teamName: finalTeam,
-        username,
-        password,
-      }),
-    });
-
-    setShowIssueCard(false);
-  };
-
-  // 클립보드 복사 함수
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedNotice(true);
-      setTimeout(() => setCopiedNotice(false), 2000);
-    } catch {
-      // fallback
-    }
-  };
+  const columnCount = activeCategory === 'STUDY' ? 7 : 6;
 
   return (
     <div className="space-y-6">
@@ -518,143 +212,91 @@ export function HostsPage({
           </h1>
         </div>
 
-        {/* 상단 우측 계정 발급 및 권한 추가 버튼 */}
         <div className="flex items-center gap-3">
           <CreateButton label="계정" aria-label="계정 발급" onClick={openNewIssueForm} />
         </div>
       </div>
 
-      {/* 2. 메인 2열 레이아웃: 좌측 컴팩트 탭 + 우측 최대 확장 본문 */}
       {/* 읽는 동안에는 제목 줄은 두고 본문 자리에 화면 높이의 빈 틀과 안내만 둔다(읽은 뒤 화면이 튀지 않게). */}
       {dataStatus !== 'ready' && (
         <PageLoadingBody
           error={dataStatus === 'error' ? dataError : null}
-          loadingMessage="HOST 계정 정보를 불러오는 중입니다."
-          errorMessage="HOST 계정 정보를 불러오지 못했습니다."
+          loadingMessage="그룹 계정 정보를 불러오는 중입니다."
+          errorMessage="그룹 계정 정보를 불러오지 못했습니다."
         />
       )}
       <div
         className={`flex flex-col lg:flex-row gap-5 items-start ${dataStatus === 'ready' ? '' : 'hidden'}`}
       >
-        {/* =========================================================
-            좌측 네비게이션: 그룹 유형 (Type) 탭 (w-48)
-           ========================================================= */}
+        {/* 좌측: 그룹 유형 탭 */}
         <aside className="w-full lg:w-48 shrink-0 space-y-2">
           <div className="px-1 pb-1">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               그룹 유형
             </span>
           </div>
-
-          {/* 1. ADV 그룹 유형 */}
-          <button
-            onClick={() => {
-              setActiveCategory('ADV');
-              setShowIssueCard(false);
-            }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-sm border transition-all cursor-pointer ${
-              activeCategory === 'ADV'
-                ? 'border-slate-300 bg-slate-100/80 shadow-2xs text-slate-950 font-bold'
-                : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/70 text-slate-700 font-semibold'
-            }`}
-          >
-            <div className="text-left">
-              <span className="text-xs font-bold block">ADV</span>
-            </div>
-            <ChevronRight
-              size={15}
-              className={activeCategory === 'ADV' ? 'text-slate-500' : 'text-slate-400'}
-            />
-          </button>
-
-          {/* 2. 스터디 그룹 유형 */}
-          <button
-            onClick={() => {
-              setActiveCategory('STUDY');
-              setShowIssueCard(false);
-            }}
-            className={`w-full flex items-center justify-between px-3.5 py-3 rounded-sm border transition-all cursor-pointer ${
-              activeCategory === 'STUDY'
-                ? 'border-slate-300 bg-slate-100/80 shadow-2xs text-slate-950 font-bold'
-                : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/70 text-slate-700 font-semibold'
-            }`}
-          >
-            <div className="text-left">
-              <span className="text-xs font-bold block">스터디</span>
-            </div>
-            <ChevronRight
-              size={15}
-              className={activeCategory === 'STUDY' ? 'text-slate-500' : 'text-slate-400'}
-            />
-          </button>
+          {(['ADV', 'STUDY'] as const).map((category) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => {
+                setActiveCategory(category);
+                setShowIssueCard(false);
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-3 rounded-sm border transition-all cursor-pointer ${
+                activeCategory === category
+                  ? 'border-slate-300 bg-slate-100/80 shadow-2xs text-slate-950 font-bold'
+                  : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/70 text-slate-700 font-semibold'
+              }`}
+            >
+              <div className="text-left">
+                <span className="text-xs font-bold block">
+                  {category === 'ADV' ? 'ADV' : '스터디'}
+                </span>
+              </div>
+              <ChevronRight
+                size={15}
+                className={activeCategory === category ? 'text-slate-500' : 'text-slate-400'}
+              />
+            </button>
+          ))}
         </aside>
 
-        {/* =========================================================
-            우측 메인 영역: 최대한 넓게 확장 (flex-1 min-w-0)
-           ========================================================= */}
+        {/* 우측: 계정 현황 표 */}
         <main className="flex-1 min-w-0 w-full space-y-4">
           <div className="rounded-md border border-slate-200/90 bg-white shadow-2xs p-6 space-y-5">
-            {/* 헤더 & 통계 배지 */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div>
-                <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <span>
-                    {activeCategory === 'ADV'
-                      ? 'ADV 그룹리더 계정 현황'
-                      : '스터디 그룹리더 계정 현황'}
-                  </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  {categoryLabel} 그룹리더 계정 현황
                 </h2>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  진행 중인 그룹의 현재 팀장입니다. 계정이 있는 팀장은 지정되는 순간 출결 입력
+                  권한이 생기고, 계정이 없으면 &quot;발급 필요&quot;로 보입니다.
+                </p>
               </div>
 
               {activeCategory === 'ADV' && (
                 <div className="flex items-center gap-1.5 p-1 rounded-md bg-slate-100 border border-slate-200/80">
-                  <button
-                    onClick={() => setTrackFilter('ALL')}
-                    className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer ${
-                      trackFilter === 'ALL'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    전체
-                  </button>
-                  <button
-                    onClick={() => setTrackFilter('분석')}
-                    className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer ${
-                      trackFilter === '분석'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    분석
-                  </button>
-                  <button
-                    onClick={() => setTrackFilter('시각화')}
-                    className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer ${
-                      trackFilter === '시각화'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    시각화
-                  </button>
-                  <button
-                    onClick={() => setTrackFilter('엔지니어링')}
-                    className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer ${
-                      trackFilter === '엔지니어링'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    엔지니어링
-                  </button>
+                  {TRACK_FILTERS.map((filter) => (
+                    <button
+                      key={filter.value}
+                      type="button"
+                      onClick={() => setTrackFilter(filter.value)}
+                      className={`px-3 py-1 rounded-sm text-xs font-semibold transition-all cursor-pointer ${
+                        trackFilter === filter.value
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* =========================================================
-          계정 발급 모달 창 (HOST 계정 부여 - 그룹리더)
-         ========================================================= */}
+            {/* 계정 발급 창 */}
             {showIssueCard && (
               <div
                 role="dialog"
@@ -670,28 +312,27 @@ export function HostsPage({
                   className={`host-issue-modal w-full max-w-lg max-h-[92vh] flex flex-col rounded-lg overflow-hidden animate-in fade-in duration-150 ${MODAL_SURFACE}`}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {/* 모달 헤더 */}
                   <div className="flex items-center justify-between px-6 pt-5 pb-1 shrink-0">
                     <h3 id="host-issue-title" className="text-base font-bold text-slate-900">
-                      {targetPermissionLabel} 계정 발급·권한 추가
+                      {categoryLabel} 계정 발급
                     </h3>
                     <button
                       type="button"
                       onClick={() => setShowIssueCard(false)}
+                      aria-label="계정 발급 창 닫기"
                       className="p-1.5 rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                     >
                       <X size={18} />
                     </button>
                   </div>
 
-                  {/* 발급 폼 */}
                   <form
                     noValidate
-                    onSubmit={handleSaveAccount}
+                    onSubmit={handleIssueAccount}
                     className="flex min-h-0 flex-1 flex-col"
                   >
                     <div className="space-y-5 px-6 pt-4 pb-6 overflow-y-auto [scrollbar-gutter:stable] flex-1 min-h-0">
-                      {/* 1. 현재 구성된 팀 */}
+                      {/* 1. 팀: 계정이 없는 팀장의 팀만 */}
                       <div>
                         <label
                           htmlFor="host-account-team"
@@ -711,7 +352,7 @@ export function HostsPage({
                             ref={issueTeamRef}
                             id="host-account-team"
                             type="button"
-                            disabled={configuredTeams.length === 0}
+                            disabled={issuableRows.length === 0}
                             aria-haspopup="listbox"
                             aria-expanded={isTeamMenuOpen}
                             onClick={() => setIsTeamMenuOpen((open) => !open)}
@@ -720,10 +361,9 @@ export function HostsPage({
                             }}
                             className="h-10 w-full rounded-sm border border-slate-200 bg-white px-3 pr-9 text-left text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                           >
-                            {configuredTeams.length === 0
-                              ? `출결 관리에서 개설된 ${targetPermissionLabel} 팀이 없습니다`
-                              : configuredTeams.find((team) => team.id === formTeamId)?.title ||
-                                '팀을 선택해 주세요'}
+                            {issuableRows.length === 0
+                              ? `계정 발급이 필요한 ${categoryLabel} 팀이 없습니다`
+                              : (selectedIssueRow?.teamTitle ?? '팀을 선택해 주세요')}
                           </button>
                           <ChevronDown
                             size={14}
@@ -736,62 +376,47 @@ export function HostsPage({
                               aria-label="팀 이름"
                               className="absolute inset-x-0 top-full z-20 mt-1.5 max-h-56 overflow-y-auto rounded-md border border-slate-200 bg-white py-1 shadow-[0_12px_32px_-14px_rgba(15,23,42,0.28)] animate-in fade-in slide-in-from-top-1 duration-150"
                             >
-                              {configuredTeams.map((team) => (
+                              {issuableRows.map((row) => (
                                 <button
-                                  key={team.id}
+                                  key={row.teamId}
                                   type="button"
                                   role="option"
-                                  aria-selected={team.id === formTeamId}
-                                  onClick={() => handleSelectTeam(team.id)}
+                                  aria-selected={row.teamId === formTeamId}
+                                  onClick={() => {
+                                    setFormTeamId(row.teamId);
+                                    setIsTeamMenuOpen(false);
+                                  }}
                                   className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5 text-left text-xs transition-colors duration-150 last:border-b-0 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${
-                                    team.id === formTeamId
+                                    row.teamId === formTeamId
                                       ? 'bg-slate-100 font-semibold text-slate-950'
                                       : 'text-slate-700'
                                   }`}
                                 >
-                                  <span className="truncate">{team.title}</span>
+                                  <span className="truncate">{row.teamTitle}</span>
                                   <span className="shrink-0 text-[10px] font-medium text-slate-400">
-                                    {'studyKind' in team
-                                      ? studyKindLabel(team.studyKind)
-                                      : team.track}
+                                    {activeCategory === 'STUDY'
+                                      ? studyKindLabel(row.studyKind)
+                                      : row.track}
                                   </span>
                                 </button>
                               ))}
                             </div>
                           )}
                         </div>
-                      </div>
-
-                      {/* 2. 팀장: 변경은 출결 관리에서만 한다. 팀장이 바뀌면 예전 팀장 계정의 이 팀 권한이 회수되므로,
-                          새 팀장에게 이 창에서 계정을 다시 발급한다. */}
-                      <div>
-                        <span className="mb-1.5 block text-[11px] font-semibold text-slate-500">
-                          팀장
-                        </span>
-                        <div className="flex h-10 items-center rounded-md border border-slate-200 bg-slate-50 px-3">
-                          {formLeaderName ? (
-                            <span className="text-sm font-semibold text-slate-900">
-                              {formLeaderName}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-slate-400">
-                              {formTeamId ? '팀장 미정' : '팀을 먼저 선택해 주세요'}
-                            </span>
-                          )}
-                        </div>
-                        {formTeamId && !formLeaderName && (
-                          <p className="mt-1.5 text-[11px] text-amber-600">
-                            출결 관리에서 팀장을 먼저 지정해 주세요.
-                          </p>
+                        {showRequiredErrors && !selectedIssueRow && (
+                          <span className="mt-1 block text-[10px] text-rose-600">
+                            팀을 선택해 주세요.
+                          </span>
                         )}
                       </div>
 
-                      {/* 팀장의 기수와 부문 */}
-                      <div className="grid grid-cols-2 gap-3">
+                      {/* 2. 팀장과 그 기수·부문: 고른 팀의 현재 팀장(바꾸려면 출결 관리에서 팀장을 바꾼다) */}
+                      <div className="grid grid-cols-3 gap-3">
                         {(
                           [
-                            ['기수', formGeneration],
-                            ['부문', formTrack],
+                            ['팀장', selectedIssueRow?.name],
+                            ['기수', selectedIssueRow?.generation],
+                            ['부문', selectedIssueRow?.memberTrack],
                           ] as const
                         ).map(([label, value]) => (
                           <div key={label}>
@@ -799,139 +424,63 @@ export function HostsPage({
                               {label}
                             </span>
                             <div className="flex h-10 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900">
-                              {formLeaderName ? value : <span className="text-slate-400">-</span>}
+                              {value ?? <span className="text-slate-400">-</span>}
                             </div>
                           </div>
                         ))}
                       </div>
 
-                      {/* 3. 계정 확인과 결과 */}
-                      <div className="space-y-3">
-                        <div className="flex justify-center pt-1">
-                          <button
-                            type="button"
-                            onClick={handleLookupAccount}
-                            disabled={
-                              !formTeamId ||
-                              !formLeaderName.trim() ||
-                              !formGeneration.trim() ||
-                              !formTrack.trim()
-                            }
-                            className={`text-xs font-semibold underline-offset-4 transition-colors disabled:cursor-not-allowed disabled:text-slate-300 disabled:no-underline cursor-pointer ${
-                              accountLookup.status === 'not-found'
-                                ? 'text-red-600 hover:text-red-700 hover:underline'
-                                : accountLookup.status === 'found'
-                                  ? 'text-emerald-600'
-                                  : 'text-slate-600 hover:text-slate-950 hover:underline'
+                      {/* 3. 아이디·초기 비밀번호 */}
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-semibold text-slate-500">
+                            아이디
+                          </span>
+                          <input
+                            type="text"
+                            required
+                            autoComplete="off"
+                            spellCheck={false}
+                            placeholder="예: host_study_c"
+                            value={formUsername}
+                            onChange={(e) => setFormUsername(e.target.value)}
+                            aria-describedby="host-username-rule"
+                            className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-code text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
+                          />
+                          <span
+                            id="host-username-rule"
+                            className={`mt-1 block text-[10px] ${
+                              showRequiredErrors && !isUsernameValid
+                                ? 'text-rose-600'
+                                : 'text-slate-400'
                             }`}
                           >
-                            {accountLookup.status === 'not-found'
-                              ? '계정이 존재하지 않습니다. 새 계정을 생성해 주세요.'
-                              : accountLookup.status === 'found'
-                                ? '기존 계정이 있습니다'
-                                : '계정 존재 여부 확인'}
-                          </button>
-                        </div>
-
-                        {accountLookup.status === 'found' && (
-                          <div className="overflow-hidden rounded-md border border-slate-200">
-                            {/* 아이디와 권한을 표의 두 컬럼으로 보여 준다. */}
-                            <table className="w-full table-fixed text-center">
-                              <thead>
-                                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
-                                  <th scope="col" className="px-3.5 py-2">
-                                    아이디
-                                  </th>
-                                  <th scope="col" className="border-l border-slate-200 px-3.5 py-2">
-                                    권한
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr>
-                                  <td className="truncate px-3.5 py-3 font-code text-sm font-semibold text-slate-900">
-                                    {accountLookup.account.username}
-                                  </td>
-                                  <td className="border-l border-slate-200 px-3.5 py-3">
-                                    {/* 두 권한을 항상 보여 주고 상태로 구분한다: 보유 · 이번에 추가 · 없음 */}
-                                    <ul className="flex justify-center gap-2" aria-label="권한">
-                                      {(['ADV', 'STUDY'] as const).map((permission) => {
-                                        const label = permission === 'ADV' ? 'ADV' : '스터디';
-                                        const isHeld = lookupPermissions.includes(permission);
-                                        const isAdding = !isHeld && permission === targetPermission;
-                                        return (
-                                          <li
-                                            key={permission}
-                                            className={`inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-semibold ${
-                                              isHeld
-                                                ? 'border border-slate-400 bg-white text-slate-900'
-                                                : isAdding
-                                                  ? 'border border-dashed border-slate-400 text-slate-700'
-                                                  : 'bg-slate-100 text-slate-400'
-                                            }`}
-                                          >
-                                            {isAdding && <Plus size={12} aria-hidden />}
-                                            {label}
-                                            <span className="sr-only">
-                                              {isHeld ? '보유' : isAdding ? '추가 예정' : '없음'}
-                                            </span>
-                                          </li>
-                                        );
-                                      })}
-                                    </ul>
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-
-                        {accountLookup.status === 'not-found' && (
-                          <div>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                              <label className="block">
-                                <span className="mb-1 block text-[11px] font-semibold text-slate-500">
-                                  아이디
-                                </span>
-                                <input
-                                  type="text"
-                                  required
-                                  placeholder="예: host_study_c"
-                                  value={formUsername}
-                                  onChange={(e) => setFormUsername(e.target.value)}
-                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-code text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
-                                />
-                                {showRequiredErrors && !formUsername.trim() && (
-                                  <span className="mt-1 block text-[10px] text-rose-600">
-                                    아이디를 입력해 주세요.
-                                  </span>
-                                )}
-                              </label>
-                              <label className="block">
-                                <span className="mb-1 block text-[11px] font-semibold text-slate-500">
-                                  초기 비밀번호
-                                </span>
-                                <input
-                                  type="text"
-                                  required
-                                  placeholder="비밀번호 입력"
-                                  value={formPassword}
-                                  onChange={(e) => setFormPassword(e.target.value)}
-                                  className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-code text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
-                                />
-                                {showRequiredErrors && !formPassword.trim() && (
-                                  <span className="mt-1 block text-[10px] text-rose-600">
-                                    비밀번호를 입력해 주세요.
-                                  </span>
-                                )}
-                              </label>
-                            </div>
-                          </div>
-                        )}
+                            4~20자, 영문 소문자·숫자·밑줄(_)
+                          </span>
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-semibold text-slate-500">
+                            초기 비밀번호
+                          </span>
+                          <input
+                            type="text"
+                            required
+                            autoComplete="off"
+                            spellCheck={false}
+                            placeholder="비밀번호 입력"
+                            value={formPassword}
+                            onChange={(e) => setFormPassword(e.target.value)}
+                            className="h-9 w-full rounded-sm border border-slate-200 bg-white px-3 font-code text-xs text-slate-900 outline-none transition-colors focus:border-slate-400"
+                          />
+                          {showRequiredErrors && !formPassword.trim() && (
+                            <span className="mt-1 block text-[10px] text-rose-600">
+                              비밀번호를 입력해 주세요.
+                            </span>
+                          )}
+                        </label>
                       </div>
                     </div>
 
-                    {/* 모달 하단 버튼: 지금 상태에서 할 수 있는 동작만 보여 준다. */}
                     <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-6 py-3.5 shrink-0">
                       <button
                         type="button"
@@ -940,49 +489,20 @@ export function HostsPage({
                       >
                         닫기
                       </button>
-                      {/* 권한과 이 팀 담당을 모두 가진 계정만 비밀번호 재설정 창(표의 재설정과 같은 창)으로 보낸다.
-                          권한이나 이 팀 담당이 없으면 추가 버튼만 둔다. */}
-                      {accountLookup.status === 'found' && isAccountReady && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const account = accountLookup.account;
-                            setShowIssueCard(false);
-                            openPasswordReset(account);
-                          }}
-                          className="h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
-                        >
-                          비밀번호 재설정
-                        </button>
-                      )}
-                      {accountLookup.status === 'found' && !isAccountReady && (
-                        <button
-                          type="button"
-                          onClick={handleAddPermission}
-                          className="h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
-                        >
-                          {hasTargetPermission
-                            ? '이 팀 담당 추가'
-                            : `${targetPermissionLabel} 권한 추가`}
-                        </button>
-                      )}
-                      {accountLookup.status === 'not-found' && (
-                        <button
-                          type="submit"
-                          className="h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer"
-                        >
-                          계정 발급
-                        </button>
-                      )}
+                      <button
+                        type="submit"
+                        disabled={issuableRows.length === 0}
+                        className="h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                      >
+                        계정 발급
+                      </button>
                     </div>
                   </form>
                 </div>
               </div>
             )}
 
-            {/* =========================================================
-                테이블: 이름, 기수, 부문, 아이디, 비밀번호 (출결 입력 페이지 스타일 일치)
-               ========================================================= */}
+            {/* 표: 팀 이름, (스터디 유형), 이름, 기수, 부문, 아이디, 비밀번호 재설정 */}
             <div className="w-full rounded-md border border-slate-200 bg-white overflow-hidden shadow-2xs">
               <div className="overflow-x-auto select-none relative">
                 <table className="w-full text-xs border-collapse">
@@ -1012,147 +532,82 @@ export function HostsPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-sans">
-                    {activeCategory === 'ADV' ? (
-                      filteredAdvRows.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-400">
-                            검색 조건에 일치하는 Adv 팀이 없습니다.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredAdvRows.map((row) => {
-                          const account = row.account;
-
-                          const person = rowPersonOf(row.team, account, users);
-
-                          return (
-                            <tr
-                              key={row.team.id}
-                              className="transition-colors divide-x divide-slate-200 h-[46px] hover:bg-slate-50/70"
-                            >
-                              {/* 팀 이름 */}
-                              <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                                {teamNameOf(account, row.team.title)}
-                              </td>
-
-                              {/* 이름: 현재 팀장 */}
-                              <td className="px-4 py-2 text-center whitespace-nowrap font-bold text-slate-900 text-xs">
-                                {person.name}
-                              </td>
-
-                              {/* 기수 */}
-                              <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                                {person.generation}
-                              </td>
-
-                              {/* 부문 */}
-                              <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                                {person.track}
-                              </td>
-
-                              {/* 아이디·비밀번호·선택: 계정이 없으면 비워 둔다(계정이 아직 없다는 표시). */}
-                              {account ? (
-                                <>
-                                  {/* 아이디 */}
-                                  <td className="px-4 py-2 text-center font-mono">
-                                    <div className="flex items-center justify-center gap-1.5">
-                                      <code className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-[11px] border border-slate-200/80">
-                                        {account.username}
-                                      </code>
-                                      <button
-                                        onClick={() => copyToClipboard(account.username)}
-                                        title="아이디 복사"
-                                        className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                      >
-                                        <Copy size={12} />
-                                      </button>
-                                    </div>
-                                  </td>
-
-                                  {renderResetCell(account)}
-                                </>
-                              ) : (
-                                <>
-                                  <td className="px-4 py-2" aria-label="계정 없음" />
-                                  <td className="px-2 py-2" />
-                                </>
-                              )}
-                            </tr>
-                          );
-                        })
-                      )
-                    ) : filteredStudyRows.length === 0 ? (
+                    {visibleRows.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-slate-400">
-                          검색 조건에 일치하는 스터디 팀이 없습니다.
+                        <td colSpan={columnCount} className="py-8 text-center text-slate-400">
+                          진행 중인 {categoryLabel} 그룹이 없습니다.
                         </td>
                       </tr>
                     ) : (
-                      filteredStudyRows.map((row) => {
-                        const account = row.account;
-
-                        const person = rowPersonOf(row.team, account, users);
-
-                        return (
-                          <tr
-                            key={row.team.id}
-                            className="transition-colors divide-x divide-slate-200 h-[46px] hover:bg-slate-50/70"
-                          >
-                            {/* 팀 이름 */}
+                      visibleRows.map((row) => (
+                        <tr
+                          key={row.teamId}
+                          className="transition-colors divide-x divide-slate-200 h-[46px] hover:bg-slate-50/70"
+                        >
+                          <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
+                            {row.teamTitle}
+                          </td>
+                          {activeCategory === 'STUDY' && (
                             <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                              {teamNameOf(account, row.team.title)}
+                              {studyKindLabel(row.studyKind)}
                             </td>
-
-                            {/* 스터디 유형: 멘멘 스터디 / 일반 스터디 */}
-                            <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                              {studyKindLabel(row.team.studyKind)}
-                            </td>
-
-                            {/* 이름: 현재 팀장 */}
-                            <td className="px-4 py-2 text-center whitespace-nowrap font-bold text-slate-900 text-xs">
-                              {person.name}
-                            </td>
-
-                            {/* 기수 */}
-                            <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                              {person.generation}
-                            </td>
-
-                            {/* 부문 */}
-                            <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
-                              {person.track}
-                            </td>
-
-                            {/* 아이디·비밀번호·선택: 계정이 없으면 비워 둔다(계정이 아직 없다는 표시). */}
-                            {account ? (
-                              <>
-                                {/* 아이디 */}
-                                <td className="px-4 py-2 text-center font-mono">
-                                  <div className="flex items-center justify-center gap-1.5">
-                                    <code className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-[11px] border border-slate-200/80">
-                                      {account.username}
-                                    </code>
-                                    <button
-                                      onClick={() => copyToClipboard(account.username)}
-                                      title="아이디 복사"
-                                      className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                    >
-                                      <Copy size={12} />
-                                    </button>
-                                  </div>
-                                </td>
-
-                                {renderResetCell(account)}
-                              </>
-                            ) : (
-                              <>
-                                <td className="px-4 py-2" aria-label="계정 없음" />
-                                <td className="px-2 py-2" />
-                              </>
-                            )}
-                          </tr>
-                        );
-                      })
+                          )}
+                          <td className="px-4 py-2 text-center whitespace-nowrap font-bold text-slate-900 text-xs">
+                            {row.name}
+                          </td>
+                          <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
+                            {row.generation}
+                          </td>
+                          <td className="px-4 py-2 text-center text-slate-700 font-medium text-xs whitespace-nowrap">
+                            {row.memberTrack}
+                          </td>
+                          {row.account ? (
+                            <>
+                              <td className="px-4 py-2 text-center font-mono">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <code className="px-2 py-0.5 rounded-sm bg-slate-100 text-slate-800 text-[11px] border border-slate-200/80">
+                                    {row.account.username}
+                                  </code>
+                                  {row.account.role !== 'HOST' && (
+                                    <span className="font-sans text-[10px] text-slate-400">
+                                      운영진 계정
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => copyToClipboard(row.account?.username ?? '')}
+                                    aria-label={`${row.name} 아이디 복사`}
+                                    className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                                  >
+                                    <Copy size={12} aria-hidden="true" />
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="px-2 py-2 text-center whitespace-nowrap">
+                                <Tooltip label="비밀번호 재설정">
+                                  <button
+                                    type="button"
+                                    onClick={() => openPasswordReset(row)}
+                                    aria-label={`${row.name} 비밀번호 재설정`}
+                                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                                  >
+                                    <KeyRound size={14} aria-hidden="true" />
+                                  </button>
+                                </Tooltip>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="px-4 py-2 text-center">
+                                <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                  발급 필요
+                                </span>
+                              </td>
+                              <td className="px-2 py-2" />
+                            </>
+                          )}
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
@@ -1174,7 +629,7 @@ export function HostsPage({
         >
           <form
             onSubmit={handleResetPassword}
-            className="w-full max-w-sm overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]"
+            className="w-full max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]"
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <h3 id="password-reset-title" className="text-sm font-bold text-slate-900">
@@ -1222,9 +677,7 @@ export function HostsPage({
         </div>
       )}
 
-      {/* =========================================================
-          안내문 복사 모달 (카카오톡 / 슬랙 전달용)
-         ========================================================= */}
+      {/* 안내문 복사 창(카카오톡·슬랙 전달용) */}
       {deliveryModal && (
         <div
           role="dialog"
@@ -1235,18 +688,14 @@ export function HostsPage({
           }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-xs animate-in fade-in duration-150"
         >
-          <div className="w-full max-w-lg overflow-hidden rounded-md border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]">
+          <div className="w-full max-w-lg overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_24px_60px_-18px_rgba(15,23,42,0.38)]">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="min-w-0">
-                  <h3
-                    id="host-delivery-title"
-                    className="text-sm font-bold text-slate-900 text-wrap-balance"
-                  >
-                    {deliveryModal.title} 계정 전달문
-                  </h3>
-                </div>
-              </div>
+              <h3
+                id="host-delivery-title"
+                className="min-w-0 text-sm font-bold text-slate-900 text-wrap-balance"
+              >
+                {deliveryModal.title} 계정 전달문
+              </h3>
               <button
                 type="button"
                 onClick={() => setDeliveryModal(null)}
