@@ -34,7 +34,7 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
     <div className="space-y-6">
       <SectionBox title="기본">
         <div className="space-y-2">
-          <LabeledRow label="반기 이름" error={nameError} errorId={nameErrorId}>
+          <LabeledRow label="반기" error={nameError} errorId={nameErrorId}>
             <input
               id={NAME_ID}
               value={form.draftName}
@@ -54,7 +54,7 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
 
       <SectionBox title="기수 지정">
         <div className="space-y-2">
-          <LabeledRow label="BASE 기수">
+          <LabeledRow label="BASE">
             <SelectDropdown
               ariaLabel="BASE 기수"
               value={String(form.draftBaseTerm)}
@@ -63,7 +63,7 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
               onChange={(value) => form.handleChangeBaseTerm(Number(value))}
             />
           </LabeledRow>
-          <LabeledRow label="ADV 기수">
+          <LabeledRow label="ADV">
             <SelectDropdown
               ariaLabel="ADV 기수"
               value={String(form.draftAdvTerm)}

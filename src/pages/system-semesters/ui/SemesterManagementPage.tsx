@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
+import { Plus } from 'lucide-react';
 
 import type { SemesterDto } from '@/entities/cohort/model/dto';
 import { useSemesters } from '@/entities/cohort/model/useSemesters';
 import { PAGE_LABELS } from '@/shared/config/pageLabels';
 import { alertApiError } from '@/shared/lib/alertApiError';
 import { confirmLeave } from '@/shared/lib/leaveGuard';
-import { CreateButton } from '@/shared/ui/CreateButton';
+import { Tooltip } from '@/shared/ui/Tooltip';
 import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import { PageLoadingState } from '@/widgets/page-loading/ui/PageLoadingState';
 
@@ -163,7 +164,7 @@ ${name}이 진행 반기가 됩니다.`;
           ))}
           {draft && (
             <SplitListItem
-              label={`${draft.name || '새 반기'} (작성 중)`}
+              label={draft.name || '새 반기'}
               isSelected={selection?.kind === 'new'}
               onSelect={() => handleSelect({ kind: 'new' })}
               onDelete={handleRemoveDraft}
@@ -194,12 +195,22 @@ ${name}이 진행 반기가 됩니다.`;
     </div>
   );
 
-  // 제목 줄은 분할 화면 위에 둔다. 분할 화면 높이(100vh - 11rem)가 위 제목 줄을 빼고 계산되어 있다(감사 로그 화면과 같다).
+  // 제목 줄은 분할 화면 위에 둔다. 분할 화면 높이(100vh - 12rem)가 위 제목 줄을 빼고 계산되어 있다(감사 로그 화면과 같다).
   return (
     <div className="space-y-6">
       <div className={TITLE_ROW_CLASS}>
         {TITLE}
-        <CreateButton label="새 반기 시작" onClick={handleNew} />
+        {/* 글자 없이 + 만 두고, 무엇을 하는 버튼인지는 말풍선과 화면 낭독기 이름으로 알린다. */}
+        <Tooltip label="새 반기 시작" align="end">
+          <button
+            type="button"
+            onClick={handleNew}
+            aria-label="새 반기 시작"
+            className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+          >
+            <Plus size={16} strokeWidth={2.25} aria-hidden="true" />
+          </button>
+        </Tooltip>
       </div>
       <SplitView
         listLabel="반기 목록"

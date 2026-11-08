@@ -11,8 +11,8 @@ interface SectionBoxProps {
  */
 export function SectionBox({ title, children }: SectionBoxProps) {
   return (
-    <section className="border-t border-slate-200 pt-6 first:border-t-0 first:pt-0">
-      <h4 className="mb-4 text-base font-semibold text-slate-900">{title}</h4>
+    <section className="border-t border-slate-200 pt-4 first:border-t-0 first:pt-0">
+      <h4 className="mb-2 text-base font-semibold text-slate-900">{title}</h4>
       {children}
     </section>
   );
@@ -28,13 +28,13 @@ interface LabeledRowProps {
 }
 
 /** 고칠 수 없는 값(진행 중·종료 반기). 입력칸과 같은 높이의 글자로만 보여 준다. */
-export const READONLY_VALUE = 'flex h-10 items-center text-sm tabular-nums text-slate-900';
+export const READONLY_VALUE = 'flex h-8 items-center text-sm tabular-nums text-slate-900';
 
 /** 라벨 열(96px) + 값 한 줄. 오류가 있으면 값 칸 아래(라벨 열 + 간격만큼 들여서)에 붙인다. */
 export function LabeledRow({ label, children, error, errorId }: LabeledRowProps) {
   return (
     <div>
-      <div className="flex min-h-10 items-center gap-4">
+      <div className="flex items-center gap-4">
         <span className="w-24 shrink-0 text-sm font-medium text-slate-600">{label}</span>
         <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
       </div>

@@ -49,7 +49,7 @@ export function SplitView({
   return (
     <div
       ref={containerRef}
-      className={`relative h-[calc(100vh-11rem)] min-h-[420px] w-full ${
+      className={`relative h-[calc(100vh-12rem)] min-h-[420px] w-full ${
         isOpen && !isFullScreen ? 'flex min-w-0 flex-row gap-0' : 'block'
       }`}
     >
@@ -63,7 +63,7 @@ export function SplitView({
           className={`flex h-full shrink-0 flex-col gap-2 ${isOpen ? 'pr-2' : ''}`}
           aria-label={listLabel}
         >
-          <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{list}</div>
         </aside>
       )}
 
@@ -107,7 +107,7 @@ export function SplitView({
             width: isFullScreen ? '100%' : `${100 - splitRatio}%`,
             minWidth: isFullScreen ? undefined : '340px',
           }}
-          className="h-full min-w-0 flex-1 space-y-4 overflow-y-auto rounded-md border border-slate-200/90 bg-white p-6 animate-in slide-in-from-right duration-150 [scrollbar-gutter:stable] lg:p-7"
+          className="h-full min-w-0 flex-1 space-y-4 overflow-y-auto overscroll-contain rounded-md border border-slate-200/90 bg-white p-6 animate-in slide-in-from-right duration-150 [scrollbar-gutter:stable] lg:p-7"
           aria-label={panelTitle}
         >
           <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
