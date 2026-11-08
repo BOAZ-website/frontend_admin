@@ -26,6 +26,9 @@ CREATE TABLE cohorts (
   is_current     INTEGER NOT NULL DEFAULT 0 CHECK (is_current IN (0, 1)),
   is_preparing   INTEGER NOT NULL DEFAULT 0 CHECK (is_preparing IN (0, 1)), -- 준비: 저장했지만 아직 활성화하지 않은 반기. 진행·종료는 is_current로 가른다
   adv_term       INTEGER CHECK (adv_term > 0),             -- 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 teams.cohort). 없으면 NULL
+  -- ADV 팀장이 출결 입력 탭에서 입력을 시작하는 주차(백엔드 activity_season.adv_leader_entry_from_week_id).
+  -- 그 앞 주차는 운영지원팀이 ADV 출결 관리에서 직접 입력한다. 반기를 만들 때 반드시 정한다(비어 있으면 반기 생성을 막는다). 기본값 4주차는 v0.5 기본안
+  adv_leader_entry_from_week INTEGER NOT NULL DEFAULT 4 CHECK (adv_leader_entry_from_week BETWEEN 1 AND 16),
   deleted_at     TEXT,                                     -- 반기를 지운 시각(soft delete). 지운 반기는 목록·조회·중복 검사에서 빠지고, 그 반기의 팀·출결·행사 기록은 남는다
   CHECK (start_date <= end_date),
   CHECK (is_current = 0 OR is_preparing = 0)

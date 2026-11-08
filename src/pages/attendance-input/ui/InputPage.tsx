@@ -17,12 +17,7 @@ import {
 } from 'lucide-react';
 
 import { sessionKey } from '@/entities/attendance/model/lib';
-import {
-  ADV_DIRECT_SELECT_LAST_WEEK,
-  defaultWeekNum,
-  weekStatusOf,
-  type WeekInfo,
-} from '@/entities/attendance/model/week';
+import { defaultWeekNum, weekStatusOf, type WeekInfo } from '@/entities/attendance/model/week';
 import type {
   AttendanceState,
   AttendanceStatus,
@@ -154,6 +149,7 @@ export function InputPage({
   weeks,
   currentWeekNum = null,
   currentPeriod = null,
+  advLeaderEntryFromWeek = null,
 }: {
   attendance: AttendanceState;
   setAttendance: React.Dispatch<React.SetStateAction<AttendanceState>>;
@@ -171,11 +167,17 @@ export function InputPage({
   currentWeekNum?: number | null;
   /** 현재 반기의 지금 기간(반기 API). 처음 여는 탭과 학기 전환 경고에 쓴다. */
   currentPeriod?: '방학' | '학기' | null;
+  /** ADV 팀장 입력 시작 주차(반기 설정). 그 앞 주차는 ADV 출결 관리 탭에서 입력한다. null이면 팀장 입력을 열지 않는다. */
+  advLeaderEntryFromWeek?: number | null;
 }) {
   const [termPeriod, setTermPeriod] = useState<'방학' | '학기'>(currentPeriod ?? '방학');
 
   const isAdv = pageTitle?.includes('ADV') ?? false;
   const isHost = currentRole === 'HOST';
+
+  // ADV는 팀장 입력 시작 주차(반기 설정) 전 주차를 ADV 출결 관리 탭에서 입력·제출하므로 이 탭에서는 그 주차에 접근할 수 없다.
+  const isBlockedWeek = (targetWeek: number) =>
+    isAdv && (advLeaderEntryFromWeek === null || targetWeek < advLeaderEntryFromWeek);
 
   const effectiveTeams = useMemo(
     () => (isAdv ? (propAdvTeams ?? []) : studyTeams),
@@ -188,29 +190,23 @@ export function InputPage({
     return (isAdv ? (propAdvTeams ?? []) : studyTeams)[0]?.id ?? '';
   });
 
-  // HOST 계정인 경우 본인 팀만 필터링, 관리자인 경우 전체 팀 노출
+  // 볼 수 있는 팀은 서버가 거른다(HOST는 본인이 팀장인 진행 중 그룹만). HOST는 방학/학기 구분 없이 맡은 그룹을 모두 본다.
   const displayedTeams = useMemo(() => {
-    if (isHost) {
-      const myTeam = currentHostTeam || selectedTeam;
-      const filtered = effectiveTeams.filter((t) => t.id === myTeam);
-      return filtered.length > 0 ? filtered : effectiveTeams.slice(0, 1);
-    }
+    if (isHost) return effectiveTeams;
     // 스터디는 스터디 출결 관리와 같이 방학/학기별로 나눠 보여준다.
     if (isAdv) return effectiveTeams;
     const periodType = termPeriod === '방학' ? '방학 스터디' : '학기 스터디';
     return effectiveTeams.filter((t) => t.studyType === periodType);
-  }, [isHost, isAdv, termPeriod, currentHostTeam, selectedTeam, effectiveTeams]);
+  }, [isHost, isAdv, termPeriod, effectiveTeams]);
 
   useEffect(() => {
-    if (currentRole === 'HOST' && currentHostTeam) {
-      setSelectedTeam(currentHostTeam);
-      return;
-    }
-    // 스터디/ADV 탭을 오가면 선택한 팀이 그 탭의 목록에 없을 수 있다. 이때는 목록의 첫 팀을 고른다.
+    // 선택한 팀이 이 탭의 목록에 없으면(탭 전환, 진행 중이 아닌 그룹) HOST는 맡은 팀, 그 밖에는 목록의 첫 팀을 고른다.
+    // HOST가 그룹을 여럿 맡았으면 목록에서 다른 팀을 고를 수 있다.
     if (!effectiveTeams.some((t) => t.id === selectedTeam)) {
-      setSelectedTeam(effectiveTeams[0]?.id ?? '');
+      const hostTeam = isHost ? effectiveTeams.find((t) => t.id === currentHostTeam) : undefined;
+      setSelectedTeam((hostTeam ?? effectiveTeams[0])?.id ?? '');
     }
-  }, [effectiveTeams, currentRole, currentHostTeam, selectedTeam]);
+  }, [effectiveTeams, isHost, currentHostTeam, selectedTeam]);
 
   const applyPeriodChange = (period: '방학' | '학기') => {
     setTermPeriod(period);
@@ -226,8 +222,7 @@ export function InputPage({
         defaultWeekNum(
           weeks.filter(
             (w) =>
-              (period === '학기' ? w.weekNum >= 9 : w.weekNum <= 8) &&
-              !(w.weekNum <= ADV_DIRECT_SELECT_LAST_WEEK),
+              (period === '학기' ? w.weekNum >= 9 : w.weekNum <= 8) && !isBlockedWeek(w.weekNum),
           ),
         ),
       );
@@ -258,11 +253,10 @@ export function InputPage({
     () => weeks.filter((w) => (isAdv && termPeriod === '학기' ? w.weekNum >= 9 : w.weekNum <= 8)),
     [weeks, isAdv, termPeriod],
   );
-  // ADV는 3주차까지 ADV 출결 관리 탭에서 입력·제출하므로 이 탭에서는 그 주차에 접근할 수 없다.
-  const isBlockedWeek = (targetWeek: number) => isAdv && targetWeek <= ADV_DIRECT_SELECT_LAST_WEEK;
   const accessibleWeeks = useMemo(
-    () => visibleWeeks.filter((w) => !(isAdv && w.weekNum <= ADV_DIRECT_SELECT_LAST_WEEK)),
-    [visibleWeeks, isAdv],
+    () => visibleWeeks.filter((w) => !isBlockedWeek(w.weekNum)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isBlockedWeek는 isAdv·advLeaderEntryFromWeek로만 정해진다
+    [visibleWeeks, isAdv, advLeaderEntryFromWeek],
   );
   // 처음 여는 주차: 반기 API의 지금 주차. 이 탭에서 다룰 수 없는 주차면 보이는 주차 중 기본 주차.
   const [weekNum, setWeekNum] = useState(() =>
@@ -509,7 +503,8 @@ export function InputPage({
 
   const isSubmitted = Boolean(rec?.submitted);
   // 열려있는 주차에서는 미제출 상태이거나, 사용자가 [수정] 버튼을 눌렀을 때만 수정 가능
-  const canEdit = isInputWeek && (!isSubmitted || isEditing);
+  // 볼 수 있는 ADV 주차가 없으면(시작 주차가 그 기간 뒤) 기본 주차가 막힌 주차일 수 있어 입력을 잠근다.
+  const canEdit = isInputWeek && !isBlockedWeek(weekNum) && (!isSubmitted || isEditing);
   // 파일(PDF)은 출결과 같은 규칙이다: 제출 전이거나, 제출 후에는 수정 모드(연필 버튼)에서만 올리고 지울 수 있다.
   const canEditPdf = canEdit && !isFutureWeek;
   // 활동 사진도 파일과 같은 규칙이다: 제출 전이거나, 제출 후에는 수정 모드(연필 버튼)에서만 바꾼다.

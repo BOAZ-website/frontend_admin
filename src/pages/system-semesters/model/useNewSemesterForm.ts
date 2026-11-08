@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 
+import {
+  DEFAULT_ADV_LEADER_ENTRY_FROM_WEEK,
+  LAST_WEEK_NUM,
+} from '@/entities/attendance/model/week';
 import type { PrepareSemesterRequest, RosterKind, SemesterDto } from '@/entities/cohort/model/dto';
 import { alertApiError } from '@/shared/lib/alertApiError';
 
@@ -19,9 +23,23 @@ import {
 } from './scheduleForm';
 import type { SemesterDraft } from './semesterDraft';
 
-/** 새 반기 작성에서 오류를 붙여 보이는 칸: 반기 이름 + 일정 칸. */
-export type NewSemesterField = 'name' | ScheduleField;
-const FIELD_ORDER: readonly NewSemesterField[] = ['name', ...SCHEDULE_FIELDS];
+/** 새 반기 작성에서 오류를 붙여 보이는 칸: 반기 이름 + ADV 팀장 입력 시작 주차 + 일정 칸. */
+export type NewSemesterField = 'name' | 'advLeaderEntryFromWeek' | ScheduleField;
+const FIELD_ORDER: readonly NewSemesterField[] = [
+  'name',
+  'advLeaderEntryFromWeek',
+  ...SCHEDULE_FIELDS,
+];
+
+/** ADV 팀장 입력 시작 주차 입력의 오류. 비어 있으면 반기를 만들 수 없다(서버도 같은 규칙으로 거부한다). */
+export function advLeaderEntryWeekError(text: string): string | null {
+  if (!text.trim()) return 'ADV 팀장 입력 시작 주차를 입력하세요';
+  const week = Number(text);
+  if (!Number.isInteger(week) || week < 1 || week > LAST_WEEK_NUM) {
+    return `1~${LAST_WEEK_NUM} 사이의 주차를 입력하세요`;
+  }
+  return null;
+}
 
 /** 새 BASE 기수로 고를 수 있는 개수: 등록된 가장 큰 기수 다음부터. */
 const BASE_CHOICES = 2;
@@ -41,6 +59,7 @@ export const emptySemesterDraft = (latestCohort: number): SemesterDraft => ({
   name: '',
   baseTerm: latestCohort + 1,
   advTerm: Math.max(1, latestCohort),
+  advLeaderEntryFromWeek: String(DEFAULT_ADV_LEADER_ENTRY_FROM_WEEK),
   form: emptyScheduleForm(),
 });
 
@@ -49,6 +68,8 @@ export interface NewSemesterFormState {
   draftName: string;
   draftBaseTerm: number;
   draftAdvTerm: number;
+  /** ADV 팀장 입력 시작 주차 입력칸의 글자. */
+  draftAdvLeaderEntryFromWeek: string;
   draftForm: ScheduleForm;
   baseOptions: TermOption[];
   advOptions: TermOption[];
@@ -63,6 +84,7 @@ export interface NewSemesterFormState {
   handleChangeName: (name: string) => void;
   handleChangeBaseTerm: (term: number) => void;
   handleChangeAdvTerm: (term: number) => void;
+  handleChangeAdvLeaderEntryFromWeek: (text: string) => void;
   handleChangeSchedule: (form: ScheduleForm) => void;
   /** 칸을 벗어나면 그 칸의 오류를 보이기 시작한다. */
   handleBlurField: (field: NewSemesterField) => void;
@@ -98,6 +120,9 @@ export function useNewSemesterForm({
   const [draftName, setDraftName] = useState(initialDraft.name);
   const [draftBaseTerm, setDraftBaseTerm] = useState(initialDraft.baseTerm);
   const [draftAdvTerm, setDraftAdvTerm] = useState(initialDraft.advTerm);
+  const [draftAdvLeaderEntryFromWeek, setDraftAdvLeaderEntryFromWeek] = useState(
+    initialDraft.advLeaderEntryFromWeek,
+  );
   const [draftForm, setDraftForm] = useState(initialDraft.form);
   const [isSaving, setIsSaving] = useState(false);
   const [isRosterOpen, setIsRosterOpen] = useState(false);
@@ -111,13 +136,23 @@ export function useNewSemesterForm({
       name: draftName,
       baseTerm: draftBaseTerm,
       advTerm: draftAdvTerm,
+      advLeaderEntryFromWeek: draftAdvLeaderEntryFromWeek,
       form: draftForm,
     });
-  }, [draftName, draftBaseTerm, draftAdvTerm, draftForm, onDraftChange]);
+  }, [
+    draftName,
+    draftBaseTerm,
+    draftAdvTerm,
+    draftAdvLeaderEntryFromWeek,
+    draftForm,
+    onDraftChange,
+  ]);
 
   const nameError = semesterNameError(draftName, existingNames);
+  const entryWeekError = advLeaderEntryWeekError(draftAdvLeaderEntryFromWeek);
   const fieldErrors: Partial<Record<NewSemesterField, string>> = {
     ...(nameError ? { name: nameError } : {}),
+    ...(entryWeekError ? { advLeaderEntryFromWeek: entryWeekError } : {}),
     ...scheduleFieldErrors(draftForm),
   };
 
@@ -129,6 +164,7 @@ export function useNewSemesterForm({
         semester: draftName,
         baseTerm: draftBaseTerm,
         advTerm: draftAdvTerm,
+        advLeaderEntryFromWeek: Number(draftAdvLeaderEntryFromWeek),
         schedule: requestFromForm(draftForm),
         userIds,
       });
@@ -148,6 +184,7 @@ export function useNewSemesterForm({
     draftName,
     draftBaseTerm,
     draftAdvTerm,
+    draftAdvLeaderEntryFromWeek,
     draftForm,
     baseOptions: Array.from({ length: BASE_CHOICES }, (_, i) => termOption(firstBase + i)),
     advOptions: Array.from({ length: ADV_CHOICES }, (_, i) => draftBaseTerm - 1 - i)
@@ -164,6 +201,7 @@ export function useNewSemesterForm({
       setDraftAdvTerm(term - 1);
     },
     handleChangeAdvTerm: setDraftAdvTerm,
+    handleChangeAdvLeaderEntryFromWeek: (text) => setDraftAdvLeaderEntryFromWeek(text.trim()),
     handleChangeSchedule: setDraftForm,
     handleBlurField: (field) => {
       if (!touched.has(field)) setTouched(new Set([...touched, field]));

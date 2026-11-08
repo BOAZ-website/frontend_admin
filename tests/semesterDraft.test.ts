@@ -8,16 +8,32 @@ import {
   parseSemesterDraft,
   type SemesterDraft,
 } from '../src/pages/system-semesters/model/semesterDraft';
+import { advLeaderEntryWeekError } from '../src/pages/system-semesters/model/useNewSemesterForm';
 
 const DRAFT: SemesterDraft = {
   name: '27-1',
   baseTerm: 28,
   advTerm: 27,
+  advLeaderEntryFromWeek: '5',
   form: emptyScheduleForm(),
 };
 
 test('임시 저장한 새 반기는 같은 값으로 다시 읽힌다', () => {
   assert.deepEqual(parseSemesterDraft(JSON.stringify(DRAFT)), DRAFT);
+});
+
+test('ADV 팀장 입력 시작 주차가 생기기 전에 임시 저장한 값은 기본 4주차로 읽는다', () => {
+  const oldDraft: Partial<SemesterDraft> = { ...DRAFT };
+  delete oldDraft.advLeaderEntryFromWeek;
+  assert.equal(parseSemesterDraft(JSON.stringify(oldDraft))?.advLeaderEntryFromWeek, '4');
+});
+
+test('ADV 팀장 입력 시작 주차는 비우거나 1~16 밖이면 오류다', () => {
+  assert.equal(advLeaderEntryWeekError(''), 'ADV 팀장 입력 시작 주차를 입력하세요');
+  assert.equal(advLeaderEntryWeekError('0'), '1~16 사이의 주차를 입력하세요');
+  assert.equal(advLeaderEntryWeekError('17'), '1~16 사이의 주차를 입력하세요');
+  assert.equal(advLeaderEntryWeekError('2.5'), '1~16 사이의 주차를 입력하세요');
+  assert.equal(advLeaderEntryWeekError('4'), null);
 });
 
 test('임시 저장 값이 없거나 모양이 틀리면 null이다(깨진 값으로 화면을 열지 않는다)', () => {

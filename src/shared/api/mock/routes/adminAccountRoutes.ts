@@ -75,7 +75,7 @@ const conflict = (code: string, message: string) => new ApiError(409, code, mess
  * 지금 로그인한 계정(운영진·HOST). 세션이 없거나 세션의 계정이 지워졌으면 401이다.
  * HOST 계정은 기본 권한 세트(그룹리더)에 있는 권한만 가지므로 운영진 기능은 권한 확인에서 403이 된다.
  */
-function actorOf(db: Database): AdminRow {
+export function actorOf(db: Database): AdminRow {
   const session = currentSession(db);
   const actor = session ? findAdminRow(db, session.adminId) : undefined;
   if (!actor) throw new ApiError(401, 'UNAUTHORIZED', '로그인해 주세요.');
@@ -89,7 +89,7 @@ const subjectOf = (db: Database, row: AdminRow, overrides?: PermissionOverrides)
   overrides: overrides ?? overridesOf(db, row.id),
 });
 
-const hasPermission = (
+export const hasPermission = (
   db: Database,
   row: AdminRow,
   key: string,

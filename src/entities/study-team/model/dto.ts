@@ -55,6 +55,8 @@ export interface TeamListQuery {
   period?: StudyPeriod | 'all';
   kind?: StudyKind;
   track?: string;
+  /** 'entry'면 출결 입력 탭(리더 전용)의 목록: 모든 그룹 조회 권한이 없으면 본인이 팀장인 진행 중 그룹만 받는다. */
+  scope?: 'entry';
 }
 
 export interface TeamListItemDto extends TeamDto {

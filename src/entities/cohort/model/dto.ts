@@ -22,6 +22,8 @@ export interface SemesterDto {
   status: SemesterStatus;
   /** 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 기수). */
   advTerm: number | null;
+  /** ADV 팀장이 출결 입력 탭에서 입력을 시작하는 주차(1~16). 그 앞 주차는 운영지원팀이 ADV 출결 관리에서 입력한다. */
+  advLeaderEntryFromWeek: number;
   /** 출결 점수 집계 대상 회원 기수(작은 기수부터). */
   memberTerms: number[];
   /**
@@ -141,6 +143,8 @@ export interface PrepareSemesterRequest {
   baseTerm: number;
   /** BASE 기수보다 작아야 한다. */
   advTerm: number;
+  /** ADV 팀장 입력 시작 주차(1~16). 비어 있으면 400 ADV_LEADER_ENTRY_WEEK_REQUIRED. */
+  advLeaderEntryFromWeek: number;
   schedule: SaveSemesterScheduleRequest;
   /** 명단에 넣을 회원 id. 비어 있으면 빈 명단이다(활성화 전에 채워야 한다). 탈동 회원은 넣을 수 없다. */
   userIds: string[];
