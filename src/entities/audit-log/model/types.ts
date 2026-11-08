@@ -55,8 +55,8 @@ export const AUDIT_ACTIONS = {
 
   MEMBER_CREATE: { label: '동아리원 추가', category: 'SYSTEM' },
   MEMBER_UPDATE: { label: '동아리원 수정', category: 'SYSTEM' },
-  /** 행을 지우지 않고 활동 상태를 탈퇴로 바꾼다(DELETE /api/v1/club-members/:memberId). */
-  MEMBER_DELETE: { label: '동아리원 탈퇴 처리', category: 'SYSTEM' },
+  /** 행을 지우지 않고 활동 상태를 탈동으로 바꾼다(DELETE /api/v1/club-members/:memberId). */
+  MEMBER_DELETE: { label: '잘못 등록한 동아리원 삭제', category: 'SYSTEM' },
 
   ATTENDANCE_EDIT: { label: '출결 수정', category: 'ATTENDANCE' },
   ATTENDANCE_SUBMIT: { label: '출결 제출', category: 'ATTENDANCE' },

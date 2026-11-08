@@ -24,7 +24,7 @@ test('운영진과 현재 반기 팀장 사유를 모두 모으고, 안내문에
     ['MEMBER_IS_OPERATOR', 'MEMBER_IS_TEAM_LEADER'],
   );
   const message = withdrawBlockMessageOf('홍길동', blocks) ?? '';
-  assert.ok(message.startsWith('홍길동님은 아래 이유로 탈퇴 처리할 수 없습니다.'));
+  assert.ok(message.startsWith('홍길동님은 아래 이유로 탈동 처리할 수 없습니다.'));
   assert.ok(message.includes("운영진을 '없음'으로 바꿔 운영진 계정을 먼저 해지"));
   // HOST 계정은 팀장 사유에 함께 적고, 따로 줄을 만들지 않는다.
   assert.ok(message.includes('현재 반기 테라폼 스터디의 팀장(HOST 계정 host_a)입니다'));

@@ -1585,7 +1585,7 @@ INSERT OR IGNORE INTO semester_members (cohort, user_id, name, term, track)
 SELECT (SELECT cohort FROM cohorts WHERE is_current = 1), id, name, term, track FROM users;
 
 -- ── 동아리원 관리 화면 예시 값 ─────────────────────────────
--- 탈퇴 명단 쪽 넘김(한 쪽 7명)을 볼 수 있게 탈퇴 회원을 더 넣는다. 팀·반기 명단·출결에는 넣지 않는다.
+-- 탈동 명단 쪽 넘김(한 쪽 7명)을 볼 수 있게 탈동 회원을 더 넣는다. 팀·반기 명단·출결에는 넣지 않는다.
 -- 25기 이하는 모두 수료로 두므로 26기로 넣는다.
 INSERT INTO users (id, name, term, track) VALUES
   ('u_26_24', '김도윤', 26, '분석'),
@@ -1613,7 +1613,7 @@ UPDATE users SET major = CASE id
   WHEN 'u_28_13' THEN '통계학과'
   ELSE major
 END;
-UPDATE users SET club_status = 'ALUMNI' WHERE term <= 25;
+UPDATE users SET club_status = 'COMPLETED' WHERE term <= 25;
 UPDATE users SET club_status = 'WITHDRAWN' WHERE id IN (
   'u_27_07', 'u_28_14',
   'u_26_24', 'u_26_25', 'u_26_26', 'u_26_27', 'u_26_28', 'u_26_29', 'u_26_30'

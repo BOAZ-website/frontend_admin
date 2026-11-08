@@ -35,10 +35,10 @@ export function createClubMember(request: ClubMemberCreateRequest): Promise<Club
 }
 
 /**
- * 동아리원을 탈퇴 처리한다(DELETE). 행은 지우지 않고 활동 상태만 탈퇴로 바뀌며, 바뀐 동아리원을 돌려준다.
- * 반기 명단·팀 소속·출결 기록은 그대로 남는다. 운영진이거나 이미 탈퇴했으면 409로 거절된다.
+ * 잘못 등록한 동아리원을 지운다(DELETE). 서버는 행을 남기고 목록에서만 뺀다.
+ * 반기 명단에 오른 적이 있거나 운영진·HOST 계정이 있으면 409로 거절된다. 탈동은 활동 상태 수정으로 한다.
  */
-export function withdrawClubMember(memberId: string): Promise<ClubMember> {
+export function deleteClubMember(memberId: string): Promise<void> {
   return api.delete(clubMemberPath(memberId));
 }
 

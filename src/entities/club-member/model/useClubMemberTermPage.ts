@@ -12,7 +12,7 @@ export interface ClubMemberTermPageState {
 
 /**
  * 활동기수·수료기수 목록이나 부문 명단의 한 기수(GET /api/v1/club-members/by-term)를 읽는다.
- * scope가 null이거나 status·track이 둘 다 없으면 읽지 않는다(탈퇴 명단 등 기수 페이지가 없는 화면).
+ * scope가 null이거나 status·track이 둘 다 없으면 읽지 않는다(탈동 명단 등 기수 페이지가 없는 화면).
  * term이 null이면 조건에 맞는 가장 최근 기수다.
  * scope 객체가 아니라 scope.status·scope.track 값과 term이 바뀔 때 다시 읽는다(매 렌더 새 객체를 넘겨도 된다).
  * 수정 뒤에는 reload로 다시 읽는다. 다시 읽기를 시작하면 error는 null이 되고, page는 새 결과가 올 때까지 이전 값을 유지한다.

@@ -89,16 +89,20 @@ CREATE TABLE users (
   minor_double_major TEXT NOT NULL DEFAULT '[]',             -- JSON 배열
   last_semester INTEGER,
   military_status TEXT CHECK (military_status IN ('COMPLETED_OR_EXEMPT', 'NOT_COMPLETED')),
-  birth_date TEXT,
+  birth_date TEXT CHECK (birth_date IS NULL OR birth_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'), -- 생년월일
+  -- 병행 부문: 자기 부문(track) 말고 함께 활동하는 부문. 없으면 NULL
+  parallel_track TEXT REFERENCES tracks (name) CHECK (parallel_track IS NULL OR parallel_track <> track),
   graduation_date TEXT CHECK (graduation_date IS NULL OR graduation_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
   grad_school_plan INTEGER NOT NULL DEFAULT 0 CHECK (grad_school_plan IN (0, 1)),
-  -- 동아리원 관리 화면에서 고치는 값: 활동 상태(ACTIVE 활동기수, ALUMNI 수료, WITHDRAWN 탈퇴), 동아리 역할
-  club_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (club_status IN ('ACTIVE', 'ALUMNI', 'WITHDRAWN')),
+  -- 동아리원 관리 화면에서 고치는 값: 활동 상태(ACTIVE 활동기수, COMPLETED 수료, WITHDRAWN 탈동), 동아리 역할
+  club_status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (club_status IN ('ACTIVE', 'COMPLETED', 'NOT_COMPLETED', 'WITHDRAWN')),
   club_role   TEXT NOT NULL DEFAULT 'MEMBER' CHECK (club_role IN ('MEMBER', 'OPERATOR', 'PRESIDENT')),
+  deleted_at  TEXT,                                     -- 잘못 등록해 지운 회원(soft delete). 값이 있으면 목록에서 뺀다
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (name, term)
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- 같은 기수에 같은 이름은 한 명. 잘못 등록해 지운 회원(deleted_at)은 빼고 본다.
+CREATE UNIQUE INDEX idx_users_name_term ON users (name, term) WHERE deleted_at IS NULL;
 
 -- 출결·점수 시스템에서 사용하는 반기별 회원 명단. users는 전역 계정/프로필이고,
 -- 이 테이블에 등록된 사람만 해당 반기의 팀원·팀장 후보로 조회된다. 새 반기는 빈 명단으로 시작한다.

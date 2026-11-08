@@ -4,6 +4,7 @@ import {
   type ClubMemberStatus,
   type ClubMemberTermScope,
   type ClubMemberTrack,
+  isLeftClubStatus,
 } from '@/entities/club-member/model/types';
 
 /** 운영진 필터에서 운영진이 아닌 사람을 고르는 값. 그 밖의 값은 운영진 팀 이름이다. */
@@ -17,7 +18,7 @@ const TRACK_SHEET_IDS = {
 } as const satisfies Record<ClubMemberTrack, string>;
 
 export type MemberSheet =
-  'active' | 'alumni' | 'withdrawn' | (typeof TRACK_SHEET_IDS)[ClubMemberTrack];
+  'active' | 'completed' | 'withdrawn' | (typeof TRACK_SHEET_IDS)[ClubMemberTrack];
 
 /** 왼쪽 목록의 명단 한 개. 활동 상태로 나눈 명단(status)과 부문 명단(track)이 있다. */
 export type MemberSheetItem = { id: MemberSheet; label: string } & (
@@ -28,13 +29,13 @@ export type MemberSheetItem = { id: MemberSheet; label: string } & (
 /**
  * 동아리원 명단. 왼쪽 목록에서 고르는 단위다.
  * - 활동기수·수료기수 목록: 부문과 관계없이 그 활동 상태인 사람(status)
- * - 부문 명단: 그 부문에서 탈퇴하지 않은 사람(track). 순서는 CLUB_MEMBER_TRACKS를 따른다.
- * - 탈퇴 명단: 부문과 관계없이 탈퇴한 사람(status)
+ * - 부문 명단: 그 부문에서 탈동하지 않은 사람(track). 순서는 CLUB_MEMBER_TRACKS를 따른다.
+ * - 탈동 명단: 부문과 관계없이 탈동한 사람(status)
  * id는 주소('#system-members/<id>')에 남기는 값이다.
  */
 export const MEMBER_SHEETS: readonly MemberSheetItem[] = [
   { id: 'active', label: '활동기수 목록', kind: 'status', status: 'ACTIVE', track: null },
-  { id: 'alumni', label: '수료기수 목록', kind: 'status', status: 'ALUMNI', track: null },
+  { id: 'completed', label: '수료기수 목록', kind: 'status', status: 'COMPLETED', track: null },
   ...CLUB_MEMBER_TRACKS.map((track): MemberSheetItem => ({
     id: TRACK_SHEET_IDS[track],
     label: track,
@@ -42,7 +43,8 @@ export const MEMBER_SHEETS: readonly MemberSheetItem[] = [
     status: null,
     track,
   })),
-  { id: 'withdrawn', label: '탈퇴', kind: 'status', status: 'WITHDRAWN', track: null },
+  // 미수료도 활동을 마치지 못하고 나간 사람이라 탈동 명단에 함께 둔다(백엔드 협의 2026-11-05).
+  { id: 'withdrawn', label: '탈동·미수료', kind: 'status', status: 'WITHDRAWN', track: null },
 ];
 
 export const isMemberSheet = (value: string): value is MemberSheet =>
@@ -51,21 +53,23 @@ export const isMemberSheet = (value: string): value is MemberSheet =>
 /**
  * 한 페이지에 한 기수씩 서버(GET /api/v1/club-members/by-term)에서 나눠 읽는 명단의 읽기 조건.
  * 활동기수·수료기수 목록은 { status }, 부문 명단은 { track }(그 부문의 활동·수료 사람)이다.
- * 탈퇴 명단이나 명단을 닫았을 때(null)는 기수 페이지가 없어 null이다.
+ * 탈동 명단이나 명단을 닫았을 때(null)는 기수 페이지가 없어 null이다.
  */
 export function termScopeOfSheet(sheet: MemberSheet | null): ClubMemberTermScope | null {
   const item = MEMBER_SHEETS.find((candidate) => candidate.id === sheet);
   if (!item) return null;
   if (item.kind === 'track') return { track: item.track };
-  return item.status === 'WITHDRAWN' ? null : { status: item.status };
+  return item.status === 'ACTIVE' || item.status === 'COMPLETED' ? { status: item.status } : null;
 }
 
 /** 명단에 들어가는 사람인지. */
 export function isInSheet(member: ClubMember, sheet: MemberSheet): boolean {
   const item = MEMBER_SHEETS.find((candidate) => candidate.id === sheet);
   if (!item) return true;
-  if (item.kind === 'status') return member.status === item.status;
-  return member.track === item.track && member.status !== 'WITHDRAWN';
+  const isLeft = isLeftClubStatus(member.status);
+  if (item.kind === 'status')
+    return item.status === 'WITHDRAWN' ? isLeft : member.status === item.status;
+  return member.track === item.track && !isLeft;
 }
 
 export interface ClubMemberFilter {

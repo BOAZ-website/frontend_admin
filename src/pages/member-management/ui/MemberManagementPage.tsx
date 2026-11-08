@@ -3,17 +3,25 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from 'luci
 
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
 import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
-import { LIST_SECTION_TITLE } from '@/shared/ui/systemStyles';
-import { AccountDeliveryDialog } from '@/features/account-delivery/ui/AccountDeliveryDialog';
+import {
+  FIELD_INPUT,
+  FIELD_LABEL,
+  FIELD_READONLY,
+  LIST_SECTION_TITLE,
+  MODAL_CANCEL_BTN,
+  MODAL_CLOSE_BTN,
+  MODAL_CONFIRM_BTN,
+  TD_CLASS,
+  TH_CLASS,
+} from '@/shared/ui/systemStyles';
 import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { Tooltip } from '@/shared/ui/Tooltip';
 
-import { assignOperator } from '@/entities/admin-account/api/adminAccountApi';
 import {
   createClubMember,
   updateClubMember,
-  withdrawClubMember,
+  deleteClubMember,
 } from '@/entities/club-member/api/clubMemberApi';
 import {
   withdrawBlockMessageOf,
@@ -22,7 +30,9 @@ import {
 import type { ClubMemberForm } from '@/entities/club-member/model/dto';
 import {
   CLUB_MEMBER_TRACKS,
-  STATUS_LABELS,
+  CLUB_MEMBER_STATUS_LABELS,
+  isIdentityLockedStatus,
+  isLeftClubStatus,
   type ClubMember,
   type ClubMemberStatus,
   type ClubMemberTermPage,
@@ -30,7 +40,6 @@ import {
 } from '@/entities/club-member/model/types';
 import { useClubMembers } from '@/entities/club-member/model/useClubMembers';
 import { useClubMemberTermPage } from '@/entities/club-member/model/useClubMemberTermPage';
-import { buildAccountDelivery } from '@/features/account-delivery/model/accountDeliveryMessages';
 import { alertApiError } from '@/shared/lib/alertApiError';
 
 import {
@@ -39,10 +48,8 @@ import {
   isMemberSheet,
   MEMBER_SHEETS,
   type MemberSheet,
-  NOT_OPERATOR,
   termScopeOfSheet,
 } from '../model/memberManagement';
-import { useOperatorTeams } from '../model/useOperatorTeams';
 
 /** 수정 팝업의 입력값. 동아리원 행에서 id만 뺀 값이다. */
 const toForm = (member: ClubMember): ClubMemberForm => ({
@@ -53,6 +60,8 @@ const toForm = (member: ClubMember): ClubMemberForm => ({
   major: member.major,
   term: member.term,
   track: member.track,
+  parallelTrack: member.parallelTrack,
+  birthDate: member.birthDate,
   status: member.status,
   role: member.role,
 });
@@ -65,15 +74,15 @@ const EMPTY_FILTER: ClubMemberFilter = {
 };
 /** 방금 운영진 팀이 바뀐 줄을 표시해 두는 시간. */
 const FRESH_BADGE_MS = 2500;
-/** 탈퇴 명단 한 쪽에 보이는 사람 수. 탈퇴 명단은 기수 페이지가 없어 전체 목록을 화면에서 쪽으로 나눈다. */
+/** 탈동 명단 한 쪽에 보이는 사람 수. 탈동 명단은 기수 페이지가 없어 전체 목록을 화면에서 쪽으로 나눈다. */
 const WITHDRAWN_PAGE_SIZE = 7;
 /**
- * 탈퇴 명단의 쪽 넘김 줄. 표가 길어도 패널 아래쪽에 붙어 보이게 한다.
+ * 탈동 명단의 쪽 넘김 줄. 표가 길어도 패널 아래쪽에 붙어 보이게 한다.
  * 패널(SplitView)의 안쪽 여백(p-6, lg:p-7)만큼 바깥으로 넓혀 패널 아래 끝과 양옆에 딱 맞춘다.
  */
 const PAGER_BAR =
   'sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-center gap-1 border-t border-slate-100 bg-white px-6 py-3 lg:-mx-7 lg:-mb-7 lg:px-7';
-/** 관리 칸의 수정·탈퇴 처리 버튼. 탈퇴 처리는 마우스를 올리면 빨갛게 바뀐다. 쓸 수 없으면 흐리게 둔다. */
+/** 관리 칸의 수정·탈동 처리 버튼. 탈동 처리는 마우스를 올리면 빨갛게 바뀐다. 쓸 수 없으면 흐리게 둔다. */
 const ICON_BTN_BASE =
   'inline-flex size-7 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors disabled:cursor-not-allowed disabled:opacity-40';
 const ICON_BTN = `${ICON_BTN_BASE} hover:bg-slate-100 hover:text-slate-800`;
@@ -87,21 +96,7 @@ const HEADER_ICON_BTN =
 // ─── 출결 화면(행사 출결·그룹 계정 관리)과 같은 입력칸·표·팝업 스타일 ───
 /** 도구 줄의 검색칸. */
 const TOOLBAR_FIELD =
-  'h-9 rounded-sm border border-slate-200 bg-white text-xs font-semibold text-slate-800 shadow-2xs outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
-const TH_CLASS = 'px-4 py-2 text-center font-bold text-slate-700 whitespace-nowrap';
-const TD_CLASS = 'px-4 py-2 text-center whitespace-nowrap';
-/** 팝업 제목 옆 닫기 버튼. */
-const MODAL_CLOSE_BTN =
-  'p-1.5 rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer';
-/** 팝업 아래쪽 취소·확인 버튼. */
-const MODAL_CANCEL_BTN =
-  'h-9 rounded-sm px-4 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 cursor-pointer';
-const MODAL_CONFIRM_BTN =
-  'h-9 rounded-sm border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-50 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40';
-/** 팝업 입력 항목의 이름과 입력칸. */
-const FIELD_LABEL = 'mb-1.5 block text-[11px] font-semibold text-slate-500';
-const FIELD_INPUT =
-  'h-10 w-full rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400';
+  'h-9 rounded-sm border border-slate-200 bg-white text-xs font-normal text-slate-800 outline-none transition-colors hover:border-slate-300 focus:border-slate-400';
 /** 팝업 안 드롭다운 버튼. 옆 입력칸(FIELD_INPUT)과 글자 크기·정렬·안쪽 여백을 맞추고 그림자를 뺀다. */
 const FIELD_SELECT =
   'h-10 w-full text-left pl-3! text-sm! font-normal! text-slate-900! shadow-none!';
@@ -109,7 +104,8 @@ const FIELD_SELECT =
 /** 활동 상태 글자색. 색으로 꾸미지 않고 회색 진하기로만 구분한다(활동기수가 더 진하다). */
 const STATUS_TEXT: Record<ClubMemberStatus, string> = {
   ACTIVE: 'text-slate-900 font-semibold',
-  ALUMNI: 'text-slate-500',
+  COMPLETED: 'text-slate-500',
+  NOT_COMPLETED: 'text-slate-500',
   WITHDRAWN: 'text-slate-500',
 };
 
@@ -117,20 +113,31 @@ const labelOptions = <T extends string>(labels: Record<T, string>) =>
   (Object.entries(labels) as [T, string][]).map(([value, label]) => ({ value, label }));
 
 const TRACK_OPTIONS = CLUB_MEMBER_TRACKS.map((track) => ({ value: track, label: track }));
-const STATUS_OPTIONS = labelOptions(STATUS_LABELS);
+/** 병행 부문 선택지에서 '없음'을 뜻하는 값. */
+const NO_PARALLEL_TRACK = 'NONE';
+/** 병행 부문 선택지: 없음 + 자기 부문을 뺀 부문. */
+const parallelTrackOptions = (track: ClubMemberTrack) => [
+  { value: NO_PARALLEL_TRACK, label: '없음' },
+  ...TRACK_OPTIONS.filter((option) => option.value !== track),
+];
+const STATUS_OPTIONS = labelOptions(CLUB_MEMBER_STATUS_LABELS);
 /**
- * 탈퇴를 뺀 활동 상태 선택지(활동기수·수료). 부문 명단의 필터(탈퇴한 사람은 탈퇴 명단에만 있다)와
- * 추가·수정 팝업(탈퇴는 탈퇴 처리 버튼으로만 한다)에 쓴다.
+ * 탈동을 뺀 활동 상태 선택지(활동기수·수료). 부문 명단의 필터(탈동한 사람은 탈동 명단에만 있다)와
+ * 추가·수정 팝업(탈동은 탈동 처리 버튼으로만 한다)에 쓴다.
  */
-const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
+/** 추가 창의 활동 상태 선택지. 처음부터 탈동으로 만들 수는 없다(서버도 400 CANNOT_CREATE_WITHDRAWN). */
+const CREATE_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => option.value !== 'WITHDRAWN');
+/** 운영진 칸 글자: 운영진이면 그 팀 이름, 아니면 '-'. */
+const operatorLabelOf = (member: ClubMember): string => member.operatorTeam ?? '-';
+const TRACK_STATUS_OPTIONS = STATUS_OPTIONS.filter((option) => !isLeftClubStatus(option.value));
 
 /** 왼쪽 "전체 동아리원" 묶음: 분석·시각화·엔지니어링을 모두 담은 활동기수·수료기수 목록. */
 const ALL_TRACK_SHEETS = MEMBER_SHEETS.filter(
-  (item) => item.id === 'active' || item.id === 'alumni',
+  (item) => item.id === 'active' || item.id === 'completed',
 );
 const TRACK_SHEETS = MEMBER_SHEETS.filter((item) => item.kind === 'track');
-/** 늘 있는 열 수(이름·기수·이메일·연락처·대학교·전공·관리). 부문·운영진·활동 상태 열은 명단에 따라 더한다. */
-const BASE_COLUMN_COUNT = 7;
+/** 늘 있는 열 수(이름·기수·병행 부문·이메일·연락처·생년월일·대학교·전공·관리). 부문·운영진·활동 상태 열은 명단에 따라 더한다. */
+const BASE_COLUMN_COUNT = 9;
 
 const MEMBERS_HASH = 'system-members';
 
@@ -154,10 +161,11 @@ function focusIdOfHash(): string | null {
   }
 }
 
-/** 사람이 들어 있는 상태 명단(활동기수·수료기수·탈퇴). */
+/** 사람이 들어 있는 상태 명단(활동기수·수료기수·탈동). */
 const STATUS_SHEET: Readonly<Record<ClubMember['status'], MemberSheet>> = {
   ACTIVE: 'active',
-  ALUMNI: 'alumni',
+  COMPLETED: 'completed',
+  NOT_COMPLETED: 'withdrawn',
   WITHDRAWN: 'withdrawn',
 };
 
@@ -171,19 +179,19 @@ export function MemberManagementPage() {
   /** 오른쪽에 연 명단(null이면 패널을 닫았다). 주소에 남겨 새로고침해도 같은 명단이 열린다. */
   const [sheet, setSheet] = useState<MemberSheet | null>(sheetOfHash);
   const sheetItem = MEMBER_SHEETS.find((item) => item.id === sheet) ?? null;
-  // 부문 명단에서는 부문이 모두 같아 부문 열을, 활동기수·수료기수·탈퇴 명단에서는 상태가 모두 같아
+  // 부문 명단에서는 부문이 모두 같아 부문 열을, 활동기수·수료기수·탈동 명단에서는 상태가 모두 같아
   // 활동 상태 열(과 필터)을 뺀다.
   const hasTrackColumn = sheetItem?.kind !== 'track';
   const hasStatusColumn = sheetItem?.kind !== 'status';
   const isWithdrawnSheet = sheet === 'withdrawn';
-  // 탈퇴하면 운영진에서도 빠지므로(운영진은 탈퇴 처리할 수 없다) 탈퇴 명단에는 운영진 열을 두지 않는다.
+  // 탈동하면 운영진에서도 빠지므로(운영진은 탈동 처리할 수 없다) 탈동 명단에는 운영진 열을 두지 않는다.
   const hasOperatorColumn = !isWithdrawnSheet;
   // 활동기수·수료기수 목록({ status })과 부문 명단({ track })은 한 페이지에 한 기수씩 서버에서 읽는다.
-  // 탈퇴 명단은 기수 페이지가 없다(null). 기수를 안 고르면(null) 서버가 최신 기수를 고른다.
+  // 탈동 명단은 기수 페이지가 없다(null). 기수를 안 고르면(null) 서버가 최신 기수를 고른다.
   const termScope = termScopeOfSheet(sheet);
   const isPagedSheet = termScope !== null;
   const [pageTerm, setPageTerm] = useState<number | null>(null);
-  /** 탈퇴 명단에서 보고 있는 쪽(1부터). */
+  /** 탈동 명단에서 보고 있는 쪽(1부터). */
   const [withdrawnPage, setWithdrawnPage] = useState(1);
   const {
     page: termPage,
@@ -211,24 +219,16 @@ export function MemberManagementPage() {
   }, [sheet]);
   const [editingMember, setEditingMember] = useState<ClubMember | null>(null);
   const [form, setForm] = useState<ClubMemberForm | null>(null);
-  /** 수정 팝업에서 고른 운영진 팀. NOT_OPERATOR면 운영진이 아니다. */
-  const [formTeam, setFormTeam] = useState(NOT_OPERATOR);
-  /** 새 운영진의 로그인 아이디·초기 비밀번호. 운영진이 아닌 사람에게 팀을 고를 때만 쓴다. */
-  const [formUsername, setFormUsername] = useState('');
-  const [formPassword, setFormPassword] = useState('');
-  /** 새 운영진 계정을 만든 뒤 띄우는 전달문. */
-  const [delivery, setDelivery] = useState<{ title: string; text: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   /**
-   * 이 화면에서 저장(추가·수정·탈퇴 처리)을 한 번이라도 했는지. 저장 뒤 목록을 다시 읽다가 실패하면
+   * 이 화면에서 저장(추가·수정·탈동 처리)을 한 번이라도 했는지. 저장 뒤 목록을 다시 읽다가 실패하면
    * "저장은 됐지만 목록이 최신이 아니다"를 따로 알린다.
    */
   const [hasSaved, setHasSaved] = useState(false);
-  /** 탈퇴 처리를 보내는 중인 동아리원 id. 버튼을 연달아 눌러 같은 요청이 두 번 가지 않게 한다. */
+  /** 탈동 처리를 보내는 중인 동아리원 id. 버튼을 연달아 눌러 같은 요청이 두 번 가지 않게 한다. */
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   /** 방금 운영진 팀이 바뀐 동아리원. 잠깐 줄 바탕을 칠한다. */
   const [freshBadgeIds, setFreshBadgeIds] = useState<ReadonlySet<string>>(() => new Set());
-  const { teams: operatorTeams, error: teamsError } = useOperatorTeams();
 
   // 다른 화면에서 사람을 지정해 들어왔으면, 목록을 읽은 뒤 그 사람이 든 명단을 열고 필터를 풀어 행을 보여 준다.
   const [pendingFocusId, setPendingFocusId] = useState(focusIdOfHash);
@@ -238,9 +238,9 @@ export function MemberManagementPage() {
     setPendingFocusId(null);
     if (target) {
       setSheet(STATUS_SHEET[target.status]);
-      // 활동기수·수료기수면 그 사람의 기수 페이지를 연다(탈퇴 명단은 기수 페이지가 없어 이 값을 쓰지 않는다).
+      // 활동기수·수료기수면 그 사람의 기수 페이지를 연다(탈동 명단은 기수 페이지가 없어 이 값을 쓰지 않는다).
       setPageTerm(target.term);
-      // 탈퇴한 사람이면 탈퇴 명단에서 그 사람이 있는 쪽을 연다(표와 같은 순서로 거른 목록에서 찾는다).
+      // 탈동한 사람이면 탈동 명단에서 그 사람이 있는 쪽을 연다(표와 같은 순서로 거른 목록에서 찾는다).
       if (target.status === 'WITHDRAWN') {
         const index = filterClubMembers(loadedMembers, {
           ...EMPTY_FILTER,
@@ -259,18 +259,7 @@ export function MemberManagementPage() {
     return () => window.clearTimeout(timer);
   }, [freshBadgeIds]);
 
-  /** 수정 팝업의 운영진 팀 선택지. 지금 팀이 팀 목록에 없어도(새로 생긴 팀) 고를 수 있게 넣는다. */
-  const teamOptions = useMemo(() => {
-    const current = editingMember?.operatorTeam;
-    const teams =
-      current && !operatorTeams.includes(current) ? [...operatorTeams, current] : operatorTeams;
-    return [
-      { value: NOT_OPERATOR, label: '없음' },
-      ...teams.map((team) => ({ value: team, label: team })),
-    ];
-  }, [editingMember, operatorTeams]);
-
-  // 기수 페이지가 있는 명단은 받은 기수 페이지 안에서, 탈퇴 명단은 전체 목록에서 화면이 거른다.
+  // 기수 페이지가 있는 명단은 받은 기수 페이지 안에서, 탈동 명단은 전체 목록에서 화면이 거른다.
   const pageMembers = currentPage?.members;
   const filteredMembers = useMemo(
     () =>
@@ -297,7 +286,7 @@ export function MemberManagementPage() {
   /** 명단을 바꾼다. 활동 상태로 나눈 명단에는 상태 필터가 없으므로 상태 필터를 푼다. */
   const changeSheet = (next: MemberSheet) => {
     setSheet(next);
-    // 명단마다 쓰는 필터가 달라서, 다른 명단으로 옮기면 필터·기수 페이지·탈퇴 명단 쪽을 처음 상태로 돌린다.
+    // 명단마다 쓰는 필터가 달라서, 다른 명단으로 옮기면 필터·기수 페이지·탈동 명단 쪽을 처음 상태로 돌린다.
     if (next !== sheet) {
       setFilter(EMPTY_FILTER);
       setPageTerm(null);
@@ -305,31 +294,12 @@ export function MemberManagementPage() {
     }
   };
 
-  /**
-   * 새 운영진 계정을 만드는지. 운영진이 아닌 사람(추가 팝업 포함)에게 팀을 고르면 아이디·초기 비밀번호가 필요하다.
-   * 이미 운영진인 사람은 팀만 옮기므로 필요 없다.
-   */
-  const needsCredentials = !editingMember?.operatorTeam && formTeam !== NOT_OPERATOR;
-  /** 탈퇴한 사람의 정보 수정인지. 운영진 지정을 막고, 활동 상태 선택지에 탈퇴를 남긴다(되돌리기는 된다). */
-  const isEditingWithdrawn = editingMember?.status === 'WITHDRAWN';
-  const hasCredentials = !needsCredentials || Boolean(formUsername.trim() && formPassword);
+  // 활동 중인 회원의 이름·기수·부문은 서버도 막는다(400 ACTIVE_MEMBER_IDENTITY_LOCKED). 고쳐야 하면 운영진에게 요청한다.
+  const isIdentityLocked = editingMember ? isIdentityLockedStatus(editingMember.status) : false;
   const canSave =
     !isSaving &&
     form !== null &&
-    hasCredentials &&
     Boolean(form.name.trim() && form.email.trim() && form.phone.trim() && form.term > 0);
-
-  /** 입력한 아이디·초기 비밀번호를 비운다. */
-  const resetCredentials = () => {
-    setFormUsername('');
-    setFormPassword('');
-  };
-
-  /** 운영진 팀을 바꾼다. '없음'으로 돌리면 입력한 아이디·비밀번호를 지운다. */
-  const changeFormTeam = (next: string) => {
-    setFormTeam(next);
-    if (next === NOT_OPERATOR) resetCredentials();
-  };
 
   /** 추가 팝업인지(수정할 사람이 없는 채로 열렸다). */
   const isCreating = form !== null && editingMember === null;
@@ -341,8 +311,6 @@ export function MemberManagementPage() {
    */
   const openCreate = () => {
     setEditingMember(null);
-    setFormTeam(NOT_OPERATOR);
-    resetCredentials();
     setForm({
       name: '',
       email: '',
@@ -351,7 +319,9 @@ export function MemberManagementPage() {
       major: '',
       term: (isPagedSheet ? currentPage?.term : null) ?? terms[0] ?? 1,
       track: sheetItem?.track ?? CLUB_MEMBER_TRACKS[0],
-      status: sheet === 'alumni' ? 'ALUMNI' : 'ACTIVE',
+      parallelTrack: null,
+      birthDate: null,
+      status: sheet === 'completed' ? 'COMPLETED' : 'ACTIVE',
       role: 'MEMBER',
     });
   };
@@ -359,8 +329,6 @@ export function MemberManagementPage() {
   const openEdit = (member: ClubMember) => {
     setEditingMember(member);
     setForm(toForm(member));
-    setFormTeam(member.operatorTeam ?? NOT_OPERATOR);
-    resetCredentials();
   };
 
   const closeModal = () => {
@@ -375,6 +343,20 @@ export function MemberManagementPage() {
   const saveMember = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSave || !form) return;
+    // 탈동으로 바꾸는데 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 이유와 먼저 할 일을 알리고 멈춘다(서버도 409).
+    if (editingMember && editingMember.status !== 'WITHDRAWN' && form.status === 'WITHDRAWN') {
+      const blockMessage = withdrawBlockMessageOf(
+        editingMember.name,
+        withdrawBlocksOf(editingMember),
+      );
+      if (blockMessage) {
+        window.alert(blockMessage);
+        return;
+      }
+      const message = `${editingMember.name}님을 탈동으로 바꿀까요?
+활동 상태만 탈동으로 바뀌고, 출결 기록과 팀 소속은 그대로 남습니다.`;
+      if (!window.confirm(message)) return;
+    }
     const request: ClubMemberForm = {
       ...form,
       name: form.name.trim(),
@@ -383,26 +365,21 @@ export function MemberManagementPage() {
       university: form.university.trim(),
       major: form.major.trim(),
     };
-    // 운영진 팀이 바뀌면 운영진 명단(권한 관리 화면과 같은 데이터)도 바꾼다. 역할은 서버가 맞춘다.
-    const teamName = formTeam === NOT_OPERATOR ? null : formTeam;
-    const isTeamChanged = teamName !== (editingMember?.operatorTeam ?? null);
-    if (
-      editingMember &&
-      isTeamChanged &&
-      teamName === null &&
-      !window.confirm(`${editingMember.name}님을 운영진에서 뺄까요? 운영진 계정도 함께 삭제됩니다.`)
-    ) {
-      return;
-    }
     setIsSaving(true);
-    /**
-     * 이번 저장에서 동아리원 정보(첫 단계)를 저장한 결과. 운영진 지정(둘째 단계)만 실패하면
-     * 목록을 다시 읽고, 팝업을 이 사람의 정보 수정으로 바꿔 다시 저장할 때 운영진 지정만 다시 하게 한다.
-     */
-    let savedMember: ClubMember | null = null;
     try {
-      // 추가는 역할을 보내지 않는다(일반 회원으로 시작하고, 운영진 팀을 고르면 아래에서 정한다).
-      const { name, email, phone, university, major, term, track, status } = request;
+      // 추가는 역할을 보내지 않는다(일반 회원으로 시작한다. 운영진 지정은 권한 관리에서 한다).
+      const {
+        name,
+        email,
+        phone,
+        university,
+        major,
+        term,
+        track,
+        parallelTrack,
+        birthDate,
+        status,
+      } = request;
       const saved = editingMember
         ? await updateClubMember(editingMember.id, request)
         : await createClubMember({
@@ -413,66 +390,31 @@ export function MemberManagementPage() {
             major,
             term,
             track,
+            parallelTrack,
+            birthDate,
             status,
           });
-      savedMember = saved;
       setHasSaved(true);
-      // 새 운영진이면 입력한 아이디·초기 비밀번호로 계정을 함께 만든다. 아이디 중복·비밀번호 규칙 검사는 서버가 한다.
-      const username = formUsername.trim();
-      const isIssuing = needsCredentials && teamName !== null;
-      if (isTeamChanged) {
-        await assignOperator(
-          saved.id,
-          isIssuing ? { teamName, username, password: formPassword } : { teamName },
-        );
-      }
-      if (isIssuing) {
-        setDelivery(
-          buildAccountDelivery('issue', {
-            name: saved.name,
-            username,
-            password: formPassword,
-          }),
-        );
-      }
-      // 새로 넣은 사람이나 운영진 팀이 바뀐 사람의 줄을 잠깐 표시한다.
-      if (!editingMember || isTeamChanged) setFreshBadgeIds(new Set([saved.id]));
+      // 새로 넣은 사람의 줄을 잠깐 표시한다.
+      if (!editingMember) setFreshBadgeIds(new Set([saved.id]));
       closeModal();
       reload();
       reloadPage();
     } catch (error) {
-      if (savedMember) {
-        // 동아리원 정보는 저장됐고 운영진 지정만 실패했다. 목록을 다시 읽어 저장된 값을 보이고,
-        // 팝업은 그 사람의 정보 수정으로 바꿔 다시 저장하면 운영진 지정만 다시 하게 한다(추가였다면 또 만들지 않는다).
-        // 입력값·운영진 팀·아이디·비밀번호는 그대로 둔다.
-        setEditingMember(savedMember);
-        reload();
-        reloadPage();
-        const reason = error instanceof Error ? error.message : '알 수 없는 오류';
-        window.alert(`동아리원 정보는 저장했지만 운영진 지정은 하지 못했습니다. (${reason})`);
-      } else {
-        alertApiError(error);
-      }
+      alertApiError(error);
     } finally {
       setIsSaving(false);
     }
   };
 
   /**
-   * 동아리원을 탈퇴 처리한다(활동 상태를 탈퇴로 바꾼다). 출결 기록과 팀 소속은 그대로 남고,
-   * 지금 보는 명단에서 빠져 탈퇴 명단으로 옮겨진다.
+   * 잘못 등록한 동아리원을 지운다. 활동한 사람(반기 명단에 오른 사람)은 서버가 409로 막고, 탈동은 정보 수정에서 한다.
    */
-  const withdrawMember = async (member: ClubMember) => {
-    // 로그인 계정(운영진·HOST)이 있거나 현재 반기 팀장이면 이유와 먼저 할 일을 알리고 멈춘다(서버도 409로 막는다).
-    const blockMessage = withdrawBlockMessageOf(member.name, withdrawBlocksOf(member));
-    if (blockMessage) {
-      window.alert(blockMessage);
-      return;
-    }
+  const handleDeleteMember = async (member: ClubMember) => {
     if (
       !window.confirm(
-        `${member.name}님(${member.term}기 ${member.track})을 정말 탈퇴 처리할까요?
-활동 상태만 탈퇴로 바뀌고, 출결 기록과 팀 소속은 그대로 남습니다.`,
+        `${member.name}님(${member.term}기 ${member.track})을 명단에서 지울까요?
+잘못 등록한 회원을 지울 때만 씁니다. 활동한 회원은 정보 수정에서 활동 상태를 탈동으로 바꿔 주세요.`,
       )
     ) {
       return;
@@ -480,7 +422,7 @@ export function MemberManagementPage() {
     if (withdrawingId !== null) return;
     setWithdrawingId(member.id);
     try {
-      await withdrawClubMember(member.id);
+      await deleteClubMember(member.id);
       setHasSaved(true);
       reload();
       reloadPage();
@@ -499,13 +441,13 @@ export function MemberManagementPage() {
     : loadStatus === 'ready' && (!isPagedSheet || currentPage)
       ? 'ready'
       : 'loading';
-  /** 탈퇴 명단의 쪽 수(사람이 없어도 1쪽). 다른 명단은 쪽으로 나누지 않는다. */
+  /** 탈동 명단의 쪽 수(사람이 없어도 1쪽). 다른 명단은 쪽으로 나누지 않는다. */
   const withdrawnPageCount = Math.max(1, Math.ceil(filteredMembers.length / WITHDRAWN_PAGE_SIZE));
   // 수정으로 보고 있던 마지막 쪽이 비면 남아 있는 마지막 쪽으로 맞춘다.
   if (isWithdrawnSheet && tableStatus === 'ready' && withdrawnPage > withdrawnPageCount) {
     setWithdrawnPage(withdrawnPageCount);
   }
-  /** 표에 그릴 행. 탈퇴 명단은 보고 있는 쪽의 사람만이다. */
+  /** 표에 그릴 행. 탈동 명단은 보고 있는 쪽의 사람만이다. */
   const visibleMembers = useMemo(
     () =>
       isWithdrawnSheet
@@ -601,16 +543,6 @@ export function MemberManagementPage() {
           </Tooltip>
         </div>
       </div>
-      {teamsError && (
-        <p
-          role="alert"
-          className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600"
-        >
-          운영진 팀 목록을 불러오지 못해 수정 팝업에서 운영진 팀을 고를 수 없습니다. (
-          {teamsError.message})
-        </p>
-      )}
-
       {/* 2. 명단 목록(왼쪽)과 고른 명단의 표(오른쪽). 권한 관리 화면과 같은 분할 화면이다. */}
       <SplitView
         listLabel="동아리원 명단 목록"
@@ -620,7 +552,7 @@ export function MemberManagementPage() {
               <h2 id="members-all-heading" className={LIST_SECTION_TITLE}>
                 전체 동아리원
               </h2>
-              <ul className="space-y-2.5">
+              <ul className="space-y-2">
                 {ALL_TRACK_SHEETS.map((item) => (
                   <li key={item.id}>
                     <SplitListItem
@@ -637,7 +569,7 @@ export function MemberManagementPage() {
               <h2 id="members-track-heading" className={LIST_SECTION_TITLE}>
                 부문별
               </h2>
-              <ul className="space-y-2.5">
+              <ul className="space-y-2">
                 {TRACK_SHEETS.map((item) => (
                   <li key={item.id}>
                     <SplitListItem
@@ -652,10 +584,10 @@ export function MemberManagementPage() {
 
             <section className="space-y-2" aria-labelledby="members-withdrawn-heading">
               <h2 id="members-withdrawn-heading" className={LIST_SECTION_TITLE}>
-                탈퇴
+                탈동
               </h2>
               <SplitListItem
-                label="탈퇴"
+                label="탈동"
                 isSelected={sheet === 'withdrawn'}
                 onSelect={() => changeSheet('withdrawn')}
               />
@@ -670,7 +602,7 @@ export function MemberManagementPage() {
           setWithdrawnPage(1);
         }}
       >
-        {/* 검색·필터. 탈퇴 명단에는 두지 않는다. 활동기수·수료기수 목록은 부문, 부문 명단은 활동 상태로
+        {/* 검색·필터. 탈동 명단에는 두지 않는다. 활동기수·수료기수 목록은 부문, 부문 명단은 활동 상태로
             받은 기수 페이지 안에서 거른다. 기수는 표 아래 기수 번호로 고르므로 기수 필터가 없다. */}
         {!isWithdrawnSheet && (
           <div className="flex flex-wrap items-center gap-3">
@@ -707,7 +639,7 @@ export function MemberManagementPage() {
               <div className="relative">
                 <Search
                   size={13}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                   aria-hidden="true"
                 />
                 <input
@@ -717,7 +649,7 @@ export function MemberManagementPage() {
                   }
                   placeholder="검색"
                   aria-label="이름, 이메일, 연락처 검색"
-                  className={`w-44 pl-8 pr-3 font-medium placeholder:font-normal placeholder:text-slate-400 ${TOOLBAR_FIELD}`}
+                  className={`w-44 pl-8 pr-3 placeholder:font-normal placeholder:text-slate-400 ${TOOLBAR_FIELD}`}
                 />
               </div>
             </div>
@@ -727,19 +659,21 @@ export function MemberManagementPage() {
         {/* 동아리원 표 */}
         <div
           aria-busy={isTermSwitching || isSheetSwitching}
-          className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xs"
+          className="overflow-hidden rounded-md border border-slate-200 bg-white"
         >
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1070px] border-collapse text-xs">
-              <thead className="bg-slate-50/80">
-                <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-[11px]">
+            <table className="w-full min-w-[1270px] border-collapse text-xs">
+              <thead>
+                <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-xs">
                   <th className={`${TH_CLASS} w-[120px] text-slate-900`}>이름</th>
                   <th className={`${TH_CLASS} w-[80px]`}>기수</th>
                   {hasTrackColumn && <th className={`${TH_CLASS} w-[100px]`}>부문</th>}
+                  <th className={`${TH_CLASS} w-[100px]`}>병행 부문</th>
                   {hasOperatorColumn && <th className={`${TH_CLASS} w-[120px]`}>운영진</th>}
                   {hasStatusColumn && <th className={`${TH_CLASS} w-[90px]`}>활동 상태</th>}
                   <th className={TH_CLASS}>이메일</th>
                   <th className={`${TH_CLASS} w-[130px]`}>연락처</th>
+                  <th className={`${TH_CLASS} w-[100px]`}>생년월일</th>
                   <th className={`${TH_CLASS} w-[130px]`}>대학교</th>
                   <th className={`${TH_CLASS} w-[130px]`}>전공</th>
                   <th className={`${TH_CLASS} w-[88px]`}>관리</th>
@@ -765,7 +699,7 @@ export function MemberManagementPage() {
                   </tr>
                 ) : tableStatus === 'ready' && filteredMembers.length === 0 ? (
                   <tr>
-                    <td colSpan={columnCount} className="py-10 text-center text-slate-400">
+                    <td colSpan={columnCount} className="py-10 text-center text-slate-500">
                       <p>검색 조건에 일치하는 동아리원이 없습니다.</p>
                       <button
                         type="button"
@@ -781,8 +715,8 @@ export function MemberManagementPage() {
                     <tr
                       key={member.id}
                       id={`member-row-${member.id}`}
-                      className={`h-[46px] divide-x divide-slate-200 transition-colors ${
-                        freshBadgeIds.has(member.id) ? 'bg-blue-50/60' : 'hover:bg-slate-50/70'
+                      className={`h-11 divide-x divide-slate-200 transition-colors ${
+                        freshBadgeIds.has(member.id) ? 'bg-slate-100' : 'hover:bg-slate-50/70'
                       }`}
                     >
                       <td className={`${TD_CLASS} font-bold text-slate-900`}>{member.name}</td>
@@ -790,22 +724,23 @@ export function MemberManagementPage() {
                       {hasTrackColumn && (
                         <td className={`${TD_CLASS} text-slate-700`}>{member.track}</td>
                       )}
+                      <td className={`${TD_CLASS} text-slate-700`}>
+                        {member.parallelTrack ?? EMPTY_CELL}
+                      </td>
                       {hasOperatorColumn && (
-                        <td
-                          className={`${TD_CLASS} text-slate-700`}
-                          aria-label={member.operatorTeam ?? '운영진 팀 없음'}
-                        >
-                          {member.operatorTeam}
-                        </td>
+                        <td className={`${TD_CLASS} text-slate-700`}>{operatorLabelOf(member)}</td>
                       )}
                       {hasStatusColumn && (
                         <td className={`${TD_CLASS} ${STATUS_TEXT[member.status]}`}>
-                          {STATUS_LABELS[member.status]}
+                          {CLUB_MEMBER_STATUS_LABELS[member.status]}
                         </td>
                       )}
                       <td className={`${TD_CLASS} text-slate-600`}>{member.email || EMPTY_CELL}</td>
                       <td className={`${TD_CLASS} tabular-nums text-slate-600`}>
                         {member.phone || EMPTY_CELL}
+                      </td>
+                      <td className={`${TD_CLASS} tabular-nums text-slate-600`}>
+                        {member.birthDate ?? EMPTY_CELL}
                       </td>
                       <td className={`${TD_CLASS} text-slate-600`}>
                         {member.university || EMPTY_CELL}
@@ -823,21 +758,13 @@ export function MemberManagementPage() {
                               <Pencil size={14} aria-hidden="true" />
                             </button>
                           </Tooltip>
-                          {/* 운영진·HOST 계정이 있거나 현재 반기 팀장이면 눌렀을 때 이유와 먼저 할 일을 알린다.
-                              이미 탈퇴한 사람은 탈퇴 처리할 것이 없어 버튼을 끈다. */}
-                          <Tooltip
-                            label={
-                              member.status === 'WITHDRAWN'
-                                ? '이미 탈퇴한 동아리원입니다'
-                                : '탈퇴 처리'
-                            }
-                            align="end"
-                          >
+                          {/* 잘못 등록한 회원 삭제. 반기 명단에 오른 사람·로그인 계정이 있는 사람은 서버가 이유와 함께 막는다. */}
+                          <Tooltip label="잘못 등록한 회원 삭제" align="end">
                             <button
                               type="button"
-                              onClick={() => withdrawMember(member)}
-                              disabled={member.status === 'WITHDRAWN' || withdrawingId !== null}
-                              aria-label={`${member.name} 탈퇴 처리`}
+                              onClick={() => void handleDeleteMember(member)}
+                              disabled={withdrawingId !== null}
+                              aria-label={`${member.name} 삭제`}
                               className={WITHDRAW_ICON_BTN}
                             >
                               <Trash2 size={14} aria-hidden="true" />
@@ -853,7 +780,7 @@ export function MemberManagementPage() {
           </div>
         </div>
 
-        {/* 탈퇴 명단의 쪽 넘김. 한 쪽뿐이어도 자리를 남겨, 쪽 수가 바뀔 때 화면이 튀지 않게 한다. */}
+        {/* 탈동 명단의 쪽 넘김. 한 쪽뿐이어도 자리를 남겨, 쪽 수가 바뀔 때 화면이 튀지 않게 한다. */}
         {isWithdrawnSheet && tableStatus === 'ready' && (
           <div role="group" aria-label="쪽 넘김" className={PAGER_BAR}>
             <button
@@ -887,7 +814,7 @@ export function MemberManagementPage() {
       {/* 동아리원 추가·정보 수정 팝업 */}
       {form && (
         <div
-          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) closeModal();
           }}
@@ -914,92 +841,96 @@ export function MemberManagementPage() {
             </div>
 
             <div className="grid gap-x-4 gap-y-5 text-xs sm:grid-cols-2">
+              {/* 활동기수 회원의 이름·기수·부문은 보기만 한다(서버도 고치면 400 ACTIVE_MEMBER_IDENTITY_LOCKED). */}
+              {isIdentityLocked ? (
+                <div className="grid grid-cols-3 gap-4 sm:col-span-2">
+                  {(
+                    [
+                      ['member-name-view', '이름', form.name],
+                      ['member-term-view', '기수', `${form.term}기`],
+                      ['member-track-view', '부문', form.track],
+                    ] as const
+                  ).map(([id, label, value]) => (
+                    <div key={id} className="min-w-0">
+                      <span id={id} className={FIELD_LABEL}>
+                        {label}
+                      </span>
+                      <p aria-labelledby={id} className={FIELD_READONLY}>
+                        <span className="truncate">{value}</span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label htmlFor="member-name" className={FIELD_LABEL}>
+                      이름 *
+                    </label>
+                    <input
+                      id="member-name"
+                      required
+                      className={FIELD_INPUT}
+                      value={form.name}
+                      onChange={(event) => updateForm({ name: event.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="member-term" className={FIELD_LABEL}>
+                      기수 *
+                    </label>
+                    <input
+                      id="member-term"
+                      required
+                      min={1}
+                      type="number"
+                      className={FIELD_INPUT}
+                      value={form.term}
+                      onChange={(event) => updateForm({ term: Number(event.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <span className={FIELD_LABEL}>부문</span>
+                    <SelectDropdown<ClubMemberTrack>
+                      ariaLabel="부문"
+                      value={form.track}
+                      options={TRACK_OPTIONS}
+                      // 병행 부문이 새 부문과 같아지면 지운다(서버도 같은 값을 400으로 막는다).
+                      onChange={(track) =>
+                        updateForm({
+                          track,
+                          ...(form.parallelTrack === track ? { parallelTrack: null } : {}),
+                        })
+                      }
+                      buttonClassName={FIELD_SELECT}
+                    />
+                  </div>
+                </>
+              )}
               <div>
-                <label htmlFor="member-name" className={FIELD_LABEL}>
-                  이름 *
-                </label>
-                <input
-                  id="member-name"
-                  required
-                  className={FIELD_INPUT}
-                  value={form.name}
-                  onChange={(event) => updateForm({ name: event.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="member-term" className={FIELD_LABEL}>
-                  기수 *
-                </label>
-                <input
-                  id="member-term"
-                  required
-                  min={1}
-                  type="number"
-                  className={FIELD_INPUT}
-                  value={form.term}
-                  onChange={(event) => updateForm({ term: Number(event.target.value) })}
-                />
-              </div>
-              <div>
-                <span className={FIELD_LABEL}>부문</span>
-                <SelectDropdown<ClubMemberTrack>
-                  ariaLabel="부문"
-                  value={form.track}
-                  options={TRACK_OPTIONS}
-                  onChange={(track) => updateForm({ track })}
+                <span className={FIELD_LABEL}>병행 부문</span>
+                <SelectDropdown
+                  ariaLabel="병행 부문"
+                  value={form.parallelTrack ?? NO_PARALLEL_TRACK}
+                  options={parallelTrackOptions(form.track)}
+                  onChange={(value) =>
+                    updateForm({
+                      parallelTrack:
+                        value === NO_PARALLEL_TRACK ? null : (value as ClubMemberTrack),
+                    })
+                  }
                   buttonClassName={FIELD_SELECT}
                 />
               </div>
-              <div>
-                <span className={FIELD_LABEL}>운영진</span>
-                {/* 탈퇴한 사람에게는 운영진 계정을 만들지 않는다(서버도 409로 막는다). */}
-                {isEditingWithdrawn ? (
-                  <p className="flex h-9 items-center text-xs text-slate-500">
-                    탈퇴한 동아리원은 지정할 수 없습니다
+              {editingMember && (
+                <div>
+                  <span id="member-operator-label" className={FIELD_LABEL}>
+                    운영진
+                  </span>
+                  {/* 보기만 한다. 운영진 팀·팀장은 권한 관리에서 정한다(백엔드 협의 2026-11-05). */}
+                  <p aria-labelledby="member-operator-label" className={FIELD_READONLY}>
+                    <span className="truncate">{operatorLabelOf(editingMember)}</span>
                   </p>
-                ) : (
-                  <SelectDropdown
-                    ariaLabel="운영진"
-                    value={formTeam}
-                    options={teamOptions}
-                    onChange={changeFormTeam}
-                    buttonClassName={FIELD_SELECT}
-                  />
-                )}
-              </div>
-              {needsCredentials && (
-                <div className="grid gap-x-4 gap-y-5 sm:col-span-2 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="member-username" className={FIELD_LABEL}>
-                      아이디 *
-                    </label>
-                    <input
-                      id="member-username"
-                      required
-                      autoComplete="off"
-                      spellCheck={false}
-                      placeholder="입력"
-                      className={`${FIELD_INPUT} font-mono`}
-                      value={formUsername}
-                      onChange={(event) => setFormUsername(event.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="member-password" className={FIELD_LABEL}>
-                      초기 비밀번호 *
-                    </label>
-                    <input
-                      id="member-password"
-                      required
-                      type="text"
-                      autoComplete="off"
-                      spellCheck={false}
-                      className={`${FIELD_INPUT} font-mono`}
-                      placeholder="입력"
-                      value={formPassword}
-                      onChange={(event) => setFormPassword(event.target.value)}
-                    />
-                  </div>
                 </div>
               )}
               <div>
@@ -1007,7 +938,7 @@ export function MemberManagementPage() {
                 <SelectDropdown<ClubMemberStatus>
                   ariaLabel="활동 상태"
                   value={form.status}
-                  options={isEditingWithdrawn ? STATUS_OPTIONS : TRACK_STATUS_OPTIONS}
+                  options={isCreating ? CREATE_STATUS_OPTIONS : STATUS_OPTIONS}
                   onChange={(status) => updateForm({ status })}
                   buttonClassName={FIELD_SELECT}
                 />
@@ -1038,6 +969,19 @@ export function MemberManagementPage() {
                 />
               </div>
               <div>
+                <label htmlFor="member-birth-date" className={FIELD_LABEL}>
+                  생년월일
+                </label>
+                {/* 비우면 null로 보낸다(빈 문자열은 서버가 400으로 막는다). */}
+                <input
+                  id="member-birth-date"
+                  type="date"
+                  className={`${FIELD_INPUT} tabular-nums`}
+                  value={form.birthDate ?? ''}
+                  onChange={(event) => updateForm({ birthDate: event.target.value || null })}
+                />
+              </div>
+              <div>
                 <label htmlFor="member-university" className={FIELD_LABEL}>
                   대학교
                 </label>
@@ -1061,7 +1005,7 @@ export function MemberManagementPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-slate-100 pt-3.5">
+            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
               <button type="button" onClick={closeModal} className={MODAL_CANCEL_BTN}>
                 취소
               </button>
@@ -1071,15 +1015,6 @@ export function MemberManagementPage() {
             </div>
           </form>
         </div>
-      )}
-
-      {delivery && (
-        <AccountDeliveryDialog
-          title={delivery.title}
-          text={delivery.text}
-          onTextChange={(text) => setDelivery({ ...delivery, text })}
-          onClose={() => setDelivery(null)}
-        />
       )}
     </div>
   );

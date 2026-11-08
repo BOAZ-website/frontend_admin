@@ -41,7 +41,7 @@ test('동아리원 관리에서 추가한 활동 회원이 회원 선택 목록�
   assert.ok(pickable().some((user) => user.id === created.id));
 });
 
-test('탈퇴·수료 회원은 회원 선택 목록에 나오지 않지만 반기 명단에는 남는다', async () => {
+test('탈동·수료 회원은 회원 선택 목록에 나오지 않지만 반기 명단에는 남는다', async () => {
   const { db, pickable } = await setup();
   const statusOf = new Map(
     queryAll<{ id: string; club_status: string }>(db, 'SELECT id, club_status FROM users').map(
@@ -60,9 +60,14 @@ test('탈퇴·수료 회원은 회원 선택 목록에 나오지 않지만 반�
   );
 });
 
-test('동아리원 관리에서 이름을 고치면 회원 선택 목록에도 바뀐 이름이 나온다', async () => {
-  const { call, pickable } = await setup();
-  call('PATCH', '/api/v1/club-members/u_28_01', { name: '이름바꿈' });
+// 활동 회원의 이름은 화면·API로 고치지 않고 DB에서 직접 고친다(백엔드 협의 2026-11-05).
+// 그래서 개명은 users 표를 직접 고쳐 만들고, 다른 목록이 users의 이름을 읽는지 확인한다.
+const renameInDb = (db: Awaited<ReturnType<typeof setup>>['db'], userId: string, name: string) =>
+  execute(db, 'UPDATE users SET name = ? WHERE id = ?', [name, userId]);
+
+test('회원 이름을 고치면 회원 선택 목록에도 바뀐 이름이 나온다', async () => {
+  const { db, pickable } = await setup();
+  renameInDb(db, 'u_28_01', '이름바꿈');
 
   assert.equal(pickable().find((user) => user.id === 'u_28_01')?.name, '이름바꿈');
 });
@@ -71,7 +76,7 @@ test('수료 회원을 활동으로 되돌리면 회원 선택 목록에 나온�
   const { db, call, pickable } = await setup();
   const alumni = queryAll<{ id: string }>(
     db,
-    "SELECT id FROM users WHERE club_status = 'ALUMNI' LIMIT 1",
+    "SELECT id FROM users WHERE club_status = 'COMPLETED' LIMIT 1",
   )[0];
   // 반기 명단에 없는 수료 회원으로 만든다(수료 기수는 명단에 등록하지 않는다).
   execute(db, 'DELETE FROM semester_members WHERE user_id = ?', [alumni.id]);
@@ -81,15 +86,15 @@ test('수료 회원을 활동으로 되돌리면 회원 선택 목록에 나온�
   assert.ok(pickable().some((user) => user.id === alumni.id));
 
   // 다시 수료로 바꾸면 목록에서 빠진다.
-  execute(db, "UPDATE users SET club_status = 'ALUMNI' WHERE id = ?", [alumni.id]);
+  execute(db, "UPDATE users SET club_status = 'COMPLETED' WHERE id = ?", [alumni.id]);
   assert.ok(!pickable().some((user) => user.id === alumni.id));
 });
 
-test('탈퇴·수료 회원은 API를 직접 불러도 팀원으로 추가할 수 없다(400)', async () => {
+test('탈동·수료 회원은 API를 직접 불러도 팀원으로 추가할 수 없다(400)', async () => {
   const { db, call } = await setup();
   const alumniId = queryAll<{ id: string }>(
     db,
-    "SELECT id FROM users WHERE club_status = 'ALUMNI' AND id IN (SELECT user_id FROM semester_members) LIMIT 1",
+    "SELECT id FROM users WHERE club_status = 'COMPLETED' AND id IN (SELECT user_id FROM semester_members) LIMIT 1",
   )[0].id;
 
   assert.throws(
@@ -110,11 +115,11 @@ const freeVisMembers = (db: Awaited<ReturnType<typeof setup>>['db']) =>
       LIMIT 2`,
   ).map((row) => row.id);
 
-test('팀원 명단(팀 상세)에도 동아리원 관리에서 고친 이름이 나온다', async () => {
+test('팀원 명단(팀 상세)에도 고친 이름이 나온다', async () => {
   const { db, call } = await setup();
   const [memberId] = freeVisMembers(db);
   call('POST', '/api/v1/base-tracks', { track: '시각화', memberIds: [memberId] });
-  call('PATCH', `/api/v1/club-members/${memberId}`, { name: '개명한이름' });
+  renameInDb(db, memberId, '개명한이름');
 
   const detail = call<{ members: { userId: string; name: string }[] }>(
     'GET',
@@ -127,7 +132,7 @@ test('개명한 팀원이 있는 BASE 트랙에 회원을 더해도 새 회원�
   const { db, call } = await setup();
   const [renamedId, addedId] = freeVisMembers(db);
   call('POST', '/api/v1/base-tracks', { track: '시각화', memberIds: [renamedId] });
-  call('PATCH', `/api/v1/club-members/${renamedId}`, { name: '개명한이름' });
+  renameInDb(db, renamedId, '개명한이름');
   const userCount = () => queryAll<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM users')[0].n;
   const before = userCount();
 

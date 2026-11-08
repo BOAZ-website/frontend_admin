@@ -77,7 +77,7 @@ function actionPermission(input: ActionPermissionInput): ActionPermission {
     case 'MEMBER_UPDATE':
       return { key: null, operation: 'UPDATE' };
     case 'MEMBER_DELETE':
-      // 행을 지우지 않고 활동 상태만 탈퇴로 바꾸므로 수정이다.
+      // 행을 지우지 않고 활동 상태만 탈동으로 바꾸므로 수정이다.
       return { key: null, operation: 'UPDATE' };
 
     case 'ATTENDANCE_EDIT':

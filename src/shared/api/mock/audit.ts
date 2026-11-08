@@ -27,7 +27,14 @@ type Detail = Record<string, unknown>;
  * 보낸 값과 바뀌기 전·후 값 모두 HIDDEN_VALUE로 바꾼다. 이름은 대상 이름으로 따로 보이므로(지금 DB에서 찾는다) 값은 남기지 않는다.
  * 실제 백엔드 계약이 snake_case(new_password)여도 같은 키로 본다.
  */
-const SENSITIVE_KEYS: ReadonlySet<string> = new Set(['name', 'phone', 'email', 'birth', 'address']);
+const SENSITIVE_KEYS: ReadonlySet<string> = new Set([
+  'name',
+  'phone',
+  'email',
+  'birth',
+  'birthdate',
+  'address',
+]);
 /** 이 글자가 이름에 들어간 키는 목록에 없어도 가린다(initialPassword, access_token 등). */
 const SENSITIVE_KEY_PARTS: readonly string[] = ['password', 'token', 'secret'];
 export const HIDDEN_VALUE = '(비공개)';
@@ -178,17 +185,6 @@ function valueChanges(before: Detail, after: Detail, keys: readonly string[]): D
 }
 
 const firstTarget = (_request: MockRequest, targetIds: readonly string[]) => targetIds[0];
-
-/** 동아리원 한 명의 활동 상태(users.club_status). 회원이 없으면 빈 값이다. */
-function memberStatus(request: MockRequest, userId: string | undefined): Detail {
-  if (userId === undefined) return {};
-  const row = queryAll<{ club_status: string }>(
-    request.db,
-    'SELECT club_status FROM users WHERE id = ?',
-    [userId],
-  )[0];
-  return row ? { status: row.club_status } : {};
-}
 
 /** 바꾼 항목의 이름만 남긴다(값은 남기지 않는다. 비밀번호·연락처 같은 값이 기록에 들어가지 않게 한다). */
 const changedFields = (request: MockRequest): Detail => ({ fields: Object.keys(bodyOf(request)) });
@@ -361,16 +357,12 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     compareTable: 'users',
   },
   {
-    // 동아리원 탈퇴 처리. 행은 지우지 않고 활동 상태만 탈퇴(WITHDRAWN)로 바꾼다.
+    // 잘못 등록한 동아리원 삭제(soft delete). 탈동은 PATCH(MEMBER_UPDATE)의 활동 상태 변경으로 남는다.
     method: 'DELETE',
     pattern: '/api/v1/club-members/:memberId',
     action: 'MEMBER_DELETE',
     targetType: 'USER',
     targets: param('memberId'),
-    // 처리 전 활동 상태를 읽어 두고, 처리 뒤 상태와 함께 [전, 후]로 남긴다.
-    before: (r, ids) => memberStatus(r, ids[0]),
-    detail: (r, { before, targetIds }) =>
-      valueChanges(before, memberStatus(r, targetIds[0]), ['status']),
   },
 
   // 출결: 행사·점수 규칙·반기

@@ -34,7 +34,7 @@ test('동아리원 목록은 임시 DB users 테이블 전체를 활동 상태 �
   const userCount = queryAll<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM users')[0].n;
 
   assert.equal(members.length, userCount);
-  const STATUS_ORDER = ['ACTIVE', 'ALUMNI', 'WITHDRAWN'];
+  const STATUS_ORDER = ['ACTIVE', 'COMPLETED', 'WITHDRAWN'];
   const TRACK_ORDER = ['분석', '시각화', '엔지니어링'];
   assert.ok(
     members.every((member, i) => {
@@ -43,14 +43,14 @@ test('동아리원 목록은 임시 DB users 테이블 전체를 활동 상태 �
       const byStatus = STATUS_ORDER.indexOf(prev.status) - STATUS_ORDER.indexOf(member.status);
       const byTrack = TRACK_ORDER.indexOf(prev.track) - TRACK_ORDER.indexOf(member.track);
       if (byStatus !== 0) return byStatus < 0;
-      // 탈퇴한 사람은 최신 기수부터다.
+      // 탈동한 사람은 최신 기수부터다.
       if (member.status === 'WITHDRAWN' && prev.term !== member.term)
         return prev.term > member.term;
       return byTrack < 0 || (byTrack === 0 && prev.name <= member.name);
     }),
   );
   assert.equal(members.find((member) => member.id === 'u_27_01')?.role, 'PRESIDENT');
-  assert.ok(members.filter((member) => member.term <= 25).every((m) => m.status === 'ALUMNI'));
+  assert.ok(members.filter((member) => member.term <= 25).every((m) => m.status === 'COMPLETED'));
 });
 
 test('동아리원을 추가하면 일반 회원으로 들어가고 활동 명단(members) 행도 생긴다', async () => {
@@ -63,11 +63,11 @@ test('동아리원을 추가하면 일반 회원으로 들어가고 활동 명�
     major: '',
     term: 20,
     track: '시각화',
-    status: 'ALUMNI',
+    status: 'COMPLETED',
   });
 
   assert.equal(created.role, 'MEMBER');
-  assert.equal(created.status, 'ALUMNI');
+  assert.equal(created.status, 'COMPLETED');
   assert.equal(created.operatorTeam, null);
   assert.ok(call<ClubMember[]>('GET', '/api/v1/club-members').some((m) => m.id === created.id));
   assert.equal(
@@ -95,11 +95,11 @@ test('추가할 때 필수 값이 없거나 같은 기수에 같은 이름이 �
 test('수정은 보낸 값만 바꾼다', async () => {
   const { call } = await setup();
   const updated = call<ClubMember>('PATCH', '/api/v1/club-members/u_28_01', {
-    status: 'ALUMNI',
+    status: 'COMPLETED',
     role: 'PRESIDENT',
   });
 
-  assert.equal(updated.status, 'ALUMNI');
+  assert.equal(updated.status, 'COMPLETED');
   assert.equal(updated.role, 'PRESIDENT');
   assert.equal(updated.name, '김서하');
   assert.equal(updated.email, 'seoha.k@yonsei.ac.kr');
@@ -116,6 +116,8 @@ test('수정은 보낸 값만 바꾼다', async () => {
 
 test('기수·부문을 바꾸면 그 기수·부문의 활동 명단(members) 행이 생긴다', async () => {
   const { db, call } = await setup();
+  // 활동 중인 회원은 기수·부문을 고칠 수 없어, 먼저 수료로 바꾼다.
+  call('PATCH', '/api/v1/club-members/u_28_01', { status: 'COMPLETED' });
   call('PATCH', '/api/v1/club-members/u_28_01', { term: 29, track: '시각화' });
 
   assert.equal(
@@ -130,6 +132,8 @@ test('기수·부문을 바꾸면 그 기수·부문의 활동 명단(members) �
 test('같은 기수에 같은 이름이 있으면 409, 형식이 틀리면 400, 없는 동아리원은 404로 거절한다', async () => {
   const { call } = await setup();
   const patch = (body: unknown) => () => call('PATCH', '/api/v1/club-members/u_28_02', body);
+  // 활동 중인 회원은 이름을 고칠 수 없어, 먼저 수료로 바꾼다.
+  call('PATCH', '/api/v1/club-members/u_28_02', { status: 'COMPLETED' });
 
   expectApiError(patch({ name: '김서하' }), 409);
   expectApiError(patch({ track: 'AI' }), 400);
@@ -175,13 +179,13 @@ test('운영진 역할은 정보 수정으로 달거나 뗄 수 없고, 대표 �
   assert.equal(president.role, 'PRESIDENT');
 });
 
-test('정보 수정으로는 탈퇴로 바꿀 수 없다(탈퇴는 탈퇴 처리로만)', async () => {
+test('탈동은 정보 수정에서 활동 상태를 탈동으로 바꿔 처리하고, 처음부터 탈동으로 추가할 수는 없다', async () => {
   const { call } = await setup();
   const members = call<ClubMember[]>('GET', '/api/v1/club-members');
-  const operator = members.find((m) => m.role === 'OPERATOR')!;
-  const member = members.find((m) => m.role === 'MEMBER' && m.status === 'ACTIVE')!;
+  const member = members.find(
+    (m) => m.role === 'MEMBER' && m.status === 'ACTIVE' && !m.leaderTeams && !m.hostUsernames,
+  )!;
 
-  // 처음부터 탈퇴로 추가할 수도 없다.
   expectApiErrorCode(
     () =>
       call('POST', '/api/v1/club-members', {
@@ -193,18 +197,14 @@ test('정보 수정으로는 탈퇴로 바꿀 수 없다(탈퇴는 탈퇴 처리
         status: 'WITHDRAWN',
       }),
     400,
-    'WITHDRAW_BY_DELETE',
+    'CANNOT_CREATE_WITHDRAWN',
   );
-  for (const target of [operator, member]) {
-    expectApiErrorCode(
-      () => call('PATCH', `/api/v1/club-members/${target.id}`, { status: 'WITHDRAWN' }),
-      400,
-      'WITHDRAW_BY_DELETE',
-    );
-  }
-  // 이미 탈퇴한 사람은 지금 상태(탈퇴)를 그대로 보내 다른 정보를 고칠 수 있다.
-  const withdrawn = members.find((m) => m.status === 'WITHDRAWN')!;
-  const edited = call<ClubMember>('PATCH', `/api/v1/club-members/${withdrawn.id}`, {
+  const withdrawn = call<ClubMember>('PATCH', `/api/v1/club-members/${member.id}`, {
+    status: 'WITHDRAWN',
+  });
+  assert.equal(withdrawn.status, 'WITHDRAWN');
+  // 이미 탈동한 사람도 지금 상태(탈동)를 그대로 보내 다른 정보를 고칠 수 있다.
+  const edited = call<ClubMember>('PATCH', `/api/v1/club-members/${member.id}`, {
     status: 'WITHDRAWN',
     major: '통계학',
   });
@@ -218,7 +218,7 @@ function expectApiErrorCode(work: () => unknown, status: number, code: string) {
   );
 }
 
-/** 탈퇴 처리해도 남아야 하는 행 수(반기 명단·팀 소속·팀장 칸·출결 기록). */
+/** 탈동 처리해도 남아야 하는 행 수(반기 명단·팀 소속·팀장 칸·출결 기록). */
 function linkedRowCounts(db: Awaited<ReturnType<typeof setup>>['db'], id: string) {
   const count = (sql: string) => queryAll<{ n: number }>(db, sql, [id])[0].n;
   return {
@@ -232,11 +232,11 @@ function linkedRowCounts(db: Awaited<ReturnType<typeof setup>>['db'], id: string
   };
 }
 
-/** 현재 반기 팀 조건. 현재 반기 팀장은 탈퇴 처리할 수 없다. */
+/** 현재 반기 팀 조건. 현재 반기 팀장은 탈동 처리할 수 없다. */
 const CURRENT_TEAM = 'semester_cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)';
 
 /**
- * 탈퇴 처리할 수 있는 활동 회원(운영진·HOST 계정이 없고 현재 반기 팀장도 아닌 사람). 팀 소속·출결 기록이 있는 사람을 고른다.
+ * 탈동 처리할 수 있는 활동 회원(운영진·HOST 계정이 없고 현재 반기 팀장도 아닌 사람). 팀 소속·출결 기록이 있는 사람을 고른다.
  */
 function activeLeaderId(db: Awaited<ReturnType<typeof setup>>['db']): string {
   return queryAll<{ id: string }>(
@@ -263,7 +263,7 @@ function currentLeaderOf(db: Awaited<ReturnType<typeof setup>>['db']) {
   )[0];
 }
 
-test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸면 탈퇴 처리된다', async () => {
+test('현재 반기 팀장은 탈동 처리할 수 없고(409), 팀장을 바꾸면 탈동 처리된다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
   assert.ok(leader);
@@ -273,7 +273,7 @@ test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸
   assert.equal(listed?.leaderTeams, leader.teamName);
 
   expectApiErrorCode(
-    () => call('DELETE', `/api/v1/club-members/${leader.userId}`),
+    () => call('PATCH', `/api/v1/club-members/${leader.userId}`, { status: 'WITHDRAWN' }),
     409,
     'MEMBER_IS_TEAM_LEADER',
   );
@@ -284,12 +284,13 @@ test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸
 
   execute(db, 'UPDATE teams SET leader_id = NULL WHERE id = ?', [leader.teamId]);
   assert.equal(
-    call<ClubMember>('DELETE', `/api/v1/club-members/${leader.userId}`).status,
+    call<ClubMember>('PATCH', `/api/v1/club-members/${leader.userId}`, { status: 'WITHDRAWN' })
+      .status,
     'WITHDRAWN',
   );
 });
 
-test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
+test('지난 반기 팀장은 탈동을 막지 않는다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
   // 반기를 넘겨 지금 팀이 지난 반기 팀이 되게 한다.
@@ -305,7 +306,8 @@ test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
   );
   assert.equal(listed?.leaderTeams, null);
   assert.equal(
-    call<ClubMember>('DELETE', `/api/v1/club-members/${leader.userId}`).status,
+    call<ClubMember>('PATCH', `/api/v1/club-members/${leader.userId}`, { status: 'WITHDRAWN' })
+      .status,
     'WITHDRAWN',
   );
   // 지난 반기 팀의 팀장 기록은 남는다.
@@ -317,7 +319,7 @@ test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
   assert.equal(leaderOf, 1);
 });
 
-test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 바꾼 회원을 돌려준다', async () => {
+test('탈동 처리는 행을 지우지 않고 활동 상태만 WITHDRAWN으로 바꾼 회원을 돌려준다', async () => {
   const { db, call } = await setup();
   const target = activeLeaderId(db);
   const before = linkedRowCounts(db, target);
@@ -325,7 +327,9 @@ test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAW
   assert.ok(before.attendance > 0, '출결 기록이 있는 사람이어야 한다');
   const original = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === target);
 
-  const withdrawn = call<ClubMember>('DELETE', `/api/v1/club-members/${target}`);
+  const withdrawn = call<ClubMember>('PATCH', `/api/v1/club-members/${target}`, {
+    status: 'WITHDRAWN',
+  });
 
   assert.equal(withdrawn.id, target);
   assert.equal(withdrawn.status, 'WITHDRAWN');
@@ -335,7 +339,7 @@ test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAW
   assert.deepEqual(linkedRowCounts(db, target), before);
 });
 
-test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(409), 계정이 정리되면 탈퇴 처리된다', async () => {
+test('팀장이 아닌데 HOST 계정이 있으면 탈동 처리할 수 없고(409), 계정이 정리되면 탈동 처리된다', async () => {
   const { db, call } = await setup();
   // 시드의 HOST 계정 host_c(계정 주인 u_27_01). 팀장 사유는 따로 보므로 팀장을 먼저 비운다.
   // (API가 아닌 SQL로 비워 계정 정리가 돌지 않으므로 계정이 남는다. 다음 반기 팀장처럼 계정만 남은 경우다.)
@@ -344,7 +348,7 @@ test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(4
   assert.equal(listed?.hostUsernames, 'host_c');
 
   expectApiErrorCode(
-    () => call('DELETE', '/api/v1/club-members/u_27_01'),
+    () => call('PATCH', '/api/v1/club-members/u_27_01', { status: 'WITHDRAWN' }),
     409,
     'MEMBER_HAS_HOST_ACCOUNT',
   );
@@ -352,7 +356,10 @@ test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(4
   assert.equal(queryAll(db, "SELECT 1 FROM admin WHERE username = 'host_c'").length, 1);
 
   execute(db, "DELETE FROM admin WHERE username = 'host_c'");
-  assert.equal(call<ClubMember>('DELETE', '/api/v1/club-members/u_27_01').status, 'WITHDRAWN');
+  assert.equal(
+    call<ClubMember>('PATCH', '/api/v1/club-members/u_27_01', { status: 'WITHDRAWN' }).status,
+    'WITHDRAWN',
+  );
 });
 
 test('HOST 계정이 있는 현재 반기 팀장은 팀장 사유 하나로 409를 받고, 팀장을 바꾸라고 알린다', async () => {
@@ -365,7 +372,7 @@ test('HOST 계정이 있는 현재 반기 팀장은 팀장 사유 하나로 409�
     [leader.userId],
   );
   assert.throws(
-    () => call('DELETE', `/api/v1/club-members/${leader.userId}`),
+    () => call('PATCH', `/api/v1/club-members/${leader.userId}`, { status: 'WITHDRAWN' }),
     (error: unknown) =>
       error instanceof ApiError &&
       error.status === 409 &&
@@ -376,7 +383,7 @@ test('HOST 계정이 있는 현재 반기 팀장은 팀장 사유 하나로 409�
   );
 });
 
-test('탈퇴 처리한 사람은 기수별 활동 페이지와 부문 페이지에서 빠진다', async () => {
+test('탈동 처리한 사람은 기수별 활동 페이지와 부문 페이지에서 빠진다', async () => {
   const { db, call } = await setup();
   const target = activeLeaderId(db);
   const { term, track } = queryAll<{ term: number; track: string }>(
@@ -390,52 +397,42 @@ test('탈퇴 처리한 사람은 기수별 활동 페이지와 부문 페이지�
   assert.ok(pageOf('status=ACTIVE').includes(target));
   assert.ok(pageOf(trackQueryOf).includes(target));
 
-  call('DELETE', `/api/v1/club-members/${target}`);
+  call('PATCH', `/api/v1/club-members/${target}`, { status: 'WITHDRAWN' });
 
   assert.ok(!pageOf('status=ACTIVE').includes(target));
-  assert.ok(!pageOf('status=ALUMNI').includes(target));
+  assert.ok(!pageOf('status=COMPLETED').includes(target));
   assert.ok(!pageOf(trackQueryOf).includes(target));
   assert.ok(!pageOf(`status=ACTIVE&${trackQueryOf}`).includes(target));
 });
 
-test('수료 회원도 탈퇴 처리하면 수료 페이지에서 빠진다', async () => {
+test('수료 회원도 탈동 처리하면 수료 페이지에서 빠진다', async () => {
   const { db, call } = await setup();
   const alumniId = queryAll<{ id: string }>(
     db,
-    "SELECT id FROM users WHERE club_status = 'ALUMNI' AND term = 25 AND id NOT IN (SELECT user_id FROM admin) LIMIT 1",
+    "SELECT id FROM users WHERE club_status = 'COMPLETED' AND term = 25 AND id NOT IN (SELECT user_id FROM admin) LIMIT 1",
   )[0].id;
 
-  assert.equal(call<ClubMember>('DELETE', `/api/v1/club-members/${alumniId}`).status, 'WITHDRAWN');
-  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=25`);
+  assert.equal(
+    call<ClubMember>('PATCH', `/api/v1/club-members/${alumniId}`, { status: 'WITHDRAWN' }).status,
+    'WITHDRAWN',
+  );
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=COMPLETED&term=25`);
   assert.ok(!page.members.some((m) => m.id === alumniId));
 });
 
-test('탈퇴 처리: 없는 회원은 404, 이미 탈퇴한 회원은 409 ALREADY_WITHDRAWN', async () => {
-  const { db, call } = await setup();
-  const target = activeLeaderId(db);
+test('탈동 처리: 없는 회원은 404다', async () => {
+  const { call } = await setup();
 
-  expectApiError(() => call('DELETE', '/api/v1/club-members/u_none'), 404);
-  call('DELETE', `/api/v1/club-members/${target}`);
-  expectApiErrorCode(
-    () => call('DELETE', `/api/v1/club-members/${target}`),
-    409,
-    'ALREADY_WITHDRAWN',
-  );
-  // 시드의 탈퇴자(u_27_07)도 같다.
-  expectApiErrorCode(
-    () => call('DELETE', '/api/v1/club-members/u_27_07'),
-    409,
-    'ALREADY_WITHDRAWN',
-  );
+  expectApiError(() => call('PATCH', '/api/v1/club-members/u_none', { status: 'WITHDRAWN' }), 404);
 });
 
-test('운영진은 탈퇴 처리할 수 없다(409 MEMBER_IS_OPERATOR)', async () => {
+test('운영진은 탈동 처리할 수 없다(409 MEMBER_IS_OPERATOR)', async () => {
   const { db, call } = await setup();
   const operatorId = queryAll<{ user_id: string }>(db, 'SELECT user_id FROM admin LIMIT 1')[0]
     .user_id;
 
   expectApiErrorCode(
-    () => call('DELETE', `/api/v1/club-members/${operatorId}`),
+    () => call('PATCH', `/api/v1/club-members/${operatorId}`, { status: 'WITHDRAWN' }),
     409,
     'MEMBER_IS_OPERATOR',
   );
@@ -485,24 +482,24 @@ test('기수별 명단: term 없이 ACTIVE를 읽으면 가장 큰 활동 기수
 
 test('기수별 명단: ALUMNI와 수료 기수(25기)를 보내면 그 기수 수료자만 부문 → 이름 순으로 준다', async () => {
   const { db, call } = await setup();
-  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=25`);
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=COMPLETED&term=25`);
   const expectedIds = queryAll<{ id: string }>(
     db,
-    "SELECT id FROM users WHERE club_status = 'ALUMNI' AND term = 25",
+    "SELECT id FROM users WHERE club_status = 'COMPLETED' AND term = 25",
   ).map((row) => row.id);
 
-  assert.equal(page.status, 'ALUMNI');
+  assert.equal(page.status, 'COMPLETED');
   assert.equal(page.term, 25);
   assert.ok(page.terms.includes(25));
   assert.ok(page.members.length > 0);
   assert.deepEqual(page.members.map((m) => m.id).sort(), [...expectedIds].sort());
-  assert.ok(page.members.every((m) => m.term === 25 && m.status === 'ALUMNI'));
+  assert.ok(page.members.every((m) => m.term === 25 && m.status === 'COMPLETED'));
   assert.ok(isTrackThenNameOrder(page.members));
 });
 
-test('기수별 명단: 탈퇴자와 다른 기수 사람은 섞이지 않는다', async () => {
+test('기수별 명단: 탈동자와 다른 기수 사람은 섞이지 않는다', async () => {
   const { call } = await setup();
-  // 시드에서 u_27_07·u_28_14는 27기 탈퇴다.
+  // 시드에서 u_27_07·u_28_14는 27기 탈동이다.
   const page27 = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=27`);
   const page26 = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=26`);
 
@@ -516,7 +513,7 @@ test('기수별 명단: 탈퇴자와 다른 기수 사람은 섞이지 않는다
 test('기수별 명단: 그 상태인 사람이 없는 기수를 보내면 term은 그대로, members는 빈 배열이다', async () => {
   const { call } = await setup();
   const activeEmpty = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=25`);
-  const alumniEmpty = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=20`);
+  const alumniEmpty = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=COMPLETED&term=20`);
 
   assert.equal(activeEmpty.term, 25);
   assert.deepEqual(activeEmpty.members, []);
@@ -547,20 +544,20 @@ test('기수별 명단: 동아리원을 추가하면 그 기수 페이지에 나
     major: '',
     term: 20,
     track: '시각화',
-    status: 'ALUMNI',
+    status: 'COMPLETED',
   });
 
-  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=20`);
+  const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=COMPLETED&term=20`);
   assert.ok(page.members.some((m) => m.id === created.id));
   assert.ok(page.terms.includes(20));
 });
 
-test('기수별 명단: 활동 상태를 ALUMNI로 바꾸면 ACTIVE 페이지에서 빠지고 ALUMNI 페이지에 나타난다', async () => {
+test('기수별 명단: 활동 상태를 ALUMNI로 바꾸면 ACTIVE 페이지에서 빠지고 COMPLETED 페이지에 나타난다', async () => {
   const { call } = await setup();
-  call('PATCH', '/api/v1/club-members/u_28_01', { status: 'ALUMNI' });
+  call('PATCH', '/api/v1/club-members/u_28_01', { status: 'COMPLETED' });
 
   const active = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ACTIVE&term=27`);
-  const alumni = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=ALUMNI&term=27`);
+  const alumni = call<ClubMemberTermPage>('GET', `${BY_TERM}?status=COMPLETED&term=27`);
 
   assert.ok(!active.members.some((m) => m.id === 'u_28_01'));
   assert.ok(alumni.members.some((m) => m.id === 'u_28_01'));
@@ -569,7 +566,7 @@ test('기수별 명단: 활동 상태를 ALUMNI로 바꾸면 ACTIVE 페이지에
 
 // ── by-term의 track 조건 (2026-10-22 변경 계약) ──────────────────────────────
 
-const STATUS_ORDER = ['ACTIVE', 'ALUMNI'];
+const STATUS_ORDER = ['ACTIVE', 'COMPLETED'];
 
 /** 활동 상태(활동 → 수료) → 부문 → 이름 → id 순인지 본다. */
 function isStatusTrackNameOrder(members: readonly ClubMember[]): boolean {
@@ -595,14 +592,14 @@ test('기수별 명단(track): status 없이 track=분석만 보내면 분석 �
     "SELECT id FROM users WHERE track = '분석' AND term = 27 AND club_status = 'ACTIVE' ORDER BY name DESC",
   );
   const toAlumni = activeAnalysts[0].id;
-  call('PATCH', `/api/v1/club-members/${toAlumni}`, { status: 'ALUMNI' });
+  call('PATCH', `/api/v1/club-members/${toAlumni}`, { status: 'COMPLETED' });
   const withdrawnIds = queryAll<{ id: string }>(
     db,
     "SELECT id FROM users WHERE track = '분석' AND term = 27 AND club_status = 'WITHDRAWN'",
   ).map((row) => row.id);
   const expectedIds = queryAll<{ id: string }>(
     db,
-    "SELECT id FROM users WHERE track = '분석' AND term = 27 AND club_status IN ('ACTIVE', 'ALUMNI')",
+    "SELECT id FROM users WHERE track = '분석' AND term = 27 AND club_status IN ('ACTIVE', 'COMPLETED')",
   ).map((row) => row.id);
 
   const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?${trackQuery('분석')}&term=27`);
@@ -610,41 +607,41 @@ test('기수별 명단(track): status 없이 track=분석만 보내면 분석 �
   assert.equal(page.status, null);
   assert.equal(page.track, '분석');
   assert.equal(page.term, 27);
-  assert.ok(withdrawnIds.length > 0, '시드에 27기 분석 탈퇴자가 있어야 한다');
+  assert.ok(withdrawnIds.length > 0, '시드에 27기 분석 탈동자가 있어야 한다');
   assert.ok(!page.members.some((m) => withdrawnIds.includes(m.id)));
   assert.ok(page.members.every((m) => m.track === '분석' && m.term === 27));
-  assert.ok(page.members.every((m) => m.status === 'ACTIVE' || m.status === 'ALUMNI'));
+  assert.ok(page.members.every((m) => m.status === 'ACTIVE' || m.status === 'COMPLETED'));
   assert.deepEqual(page.members.map((m) => m.id).sort(), [...expectedIds].sort());
   assert.ok(isStatusTrackNameOrder(page.members));
   // 수료로 바꾼 사람은 이름이 가장 뒤가 아니어도 활동자 뒤에 온다.
   assert.equal(page.members.at(-1)?.id, toAlumni);
-  assert.equal(page.members.at(-1)?.status, 'ALUMNI');
+  assert.equal(page.members.at(-1)?.status, 'COMPLETED');
 });
 
 test('기수별 명단(track): track만 보내면 terms는 그 부문 활동·수료자가 있는 기수 전체 큰 순, term이 없으면 terms[0] 페이지다', async () => {
   const { db, call } = await setup();
-  // 20기 분석 탈퇴자, 19기 시각화 수료자를 넣는다. 분석 terms에는 둘 다 들어가면 안 된다.
+  // 20기 분석 탈동자, 19기 시각화 수료자를 넣는다. 분석 terms에는 둘 다 들어가면 안 된다.
   const base = { phone: '010-0000-0000', university: '', major: '' };
-  // 탈퇴로 바로 추가할 수는 없으므로 추가한 뒤 탈퇴 처리한다.
+  // 탈동으로 바로 추가할 수는 없으므로 추가한 뒤 탈동 처리한다.
   const withdrawnId = call<ClubMember>('POST', '/api/v1/club-members', {
     ...base,
     email: 'w20@example.com',
-    name: '탈퇴분석',
+    name: '탈동분석',
     term: 20,
     track: '분석',
   }).id;
-  call('DELETE', `/api/v1/club-members/${withdrawnId}`);
+  call('PATCH', `/api/v1/club-members/${withdrawnId}`, { status: 'WITHDRAWN' });
   call('POST', '/api/v1/club-members', {
     ...base,
     email: 'a19@example.com',
     name: '수료시각화',
     term: 19,
     track: '시각화',
-    status: 'ALUMNI',
+    status: 'COMPLETED',
   });
   const expectedTerms = queryAll<{ term: number }>(
     db,
-    "SELECT DISTINCT term FROM users WHERE track = '분석' AND club_status IN ('ACTIVE', 'ALUMNI') ORDER BY term DESC",
+    "SELECT DISTINCT term FROM users WHERE track = '분석' AND club_status IN ('ACTIVE', 'COMPLETED') ORDER BY term DESC",
   ).map((row) => row.term);
 
   const page = call<ClubMemberTermPage>('GET', `${BY_TERM}?${trackQuery('분석')}`);
@@ -689,12 +686,12 @@ test('기수별 명단(track): status와 track을 함께 보내면 두 조건을
   // 수료 + 엔지니어링: term이 없으면 그 조건의 가장 큰 기수(25기)다.
   const alumni = call<ClubMemberTermPage>(
     'GET',
-    `${BY_TERM}?status=ALUMNI&${trackQuery('엔지니어링')}`,
+    `${BY_TERM}?status=COMPLETED&${trackQuery('엔지니어링')}`,
   );
   assert.equal(alumni.term, 25);
   assert.deepEqual(alumni.terms, [25]);
   assert.ok(alumni.members.length > 0);
-  assert.ok(alumni.members.every((m) => m.status === 'ALUMNI' && m.track === '엔지니어링'));
+  assert.ok(alumni.members.every((m) => m.status === 'COMPLETED' && m.track === '엔지니어링'));
 });
 
 test('기수별 명단(track): status만 보내면 응답의 track은 null이다', async () => {
@@ -716,4 +713,155 @@ test('기수별 명단(track): status·track이 둘 다 없거나 track이 세 �
   expectApiError(get(`?status=ACTIVE&${trackQuery('기획')}`), 400);
   expectApiError(get(`?status=WITHDRAWN&${trackQuery('분석')}`), 400);
   expectApiError(get(`?${trackQuery('분석')}&term=0`), 400);
+});
+
+test('활동 상태를 미수료(NOT_COMPLETED)로 바꿀 수 있고, 기수별 명단에는 나오지 않는다', async () => {
+  const { call } = await setup();
+
+  const updated = call<ClubMember>('PATCH', '/api/v1/club-members/u_28_01', {
+    status: 'NOT_COMPLETED',
+  });
+
+  assert.equal(updated.status, 'NOT_COMPLETED');
+  for (const status of ['ACTIVE', 'COMPLETED']) {
+    const page = call<{ members: ClubMember[] }>(
+      'GET',
+      `/api/v1/club-members/by-term?status=${status}`,
+    );
+    assert.ok(!page.members.some((member) => member.id === 'u_28_01'));
+  }
+});
+
+test('활동 중인 회원의 이름·기수·부문은 고칠 수 없고(400 ACTIVE_MEMBER_IDENTITY_LOCKED) 연락처는 고칠 수 있다', async () => {
+  const { call } = await setup();
+  const before = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === 'u_28_01')!;
+  assert.equal(before.status, 'ACTIVE');
+
+  for (const body of [{ name: '홍길동' }, { term: 26 }, { track: '시각화' }]) {
+    expectApiErrorCode(
+      () => call('PATCH', '/api/v1/club-members/u_28_01', body),
+      400,
+      'ACTIVE_MEMBER_IDENTITY_LOCKED',
+    );
+  }
+  // 같은 값을 보내는 것은 바꾸는 것이 아니라 통과한다.
+  call('PATCH', '/api/v1/club-members/u_28_01', { name: before.name, phone: '010-0000-0000' });
+});
+
+/** 반기 명단·로그인 계정·팀장 어디에도 걸리지 않은, 잘못 등록한 회원을 하나 만든다. */
+function addMistakenMember(call: Awaited<ReturnType<typeof setup>>['call']): ClubMember {
+  return call<ClubMember>('POST', '/api/v1/club-members', {
+    name: '잘못등록',
+    email: 'wrong@example.com',
+    phone: '010-0000-0000',
+    term: 27,
+    track: '분석',
+  });
+}
+
+test('삭제(DELETE)는 잘못 등록한 회원을 목록에서 지우고, 다시 읽으면 404다', async () => {
+  const { db, call } = await setup();
+  const mistaken = addMistakenMember(call);
+  // 활동 회원을 추가하면 현재 반기 명단에 자동으로 들어간다. 팀 활동이 없으니 그래도 지울 수 있다.
+  const rosterRows = () =>
+    queryAll(db, 'SELECT 1 FROM semester_members WHERE user_id = ?', [mistaken.id]).length;
+  assert.equal(rosterRows(), 1);
+
+  call('DELETE', `/api/v1/club-members/${mistaken.id}`);
+
+  assert.ok(!call<ClubMember[]>('GET', '/api/v1/club-members').some((m) => m.id === mistaken.id));
+  expectApiError(
+    () => call('PATCH', `/api/v1/club-members/${mistaken.id}`, { major: '통계학' }),
+    404,
+  );
+  // 행은 남는다(soft delete).
+  assert.equal(queryAll(db, 'SELECT 1 FROM users WHERE id = ?', [mistaken.id]).length, 1);
+  // 자동으로 들어갔던 반기 명단 행은 함께 빠진다.
+  assert.equal(rosterRows(), 0);
+});
+
+test('팀에서 활동한 회원과 운영진은 삭제할 수 없다(409)', async () => {
+  const { db, call } = await setup();
+  const enrolled = queryAll<{ user_id: string }>(
+    db,
+    `SELECT user_id FROM team_members
+      WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT user_id FROM admin) LIMIT 1`,
+  )[0].user_id;
+  const operator = queryAll<{ user_id: string }>(db, 'SELECT user_id FROM admin LIMIT 1')[0]
+    .user_id;
+
+  expectApiErrorCode(
+    () => call('DELETE', `/api/v1/club-members/${enrolled}`),
+    409,
+    'MEMBER_HAS_ENROLLMENTS',
+  );
+  expectApiErrorCode(
+    () => call('DELETE', `/api/v1/club-members/${operator}`),
+    409,
+    'MEMBER_IS_OPERATOR',
+  );
+});
+
+test('잘못 등록해 지운 회원과 같은 이름·기수로 다시 등록할 수 있다', async () => {
+  const { call } = await setup();
+  const mistaken = addMistakenMember(call);
+  call('DELETE', `/api/v1/club-members/${mistaken.id}`);
+
+  const again = addMistakenMember(call);
+
+  assert.notEqual(again.id, mistaken.id);
+  assert.equal(again.name, mistaken.name);
+});
+
+test('수료·탈동에서 활동으로 되돌리면서 이름·기수·부문을 함께 바꿀 수는 없다', async () => {
+  const { call } = await setup();
+  call('PATCH', '/api/v1/club-members/u_28_01', { status: 'COMPLETED' });
+
+  expectApiErrorCode(
+    () => call('PATCH', '/api/v1/club-members/u_28_01', { status: 'ACTIVE', track: '시각화' }),
+    400,
+    'ACTIVE_MEMBER_IDENTITY_LOCKED',
+  );
+});
+
+test('생년월일·병행 부문은 추가·수정으로 저장되고, null이면 지우고 보내지 않으면 그대로다', async () => {
+  const { call } = await setup();
+  const created = call<ClubMember>('POST', '/api/v1/club-members', {
+    name: '홍길동',
+    email: 'gildong@example.com',
+    phone: '010-0000-0000',
+    term: 20,
+    track: '시각화',
+    status: 'COMPLETED',
+    birthDate: '2000-01-31',
+    parallelTrack: '분석',
+  });
+  assert.equal(created.birthDate, '2000-01-31');
+  assert.equal(created.parallelTrack, '분석');
+
+  const path = `/api/v1/club-members/${created.id}`;
+  const kept = call<ClubMember>('PATCH', path, { major: '통계학' });
+  assert.equal(kept.birthDate, '2000-01-31');
+  assert.equal(kept.parallelTrack, '분석');
+
+  const cleared = call<ClubMember>('PATCH', path, { birthDate: null, parallelTrack: null });
+  assert.equal(cleared.birthDate, null);
+  assert.equal(cleared.parallelTrack, null);
+});
+
+test('생년월일 형식이 틀리거나 병행 부문이 부문과 같으면 400이다', async () => {
+  const { call } = await setup();
+  const path = '/api/v1/club-members/u_28_01';
+  const track = call<ClubMember[]>('GET', '/api/v1/club-members').find(
+    (m) => m.id === 'u_28_01',
+  )?.track;
+
+  expectApiError(() => call('PATCH', path, { birthDate: '' }), 400);
+  expectApiError(() => call('PATCH', path, { birthDate: '2000/01/31' }), 400);
+  // 형식은 맞지만 없는 날짜, 오늘 뒤의 날짜도 400이다.
+  expectApiError(() => call('PATCH', path, { birthDate: '2001-02-30' }), 400);
+  expectApiError(() => call('PATCH', path, { birthDate: '2000-13-01' }), 400);
+  expectApiError(() => call('PATCH', path, { birthDate: '2999-01-01' }), 400);
+  expectApiError(() => call('PATCH', path, { parallelTrack: '없는부문' }), 400);
+  expectApiError(() => call('PATCH', path, { parallelTrack: track }), 400);
 });
