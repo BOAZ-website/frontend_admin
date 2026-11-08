@@ -353,7 +353,8 @@ export function findTeam(db: Database, teamId: string, group?: TeamGroup): TeamD
 export function listMembers(db: Database, teamId: string): MemberDto[] {
   return queryAll<MemberDto & Record<string, unknown>>(
     db,
-    `SELECT tm.id, tm.user_id AS userId, COALESCE(m.name, u.name) AS name,
+    // 이름은 동아리원 명단(users)의 지금 값, 기수·부문은 팀에 넣을 때의 값(members, 기수별 이력)이다.
+    `SELECT tm.id, tm.user_id AS userId, u.name AS name,
             COALESCE(m.term, u.term) AS term, COALESCE(m.track, u.track) AS track
        FROM team_members tm
        JOIN users u ON u.id = tm.user_id
