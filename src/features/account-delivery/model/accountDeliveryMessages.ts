@@ -91,26 +91,6 @@ BOAZ {generation} [{track}] 출결 관리를 위한 그룹리더(HOST) 계정이
 • 겸직 중인 다른 그룹(ADV/스터디)이 있으신 경우 본 단일 계정으로 통합 관리됩니다.`,
   },
 
-  /**
-   * 이미 있는 그룹리더 계정에 다른 그룹 권한(ADV·스터디)을 더했을 때. 아이디·비밀번호는 그대로다.
-   * 자리: {name} {generation} {track} {permission}(ADV·스터디) {teamName} {username} {menuName}(출결 입력 메뉴 이름)
-   */
-  hostPermissionAdd: {
-    title: '{generation} {track} {name} {permission} 권한 추가',
-    body: `[BOAZ 그룹리더 계정 권한 추가 안내]
-
-안녕하세요, {name}님!
-지금 쓰고 계신 계정에 {permission} 출결 접근 권한을 추가해 두었습니다.
-새 계정을 따로 만들 필요 없이, 이전에 받으신 아이디와 비밀번호로 그대로 로그인하시면 됩니다.
-
-• 담당 팀: [{permission}] {teamName}
-• 로그인 아이디: {username}
-• 비밀번호: 이전에 받으신 비밀번호 그대로
-• 접속 URL: https://attendance.boaz.org/host
-
-로그인한 뒤 {menuName} 메뉴에서 담당 팀의 출결을 입력해 주세요.`,
-  },
-
   /** 그룹리더 계정 비밀번호 재설정. 자리: {name} {username} {password} */
   hostPasswordReset: {
     title: '{name} 비밀번호 재설정',

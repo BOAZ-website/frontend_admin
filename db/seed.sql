@@ -23,6 +23,12 @@ INSERT INTO cohorts (cohort, semester_label, start_date, end_date, is_current, a
   (26, '26-1', '2026-01-01', '2026-06-30', 0, 25),
   (27, '26-2', '2026-07-01', '2026-12-31', 1, 26);
 
+-- 반기마다 방학(첫 2개월)·학기(나머지) 기간. 반기 관리 화면(SYS-SEM)이 생기면 그 화면에서 고친다.
+INSERT INTO semester_periods (cohort, period, start_date, end_date)
+SELECT cohort, '방학', start_date, date(start_date, '+2 months', '-1 day') FROM cohorts
+UNION ALL
+SELECT cohort, '학기', date(start_date, '+2 months'), end_date FROM cohorts;
+
 -- 반기별 점수 집계 대상 회원 기수: 그 반기의 기수와 직전 기수.
 INSERT INTO semester_member_terms (cohort, term)
 SELECT cohort, cohort - 1 FROM cohorts
@@ -1572,46 +1578,6 @@ SELECT ts.semester_cohort, tm.user_id, u.name, u.term, u.track
 INSERT OR IGNORE INTO semester_members (cohort, user_id, name, term, track)
 SELECT (SELECT cohort FROM cohorts WHERE is_current = 1), id, name, term, track FROM users;
 
--- ─────────────────────────── HOST 계정 (mock 데이터) ───────────────────────────
--- ADV·스터디 팀장을 겸하는 경우:
---   · 고준서: ADV 분석 1팀 + LLM Agent & RAG 스터디. 계정(host_adv_ana1)이 두 권한을 모두 가진다.
---   · 강태양: ADV 엔지 1팀 + 테라폼 스터디 + 쿠버네티스 스터디. 계정(host_adv_eng1)은 ADV 권한만 있다(스터디 권한 추가 흐름 확인용).
---   · 송하늘: B조 스터디 + ADV 지리공간 맵핑. 계정(host_b)은 스터디 권한만 있다(ADV 권한 추가 흐름 확인용).
-
-INSERT INTO host_accounts (id, username, initial_password, user_id, host_name, generation, track, role, team_id,
-                           group_type, account_type, created_at, active, last_login) VALUES
-  ('h1', 'host_a', 'boaz2026!a', 'u_26_01', NULL, NULL, NULL, '그룹리더', 'study_a',
-   '스터디', 'STUDY', '2025-02-28', 1, '2025-03-18 19:30'),
-  ('h3', 'host_c', 'boaz2026!c', 'u_27_01', NULL, NULL, NULL, '그룹리더', 'study_c',
-   '스터디', 'STUDY', '2025-02-28', 1, '2025-03-11 20:40'),
-  ('h_adv1', 'host_adv_ana1', 'boaz2026!adv1', 'u_27_02', NULL, NULL, NULL, '그룹리더', 'adv_t1',
-   'ADV', 'ADV', '2025-02-28', 1, '2025-03-19 14:20'),
-  ('h_adv2', 'host_adv_vis1', 'boaz2026!adv2', 'u_28_08', NULL, NULL, NULL, '그룹리더', 'adv_t4',
-   'ADV', 'ADV', '2025-02-28', 1, '2025-03-19 15:10'),
-  ('h_adv3', 'host_adv_eng1', 'boaz2026!adv3', 'u_28_04', NULL, NULL, NULL, '그룹리더', 'adv_t7',
-   'ADV', 'ADV', '2025-02-28', 1, '2025-03-19 16:05'),
-  ('h_m2', 'host_b', 'boaz2026!b', 'u_27_06', NULL, NULL, NULL, '그룹리더', 'study_m2',
-   '스터디', 'STUDY', '2026-08-01', 1, NULL);
-
-INSERT INTO host_permissions (host_id, position, permission) VALUES
-  ('h1', 0, 'STUDY'),
-  ('h3', 0, 'STUDY'),
-  ('h_adv1', 0, 'ADV'),
-  ('h_adv1', 1, 'STUDY'),
-  ('h_adv2', 0, 'ADV'),
-  ('h_adv3', 0, 'ADV'),
-  ('h_m2', 0, 'STUDY');
-
-INSERT INTO host_assigned_groups (host_id, position, team_id) VALUES
-  ('h_adv1', 0, 'adv_t1'),
-  ('h_adv1', 1, 'study_d'),
-  ('h_adv3', 0, 'adv_t7');
-
-INSERT INTO host_concurrent_roles (host_id, position, role) VALUES
-  ('h1', 0, '운영진'),
-  ('h_adv1', 0, '운영진'),
-  ('h_adv1', 1, 'LLM Agent & RAG 스터디');
-
 -- ── 동아리원 관리 화면 예시 값 ─────────────────────────────
 -- 탈퇴 명단 쪽 넘김(한 쪽 7명)을 볼 수 있게 탈퇴 회원을 더 넣는다. 팀·반기 명단·출결에는 넣지 않는다.
 -- 25기 이하는 모두 수료로 두므로 26기로 넣는다.
@@ -1700,9 +1666,24 @@ UPDATE admin SET is_team_lead = 1 WHERE id IN (1, 4, 6, 7, 14, 24);
 
 
 -- 운영진 계정(admin 행)이 있는 회원은 동아리원 관리에서도 운영진 역할로 보이게 맞춘다.
--- 역할은 admin 행이 있는지로만 정한다(admin 행 없이 OPERATOR인 회원을 두지 않는다). 대표(PRESIDENT)는 그대로 둔다.
+-- 역할은 운영진 계정(HOST가 아닌 admin 행)이 있는지로만 정한다(그런 행 없이 OPERATOR인 회원을 두지 않는다). 대표(PRESIDENT)는 그대로 둔다.
 UPDATE users SET club_role = 'OPERATOR'
- WHERE id IN (SELECT user_id FROM admin) AND club_role <> 'PRESIDENT';
+ WHERE id IN (SELECT user_id FROM admin WHERE role <> 'HOST') AND club_role <> 'PRESIDENT';
+
+-- ─────────────────────────── HOST 계정 (mock 데이터) ───────────────────────────
+-- 스터디장·ADV 팀장의 HOST 계정. 운영진 계정과 같은 admin 표에 role = 'HOST'로 들어간다.
+-- 계정은 회원에 묶이고, 맡은 그룹은 teams.leader_id로 정해진다(계정에 팀을 따로 저장하지 않는다).
+--   · 고준서(host_adv_ana1): ADV 분석 1팀 + LLM Agent & RAG 스터디를 계정 하나로 맡는다.
+--   · 강태양(host_adv_eng1): ADV 엔지 1팀 + 테라폼 스터디 + 쿠버네티스 스터디.
+--   · 송하늘(host_b): B조 스터디 + ADV 시각화 2팀.
+--   · A조 스터디장(u_26_01)은 운영진 계정(boaz_master)이 있어 HOST 계정을 따로 두지 않는다.
+-- 임시 비밀번호는 아이디마다 다르다.
+INSERT INTO admin (id, user_id, username, password, role, team_name, created_by, created_at, updated_at) VALUES
+  (101, 'u_27_01', 'host_c', 'boaz2026!c', 'HOST', '그룹리더', 4, '2026-07-10 10:00:00', '2026-07-10 10:00:00'),
+  (102, 'u_27_02', 'host_adv_ana1', 'boaz2026!adv1', 'HOST', '그룹리더', 4, '2026-07-10 10:10:00', '2026-07-10 10:10:00'),
+  (103, 'u_28_08', 'host_adv_vis1', 'boaz2026!adv2', 'HOST', '그룹리더', 4, '2026-07-10 10:20:00', '2026-07-10 10:20:00'),
+  (104, 'u_28_04', 'host_adv_eng1', 'boaz2026!adv3', 'HOST', '그룹리더', 4, '2026-07-10 10:30:00', '2026-07-10 10:30:00'),
+  (105, 'u_27_06', 'host_b', 'boaz2026!b', 'HOST', '그룹리더', 4, '2026-08-01 10:00:00', '2026-08-01 10:00:00');
 
 -- 기획팀장에게 콘텐츠 CUD를 열어 준 예외 한 건(기타 운영진 기본 세트에는 없다).
 INSERT INTO admin_permission_override (id, admin_id, permission, effect, granted_by, created_at) VALUES
@@ -1741,8 +1722,8 @@ INSERT INTO audit_log (occurred_at, actor_admin_id, action, target_type, target_
   ('2026-10-14 11:36:52', 3, 'SCORE_RULE_ACTIVATE', 'SCORE_RULE', '["rule-27"]', 'POST', '/api/v1/score-rules/rule-27/activate', '{"label":"Version 3"}', '10.0.12.25'),
   ('2026-10-17 18:02:26', 1, 'HOST_ACCOUNT_UPDATE', 'HOST', '["h1"]', 'PATCH', '/api/v1/hosts/h1', '{"fields":["permissions"],"label":"host_a","request":{"permissions":["STUDY"]}}', '10.0.12.7');
 
--- HOST(그룹 계정)가 한 기록과, 지금은 운영진 계정이 지워진 사람(admin.id 99)이 한 기록.
+-- HOST 계정(admin.id 101, host_c)이 한 기록과, 지금은 운영진 계정이 지워진 사람(admin.id 99)이 한 기록.
 -- 수행자 회원 id와 등급을 함께 남긴다(위 예시는 비워 두어, 조회할 때 지금 계정에서 찾는다).
 INSERT INTO audit_log (occurred_at, actor_admin_id, actor_user_id, actor_role, action, target_type, target_ids, api_method, api_path, detail, ip) VALUES
   ('2026-08-20 17:42:05', 99, 'u_25_03', 'TEAM', 'CONTENT_UPDATE', 'CONTENT', '["faq-12"]', 'PATCH', '/api/v1/admin/faqs/faq-12', '{"kind":"FAQ","label":"지원 자격이 있나요?","fields":["body"],"request":{"answer":"BOAZ에 지원하려면 대학생 또는 대학원생이어야 하며, 전공은 상관없습니다. 활동 기간(1년) 동안 매주 세션에 참여할 수 있어야 합니다."}}', '10.0.12.39'),
-  ('2026-09-23 22:05:13', NULL, 'u_27_01', 'HOST', 'ATTENDANCE_SUBMIT', 'TEAM', '["study_c"]', 'POST', '/api/v1/study-teams/study_c/weeks/3/submit', '{"group":"STUDY","week":3,"label":"태블로 & D3.js 스터디","request":{"records":[{"memberId":"c1","subType":"","status":"absent","memo":"개인 일정으로 인한 결석"},{"memberId":"c2","subType":"","status":"present"},{"memberId":"c3","subType":"","status":"present"},{"memberId":"c4","subType":"","status":"present"}]}}', '10.0.12.88');
+  ('2026-09-23 22:05:13', 101, 'u_27_01', 'HOST', 'ATTENDANCE_SUBMIT', 'TEAM', '["study_c"]', 'POST', '/api/v1/study-teams/study_c/weeks/3/submit', '{"group":"STUDY","week":3,"label":"태블로 & D3.js 스터디","request":{"records":[{"memberId":"c1","subType":"","status":"absent","memo":"개인 일정으로 인한 결석"},{"memberId":"c2","subType":"","status":"present"},{"memberId":"c3","subType":"","status":"present"},{"memberId":"c4","subType":"","status":"present"}]}}', '10.0.12.88');
