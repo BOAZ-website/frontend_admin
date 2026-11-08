@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { isoDateOf, twoDigitYearOf } from '@/shared/lib/date';
@@ -26,6 +26,7 @@ interface DateFilterProps {
  */
 export function DateFilter({ value, onChange, ariaLabel }: DateFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const today = isoDateOf(new Date());
   const [shown, setShown] = useState(() => dateOfIso(value || today));
   const year = shown.getFullYear();
@@ -35,9 +36,14 @@ export function DateFilter({ value, onChange, ariaLabel }: DateFilterProps) {
     setShown(dateOfIso(value || today));
     setIsOpen(true);
   };
+  // 닫을 때 달력 안 버튼이 사라지므로 포커스를 여는 버튼으로 돌려, 키보드 사용자가 자리를 잃지 않게 한다.
+  const closeToTrigger = () => {
+    setIsOpen(false);
+    triggerRef.current?.focus();
+  };
   const handlePick = (iso: string) => {
     onChange(iso);
-    setIsOpen(false);
+    closeToTrigger();
   };
 
   return (
@@ -47,10 +53,11 @@ export function DateFilter({ value, onChange, ariaLabel }: DateFilterProps) {
         if (!event.currentTarget.contains(event.relatedTarget)) setIsOpen(false);
       }}
       onKeyDown={(event) => {
-        if (event.key === 'Escape') setIsOpen(false);
+        if (event.key === 'Escape' && isOpen) closeToTrigger();
       }}
     >
       <button
+        ref={triggerRef}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="dialog"
@@ -71,6 +78,8 @@ export function DateFilter({ value, onChange, ariaLabel }: DateFilterProps) {
         <div
           role="dialog"
           aria-label={ariaLabel}
+          // 클릭으로 버튼에 포커스를 주지 않는 브라우저(Safari 등)에서도 달력 안 클릭을 바깥 이동으로 보지 않게 한다.
+          tabIndex={-1}
           className="absolute right-0 top-full z-30 mt-2 w-64 rounded-md border border-slate-200 bg-white p-3 shadow-[0_12px_32px_-14px_rgba(15,23,42,0.28)] animate-in fade-in slide-in-from-top-1 duration-150"
         >
           <div className="mb-2 flex items-center justify-between">
