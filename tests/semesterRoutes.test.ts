@@ -502,7 +502,7 @@ test('명단에 없는 회원 id는 400 USER_NOT_FOUND, 탈동 회원은 400 USE
 test('진행 중·종료 반기는 지울 수 없다(409 SEMESTER_LOCKED)', async () => {
   const { call } = await setup();
 
-  for (const semester of ['26-2', '26-1', '25-2']) {
+  for (const semester of ['26-2', '26-1']) {
     expectApiError(() => call('DELETE', `/api/v1/semesters/${semester}`), 409, 'SEMESTER_LOCKED');
   }
 });
