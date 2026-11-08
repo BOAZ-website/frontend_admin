@@ -1,55 +1,21 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
+import { AUDIT_ACTIONS, type AuditLogEntry } from '@/entities/audit-log/model/types';
+import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 import { MODAL_CLOSE_BTN } from '@/shared/ui/systemStyles';
 
-import { AUDIT_ACTIONS, type AuditLogEntry } from '@/entities/audit-log/model/types';
+import { type BodyFile, filesOfBody } from '../model/bodyFiles';
 
 const EMPTY_CELL = '-';
-/** 사진으로 미리 볼 파일 확장자. */
-const IMAGE_EXTENSION = /\.(jpe?g|png|gif|webp)$/i;
 
-/** Body의 files에서 읽은 파일 한 개. */
-interface BodyFile {
-  name: string;
-  url: string | null;
-  isImage: boolean;
-}
-
-/**
- * http·https 주소만 돌려준다. requestBody는 요청 본문 그대로라 어떤 값이든 들어올 수 있으므로,
- * javascript: 같은 주소가 <img src>나 링크에 들어가지 않게 나머지는 null로 둔다(이름만 보인다).
- */
-function safeHttpUrl(value: string): string | null {
-  try {
-    const { protocol } = new URL(value, window.location.origin);
-    return protocol === 'http:' || protocol === 'https:' ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 요청 Body의 files 배열을 파일 목록으로 읽는다. 항목이 문자열이면 이름, {name, url} 객체면 이름과 주소다.
- * 주소가 있고 사진 확장자면 사진으로 본다. files가 없거나 배열이 아니면 빈 목록이다.
- */
-function filesOfBody(body: Readonly<Record<string, unknown>> | null): BodyFile[] {
-  const files = body?.files;
-  if (!Array.isArray(files)) return [];
-  return files.flatMap((item: unknown): BodyFile[] => {
-    if (typeof item === 'string') return [{ name: item, url: null, isImage: false }];
-    if (typeof item !== 'object' || item === null) return [];
-    const { name, url } = item as { name?: unknown; url?: unknown };
-    if (typeof name !== 'string') return [];
-    const fileUrl = typeof url === 'string' ? safeHttpUrl(url) : null;
-    return [
-      { name, url: fileUrl, isImage: fileUrl !== null && IMAGE_EXTENSION.test(fileUrl || name) },
-    ];
-  });
+interface RowProps {
+  label: string;
+  children: ReactNode;
 }
 
 /** 이름 열(64px)과 값 열로 된 한 줄. 팝업의 글자는 제목을 빼고 모두 12px이다. */
-function Row({ label, children }: { label: string; children: ReactNode }) {
+function Row({ label, children }: RowProps) {
   return (
     <div className="flex gap-4">
       <dt className="w-16 shrink-0 text-xs leading-5 text-slate-500">{label}</dt>
@@ -60,16 +26,21 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+interface AttachmentsProps {
+  title: string;
+  files: readonly BodyFile[];
+}
+
 /**
  * 올린(또는 삭제한) 파일 칸. 사진은 두 줄씩 크게 미리 보이고(누르면 새 창에서 원본), 아래에 파일 이름을 쓴다.
  * 사진이 아닌 파일은 이름 목록이고, 주소가 있으면 링크다.
  */
-function Attachments({ title, files }: { title: string; files: readonly BodyFile[] }) {
+function Attachments({ title, files }: AttachmentsProps) {
   const images = files.filter((file) => file.isImage && file.url);
   const others = files.filter((file) => !(file.isImage && file.url));
   return (
     <section className="border-t border-slate-200 py-4" aria-label={title}>
-      <h4 className="text-xs font-semibold text-slate-900">{title}</h4>
+      <h4 className="text-xs font-bold text-slate-900">{title}</h4>
       {images.length > 0 && (
         <ul className="mt-2 grid grid-cols-2 gap-2">
           {images.map((file, index) => (
@@ -139,30 +110,38 @@ interface AuditLogDetailProps {
  */
 export function AuditLogDetail({ entry, onClose, onOpenPermissions }: AuditLogDetailProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    // 닫히면 창을 연 버튼(상세 보기)으로 포커스를 돌려준다.
+    const opener = document.activeElement;
     closeRef.current?.focus();
+    return () => {
+      if (opener instanceof HTMLElement) opener.focus();
+    };
   }, []);
+  // Escape로 닫고, Tab은 창 안에서만 돈다(R12-11).
+  useDialogKeyboard(panelRef, onClose);
 
   const actorName = entry.actorName ?? (entry.actorId === null ? EMPTY_CELL : '삭제된 회원');
   const actorUserId = entry.actorHasAccount ? entry.actorUserId : null;
-  const files = filesOfBody(entry.requestBody);
+  const files = filesOfBody(entry.requestBody, window.location.origin);
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="audit-detail-title"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
-      }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
       className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 p-4"
     >
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+      <div
+        ref={panelRef}
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"
+      >
         <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-4">
-          <h3 id="audit-detail-title" className="min-w-0 text-sm font-bold text-slate-900">
+          <h3 id="audit-detail-title" className="min-w-0 text-base font-bold text-slate-900">
             {AUDIT_ACTIONS[entry.action].label}
           </h3>
           <button

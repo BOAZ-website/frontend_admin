@@ -11,6 +11,7 @@ import { AUDIT_RULES, IGNORED_WRITES, recordWrite } from '../src/shared/api/mock
 import { MOCK_ROUTES } from '../src/shared/api/mock/mockRoutes';
 import { ApiError } from '../src/shared/api/apiError';
 import { createRouter } from '../src/shared/api/mock/router';
+import { filesOfBody } from '../src/pages/system-audit/model/bodyFiles';
 import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
 
 const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
@@ -547,4 +548,73 @@ test('비밀번호 변경 기록의 requestBody는 새 비밀번호·현재 비�
   assert.deepEqual(entry.requestBody, { newPassword: '(비공개)', currentPassword: '(비공개)' });
   assert.ok(!JSON.stringify(entry).includes('New!Pass2027'));
   assert.ok(!JSON.stringify(entry).includes('Old!Pass2026'));
+});
+
+test('객체 기본 속성 이름(toString 등)은 감사 액션으로 받지 않는다', async () => {
+  const { call } = await setup();
+
+  for (const action of ['toString', 'constructor', 'hasOwnProperty']) {
+    expectApiError(() => call('GET', `/api/v1/admin/audit-logs?action=${action}`), 400);
+  }
+});
+
+test('대상 id 칸이 배열이 아닌 기록이 섞여 있어도 목록 조회가 실패하지 않는다', async () => {
+  const { db, call } = await setup();
+  const before = call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=200').total;
+  queryAll(
+    db,
+    `INSERT INTO audit_log (occurred_at, actor_admin_id, action, target_type, target_ids, ip)
+     VALUES ('2026-10-01 10:00:00', 1, 'SCORE_RULE_CREATE', 'SCORE_RULE', '{"id":"x"}', '127.0.0.1')`,
+  );
+
+  const page = call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=200');
+
+  assert.equal(page.total, before + 1);
+});
+
+test('조회 날짜는 달력에 있는 날짜여야 하고, 시작일이 종료일보다 늦으면 400이다', async () => {
+  const { call } = await setup();
+
+  expectApiError(() => call('GET', '/api/v1/admin/audit-logs?from=2026-02-30'), 400);
+  expectApiError(() => call('GET', '/api/v1/admin/audit-logs?from=2026-10-02&to=2026-10-01'), 400);
+});
+
+test('상세 창 파일: 주소에 쿼리 문자열이 붙어도 사진으로 보고, http·https가 아닌 주소는 링크로 쓰지 않는다', () => {
+  const files = filesOfBody(
+    {
+      files: [
+        { name: '표지', url: 'https://example.com/a.png?v=2' },
+        { name: '위험', url: 'javascript:alert(1)' },
+        '이름만.pdf',
+        { url: 'https://example.com/no-name.png' },
+      ],
+    },
+    'https://admin.example.com',
+  );
+
+  assert.deepEqual(files, [
+    { name: '표지', url: 'https://example.com/a.png?v=2', isImage: true },
+    { name: '위험', url: null, isImage: false },
+    { name: '이름만.pdf', url: null, isImage: false },
+  ]);
+});
+
+test('상세 칸이 깨진 JSON·배열이거나 대상 id 배열에 문자열이 아닌 값이 섞여도 목록 조회가 실패하지 않는다', async () => {
+  const { db, call } = await setup();
+  const before = call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=200').total;
+  queryAll(
+    db,
+    `INSERT INTO audit_log (occurred_at, actor_admin_id, action, target_type, target_ids, detail, ip) VALUES
+       ('2026-10-01 10:00:00', 1, 'SCORE_RULE_CREATE', 'SCORE_RULE', '["a", 3, null]', '{깨짐', '127.0.0.1'),
+       ('2026-10-01 10:00:01', 1, 'SCORE_RULE_CREATE', 'SCORE_RULE', 'null', '[1, 2]', '127.0.0.1')`,
+  );
+
+  const page = call<AuditLogPage>('GET', '/api/v1/admin/audit-logs?size=200');
+
+  assert.equal(page.total, before + 2);
+  assert.ok(
+    page.items.every(
+      (entry) => entry.requestBody === null || typeof entry.requestBody === 'object',
+    ),
+  );
 });
