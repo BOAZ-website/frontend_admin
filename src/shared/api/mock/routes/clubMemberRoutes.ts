@@ -33,6 +33,7 @@ import {
   withdrawBlockMessageOf,
   withdrawBlocksOf,
 } from '@/entities/club-member/model/withdrawBlock';
+import { addToCurrentSemester } from '@/entities/user/api/usersRepository';
 import { ensureMemberProfile } from '@/entities/study-team/api/teamRepository';
 
 import { notFound } from '../queries';
@@ -200,6 +201,8 @@ export const clubMemberRoutes: MockRoute[] = [
       validateMember(db, member);
       insertClubMember(db, member);
       ensureMemberProfile(db, member.id, member.term, member.track, member.name);
+      // 활동 회원은 현재 반기 명단에도 넣어 스터디·팀 생성 창에서 고를 수 있게 한다.
+      addToCurrentSemester(db, member.id);
       return findMember(db, member.id);
     },
   },
@@ -214,6 +217,8 @@ export const clubMemberRoutes: MockRoute[] = [
       validateMember(db, member);
       updateClubMember(db, member);
       ensureMemberProfile(db, member.id, member.term, member.track, member.name);
+      // 수료에서 활동으로 되돌린 회원도 현재 반기 명단에 넣는다.
+      addToCurrentSemester(db, member.id);
       return findMember(db, member.id);
     },
   },
