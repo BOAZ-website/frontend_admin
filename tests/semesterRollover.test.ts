@@ -196,12 +196,7 @@ test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한
     ['u_28_01', 'u_27_01'],
   );
 
-  const registeredName = (
-    router.dispatch(db, 'GET', '/api/v1/users?semester=27-1', undefined) as {
-      id: string;
-      name: string;
-    }[]
-  ).find(({ id }) => id === 'u_27_01')?.name;
+  // 이름은 동아리원 명단(회원 마스터)의 지금 값을 따른다(#83).
   db.run("UPDATE users SET name = '변경된 시스템 계정 이름' WHERE id = 'u_27_01'");
   assert.equal(
     (
@@ -210,7 +205,7 @@ test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한
         name: string;
       }[]
     ).find(({ id }) => id === 'u_27_01')?.name,
-    registeredName,
+    '변경된 시스템 계정 이름',
   );
 });
 

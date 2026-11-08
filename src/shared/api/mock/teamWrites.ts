@@ -15,7 +15,7 @@ import {
 } from '@/entities/study-team/api/teamRepository';
 import { memberKeysOf } from '@/entities/study-team/model/db';
 import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
-import { listSemesterUsers } from '@/entities/user/api/usersRepository';
+import { listSelectableSemesterUsers } from '@/entities/user/api/usersRepository';
 import type { UserProfile } from '@/entities/user/model/types';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 
@@ -28,19 +28,24 @@ export function teamInfosOf(db: Database, group: TeamGroup): StudyTeamInfo[] {
   return loadTeamState(db)[TEAM_STATE_KEYS[group]];
 }
 
-/** id 목록을 회원 프로필로 바꾼다. 없는 회원이 하나라도 있으면 400. */
+/**
+ * id 목록을 회원 프로필로 바꾼다. 반기 명단에 없거나 활동 중이 아닌(탈퇴·수료) 회원이 하나라도 있으면 400.
+ * 팀 생성과 팀원 추가가 쓴다. 고르는 목록(GET /api/v1/users)과 같은 기준을 서버에서도 지킨다.
+ */
 export function resolveUsers(
   db: Database,
   userIds: readonly string[],
   semesterCohort: number,
 ): UserProfile[] {
-  const byId = new Map(listSemesterUsers(db, semesterCohort).map((user) => [user.id, user]));
+  const byId = new Map(
+    listSelectableSemesterUsers(db, semesterCohort).map((user) => [user.id, user]),
+  );
   const missing = userIds.filter((id) => !byId.has(id));
   if (missing.length > 0) {
     throw new ApiError(
       400,
       'USER_NOT_FOUND',
-      `해당 반기 명단에 등록되지 않은 회원입니다: ${missing.join(', ')}`,
+      `해당 반기 명단에 등록되지 않은 회원입니다(탈퇴·수료 회원 포함): ${missing.join(', ')}`,
     );
   }
   return userIds.map((id) => byId.get(id) as UserProfile);
