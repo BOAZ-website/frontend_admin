@@ -289,7 +289,7 @@
 | ID | 기능 | 입력 방식 | 설명 |
 | --- | --- | --- | --- |
 | SEM-01 | 기본 | 직접 입력 · 버튼 | 반기 이름(예: `26-2`). 상태(진행 예정·진행·종료). 목록의 삭제 버튼은 진행 예정 반기에만 있다 |
-| SEM-02 | 기수 지정 | 직접 선택 | 이번 반기의 BASE 기수와 ADV 기수(예: 28기 BASE, 27기 ADV). 반기 번호는 BASE 기수와 같다. 저장한 뒤에는 바꿀 수 없다 |
+| SEM-02 | 기수 지정 | 직접 선택 | 이번 반기의 BASE 기수와 ADV 기수(예: 28기 BASE, 27기 ADV). 반기 번호는 BASE 기수와 같다. 저장한 뒤에는 바꿀 수 없다. ADV 팀장 입력 시작 주차(1~16, 기본 4주차)도 여기서 정하고, 비우면 적용할 수 없다. 그 앞 주차는 운영지원팀이 ADV 출결 관리에서 입력한다(ATT-LDR) |
 | SEM-03 | 기간 | 직접 입력 | 방학·학기 각각의 시작일·종료일. 방학 종료일은 학기 시작일보다 앞이어야 한다 |
 | SEM-04 | 1주차 시작일 | 직접 입력 + 확인 | BASE · ADV · 방학 스터디 · 학기 스터디별 1주차 시작일. 이후 주차(1~8주차) 날짜는 7일씩 더해 자동으로 보여 준다 |
 | SEM-05 | 무효 주차 | 체크 | 활동별로 휴강 등 출결에서 뺄 주차를 체크한다 |
@@ -316,7 +316,7 @@
 | 메서드 · 경로 | 요청 | 응답 | 오류 |
 | --- | --- | --- | --- |
 | `GET /api/v1/semesters?includePreparing=true` | — (`includePreparing`는 반기 관리 화면만) | `SemesterDto[]`(진행·종료 반기, 큰 기수부터, `status` 포함. `includePreparing=true`면 진행 예정 반기도) | — |
-| `POST /api/v1/semesters/prepare` | `{ semester, baseTerm, advTerm, schedule, userIds }`(`schedule`은 아래 일정 저장 본문과 같다. `userIds`는 명단에 넣을 회원 id) | 만든 `SemesterDto`(`status: PREPARING`). 진행 반기는 바뀌지 않는다. 명단은 `userIds` 그대로이며 자동으로 채우지 않는다 | 400 `BAD_REQUEST` · `INVALID_TERM`(ADV ≥ BASE, BASE가 등록된 반기 이하) · `INVALID_DATE_RANGE` · `USER_NOT_FOUND`(없는 회원 id) · `USER_WITHDRAWN`(탈동 회원). 409 `SEMESTER_DUPLICATE` · `SEMESTER_PREPARING_EXISTS`(진행 예정 반기가 이미 있음) · `ROSTER_EMPTY`(빈 명단). 실패하면 아무것도 바뀌지 않는다 |
+| `POST /api/v1/semesters/prepare` | `{ semester, baseTerm, advTerm, advLeaderEntryFromWeek, schedule, userIds }`(`advLeaderEntryFromWeek`는 ADV 팀장 입력 시작 주차 1~16. `schedule`은 아래 일정 저장 본문과 같다. `userIds`는 명단에 넣을 회원 id) | 만든 `SemesterDto`(`status: PREPARING`). 진행 반기는 바뀌지 않는다. 명단은 `userIds` 그대로이며 자동으로 채우지 않는다 | 400 `BAD_REQUEST` · `INVALID_TERM`(ADV ≥ BASE, BASE가 등록된 반기 이하) · `ADV_LEADER_ENTRY_WEEK_REQUIRED`(시작 주차가 비었거나 1~16 밖) · `INVALID_DATE_RANGE` · `USER_NOT_FOUND`(없는 회원 id) · `USER_WITHDRAWN`(탈동 회원). 409 `SEMESTER_DUPLICATE` · `SEMESTER_PREPARING_EXISTS`(진행 예정 반기가 이미 있음) · `ROSTER_EMPTY`(빈 명단). 실패하면 아무것도 바뀌지 않는다 |
 | `POST /api/v1/semesters/:semester/activate` | — | 진행 반기가 된 `SemesterDto`(`status: ACTIVE`). 이전 진행 반기는 종료된다 | 409 `SEMESTER_NOT_PREPARING`(진행 예정 반기가 아님) · `ROSTER_EMPTY` |
 | `GET /api/v1/semesters/:semester/roster` | — | `{ members: { userId, name, term, track, kind: BASE · ADV · EXTRA }[] }` | 404 `NOT_FOUND` |
 | `PUT /api/v1/semesters/:semester/members` | `{ userIds: string[] }`(명단 전체) | 저장된 회원 목록 | 400 `USER_NOT_FOUND`, 409 `SEMESTER_LOCKED`(진행 중·종료 반기) |
