@@ -1,21 +1,14 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Lock, Minus, Plus, RotateCcw } from 'lucide-react';
 
-import { permissionsIn } from '@/entities/admin-account/model/catalog';
 import type { PermissionDef, PermissionGroup } from '@/entities/admin-account/model/permissions';
 import type { AdminAccount, PermissionCatalog } from '@/entities/admin-account/model/types';
-import {
-  baseCheckedOf,
-  changeCountsOf,
-  changeMarkOf,
-  isEditablePermission,
-  lockReasonOf,
-  savedCheckedOf,
-  unsavedCountOf,
-} from '@/pages/system-accounts/model/permissionDraft';
-import { PermissionLabel } from '@/pages/system-accounts/ui/PermissionLabel';
-import { MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
+import { MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
+
+import { changeMarkOf, isEditablePermission, lockReasonOf } from '../model/permissionDraft';
+import { usePermissionDraft } from '../model/usePermissionDraft';
+import { PermissionLabel } from './PermissionLabel';
 
 interface AccountPermissionEditorProps {
   catalog: PermissionCatalog;
@@ -37,21 +30,16 @@ interface Tag {
   className: string;
 }
 
-const SMALL_TAG = 'rounded-sm px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap';
-const ADDED_TAG: Tag = {
-  text: '추가',
-  className: 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200',
-};
-const REMOVED_TAG: Tag = {
-  text: '기본에서 제외',
-  className: 'bg-red-50 text-red-600 ring-1 ring-inset ring-red-200',
-};
+/** 기본값과 달라진 표시. 바탕·테두리 없이 글자 색만 쓴다(반기 명단 화면과 같다). */
+const SMALL_TAG = 'text-xs font-semibold whitespace-nowrap';
+const ADDED_TAG: Tag = { text: '추가', className: 'text-emerald-700' };
+const REMOVED_TAG: Tag = { text: '기본에서 제외', className: 'text-red-600' };
 /** 이 표들은 패널 안에 놓이므로 공통 표 상자(TABLE_BOX)와 달리 그림자 없이 테두리만 둔다. */
 const LIST_BOX = 'overflow-hidden rounded-md border border-slate-200 bg-white';
 
 const ACTION_BTN =
   'inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm border transition-colors disabled:cursor-not-allowed disabled:opacity-40';
-/** 빼기는 평소 조용하다가 마우스를 올리면 빨강, 추가는 오른쪽 표의 주 동작이라 처음부터 파랑이다. */
+/** 두 버튼 모두 평소 회색 테두리다. 빼기만 마우스를 올리면 빨강이 된다. */
 const ACTION = {
   remove: {
     label: '빼기',
@@ -62,39 +50,9 @@ const ACTION = {
   add: {
     label: '추가',
     Icon: Plus,
-    className:
-      'border-blue-200 text-blue-700 hover:border-blue-600 hover:bg-blue-600 hover:text-white',
+    className: 'border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-900',
   },
 } as const;
-
-/** 기본값과 달라진 줄의 왼쪽 세로 막대. 태그와 같은 색이다. */
-const ROW_BAR = {
-  added: 'shadow-[inset_3px_0_0_var(--color-blue-500)]',
-  removed: 'shadow-[inset_3px_0_0_var(--color-red-500)]',
-} as const;
-
-/**
- * 저장 전에 보여 줄 변경 요약. 저장된 상태와 비교해 더한 권한·뺀 권한을 카탈로그 순서로 늘어놓는다.
- * 자주 하지 않고 영향이 큰 작업이라 저장 버튼을 누르면 한 번 더 확인한다.
- */
-function saveSummaryOf(
-  catalog: PermissionCatalog,
-  saved: readonly string[],
-  checked: ReadonlySet<string>,
-): string {
-  const savedSet = new Set(saved);
-  const permissions = permissionsIn(catalog);
-  const turnedOn = permissions.filter((p) => checked.has(p.key) && !savedSet.has(p.key));
-  const turnedOff = permissions.filter((p) => !checked.has(p.key) && savedSet.has(p.key));
-  const lines = ['다음 변경을 저장할까요?'];
-  if (turnedOn.length > 0) {
-    lines.push('', `추가 ${turnedOn.length}개`, ...turnedOn.map((p) => `- ${p.label}`));
-  }
-  if (turnedOff.length > 0) {
-    lines.push('', `제외 ${turnedOff.length}개`, ...turnedOff.map((p) => `- ${p.label}`));
-  }
-  return lines.join('\n');
-}
 
 /**
  * 운영진 한 명의 권한 편집(SYS-PERM). 왼쪽은 지금 가진 권한, 오른쪽은 추가할 수 있는 권한이다.
@@ -112,54 +70,18 @@ export function AccountPermissionEditor({
   onSave,
   onDirtyChange,
 }: AccountPermissionEditorProps) {
-  // 저장 기준. 처음에는 계정의 유효 권한이고, 저장에 성공하면 그때의 상태로 옮긴다.
-  // 저장 뒤 목록을 다시 읽지 못해 계정 값이 예전 그대로여도, 저장한 내용이 "저장하지 않은 변경"으로 남지 않는다.
-  const [saved, setSaved] = useState<readonly string[]>(() => savedCheckedOf(catalog, account));
-  const [checked, setChecked] = useState<ReadonlySet<string>>(
-    () => new Set(savedCheckedOf(catalog, account)),
-  );
-  const [isSaving, setIsSaving] = useState(false);
-
-  const unsavedCount = unsavedCountOf(saved, checked);
-  const isDirty = unsavedCount > 0;
-  const { added, removed } = changeCountsOf(catalog, account, checked);
-
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  const toggle = (key: string) =>
-    setChecked((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
-  // 기본 권한으로 되돌려도 잠긴 권한(본인·마지막 보유자의 "타 계정 정보 수정")은 빠지지 않는다. 개별 빼기 버튼과 같은 규칙이다.
-  const resetToBase = () =>
-    setChecked((current) => {
-      const next = new Set(baseCheckedOf(catalog, account));
-      for (const permission of permissionsIn(catalog)) {
-        const isLocked = lockReasonOf(permission, account, me, accounts) !== null;
-        if (isLocked && current.has(permission.key)) next.add(permission.key);
-      }
-      return next;
-    });
-  const discard = () => setChecked(new Set(saved));
-
-  // 저장에 성공하면 부모가 계정을 다시 읽고, 바뀐 예외로 key가 달라져 이 편집기가 새 상태로 다시 만들어진다.
-  // 실패하면 고른 상태를 그대로 두어 고쳐서 다시 저장할 수 있다.
-  const save = async () => {
-    if (!window.confirm(saveSummaryOf(catalog, saved, checked))) return;
-    setIsSaving(true);
-    try {
-      const isSaved = await onSave([...checked]);
-      if (isSaved) setSaved([...checked]);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const {
+    checked,
+    isSaving,
+    isDirty,
+    unsavedCount,
+    added,
+    removed,
+    handleToggle,
+    handleResetToBase,
+    handleDiscard,
+    handleSave,
+  } = usePermissionDraft({ catalog, account, me, accounts, onSave, onDirtyChange });
 
   const isHeld = (permission: PermissionDef): boolean => checked.has(permission.key);
   // 담당 그룹 권한은 그룹을 맡아야 생기므로, 맡은 계정에서 회수한 것을 되돌릴 때만 추가할 수 있다.
@@ -175,10 +97,9 @@ export function AccountPermissionEditor({
         key={permission.key}
         permission={permission}
         tag={mark === 'added' ? ADDED_TAG : null}
-        mark={mark === 'added' ? 'added' : null}
         lockReason={lockReason}
         action={canRemove ? 'remove' : null}
-        onAction={() => toggle(permission.key)}
+        onAction={() => handleToggle(permission.key)}
         isDisabled={isSaving}
       />
     );
@@ -191,10 +112,9 @@ export function AccountPermissionEditor({
         key={permission.key}
         permission={permission}
         tag={isRemoved ? REMOVED_TAG : null}
-        mark={isRemoved ? 'removed' : null}
         lockReason={null}
         action={canEdit ? 'add' : null}
-        onAction={() => toggle(permission.key)}
+        onAction={() => handleToggle(permission.key)}
         isDisabled={isSaving}
       />
     );
@@ -203,11 +123,11 @@ export function AccountPermissionEditor({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="text-sm font-bold text-slate-900">운영 권한</h2>
+        <h4 className="text-sm font-bold text-slate-900">운영 권한</h4>
         {canEdit && (added > 0 || removed > 0) && (
           <button
             type="button"
-            onClick={resetToBase}
+            onClick={handleResetToBase}
             disabled={isSaving}
             className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-sm px-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40"
           >
@@ -246,14 +166,14 @@ export function AccountPermissionEditor({
 
       {/* 저장 바는 바꾼 것이 있을 때만 나타난다. */}
       {canEdit && isDirty && (
-        <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <span className="mr-auto text-xs text-slate-500">
             저장하지 않은 변경{' '}
             <strong className="font-semibold text-slate-900">{unsavedCount}</strong>건
           </span>
           <button
             type="button"
-            onClick={discard}
+            onClick={handleDiscard}
             disabled={!isDirty || isSaving}
             className={`${MODAL_CANCEL_BTN} disabled:cursor-not-allowed disabled:opacity-40`}
           >
@@ -261,7 +181,7 @@ export function AccountPermissionEditor({
           </button>
           <button
             type="button"
-            onClick={() => void save()}
+            onClick={() => void handleSave()}
             disabled={!isDirty || isSaving}
             className={MODAL_CONFIRM_BTN}
           >
@@ -319,8 +239,6 @@ function PermissionColumn({ title, groups, filter, renderItem, emptyText }: Perm
 interface PermissionItemProps {
   permission: PermissionDef;
   tag: Tag | null;
-  /** 기본값과 달라진 줄. 왼쪽에 같은 색 세로 막대를 그린다. */
-  mark: keyof typeof ROW_BAR | null;
   /** 뺄 수 없는 사유. 있으면 자물쇠와 말풍선으로 보여 준다. */
   lockReason: string | null;
   /** −(빼기)·+(추가) 버튼. 조회만 가능하거나 잠긴 권한이면 null이다. */
@@ -333,7 +251,6 @@ interface PermissionItemProps {
 function PermissionItem({
   permission,
   tag,
-  mark,
   lockReason,
   action,
   onAction,
@@ -342,11 +259,7 @@ function PermissionItem({
   const button = action ? ACTION[action] : null;
 
   return (
-    <li
-      className={`flex h-11 items-center gap-3 border-t border-slate-200 px-4 text-xs transition-colors first:border-t-0 hover:bg-slate-50/70 ${
-        mark ? ROW_BAR[mark] : ''
-      }`}
-    >
+    <li className="flex h-11 items-center gap-3 border-t border-slate-200 px-4 text-xs transition-colors first:border-t-0 hover:bg-slate-50/70">
       <span className="flex min-w-0 flex-1 items-center gap-2">
         <PermissionLabel permission={permission} />
         {tag && <span className={`${SMALL_TAG} ${tag.className}`}>{tag.text}</span>}

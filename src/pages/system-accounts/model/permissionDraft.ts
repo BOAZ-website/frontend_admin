@@ -100,3 +100,45 @@ export const lockReasonOf = (
   if (holders.length <= 1) return '이 권한을 가진 마지막 계정이라 회수할 수 없습니다.';
   return null;
 };
+
+/**
+ * 저장 전에 보여 줄 변경 요약. 저장된 상태와 비교해 더한 권한·뺀 권한을 카탈로그 순서로 늘어놓는다.
+ * 자주 하지 않고 영향이 큰 작업이라 저장 버튼을 누르면 한 번 더 확인한다.
+ */
+export function saveSummaryOf(
+  catalog: PermissionCatalog,
+  saved: readonly string[],
+  checked: ReadonlySet<string>,
+): string {
+  const savedSet = new Set(saved);
+  const permissions = permissionsIn(catalog);
+  const turnedOn = permissions.filter((p) => checked.has(p.key) && !savedSet.has(p.key));
+  const turnedOff = permissions.filter((p) => !checked.has(p.key) && savedSet.has(p.key));
+  const lines = ['다음 변경을 저장할까요?'];
+  if (turnedOn.length > 0) {
+    lines.push('', `추가 ${turnedOn.length}개`, ...turnedOn.map((p) => `- ${p.label}`));
+  }
+  if (turnedOff.length > 0) {
+    lines.push('', `제외 ${turnedOff.length}개`, ...turnedOff.map((p) => `- ${p.label}`));
+  }
+  return lines.join('\n');
+}
+
+/**
+ * 기본 권한으로 되돌린 체크 상태. 잠긴 권한(본인·마지막 보유자의 회수 불가 권한)은 지금 켜져 있으면 그대로 둔다.
+ * 개별 빼기 버튼과 같은 규칙이다.
+ */
+export function resetToBaseChecked(
+  catalog: PermissionCatalog,
+  account: AdminAccount,
+  me: Pick<AdminAccount, 'id'>,
+  accounts: readonly AdminAccount[],
+  current: ReadonlySet<string>,
+): Set<string> {
+  const next = new Set(baseCheckedOf(catalog, account));
+  for (const permission of permissionsIn(catalog)) {
+    const isLocked = lockReasonOf(permission, account, me, accounts) !== null;
+    if (isLocked && current.has(permission.key)) next.add(permission.key);
+  }
+  return next;
+}

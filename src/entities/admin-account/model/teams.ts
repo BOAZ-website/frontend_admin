@@ -7,7 +7,7 @@
 /** 대표진. 팀장을 두지 않는다. */
 export const PRESIDENT_TEAM = '대표진';
 
-/** 차기대표진. 팀이 아니라 대표진 안의 자리지만 권한 세트(서류 평가 범위)가 달라 데이터에서는 따로 둔다. */
+/** 차기대표진. 팀장을 두지 않는다. 권한 세트(서류 평가 범위)가 대표진과 다르다. */
 export const NEXT_PRESIDENT_TEAM = '차기대표진';
 
 /** 서비스운영팀. 서비스운영팀장(MASTER)이 있는 팀이고, 이 팀의 TEAM 계정은 콘텐츠 관리자로 들어간다. */
@@ -21,10 +21,6 @@ export const PINNED_TEAMS: readonly string[] = [PRESIDENT_TEAM, NEXT_PRESIDENT_T
 
 /** 팀장을 두지 않는 팀. */
 export const TEAMS_WITHOUT_LEAD: readonly string[] = [PRESIDENT_TEAM, NEXT_PRESIDENT_TEAM];
-
-/** 화면 목록에서 묶는 팀. 차기대표진은 화면에서 대표진 팀 안에 함께 보인다. */
-export const displayTeamOf = (teamName: string): string =>
-  teamName === NEXT_PRESIDENT_TEAM ? PRESIDENT_TEAM : teamName;
 
 const pinnedRankOf = (teamName: string): number => {
   const index = PINNED_TEAMS.indexOf(teamName);

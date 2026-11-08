@@ -2,9 +2,10 @@ import { Fragment } from 'react';
 
 import { isInBaseOf } from '@/entities/admin-account/model/catalog';
 import type { PermissionCatalog } from '@/entities/admin-account/model/types';
-import { PermissionLabel } from '@/pages/system-accounts/ui/PermissionLabel';
-import { O_MARK, TABLE_BOX, TH_CLASS } from '@/shared/ui/systemStyles';
 import { Tooltip } from '@/shared/ui/Tooltip';
+import { O_MARK, TABLE_BOX, TH_CLASS } from '@/shared/ui/systemStyles';
+
+import { PermissionLabel } from './PermissionLabel';
 
 /**
  * 영역 열과 권한 이름 열의 너비 비율(%). 나머지 폭은 기본 권한 세트 열이 머리 글자 길이에 비례해 나눠 갖는다.
@@ -41,7 +42,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
               ))}
             </colgroup>
             <thead className="sticky top-0 z-10 select-none">
-              <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-[11px]">
+              <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-xs">
                 <th className={`${TH_CLASS} text-slate-900`}>영역</th>
                 <th className={`${TH_CLASS} text-slate-900`}>권한</th>
                 {catalog.baseSets.map((column) => (
@@ -59,7 +60,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
                   {group.permissions.map((permission, index) => (
                     <tr
                       key={permission.key}
-                      className={`h-10 divide-x divide-slate-200 transition-colors hover:bg-slate-50/70 ${
+                      className={`h-11 divide-x divide-slate-200 transition-colors hover:bg-slate-50/70 ${
                         index === 0
                           ? 'border-t border-slate-200 first:border-t-0'
                           : 'border-t border-slate-100'
@@ -69,7 +70,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
                         <th
                           scope="rowgroup"
                           rowSpan={group.permissions.length}
-                          className="bg-white px-2 text-center align-middle text-xs font-bold text-slate-900"
+                          className="bg-slate-50/80 px-2 text-center align-middle text-xs font-bold text-slate-900"
                         >
                           {group.title}
                         </th>
@@ -84,8 +85,8 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
                         return (
                           <td
                             key={column.key}
-                            className={`text-center text-[11px] font-semibold ${
-                              isIn ? 'text-slate-700' : isAuto ? 'text-slate-400' : 'text-slate-200'
+                            className={`text-center text-xs ${
+                              isIn ? 'font-semibold text-slate-700' : 'font-normal text-slate-500'
                             }`}
                             aria-label={isIn ? '기본 권한' : isAuto ? '맡은 그룹에서 자동' : '없음'}
                           >
@@ -105,7 +106,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
               ))}
               {catalog.groups.length === 0 && (
                 <tr>
-                  <td colSpan={columnCount} className="py-8 text-center text-slate-400">
+                  <td colSpan={columnCount} className="py-8 text-center text-slate-500">
                     권한 정보가 없습니다.
                   </td>
                 </tr>

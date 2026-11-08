@@ -1,21 +1,18 @@
 import { useMemo, useState } from 'react';
 
-import { NEXT_PRESIDENT_TEAM, displayTeamOf } from '@/entities/admin-account/model/teams';
 import type {
   AccountHolder,
   AdminAccount,
   PermissionCatalog,
 } from '@/entities/admin-account/model/types';
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
-import { byLeadThenTermThenTrack, sortTeamNames } from '@/pages/system-accounts/model/teamOrder';
-import { GroupLeaderTable } from '@/pages/system-accounts/ui/GroupLeaderTable';
-import {
-  type AccountActions,
-  OperatorRosterTable,
-} from '@/pages/system-accounts/ui/OperatorRosterTable';
-import { PermissionMatrix } from '@/pages/system-accounts/ui/PermissionMatrix';
 import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import { LIST_SECTION_TITLE } from '@/shared/ui/systemStyles';
+
+import { byLeadThenTermThenTrack, sortTeamNames } from '../model/teamOrder';
+import { GroupLeaderTable } from './GroupLeaderTable';
+import { type AccountActions, OperatorRosterTable } from './OperatorRosterTable';
+import { PermissionMatrix } from './PermissionMatrix';
 
 interface AccountsTabProps {
   catalog: PermissionCatalog;
@@ -35,8 +32,8 @@ interface AccountsTabProps {
  * 왼쪽 "권한" 묶음은 권한 매트릭스(자리별 기본 권한), "계정" 묶음은 운영진 계정(모든 팀을 한 표로)과
  * 그룹 리더 계정(그룹을 맡은 사람 표, 운영진 포함)이다. 오른쪽은 고른 항목의 표다. 처음에는 운영진 계정이 열려 있다.
  * 운영진 계정 표에서 이름이나 권한 버튼을, 그룹 리더 계정 표에서 이름을 누르면 그 사람의 권한 창이 열린다.
- * 팀 순서는 대표진(차기대표진 포함)이 맨 위, 나머지는 가나다순이고, 사람이 없는 팀은 숨긴다.
- * 팀 안에서는 팀장이 맨 위, 그다음 기수 순, 같은 기수 안에서는 부문 순이다(대표진 묶음은 대표진 → 차기대표진).
+ * 팀 순서는 대표진 → 차기대표진이 맨 위, 나머지는 가나다순이고, 사람이 없는 팀은 숨긴다.
+ * 팀 안에서는 팀장이 맨 위, 그다음 기수 순, 같은 기수 안에서는 부문 순이다.
  */
 export function AccountsTab({
   catalog,
@@ -48,25 +45,21 @@ export function AccountsTab({
   groupLeaders,
   onOpenHolder,
 }: AccountsTabProps) {
-  // 팀 목록(catalog.teamNames)은 서버가 코드 팀과 DB 팀을 합쳐 화면 순서로 준다. 차기대표진은 대표진에 묶는다.
+  // 팀 목록(catalog.teamNames)은 서버가 코드 팀과 DB 팀을 합쳐 화면 순서로 준다.
   const teamGroups = useMemo(
     () =>
       sortTeamNames(catalog.teamNames)
         .map((teamName) => ({
           teamName,
           members: accounts
-            .filter((account) => displayTeamOf(account.teamName) === teamName)
-            .sort(
-              (a, b) =>
-                Number(a.teamName === NEXT_PRESIDENT_TEAM) -
-                  Number(b.teamName === NEXT_PRESIDENT_TEAM) || byLeadThenTermThenTrack(a, b),
-            ),
+            .filter((account) => account.teamName === teamName)
+            .sort(byLeadThenTermThenTrack),
         }))
         .filter((group) => group.members.length > 0),
     [accounts, catalog.teamNames],
   );
 
-  /** 운영진 계정 표의 팀 필터. 'ALL'이면 모든 팀, 아니면 그 팀(대표진은 차기대표진 포함)만 보인다. */
+  /** 운영진 계정 표의 팀 필터. 'ALL'이면 모든 팀, 아니면 그 팀만 보인다. */
   const [teamFilter, setTeamFilter] = useState('ALL');
   const teamOptions = useMemo(
     () => [
@@ -106,7 +99,7 @@ export function AccountsTab({
             <h2 id="accounts-all-heading" className={LIST_SECTION_TITLE}>
               계정
             </h2>
-            <ul className="space-y-2.5">
+            <ul className="space-y-2">
               <li>
                 <SplitListItem
                   label="운영진 계정"

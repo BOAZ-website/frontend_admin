@@ -12,6 +12,8 @@ import {
   changeCountsOf,
   changeMarkOf,
   lockReasonOf,
+  resetToBaseChecked,
+  saveSummaryOf,
   savedCheckedOf,
   unsavedCountOf,
 } from '../src/pages/system-accounts/model/permissionDraft';
@@ -142,4 +144,37 @@ test('"권한 부여" 권한도 본인과 마지막 보유자에게서 풀 수 �
   assert.match(lockReasonOf(grant, holder, { id: 6 }, [holder, other]) ?? '', /본인/);
   assert.match(lockReasonOf(grant, holder, { id: 1 }, [holder]) ?? '', /마지막/);
   assert.equal(lockReasonOf(grant, holder, { id: 1 }, [holder, other]), null);
+});
+
+test('저장 확인 문구는 더한 권한과 뺀 권한을 카탈로그 순서로 나눠 적는다', () => {
+  const saved = ['CONTENT_READ', 'AUDIT_LOG_READ'];
+
+  const text = saveSummaryOf(catalog, saved, new Set(['CONTENT_READ', 'CONTENT_WRITE']));
+
+  assert.ok(text.includes('추가 1개'));
+  assert.ok(text.includes('제외 1개'));
+  assert.ok(!text.includes('추가 2개'));
+});
+
+test('기본 권한으로 되돌려도 잠긴 권한은 켜진 채 남는다', () => {
+  const account = accountOf({});
+  const locked = permissionOf('ADMIN_ACCOUNT_WRITE');
+  // 본인 계정은 "타 계정 정보 수정"을 스스로 뺄 수 없다(잠김).
+  const isLocked = lockReasonOf(locked, account, { id: account.id }, [account]) !== null;
+
+  const next = resetToBaseChecked(
+    catalog,
+    account,
+    { id: account.id },
+    [account],
+    new Set([locked.key]),
+  );
+
+  assert.equal(next.has(locked.key), isLocked);
+  assert.deepEqual(
+    [...next].filter((key) => key !== locked.key).sort(),
+    baseCheckedOf(catalog, account)
+      .filter((key) => key !== locked.key)
+      .sort(),
+  );
 });

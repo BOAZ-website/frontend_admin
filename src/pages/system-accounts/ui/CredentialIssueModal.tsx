@@ -1,10 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
-import { compareTeamNames } from '@/entities/admin-account/model/teams';
+import {
+  compareTeamNames,
+  SERVICE_OPERATIONS_TEAM,
+  TEAMS_WITHOUT_LEAD,
+} from '@/entities/admin-account/model/teams';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import type { ClubMember } from '@/entities/club-member/model/types';
 import { useClubMembers } from '@/entities/club-member/model/useClubMembers';
+import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
+import { SelectDropdown } from '@/shared/ui/SelectDropdown';
+import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import {
   FIELD_INPUT,
   FIELD_LABEL,
@@ -13,13 +20,15 @@ import {
   MODAL_CLOSE_BTN,
   MODAL_CONFIRM_BTN,
 } from '@/shared/ui/systemStyles';
-import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
-import { SelectDropdown } from '@/shared/ui/SelectDropdown';
+
+import { candidatesOf, matchesFilter, parseTerm } from '../model/credentialCandidates';
 
 /** 새 운영진의 로그인 아이디·초기 비밀번호. */
 export interface IssueCredentials {
   username: string;
   password: string;
+  /** 그 팀의 팀장으로 정한다. 같은 팀의 다른 팀장은 팀원이 된다. */
+  isTeamLead: boolean;
 }
 
 interface CredentialIssueModalProps {
@@ -44,7 +53,7 @@ interface CredentialIssueModalProps {
   onMove: (
     account: AdminAccount,
     teamName: string,
-    change: { username: string; password: string | null },
+    change: { username: string; password: string | null; isTeamLead: boolean },
   ) => Promise<boolean>;
 }
 
@@ -68,40 +77,18 @@ const CANDIDATE_GRID =
   'grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)] divide-x divide-slate-100';
 const CANDIDATE_CELL = 'px-3 py-2 text-center';
 /**
- * 고른 줄은 바탕을 한 단계 진한 회색으로 칠하고 글자를 모두 굵고 진하게 한다.
+ * 고른 줄은 바탕을 한 단계 진한 회색으로 칠하고 글자를 모두 진하게, 이름만 굵게 한다.
  * 고르지 않은 줄은 보통 굵기이고, 마우스를 올리면 연한 회색으로 바뀐다.
  */
-const CANDIDATE_SELECTED = 'bg-slate-100 font-bold text-slate-900';
+const CANDIDATE_SELECTED = 'bg-slate-100 text-slate-900';
 const CANDIDATE_IDLE = 'hover:bg-slate-50';
-/** 고르지 않은 줄의 칸 글자. 이름만 조금 진하게 둔다. */
-const CANDIDATE_NAME_IDLE = 'font-medium text-slate-900';
+/** 고르지 않은 줄의 칸 글자. 이름만 진한 색으로 둔다. */
+const CANDIDATE_NAME_IDLE = 'text-slate-900';
 const CANDIDATE_TEXT_IDLE = 'text-slate-600';
 /** 운영진 열에서 운영진이 아닌 사람의 칸. */
 const NOT_OPERATOR_CELL = '-';
 /** 발급할 사람의 이름 | 기수 | 부문 입력 줄. 아래 목록 표와 같은 2:1:2 비율로 칸을 맞춘다. */
 const PERSON_ROW = 'grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)] gap-2';
-
-/** 목록에 보일 사람: 활동기수 동아리원. 기수 큰 순·이름 순이고, 이미 운영진인 사람도 그 자리에 섞어 둔다. */
-const candidatesOf = (members: readonly ClubMember[]): ClubMember[] =>
-  members
-    .filter((member) => member.status === 'ACTIVE')
-    .sort((a, b) => b.term - a.term || a.name.localeCompare(b.name, 'ko'));
-
-/** 기수 칸의 글자('27', '27기')를 숫자로 읽는다. 비었으면 null, 숫자가 아니면 NaN. */
-const parseTerm = (text: string): number | null => {
-  const trimmed = text.trim().replace(/기$/, '');
-  if (!trimmed) return null;
-  return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
-};
-
-/** 이름·기수·부문 칸으로 목록을 거른다. 이름·부문은 글자 일부만 맞아도 되고, 기수는 같아야 한다. 빈 칸은 거르지 않는다. */
-const matchesFilter = (
-  member: ClubMember,
-  filter: { name: string; term: number | null; track: string },
-): boolean =>
-  member.name.includes(filter.name) &&
-  (filter.term === null || member.term === filter.term) &&
-  member.track.includes(filter.track);
 
 /** 운영진을 옮길지 묻는다. 팀을 옮기면 그 사람의 개별 권한 예외가 지워진다는 점도 알린다. */
 const confirmMove = (member: ClubMember, teamName: string): boolean =>
@@ -143,6 +130,8 @@ export function CredentialIssueModal({
   /** 아이디 칸에 쓴 글자. null이면 아직 고치지 않은 것이고, 운영진을 고른 경우 그 사람의 아이디를 보여 준다. */
   const [username, setUsername] = useState<string | null>(null);
   const [password, setPassword] = useState('');
+  /** 팀장 체크. 고르지 않았으면(null) 고른 운영진의 지금 값을 따른다. */
+  const [isTeamLeadChoice, setIsTeamLeadChoice] = useState<boolean | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const typedName = nameInput.trim();
@@ -205,6 +194,7 @@ export function CredentialIssueModal({
   const resetPasswordChoice = () => {
     setUsername(null);
     setPassword('');
+    setIsTeamLeadChoice(null);
   };
 
   /**
@@ -257,8 +247,20 @@ export function CredentialIssueModal({
   const trimmedUsername = usernameValue.trim();
   const isTeamChanged = isMoving && teamName !== selected?.operatorTeam;
   /** 운영진을 고른 경우 바뀌는 것이 하나라도 있는지(팀, 아이디, 비밀번호). */
+  // 대표진·차기대표진은 팀장을 두지 않는다. 팀을 옮기면 팀장 표시는 서버가 먼저 지운다.
+  // 서비스운영팀의 팀장은 서비스운영팀장(MASTER)으로 고정이라 고르지 않는다.
+  const canHaveLead =
+    teamName !== NO_TEAM &&
+    !TEAMS_WITHOUT_LEAD.includes(teamName) &&
+    teamName !== SERVICE_OPERATIONS_TEAM;
+  const isTeamLead =
+    canHaveLead && (isTeamLeadChoice ?? (!isTeamChanged && (selectedAccount?.isTeamLead ?? false)));
+  const isLeadChanged = isMoving && isTeamLead !== (!isTeamChanged && selectedAccount?.isTeamLead);
   const hasOperatorChange =
-    isTeamChanged || trimmedUsername !== selectedAccount?.username || Boolean(password);
+    isTeamChanged ||
+    isLeadChanged ||
+    trimmedUsername !== selectedAccount?.username ||
+    Boolean(password);
   const canSave =
     !isSaving &&
     selected !== null &&
@@ -278,15 +280,29 @@ export function CredentialIssueModal({
       return;
     }
     setIsSaving(true);
-    const isDone = selectedAccount
-      ? await onMove(selectedAccount, teamName, {
-          username: trimmedUsername,
-          password: password ? password : null,
-        })
-      : await onSubmit(selected, { username: trimmedUsername, password }, teamName);
-    setIsSaving(false);
+    let isDone = false;
+    try {
+      isDone = selectedAccount
+        ? await onMove(selectedAccount, teamName, {
+            username: trimmedUsername,
+            password: password ? password : null,
+            isTeamLead,
+          })
+        : await onSubmit(selected, { username: trimmedUsername, password, isTeamLead }, teamName);
+    } finally {
+      setIsSaving(false);
+    }
     if (isDone) onClose();
   };
+  // 요청 중에는 닫지 않는다. 닫으면 결과를 알 수 없고 같은 요청을 다시 보낼 수 있다.
+  const isDirty = Boolean(nameInput || termInput || trackInput || password || pickedId);
+  const handleClose = () => {
+    if (isSaving) return;
+    if (isDirty && !window.confirm('입력한 내용을 저장하지 않고 닫을까요?')) return;
+    onClose();
+  };
+  const panelRef = useRef<HTMLFormElement>(null);
+  useDialogKeyboard(panelRef, handleClose);
 
   /** 동아리원 목록을 읽기 전이거나 읽지 못했을 때 목록 자리에 보이는 안내. */
   const listNotice = membersError
@@ -297,10 +313,11 @@ export function CredentialIssueModal({
     <div
       className={MODAL_BACKDROP}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) handleClose();
       }}
     >
       <form
+        ref={panelRef}
         onSubmit={submit}
         role="dialog"
         aria-modal="true"
@@ -311,7 +328,13 @@ export function CredentialIssueModal({
           <h3 id="credential-issue-title" className="text-base font-bold text-slate-900">
             운영진 계정 발급
           </h3>
-          <button type="button" onClick={onClose} className={MODAL_CLOSE_BTN} aria-label="창 닫기">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            className={MODAL_CLOSE_BTN}
+            aria-label="창 닫기"
+          >
             <X size={18} />
           </button>
         </div>
@@ -332,6 +355,17 @@ export function CredentialIssueModal({
                 onChange={changeTeam}
                 buttonClassName={FIELD_SELECT}
               />
+              {canHaveLead && (
+                <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={isTeamLead}
+                    onChange={(event) => setIsTeamLeadChoice(event.target.checked)}
+                    className="size-4 cursor-pointer accent-slate-700"
+                  />
+                  이 팀의 팀장으로 지정(팀장은 한 명이고, 지금 팀장은 팀원이 됩니다)
+                </label>
+              )}
             </div>
 
             <div>
@@ -400,7 +434,7 @@ export function CredentialIssueModal({
                     {/* 표처럼 이름·기수·부문·운영진을 칸으로 나눈다. 머리 줄은 목록을 내려도 위에 남는다. */}
                     <div
                       aria-hidden="true"
-                      className={`sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 ${CANDIDATE_GRID}`}
+                      className={`sticky top-0 z-10 border-b border-slate-200 bg-slate-100/90 text-xs font-bold text-slate-700 ${CANDIDATE_GRID}`}
                     >
                       <span className={CANDIDATE_CELL}>이름</span>
                       <span className={CANDIDATE_CELL}>기수</span>
@@ -411,7 +445,7 @@ export function CredentialIssueModal({
                       {visibleCandidates.map((member) => {
                         const isSelected = member.id === selected?.id;
                         // 고른 줄은 글자색을 줄 전체 스타일에 맡긴다.
-                        const nameText = isSelected ? '' : CANDIDATE_NAME_IDLE;
+                        const nameText = isSelected ? 'font-semibold' : CANDIDATE_NAME_IDLE;
                         const cellText = isSelected ? '' : CANDIDATE_TEXT_IDLE;
                         return (
                           <li key={member.id}>
@@ -485,8 +519,13 @@ export function CredentialIssueModal({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3.5">
-          <button type="button" onClick={onClose} className={MODAL_CANCEL_BTN}>
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            className={MODAL_CANCEL_BTN}
+          >
             취소
           </button>
           <button type="submit" disabled={!canSave} className={MODAL_CONFIRM_BTN}>

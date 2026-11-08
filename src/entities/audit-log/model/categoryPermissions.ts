@@ -25,7 +25,7 @@ const CATEGORY_PERMISSION_SOURCES: Readonly<
     extraKeys: ['MEMBER_PROMOTION_WRITE', 'APPLICATION_DELETE_ALL'],
   },
   ATTENDANCE: { groups: ['출결 관리', '출결 입력', '출결 설정'], extraKeys: [] },
-  SYSTEM: { groups: ['계정·보안'], extraKeys: [] },
+  SYSTEM: { groups: ['계정·보안', '동아리원'], extraKeys: [] },
 };
 
 /** 분류 가운데 권한 매트릭스에 항목이 없는 작업(동아리원 관리·반기 관리)이 있는 분류. */

@@ -320,26 +320,41 @@ test('HOST 계정이 있는 회원은 운영진으로 지정할 수 없다(409 D
 
 // ── 담당 그룹 권한 회수(설계 5.3 2단계) ─────────────────────────────
 
+// 서비스운영팀장(MASTER) 계정의 권한은 계정별로 바꿀 수 없으므로(백엔드 협의 2026-11-05),
+// 기획팀 계정(boaz_plan_1, u_26_17)을 study_a 스터디장으로 세워 담당 그룹 권한 회수를 확인한다.
+const PLANNER_USER = 'u_26_17';
+const OWN_STUDY_WRITE = 'ATTENDANCE_STUDY_ENTRY_OWN_GROUP_WRITE';
+
+/** MASTER로 기획팀 계정을 study_a 스터디장으로 세우고, 그 계정의 유효 권한 읽기·권한 저장 함수를 돌려준다. */
+const plannerLeadingStudyA = (
+  call: Awaited<ReturnType<typeof setup>>['call'],
+  actAs: Awaited<ReturnType<typeof setup>>['actAs'],
+) => {
+  actAs(MASTER_ID);
+  call('POST', '/api/v1/study-teams/study_a/members', { userId: PLANNER_USER });
+  call('PATCH', '/api/v1/study-teams/study_a', { leaderId: PLANNER_USER });
+  const permissionsOf = () =>
+    call<{ id: number; effectivePermissions: string[] }[]>('GET', '/api/v1/admin/accounts').find(
+      (account) => account.id === PLANNER_ID,
+    )?.effectivePermissions ?? [];
+  const save = (keys: string[]) =>
+    call('PUT', `/api/v1/admin/accounts/${PLANNER_ID}/permissions`, { permissions: keys });
+  return { permissionsOf, save };
+};
+
 test('담당 그룹 권한 회수: 팀장 자리는 두고 출결 입력 권한만 빼고, 다시 켜면 돌아온다', async () => {
   const { call, actAs } = await setup();
-  actAs(MASTER_ID);
-  const ownWrite = 'ATTENDANCE_STUDY_ENTRY_OWN_GROUP_WRITE';
-  const permissionsOf = () =>
-    call<{ effectivePermissions: string[] }>('GET', '/api/v1/admin/accounts/me')
-      .effectivePermissions;
-  const save = (keys: string[]) =>
-    call('PUT', `/api/v1/admin/accounts/${MASTER_ID}/permissions`, { permissions: keys });
+  const { permissionsOf, save } = plannerLeadingStudyA(call, actAs);
 
-  // boaz_master는 study_a 스터디장이라 스터디 담당 그룹 권한이 있다.
   const held = permissionsOf();
-  assert.ok(held.includes(ownWrite));
+  assert.ok(held.includes(OWN_STUDY_WRITE));
 
-  save(held.filter((key) => key !== ownWrite));
-  assert.ok(!permissionsOf().includes(ownWrite));
+  save(held.filter((key) => key !== OWN_STUDY_WRITE));
+  assert.ok(!permissionsOf().includes(OWN_STUDY_WRITE));
   assert.ok(permissionsOf().includes('ATTENDANCE_STUDY_ENTRY_OWN_GROUP_READ'));
 
-  save([...permissionsOf(), ownWrite]);
-  assert.ok(permissionsOf().includes(ownWrite));
+  save([...permissionsOf(), OWN_STUDY_WRITE]);
+  assert.ok(permissionsOf().includes(OWN_STUDY_WRITE));
 });
 
 test('담당 그룹 권한 회수: 그룹을 맡지 않은 계정에 더해도 생기지 않는다', async () => {
@@ -356,19 +371,13 @@ test('담당 그룹 권한 회수: 그룹을 맡지 않은 계정에 더해도 �
 
 test('담당 그룹 권한 회수: 팀장이 바뀐 뒤 다른 권한을 저장해도 회수는 남아, 다시 팀장이 되어도 빠져 있다', async () => {
   const { call, actAs } = await setup();
-  actAs(MASTER_ID);
-  const ownWrite = 'ATTENDANCE_STUDY_ENTRY_OWN_GROUP_WRITE';
-  const me = () =>
-    call<{ effectivePermissions: string[] }>('GET', '/api/v1/admin/accounts/me')
-      .effectivePermissions;
-  const save = (keys: string[]) =>
-    call('PUT', `/api/v1/admin/accounts/${MASTER_ID}/permissions`, { permissions: keys });
+  const { permissionsOf, save } = plannerLeadingStudyA(call, actAs);
 
-  save(me().filter((key) => key !== ownWrite));
+  save(permissionsOf().filter((key) => key !== OWN_STUDY_WRITE));
   call('PATCH', '/api/v1/study-teams/study_a', { leaderId: 'u_28_01' });
-  save([...me()]);
-  call('PATCH', '/api/v1/study-teams/study_a', { leaderId: 'u_26_01' });
+  save([...permissionsOf()]);
+  call('PATCH', '/api/v1/study-teams/study_a', { leaderId: PLANNER_USER });
 
-  assert.ok(me().includes('ATTENDANCE_STUDY_ENTRY_OWN_GROUP_READ'));
-  assert.ok(!me().includes(ownWrite));
+  assert.ok(permissionsOf().includes('ATTENDANCE_STUDY_ENTRY_OWN_GROUP_READ'));
+  assert.ok(!permissionsOf().includes(OWN_STUDY_WRITE));
 });

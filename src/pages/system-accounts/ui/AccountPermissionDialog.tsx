@@ -6,11 +6,13 @@ import type {
   AdminAccount,
   PermissionCatalog,
 } from '@/entities/admin-account/model/types';
-import { AccountPermissionEditor } from '@/pages/system-accounts/ui/AccountPermissionEditor';
-import { HolderProfileTable } from '@/pages/system-accounts/ui/HolderProfileTable';
-import { MODAL_CLOSE_BTN, TABLE_BOX } from '@/shared/ui/systemStyles';
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
+import { MODAL_CLOSE_BTN } from '@/shared/ui/systemStyles';
+
+import { AccountPermissionEditor } from './AccountPermissionEditor';
+import { HolderProfileTable } from './HolderProfileTable';
+import { OperatorTeamEditor } from './OperatorTeamEditor';
 
 interface AccountPermissionDialogProps {
   catalog: PermissionCatalog;
@@ -22,7 +24,11 @@ interface AccountPermissionDialogProps {
   /** 운영진 계정 전체. 마지막 보유자 회수를 막는 데 쓴다. */
   accounts: readonly AdminAccount[];
   canEdit: boolean;
+  /** 운영진 팀·팀장을 바꿀 수 있는지(운영진 계정 생성·삭제 권한). */
+  canEditTeam: boolean;
   onSave: (account: AdminAccount, permissions: string[]) => Promise<boolean>;
+  /** 운영진 팀·팀장을 바꾼다. 성공하면 목록을 다시 읽어 권한 목록이 새 팀 기준으로 바뀐다. */
+  onChangeTeam: (account: AdminAccount, teamName: string, isTeamLead: boolean) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -45,7 +51,9 @@ export function AccountPermissionDialog({
   account,
   accounts,
   canEdit,
+  canEditTeam,
   onSave,
+  onChangeTeam,
   onClose,
 }: AccountPermissionDialogProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -112,10 +120,22 @@ export function AccountPermissionDialog({
           </button>
         </div>
         <div className="space-y-4 overflow-y-auto px-6 py-4">
-          <HolderProfileTable holder={holder} />
+          <HolderProfileTable
+            holder={holder}
+            operatorCell={
+              account && (
+                <OperatorTeamEditor
+                  account={account}
+                  teamNames={catalog.teamNames}
+                  canEdit={canEditTeam && !isDirty}
+                  onApply={onChangeTeam}
+                />
+              )
+            }
+          />
           {account ? (
             <AccountPermissionEditor
-              key={`${account.id}|${overridesSignature(account)}`}
+              key={`${account.id}|${account.teamName}|${overridesSignature(account)}`}
               catalog={catalog}
               account={account}
               me={me}
@@ -125,12 +145,15 @@ export function AccountPermissionDialog({
               onDirtyChange={handleDirtyChange}
             />
           ) : (
-            <section className={`${TABLE_BOX} px-5 py-4`} aria-label="운영 권한">
+            <section
+              className="rounded-md border border-slate-200 bg-white p-4"
+              aria-label="운영 권한"
+            >
               <h4 className="text-sm font-bold text-slate-900">운영 권한</h4>
               <p className="mt-2 text-xs leading-5 text-slate-500">
                 운영진 계정이 없어 운영 권한이 없습니다. 그룹 리더 계정(HOST)은 본인 계정 수정과
-                맡은 그룹의 출결 입력만 할 수 있습니다. 운영 권한을 주려면 동아리원 명단의 정보
-                수정에서 운영진 팀을 정해 주세요.
+                맡은 그룹의 출결 입력만 할 수 있습니다. 운영 권한을 주려면 권한 관리의 계정 발급(+
+                계정)에서 운영진 팀을 정해 주세요.
               </p>
             </section>
           )}

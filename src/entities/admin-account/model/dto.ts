@@ -8,6 +8,8 @@ export interface OperatorAssignRequest {
   teamName: string | null;
   username?: string;
   password?: string;
+  /** 보내면 팀장 표시를 바꾼다. 팀장으로 정하면 같은 팀의 다른 팀장은 팀원이 된다. 대표진·차기대표진은 400. */
+  isTeamLead?: boolean;
 }
 
 /** 비밀번호 변경(PATCH .../password). 본인 계정이면 현재 비밀번호가 필요하다. */

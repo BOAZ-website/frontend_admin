@@ -20,6 +20,7 @@ import {
   updateAdmin,
   updateAdminPassword,
   updateAdminUsername,
+  updateTeamLead,
   userExists,
   type AdminRow,
 } from '@/entities/admin-account/api/adminAccountRepository';
@@ -35,7 +36,11 @@ import {
   toOverrides,
   type PermissionOverrides,
 } from '@/entities/admin-account/model/permissions';
-import { compareTeamNames } from '@/entities/admin-account/model/teams';
+import {
+  compareTeamNames,
+  SERVICE_OPERATIONS_TEAM,
+  TEAMS_WITHOUT_LEAD,
+} from '@/entities/admin-account/model/teams';
 import type { AuthSession } from '@/entities/auth/model/types';
 import {
   ADMIN_ROLES,
@@ -53,6 +58,7 @@ import { requireUnusedLoginUsername, restoreByUsername } from './authRoutes';
 import {
   type Body,
   oneOf,
+  optionalBoolean,
   optionalString,
   readBody,
   requiredString,
@@ -201,7 +207,7 @@ function guardLockout(db: Database, actor: AdminRow, pending: ReadonlyMap<number
 function requireValidCombination(role: string, teamName: string) {
   if (!isValidCombination(BASE_SET_RULES, role, teamName)) {
     throw badRequest(
-      'INVALID_ROLE_TEAM',
+      'INVALID_ROLE_TEAM_COMBINATION',
       `${role} · ${teamName}은 정해진 역할·부서 조합이 아니라 권한이 없는 계정이 됩니다.`,
     );
   }
@@ -259,18 +265,12 @@ function readCredentials(db: Database, data: Body): Credentials {
   return { username, password };
 }
 
-/** 본인·서비스운영팀장은 운영진에서 빼거나 다른 팀으로 옮길 수 없다. */
+/** 본인은 운영진에서 빼거나 다른 팀으로 옮길 수 없다. */
 function requireMovable(actor: AdminRow, row: AdminRow): void {
   if (row.id === actor.id) {
     throw badRequest(
       'CANNOT_MODIFY_OWN_ROLE',
       '본인은 운영진에서 빼거나 다른 팀으로 옮길 수 없습니다.',
-    );
-  }
-  if (row.role === 'MASTER') {
-    throw badRequest(
-      'CANNOT_MOVE_MASTER',
-      '서비스운영팀장(MASTER)은 운영진에서 빼거나 다른 팀으로 옮길 수 없습니다.',
     );
   }
 }
@@ -296,6 +296,13 @@ function requireCredentialsEditable(actor: AdminRow, row: AdminRow): void {
 
 /** 운영진에서 뺀다(계정도 함께 삭제). "타 계정 정보 수정" 보유자를 하나는 남긴다. */
 function removeOperator(db: Database, actor: AdminRow, row: AdminRow): void {
+  // 서비스운영팀장 계정 삭제는 DB에서 직접 한다(2026-11-06 결정).
+  if (row.role === 'MASTER') {
+    throw badRequest(
+      'CANNOT_MOVE_MASTER',
+      '서비스운영팀장(MASTER) 계정은 운영진에서 뺄 수 없습니다. 계정 삭제는 DB에서 합니다.',
+    );
+  }
   requireMovable(actor, row);
   guardLockout(db, actor, new Map([[row.id, { row: null }]]));
   deleteAdmin(db, row.id);
@@ -304,7 +311,7 @@ function removeOperator(db: Database, actor: AdminRow, row: AdminRow): void {
 
 /**
  * 이미 운영진인 계정의 팀·아이디·비밀번호를 바꾼다. 모두 검사한 뒤 한꺼번에 저장한다(하나라도 막히면 아무것도 바뀌지 않는다).
- *   · 팀: teamName이 지금 팀과 다르면 옮긴다. 역할·부서가 바뀌므로 권한 예외는 지운다. 본인·서비스운영팀장은 옮길 수 없다.
+ *   · 팀: teamName이 지금 팀과 다르면 옮긴다. 역할·부서가 바뀌므로 권한 예외는 지운다. 본인은 옮길 수 없다(서비스운영팀장은 예외).
  *   · 아이디: username을 보내고 지금 아이디와 다르면 바꾼다. 빈 값은 400, 다른 계정과 겹치면 409.
  *   · 비밀번호: password를 보내면(빈 값 아님) 바꾼다.
  *   · 아이디·비밀번호가 실제로 바뀌면 본인·서비스운영팀장(MASTER) 계정은 400이다(바뀌는 것이 없으면 막지 않는다).
@@ -318,7 +325,9 @@ function updateOperator(
 ): void {
   const isTeamChanged = row.team_name !== teamName;
   const role = isTeamChanged ? roleForTeam(teamName) : row.role;
-  if (isTeamChanged) {
+  // 서비스운영팀장(MASTER)은 본인이어도 다른 팀으로 옮길 수 있다. 옮기면 그 팀 역할이 되고 MASTER는 잠시 비어도 된다.
+  // 다음 서비스운영팀장 지정과 계정 삭제는 DB에서 직접 한다(2026-11-06 결정). 그래서 마지막 보유자 검사도 하지 않는다.
+  if (isTeamChanged && row.role !== 'MASTER') {
     requireMovable(actor, row);
     requireValidCombination(role, teamName);
     guardLockout(
@@ -345,10 +354,10 @@ function updateOperator(
   if (nextPassword !== null) updateAdminPassword(db, row.id, nextPassword);
 }
 
-/** 탈퇴한 회원에게는 로그인할 수 있는 운영진 계정을 만들지 않는다(409). */
+/** 탈동한 회원에게는 로그인할 수 있는 운영진 계정을 만들지 않는다(409). */
 function requireNotWithdrawn(db: Database, userId: string): void {
   if (isWithdrawn(db, userId)) {
-    throw conflict('MEMBER_WITHDRAWN', '탈퇴한 동아리원은 운영진으로 지정할 수 없습니다.');
+    throw conflict('MEMBER_WITHDRAWN', '탈동한 동아리원은 운영진으로 지정할 수 없습니다.');
   }
 }
 
@@ -449,7 +458,7 @@ export const adminAccountRoutes: MockRoute[] = [
     method: 'POST',
     pattern: '/api/v1/admin/accounts',
     summary:
-      '운영진 추가. 계정 주인은 회원(userId)으로 고르고, 아이디·초기 비밀번호는 필수다(없으면 400). 정해지지 않은 역할·부서 조합은 400, 같은 아이디·이미 운영진인 회원·탈퇴한 회원은 409',
+      '운영진 추가. 계정 주인은 회원(userId)으로 고르고, 아이디·초기 비밀번호는 필수다(없으면 400). 정해지지 않은 역할·부서 조합은 400, 같은 아이디·이미 운영진인 회원·탈동한 회원은 409',
     handler: ({ db, body }) => {
       const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
       const data = readBody(body);
@@ -463,6 +472,13 @@ export const adminAccountRoutes: MockRoute[] = [
       requireNoHostAccount(db, userId);
       if (hasAdminAccount(db, userId)) {
         throw conflict('DUPLICATE_ADMIN_USER', '이 회원은 이미 운영진 계정이 있습니다.');
+      }
+      // 서비스운영팀장은 한 명뿐이고 이월은 DB에서 직접 바꾼다(백엔드 협의 2026-11-05).
+      if (role === 'MASTER') {
+        throw badRequest(
+          'MASTER_NOT_CREATABLE',
+          '서비스운영팀장(MASTER) 계정은 새로 만들 수 없습니다.',
+        );
       }
       const { username, password } = readCredentials(db, data);
       requireValidCombination(role, teamName);
@@ -572,7 +588,7 @@ export const adminAccountRoutes: MockRoute[] = [
   {
     method: 'GET',
     pattern: '/api/v1/admin/permissions',
-    summary: '권한 카탈로그: 권한 41개(묶음별), 기본 권한 세트 7개와 규칙, 운영진 팀 목록',
+    summary: '권한 카탈로그: 권한 43개(묶음별), 기본 권한 세트 7개와 규칙, 운영진 팀 목록',
     handler: ({ db }) => {
       actorOf(db);
       return catalogOf(db);
@@ -586,6 +602,13 @@ export const adminAccountRoutes: MockRoute[] = [
     handler: ({ db, params, body }) => {
       const actor = requireAny(db, 'ADMIN_PERMISSION_WRITE');
       const target = findTarget(db, params.accountId);
+      // 서비스운영팀장 권한을 빼면 권한을 고칠 사람이 없어질 수 있어 계정별 수정을 막는다(백엔드 협의 2026-11-05).
+      if (target.role === 'MASTER') {
+        throw badRequest(
+          'PERMISSION_CUSTOM_NOT_ALLOWED',
+          '서비스운영팀장(MASTER) 계정의 권한은 계정별로 바꿀 수 없습니다.',
+        );
+      }
       const desired = new Set(readPermissionKeys(readBody(body)));
       const checked = Object.fromEntries(PERMISSIONS.map((p) => [p.key, desired.has(p.key)]));
       const { leadership } = toAdminAccount(db, target);
@@ -610,7 +633,7 @@ export const adminAccountRoutes: MockRoute[] = [
     method: 'PUT',
     pattern: '/api/v1/admin/operators/:userId',
     summary:
-      '한 명의 운영진 지정(동아리원 명단). 운영진이 아닌 회원을 팀으로 정하면 아이디·초기 비밀번호가 필수이고(없으면 400, 겹치면 409, 탈퇴한 회원이면 409) 그 값으로 계정을 만든다. 이미 운영진이면 teamName이 다를 때 팀을 옮기고, username이 지금과 다르면 아이디를(빈 값 400, 겹치면 409), password를 보내면 비밀번호를 함께 바꾼다. null이면 운영진에서 뺀다(운영진 계정도 함께 삭제)',
+      '한 명의 운영진 지정(동아리원 명단). 운영진이 아닌 회원을 팀으로 정하면 아이디·초기 비밀번호가 필수이고(없으면 400, 겹치면 409, 탈동한 회원이면 409) 그 값으로 계정을 만든다. 이미 운영진이면 teamName이 다를 때 팀을 옮기고, username이 지금과 다르면 아이디를(빈 값 400, 겹치면 409), password를 보내면 비밀번호를 함께 바꾼다. null이면 운영진에서 뺀다(운영진 계정도 함께 삭제). isTeamLead를 보내면 팀장 표시를 바꾸고, 팀장으로 정하면 같은 팀의 다른 팀장은 팀원이 된다(대표진·차기대표진은 400 TEAM_HAS_NO_LEAD)',
     handler: ({ db, params, body }) => {
       const actor = requireAny(db, 'ADMIN_ACCOUNT_CREATE_DELETE');
       const data = readBody(body);
@@ -620,11 +643,29 @@ export const adminAccountRoutes: MockRoute[] = [
         if (row) removeOperator(db, actor, row);
         return undefined;
       }
-      if (!row) {
-        addOperator(db, actor, params.userId, teamName, data);
-        return undefined;
+      // 팀장 지정(협의 2026-11-05: 팀마다 0~1명). 대표진·차기대표진은 팀장을 두지 않는다.
+      const isTeamLead = optionalBoolean(data, 'isTeamLead');
+      if (isTeamLead === true && TEAMS_WITHOUT_LEAD.includes(teamName)) {
+        throw badRequest('TEAM_HAS_NO_LEAD', `${teamName}은 팀장을 두지 않습니다.`);
       }
-      updateOperator(db, actor, row, teamName, data);
+      // 서비스운영팀장은 MASTER 계정이고 이월은 DB에서 직접 한다(협의 1-5). 다른 계정을 팀장으로 정하지 않는다.
+      // 일반 계정을 팀장으로 올리거나, MASTER의 팀장 표시를 끄는 것만 막는다(일반 계정의 false는 그대로 둔다).
+      const isMaster = row?.role === 'MASTER';
+      if (
+        teamName === SERVICE_OPERATIONS_TEAM &&
+        ((isTeamLead === true && !isMaster) || (isTeamLead === false && isMaster))
+      ) {
+        throw badRequest(
+          'SERVICE_TEAM_LEAD_FIXED',
+          '서비스운영팀의 팀장은 서비스운영팀장(MASTER) 계정으로 정해져 있습니다.',
+        );
+      }
+      if (!row) addOperator(db, actor, params.userId, teamName, data);
+      else updateOperator(db, actor, row, teamName, data);
+      if (isTeamLead !== undefined) {
+        const saved = listAdminRows(db).find((admin) => admin.user_id === params.userId);
+        if (saved) updateTeamLead(db, saved.id, isTeamLead);
+      }
       return undefined;
     },
   },

@@ -10,7 +10,7 @@ export function InfoTip({ label, align = 'center' }: { label: string; align?: 'c
       <span
         tabIndex={0}
         aria-label={label}
-        className="inline-flex cursor-help text-slate-300 outline-none hover:text-slate-600 focus-visible:text-slate-600"
+        className="inline-flex cursor-help text-slate-500 outline-none hover:text-slate-700 focus-visible:text-slate-700"
       >
         <Info size={12} aria-hidden="true" />
       </span>
@@ -21,7 +21,7 @@ export function InfoTip({ label, align = 'center' }: { label: string; align?: 'c
 /** 권한 이름. 이름만으로 알 수 없는 조건은 ⓘ 말풍선으로 둔다. */
 export function PermissionLabel({ permission }: { permission: PermissionDef }) {
   return (
-    <span className="inline-flex items-center gap-1.5 font-medium text-slate-800">
+    <span className="inline-flex items-center gap-2 font-normal text-slate-800">
       {permission.label}
       {permission.note && <InfoTip label={permission.note} />}
     </span>
