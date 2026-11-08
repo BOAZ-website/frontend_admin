@@ -20,21 +20,55 @@ CREATE TABLE tracks (
 -- 팀·출결이 아직 없는 반기도 이 목록에는 있을 수 있다(그 반기를 고르면 빈 화면이 보인다).
 CREATE TABLE cohorts (
   cohort         INTEGER PRIMARY KEY CHECK (cohort > 0),
-  semester_label TEXT    NOT NULL UNIQUE CHECK (semester_label GLOB '[0-9][0-9]-[12]'),
+  semester_label TEXT    NOT NULL CHECK (semester_label GLOB '[0-9][0-9]-[12]'),
   start_date     TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   end_date       TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
   is_current     INTEGER NOT NULL DEFAULT 0 CHECK (is_current IN (0, 1)),
+  is_preparing   INTEGER NOT NULL DEFAULT 0 CHECK (is_preparing IN (0, 1)), -- 준비: 저장했지만 아직 활성화하지 않은 반기. 진행·종료는 is_current로 가른다
   adv_term       INTEGER CHECK (adv_term > 0),             -- 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 teams.cohort). 없으면 NULL
-  CHECK (start_date <= end_date)
+  deleted_at     TEXT,                                     -- 반기를 지운 시각(soft delete). 지운 반기는 목록·조회·중복 검사에서 빠지고, 그 반기의 팀·출결·행사 기록은 남는다
+  CHECK (start_date <= end_date),
+  CHECK (is_current = 0 OR is_preparing = 0)
 );
+-- 표기·준비 반기·ADV 기수가 겹치지 않는지는 지우지 않은 반기끼리만 본다.
+CREATE UNIQUE INDEX idx_cohorts_label ON cohorts (semester_label) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_cohorts_single_preparing ON cohorts (is_preparing) WHERE is_preparing = 1 AND deleted_at IS NULL;
 CREATE UNIQUE INDEX idx_cohorts_single_current ON cohorts (is_current) WHERE is_current = 1;
-CREATE UNIQUE INDEX idx_cohorts_adv_term ON cohorts (adv_term) WHERE adv_term IS NOT NULL;
+CREATE UNIQUE INDEX idx_cohorts_adv_term ON cohorts (adv_term) WHERE adv_term IS NOT NULL AND deleted_at IS NULL;
 
 -- 반기별 출결 점수 집계 대상 회원 기수(예: 26-2 반기 → 26기·27기).
 CREATE TABLE semester_member_terms (
   cohort INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
   term   INTEGER NOT NULL CHECK (term > 0),
   PRIMARY KEY (cohort, term)
+);
+
+-- 반기의 방학·학기 기간. cohorts.start_date·end_date는 방학 시작 ~ 학기 종료와 같게 맞춘다. 정하지 않은 옛 반기는 행이 없다.
+-- 스터디는 자기 기간이 끝나면 종료된 그룹으로 본다(그룹 계정 관리 표·HOST 계정 정리). 백엔드의 season_period 자리다.
+CREATE TABLE semester_periods (
+  cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  period     TEXT    NOT NULL CHECK (period IN ('방학', '학기')),
+  start_date TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  end_date   TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  PRIMARY KEY (cohort, period),
+  CHECK (start_date <= end_date)
+);
+
+-- 활동별 1주차 시작일. 이후 주차는 7일씩 더해 계산한다. 출결 주차 날짜(cohort_week_dates)와는 따로 관리한다.
+CREATE TABLE semester_activity_starts (
+  cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  activity   TEXT    NOT NULL CHECK (activity IN ('BASE', 'ADV', 'STUDY_VACATION', 'STUDY_TERM')),
+  start_date TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  PRIMARY KEY (cohort, activity)
+);
+
+-- 무효 주차(휴강): 그 활동의 출결에서 제외되는 주차(RULE-02). 변경 이력은 감사 로그의 요청 본문에 남는다.
+CREATE TABLE semester_invalid_weeks (
+  cohort   INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  activity TEXT    NOT NULL CHECK (activity IN ('BASE', 'ADV', 'STUDY_VACATION', 'STUDY_TERM')),
+  week_num INTEGER NOT NULL CHECK (week_num BETWEEN 1 AND 8),
+  reason   TEXT    NOT NULL DEFAULT '',
+  PRIMARY KEY (cohort, activity, week_num)
 );
 
 -- 동아리원. 스터디원·ADV 팀원·스터디장 후보는 모두 이 테이블의 사람을 가리킨다.
@@ -173,17 +207,6 @@ CREATE TABLE cohort_week_dates (
   week_num INTEGER NOT NULL CHECK (week_num BETWEEN 1 AND 16),
   date     TEXT    NOT NULL CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'), -- YYYY-MM-DD
   PRIMARY KEY (cohort, week_num)
-);
-
--- 반기 안의 방학·학기 기간. 스터디는 자기 기간이 끝나면 종료된 그룹으로 본다(그룹 계정 관리 표·HOST 계정 정리).
--- 백엔드의 season_period 자리다. 반기 관리 화면(SYS-SEM)이 이 값을 고치게 된다.
-CREATE TABLE semester_periods (
-  cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
-  period     TEXT    NOT NULL CHECK (period IN ('방학', '학기')),
-  start_date TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-  end_date   TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-  PRIMARY KEY (cohort, period),
-  CHECK (start_date <= end_date)
 );
 
 -- 팀의 주차별 제출 상태와 활동 사진. 방학 1~8주차, 학기 9~16주차.

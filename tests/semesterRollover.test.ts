@@ -11,13 +11,20 @@ import { createRouter } from '../src/shared/api/mock/router';
 import { commonRoutes } from '../src/shared/api/mock/routes/commonRoutes';
 import { userRoutes } from '../src/shared/api/mock/routes/userRoutes';
 import { eventRoutes } from '../src/shared/api/mock/routes/eventRoutes';
+import { semesterRoutes } from '../src/shared/api/mock/routes/semesterRoutes';
 import { teamRoutes } from '../src/shared/api/mock/routes/teamRoutes';
 
 // 유저 DB + 행사 DB(앱과 같은 순서로 함께 올린다)
 const read = (file: string) => readFileSync(new URL(`../db/${file}`, import.meta.url), 'utf8');
 const schema = `${read('schema.sql')}\n${read('event-schema.sql')}`;
 const seed = `${read('seed.sql')}\n${read('event-seed.sql')}`;
-const router = createRouter([...commonRoutes, ...userRoutes, ...teamRoutes, ...eventRoutes]);
+const router = createRouter([
+  ...commonRoutes,
+  ...userRoutes,
+  ...teamRoutes,
+  ...eventRoutes,
+  ...semesterRoutes,
+]);
 
 async function freshDb() {
   const SQL = await initSqlJs();
@@ -180,6 +187,8 @@ test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한
     advTerm: 27,
     memberTerms: [27, 28],
   });
+  // 명단은 진행 예정 반기만 고친다(진행 중·종료 반기는 409 SEMESTER_LOCKED). 이 경로로 만든 반기를 진행 예정으로 둔다.
+  db.run('UPDATE cohorts SET is_preparing = 1 WHERE cohort = 28');
   assert.deepEqual(router.dispatch(db, 'GET', '/api/v1/users?semester=27-1', undefined), []);
 
   const registered = router.dispatch(db, 'PUT', '/api/v1/semesters/27-1/members', {
@@ -219,11 +228,13 @@ test('팀에는 해당 반기 명단에 등록된 회원만 추가할 수 있다
     advTerm: 27,
     memberTerms: [27, 28],
   });
+  // 명단은 진행 예정 반기만 고친다(진행 중·종료 반기는 409 SEMESTER_LOCKED). 이 경로로 만든 반기를 진행 예정으로 둔다.
+  db.run('UPDATE cohorts SET is_preparing = 1 WHERE cohort = 28');
   router.dispatch(db, 'PUT', '/api/v1/semesters/27-1/members', {
     userIds: ['u_28_01'],
   });
-  // 미래 반기에는 팀을 만들 수 없으므로 먼저 현재 반기로 바꾼다.
-  router.dispatch(db, 'PATCH', '/api/v1/semesters/27-1', { isCurrent: true });
+  // 미래 반기에는 팀을 만들 수 없으므로 먼저 현재 반기로 바꾼다(진행 예정 반기는 활성화 API로).
+  router.dispatch(db, 'POST', '/api/v1/semesters/27-1/activate', undefined);
 
   assert.throws(
     () =>

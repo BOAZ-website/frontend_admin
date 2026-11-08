@@ -14,6 +14,7 @@ import { TEAM_API_PATHS } from '@/entities/study-team/model/dto';
 import { queryAll } from '@/shared/db/createDatabase';
 
 import type { HttpMethod, MockRequest, MockRoute } from './router';
+import { semesterRecordCounts } from './semesterOps';
 import { currentSession } from './session';
 
 /** 임시 API는 요청한 곳의 IP를 알 수 없어 이 컴퓨터 주소로 남긴다. */
@@ -449,6 +450,44 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     method: 'POST',
     pattern: '/api/v1/semesters',
     action: 'SEMESTER_CREATE',
+    targetType: 'SEMESTER',
+    targets: semesterOf,
+  },
+  {
+    method: 'POST',
+    pattern: '/api/v1/semesters/prepare',
+    action: 'SEMESTER_CREATE',
+    targetType: 'SEMESTER',
+    targets: semesterOf,
+  },
+  {
+    method: 'POST',
+    pattern: '/api/v1/semesters/:semester/activate',
+    action: 'SEMESTER_ACTIVATE',
+    targetType: 'SEMESTER',
+    targets: semesterOf,
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/v1/semesters/:semester',
+    action: 'SEMESTER_DELETE',
+    targetType: 'SEMESTER',
+    targets: semesterOf,
+    // 반기를 지워도 남는 팀·출결·행사 기록 건수를 함께 남긴다(지우기 전에 센다).
+    before: (r, ids) => {
+      const cohort = queryAll<{ cohort: number }>(
+        r.db,
+        'SELECT cohort FROM cohorts WHERE semester_label = ? AND deleted_at IS NULL',
+        [ids[0] ?? ''],
+      )[0]?.cohort;
+      return cohort === undefined ? {} : { ...semesterRecordCounts(r.db, cohort) };
+    },
+    detail: (_r, { before }) => before,
+  },
+  {
+    method: 'PUT',
+    pattern: '/api/v1/semesters/:semester/schedule',
+    action: 'SEMESTER_SCHEDULE_SET',
     targetType: 'SEMESTER',
     targets: semesterOf,
   },

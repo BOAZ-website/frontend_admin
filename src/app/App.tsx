@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ChevronRight, PanelLeft, User, X } from 'lucide-react';
 
@@ -17,6 +17,7 @@ import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentM
 import { MemberManagementPage } from '@/pages/member-management/ui/MemberManagementPage';
 import { AuditLogPage } from '@/pages/system-audit/ui/AuditLogPage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
+import { SemesterManagementPage } from '@/pages/system-semesters/ui/SemesterManagementPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
@@ -30,8 +31,7 @@ import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { SERVICE_OPERATIONS_TEAM } from '@/entities/admin-account/model/teams';
 import { logout, openDevDefaultSession, restoreSession } from '@/entities/auth/api/authApi';
 import type { AuthSession } from '@/entities/auth/model/types';
-import type { SemesterAttendanceKind, SemesterDto } from '@/entities/cohort/model/dto';
-import { createSemester, updateSemester } from '@/entities/cohort/api/semesterApi';
+import type { SemesterDto } from '@/entities/cohort/model/dto';
 import type { WeekInfo } from '@/entities/attendance/model/week';
 import { useScoreRules } from '@/entities/score-rule/model/useScoreRules';
 import type { StudyTeamInfo } from '@/entities/study-team/model/types';
@@ -196,28 +196,13 @@ export default function App() {
   const semesters = attendanceMeta?.semesters ?? NO_SEMESTERS;
   const currentSemester = attendanceMeta?.currentSemester ?? null;
   const nextSemester = attendanceMeta?.nextSemester ?? null;
-  // 반기 선택 목록은 그 화면의 출결이 등록된 반기만 보여 준다(반기 API의 attendanceKinds 기준).
-  // 현재 반기는 출결을 새로 만들 수 있어야 하므로 비어 있어도 늘 넣는다.
-  const cohortsWith = useCallback(
-    (kind: SemesterAttendanceKind) =>
-      semesters
-        .filter((semester) => semester.isCurrent || semester.attendanceKinds.includes(kind))
-        .map((semester) => semester.cohort),
-    [semesters],
-  );
-  const baseCohorts = useMemo(() => cohortsWith('BASE'), [cohortsWith]);
-  const studyCohorts = useMemo(() => cohortsWith('STUDY'), [cohortsWith]);
-  const eventCohorts = useMemo(() => cohortsWith('EVENT'), [cohortsWith]);
+  // 반기 선택 목록은 반기 관리 목록과 같다(같은 반기 API). 출결 기록이 없는 반기도 보인다.
+  // 준비 반기는 아직 시작하지 않아 출결 화면에는 넣지 않는다(반기 API가 빼고 준다).
+  const semesterCohorts = useMemo(() => semesters.map((semester) => semester.cohort), [semesters]);
   const currentCohort = currentSemester?.cohort ?? null;
   // ADV 팀의 기수는 회원 기수다. 반기마다 ADV를 진행하는 기수(advTerm)가 정해져 있다.
   const advCohorts = useMemo(
-    () =>
-      semesters.flatMap((semester) =>
-        semester.advTerm === null ||
-        !(semester.isCurrent || semester.attendanceKinds.includes('ADV'))
-          ? []
-          : [semester.advTerm],
-      ),
+    () => semesters.flatMap((semester) => (semester.advTerm === null ? [] : [semester.advTerm])),
     [semesters],
   );
   const advCurrentCohort = currentSemester?.advTerm ?? null;
@@ -244,19 +229,8 @@ export default function App() {
   const advTeams = currentTeams?.adv ?? NO_TEAMS;
   const studyTeams = currentTeams?.study ?? NO_TEAMS;
   const tracks = attendanceMeta?.tracks ?? NO_TRACKS;
-  async function handleAdvanceSemester(): Promise<void> {
-    if (!nextSemester || !attendanceMeta) throw new Error('다음 반기 정보를 불러오지 못했습니다.');
-    if (attendanceMeta.canCreateNextSemester) {
-      await createSemester({
-        cohort: nextSemester.cohort,
-        semester: nextSemester.semester,
-        startDate: nextSemester.startDate,
-        endDate: nextSemester.endDate,
-        advTerm: nextSemester.advTerm,
-        memberTerms: nextSemester.memberTerms,
-      });
-    }
-    await updateSemester(nextSemester.semester, { isCurrent: true });
+  // 반기 관리 화면에서 반기를 시작하거나 일정을 바꾸면, 출결 화면이 함께 쓰는 반기·HOST 계정·팀을 다시 읽는다.
+  function handleSemesterChanged(): void {
     reloadAttendanceMeta();
     refreshTeamState();
   }
@@ -625,10 +599,8 @@ export default function App() {
                 category="SESSION"
                 semesters={semesters}
                 weeks={weeks}
-                cohorts={baseCohorts}
+                cohorts={semesterCohorts}
                 currentCohort={currentCohort}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 cohortLabels={cohortLabels}
                 tracks={tracks}
                 onDataChanged={refreshTeamState}
@@ -644,8 +616,6 @@ export default function App() {
                 weeks={weeks}
                 cohorts={advCohorts}
                 currentCohort={advCurrentCohort}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 cohortLabels={advCohortLabels}
                 tracks={tracks}
                 onDataChanged={refreshTeamState}
@@ -659,10 +629,8 @@ export default function App() {
                 category="STUDY"
                 semesters={semesters}
                 weeks={weeks}
-                cohorts={studyCohorts}
+                cohorts={semesterCohorts}
                 currentCohort={currentCohort}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 cohortLabels={cohortLabels}
                 tracks={tracks}
                 onDataChanged={refreshTeamState}
@@ -673,11 +641,9 @@ export default function App() {
               semesterNotice
             ) : (
               <EventAttendanceContainer
-                cohorts={eventCohorts}
+                cohorts={semesterCohorts}
                 currentCohort={currentCohort}
                 cohortLabels={cohortLabels}
-                canCreateNextSemester={attendanceMeta?.canCreateNextSemester ?? false}
-                onAdvanceSemester={handleAdvanceSemester}
                 listRequest={eventListRequest}
               />
             ))}
@@ -728,6 +694,9 @@ export default function App() {
             />
           )}
           {(activePage === 'system' || activePage === 'system-accounts') && <SystemAccountsPage />}
+          {activePage === 'system-semesters' && (
+            <SemesterManagementPage onSemesterChanged={handleSemesterChanged} />
+          )}
         </main>
       </div>
 

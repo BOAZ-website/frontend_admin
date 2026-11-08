@@ -151,7 +151,7 @@ function createAdvTeam({ db, body }: MockRequest) {
   const cohort = term ?? currentSemester(db).advTerm;
   const semesterCohort = queryAll<{ cohort: number }>(
     db,
-    'SELECT cohort FROM cohorts WHERE adv_term = ?',
+    'SELECT cohort FROM cohorts WHERE adv_term = ? AND deleted_at IS NULL',
     [cohort ?? 0],
   )[0]?.cohort;
   if (!cohort || !semesterCohort) {

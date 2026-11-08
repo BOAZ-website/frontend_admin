@@ -503,10 +503,10 @@ test('이름 중복 제한은 기수 안에서만 적용된다(다른 기수의 
   assert.equal(loadTeamState(db).studyTeams.find((t) => t.id === 'study_new28')?.cohort, 28);
 });
 
-test('기수 목록은 DB의 cohorts에서 큰 기수부터 읽고, 20~27기가 들어 있다', async () => {
+test('기수 목록은 DB의 cohorts에서 큰 기수부터 읽고, 26·27기가 들어 있다', async () => {
   const db = await freshDb();
   const cohorts = listSemesters(db).map((semester) => semester.cohort);
-  assert.deepEqual(cohorts, [27, 26, 25, 24, 23, 22, 21, 20]);
+  assert.deepEqual(cohorts, [27, 26]);
   // 팀이 있는 기수는 모두 목록에 있어야 한다.
   const teamCohorts = new Set(loadTeamState(db).studyTeams.map((team) => team.cohort));
   teamCohorts.forEach((cohort) => assert.ok(cohorts.includes(cohort as number), String(cohort)));
