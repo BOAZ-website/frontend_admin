@@ -53,7 +53,7 @@ CREATE TABLE semester_periods (
   CHECK (start_date <= end_date)
 );
 
--- 활동별 1주차 시작일. 이후 주차는 7일씩 더해 계산한다(cohort_week_dates는 이 값에서 BASE·학기 스터디 기준으로 채운다).
+-- 활동별 1주차 시작일. 이후 주차는 7일씩 더해 계산한다. 출결 주차 날짜(cohort_week_dates)와는 따로 관리한다.
 CREATE TABLE semester_activity_starts (
   cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
   activity   TEXT    NOT NULL CHECK (activity IN ('BASE', 'ADV', 'STUDY_VACATION', 'STUDY_TERM')),

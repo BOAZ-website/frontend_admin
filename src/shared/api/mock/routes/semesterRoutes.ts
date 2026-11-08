@@ -214,7 +214,7 @@ export const semesterRoutes: MockRoute[] = [
     method: 'PUT',
     pattern: '/api/v1/semesters/:semester/schedule',
     summary:
-      '반기 일정 통째로 저장(기간·시작일·무효 주차). 출결 생성 창이 읽는 주차 날짜(cohort_week_dates)도 시작일로 다시 채운다',
+      '반기 일정 통째로 저장(기간·시작일·무효 주차). 출결 주차 날짜(cohort_week_dates)는 바꾸지 않는다(출결 주차와 따로 관리)',
     handler: ({ db, params, body }) => {
       const semester = resolveSemester(db, params.semester);
       assertPreparing(semester, '진행 중이거나 종료된 반기의 일정은 고칠 수 없습니다.');
