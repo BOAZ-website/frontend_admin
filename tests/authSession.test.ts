@@ -26,9 +26,8 @@ interface AuthSession {
   username: string;
   role: 'MASTER' | 'SUPER' | 'TEAM' | 'HOST';
   teamName: string | null;
-  accountId: number | null;
-  hostId: string | null;
-  hostTeamId: string | null;
+  accountId: number;
+  leaderTeamIds: string[];
 }
 
 interface AuditFilters {
@@ -47,10 +46,16 @@ interface AuditRow {
   detail: string | null;
 }
 
-// 시드 값. 운영진 6번은 기획팀 팀장 김민정(u_26_17), HOST host_a는 남민서(u_26_01)의 study_a 계정.
+// 시드 값. 운영진 6번은 기획팀 팀장 김민정(u_26_17).
+// HOST 계정은 admin 표에 role = 'HOST'로 있다. host_c(101)는 study_c 팀장, host_adv_ana1(102)은 adv_t1·study_d 팀장이다.
 const PLANNER = { username: 'boaz_plan_1', password: 'Boaz!2026', id: 6, userId: 'u_26_17' };
-const HOST_A = { username: 'host_a', password: 'boaz2026!a', id: 'h1', userId: 'u_26_01' };
-const HOST_C = { username: 'host_c', password: 'boaz2026!c', id: 'h3', userId: 'u_27_01' };
+const HOST_C = { username: 'host_c', password: 'boaz2026!c', id: 101, userId: 'u_27_01' };
+const HOST_ADV = {
+  username: 'host_adv_ana1',
+  password: 'boaz2026!adv1',
+  id: 102,
+  userId: 'u_27_02',
+};
 
 async function setup() {
   const SQL = await initSqlJs();
@@ -94,8 +99,7 @@ test('로그인: 운영진 아이디·비밀번호가 맞으면 운영진 세션
     role: 'TEAM',
     teamName: '기획팀',
     accountId: PLANNER.id,
-    hostId: null,
-    hostTeamId: null,
+    leaderTeamIds: [],
   });
 
   const master = login('boaz_master', 'Boaz!2026');
@@ -111,22 +115,29 @@ test('로그인: 비밀번호가 틀리거나 없는 아이디면 401 INVALID_CR
   expectApiError(() => login(PLANNER.username, 'wrong-password'), 401, 'INVALID_CREDENTIALS');
   expectApiError(() => login('no_such_user', 'Boaz!2026'), 401, 'INVALID_CREDENTIALS');
   // 운영진 비밀번호로 HOST 아이디에, HOST 비밀번호로 운영진 아이디에 들어갈 수 없다.
-  expectApiError(() => login(HOST_A.username, PLANNER.password), 401, 'INVALID_CREDENTIALS');
-  expectApiError(() => login(PLANNER.username, HOST_A.password), 401, 'INVALID_CREDENTIALS');
+  expectApiError(() => login(HOST_C.username, PLANNER.password), 401, 'INVALID_CREDENTIALS');
+  expectApiError(() => login(PLANNER.username, HOST_C.password), 401, 'INVALID_CREDENTIALS');
 });
 
-test('로그인: HOST 계정이 맞으면 HOST 세션과 맡은 첫 그룹의 팀 id를 준다', async () => {
+test('로그인: HOST 계정이 맞으면 HOST 세션과 맡은 그룹(현재 반기 팀장인 팀)을 준다', async () => {
   const { login } = await setup();
-  const session = login(HOST_A.username, HOST_A.password);
+  const session = login(HOST_ADV.username, HOST_ADV.password);
 
   assert.equal(session.kind, 'HOST');
   assert.equal(session.role, 'HOST');
-  assert.equal(session.username, HOST_A.username);
-  assert.equal(session.name, '남민서');
-  assert.equal(session.hostId, HOST_A.id);
-  assert.equal(session.hostTeamId, 'study_a');
-  assert.equal(session.accountId, null);
-  assert.ok(session.teamName === null || typeof session.teamName === 'string');
+  assert.equal(session.username, HOST_ADV.username);
+  assert.equal(session.accountId, HOST_ADV.id);
+  assert.equal(session.teamName, null);
+  // ADV 팀이 먼저, 그다음 스터디다.
+  assert.deepEqual(session.leaderTeamIds, ['adv_t1', 'study_d']);
+});
+
+test('로그인: 운영진이 팀장이면 운영진 세션에도 맡은 그룹이 실린다(HOST 계정을 따로 두지 않는다)', async () => {
+  const { login } = await setup();
+  const master = login('boaz_master', 'Boaz!2026');
+
+  assert.equal(master.kind, 'ADMIN');
+  assert.deepEqual(master.leaderTeamIds, ['study_a']);
 });
 
 test('로그인: 운영진 지정 때 정한 아이디·초기 비밀번호로 로그인된다', async () => {
@@ -200,11 +211,12 @@ test('로그인: 시드 35~40번 운영진도 받은 아이디와 Boaz!2026으�
   );
 });
 
-test('로그인: 회수된(사용 중이 아닌) HOST 계정은 403 ACCOUNT_LOCKED', async () => {
+test('로그인: 팀장이 바뀌어 정리된 HOST 계정은 401 INVALID_CREDENTIALS', async () => {
   const { call, login } = await setup();
-  call('PATCH', `/api/v1/hosts/${HOST_C.id}`, { active: false });
+  // study_c의 팀장(host_c 주인)을 같은 팀 팀원 u_28_08로 바꾼다. host_c는 다른 그룹을 맡지 않아 지워진다.
+  call('PATCH', '/api/v1/study-teams/study_c', { leaderId: 'u_28_08' });
 
-  expectApiError(() => login(HOST_C.username, HOST_C.password), 403, 'ACCOUNT_LOCKED');
+  expectApiError(() => login(HOST_C.username, HOST_C.password), 401, 'INVALID_CREDENTIALS');
 });
 
 // ── 세션과 감사 기록 수행자 ─────────────────────────────────────────────
@@ -221,22 +233,25 @@ test('세션: 로그인한 운영진이 쓰면 감사 기록 수행자가 그 �
   assert.equal(row.actor_role, 'TEAM');
 });
 
-test('세션: HOST 세션의 쓰기는 actor_admin_id가 null, actor_user_id가 계정 주인, actor_role이 HOST다', async () => {
+test('세션: HOST 세션의 쓰기는 actor_admin_id가 HOST 계정, actor_user_id가 계정 주인, actor_role이 HOST다', async () => {
   const { login, latestRow, write } = await setup();
   login(HOST_C.username, HOST_C.password);
   write('통계학과');
   const row = latestRow();
 
-  assert.equal(row.actor_admin_id, null);
+  assert.equal(row.actor_admin_id, HOST_C.id);
   assert.equal(row.actor_user_id, HOST_C.userId);
   assert.equal(row.actor_role, 'HOST');
 });
 
-test('세션: HOST 세션에서 /admin/accounts/me는 403', async () => {
+test('세션: HOST 세션은 /admin/accounts/me로 본인 계정을 보고, 운영진 계정 목록은 403이다', async () => {
   const { call, login } = await setup();
-  login(HOST_A.username, HOST_A.password);
+  login(HOST_C.username, HOST_C.password);
 
-  expectApiError(() => call('GET', '/api/v1/admin/accounts/me'), 403);
+  const me = call<{ id: number; role: string }>('GET', '/api/v1/admin/accounts/me');
+  assert.equal(me.id, HOST_C.id);
+  assert.equal(me.role, 'HOST');
+  expectApiError(() => call('GET', '/api/v1/admin/accounts'), 403);
 });
 
 test('로그아웃하면 세션이 지워져 요청자가 없고(운영진 API 401), admin-session {username}으로 세션을 되살린다', async () => {
@@ -266,7 +281,7 @@ test('로그인·로그아웃 요청은 감사 기록을 남기지 않는다', a
   const before = logCount();
 
   login(PLANNER.username, PLANNER.password);
-  login(HOST_A.username, HOST_A.password);
+  login(HOST_C.username, HOST_C.password);
   expectApiError(() => login(PLANNER.username, 'wrong-password'), 401);
   call('POST', '/api/v1/auth/logout');
 
@@ -282,12 +297,13 @@ test('감사 기록 어디에도 비밀번호가 남지 않는다(로그인·계
     'Changed!2027',
     'Assigned!2027',
     'Moved!2027',
-    HOST_A.password,
+    'Hosted!2027',
+    HOST_C.password,
   ];
 
   login(PLANNER.username, PLANNER.password);
   expectApiError(() => login(PLANNER.username, 'wrong-pass-1'), 401);
-  login(HOST_A.username, HOST_A.password);
+  login(HOST_C.username, HOST_C.password);
   call('POST', '/api/v1/auth/logout');
   // 로그아웃 뒤에는 운영진 계정 API가 401이므로, 계정 작업은 서비스운영팀장으로 다시 로그인해서 한다.
   login('boaz_master', 'Boaz!2026');
@@ -299,6 +315,12 @@ test('감사 기록 어디에도 비밀번호가 남지 않는다(로그인·계
     teamName: '기획팀',
   });
   call('PATCH', '/api/v1/admin/accounts/7/password', { newPassword: 'Changed!2027' });
+  // HOST 계정 발급(adv_t9 팀장 u_28_25는 계정이 없다)
+  call('POST', '/api/v1/hosts', {
+    teamId: 'adv_t9',
+    username: 'host_adv_eng3',
+    password: 'Hosted!2027',
+  });
   // 운영진 지정: 새 운영진(지정과 발급을 한 번에)
   call('PUT', '/api/v1/admin/operators/u_28_12', {
     teamName: '기획팀',
@@ -357,11 +379,11 @@ test('시드에는 운영진 명단(admin) 없이 OPERATOR인 회원이 없고, 
   const { db } = await setup();
   const orphans = queryAll<{ id: string }>(
     db,
-    "SELECT id FROM users WHERE club_role = 'OPERATOR' AND id NOT IN (SELECT user_id FROM admin)",
+    "SELECT id FROM users WHERE club_role = 'OPERATOR' AND id NOT IN (SELECT user_id FROM admin WHERE role <> 'HOST')",
   ).map((row) => row.id);
   const plainAdmins = queryAll<{ id: string }>(
     db,
-    "SELECT u.id FROM admin a JOIN users u ON u.id = a.user_id WHERE u.club_role = 'MEMBER'",
+    "SELECT u.id FROM admin a JOIN users u ON u.id = a.user_id WHERE u.club_role = 'MEMBER' AND a.role <> 'HOST'",
   ).map((row) => row.id);
 
   assert.deepEqual(orphans, []);
@@ -442,7 +464,7 @@ test('운영진 지정(PUT operators)·추가(POST accounts)에 HOST 아이디�
     () =>
       call('PUT', `/api/v1/admin/operators/${userId}`, {
         teamName: '기획팀',
-        username: HOST_A.username,
+        username: HOST_C.username,
         password: 'Issued!2027',
       }),
     409,
@@ -457,7 +479,7 @@ test('운영진 지정(PUT operators)·추가(POST accounts)에 HOST 아이디�
     () =>
       call('POST', '/api/v1/admin/accounts', {
         userId,
-        username: HOST_A.username,
+        username: HOST_C.username,
         password: 'Issued!2027',
         role: 'TEAM',
         teamName: '기획팀',
@@ -467,37 +489,13 @@ test('운영진 지정(PUT operators)·추가(POST accounts)에 HOST 아이디�
   );
 });
 
-test('HOST 생성·수정에 운영진 아이디나 다른 HOST 아이디를 쓰면 409 DUPLICATE_USERNAME', async () => {
+test('HOST 계정 발급에 운영진 아이디나 다른 HOST 아이디를 쓰면 409 DUPLICATE_USERNAME', async () => {
   const { call } = await setup();
+  // adv_t2 팀장(u_28_11)은 계정이 없어 발급 대상이다.
+  const issue = (username: string) =>
+    call('POST', '/api/v1/hosts', { teamId: 'adv_t2', username, password: 'boaz2026!new' });
 
-  expectApiError(
-    () => call('POST', '/api/v1/hosts', { username: 'boaz_master', initialPassword: 'x' }),
-    409,
-    'DUPLICATE_USERNAME',
-  );
-  expectApiError(
-    () => call('PATCH', `/api/v1/hosts/${HOST_A.id}`, { username: 'boaz_master' }),
-    409,
-    'DUPLICATE_USERNAME',
-  );
-  expectApiError(
-    () => call('PATCH', `/api/v1/hosts/${HOST_A.id}`, { username: HOST_C.username }),
-    409,
-    'DUPLICATE_USERNAME',
-  );
-});
-
-test('HOST가 자기 아이디를 그대로 저장하거나, 새 아이디로 HOST를 만들면 거절하지 않는다', async () => {
-  const { call } = await setup();
-
-  const kept = call<{ username: string }>('PATCH', `/api/v1/hosts/${HOST_A.id}`, {
-    username: HOST_A.username,
-  });
-  assert.equal(kept.username, HOST_A.username);
-
-  const created = call<{ username: string }>('POST', '/api/v1/hosts', {
-    username: 'host_new_unique',
-    initialPassword: 'boaz2026!new',
-  });
-  assert.equal(created.username, 'host_new_unique');
+  expectApiError(() => issue('boaz_master'), 409, 'DUPLICATE_USERNAME');
+  expectApiError(() => issue(HOST_C.username), 409, 'DUPLICATE_USERNAME');
+  assert.equal(issue('host_new_unique') !== undefined, true);
 });

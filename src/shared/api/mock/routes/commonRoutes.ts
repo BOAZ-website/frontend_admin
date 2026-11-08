@@ -154,7 +154,7 @@ export const commonRoutes: MockRoute[] = [
     method: 'PATCH',
     pattern: '/api/v1/semesters/:semester',
     summary:
-      '반기 수정(기간·ADV 기수·점수 집계 대상 기수). 다른 반기를 isCurrent: true로 바꾸면 지난 반기 팀을 HOST 계정에서 떼고(맡은 팀이 없어진 계정은 삭제) 팀·출결은 보존한다',
+      '반기 수정(기간·ADV 기수·점수 집계 대상 기수). 다른 반기를 isCurrent: true로 바꾸면 시작 전·진행 중인 그룹을 맡지 않은 HOST 계정을 삭제하고 팀·출결은 보존한다(준비 반기는 409, 활성화 API로)',
     handler: ({ db, params, body }) => {
       const semester = resolveSemester(db, params.semester);
       const input = readBody(body);

@@ -165,7 +165,7 @@ export const semesterRoutes: MockRoute[] = [
     method: 'POST',
     pattern: '/api/v1/semesters/:semester/activate',
     summary:
-      '진행 예정 반기 활성화: 진행 반기로 만들고 이전 진행 반기는 종료(지난 반기 팀을 HOST 계정에서 뗌). 진행 예정 반기가 아니면 409 SEMESTER_NOT_PREPARING, 명단이 비었으면 409 ROSTER_EMPTY. 이전 반기에 진행 중인 주차가 남아 있어도 막지 않는다',
+      '진행 예정 반기 활성화: 진행 반기로 만들고 이전 진행 반기는 종료(시작 전·진행 중인 그룹을 맡지 않은 HOST 계정은 지움). 진행 예정 반기가 아니면 409 SEMESTER_NOT_PREPARING, 명단이 비었으면 409 ROSTER_EMPTY. 이전 반기에 진행 중인 주차가 남아 있어도 막지 않는다',
     handler: ({ db, params }) => {
       const semester = resolveSemester(db, params.semester);
       if (semester.status !== 'PREPARING') {

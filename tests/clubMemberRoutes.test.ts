@@ -244,14 +244,13 @@ function activeLeaderId(db: Awaited<ReturnType<typeof setup>>['db']): string {
     `SELECT tm.user_id AS id FROM team_members tm JOIN users u ON u.id = tm.user_id
       WHERE u.club_status = 'ACTIVE'
         AND NOT EXISTS (SELECT 1 FROM admin a WHERE a.user_id = tm.user_id)
-        AND NOT EXISTS (SELECT 1 FROM host_accounts h WHERE h.user_id = tm.user_id)
         AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.leader_id = tm.user_id AND t.${CURRENT_TEAM})
         AND EXISTS (SELECT 1 FROM attendance_records r WHERE r.member_id = tm.id)
       LIMIT 1`,
   )[0].id;
 }
 
-/** 운영진이 아닌 현재 반기 팀장(활동 회원)과 그 팀 id. */
+/** 계정(운영진·HOST)이 없는 현재 반기 팀장(활동 회원)과 그 팀 id. */
 function currentLeaderOf(db: Awaited<ReturnType<typeof setup>>['db']) {
   return queryAll<{ userId: string; teamId: string; teamName: string }>(
     db,
@@ -268,7 +267,6 @@ test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
   assert.ok(leader);
-  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
   const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find(
     (m) => m.id === leader.userId,
   );
@@ -294,7 +292,6 @@ test('현재 반기 팀장은 탈퇴 처리할 수 없고(409), 팀장을 바꾸
 test('지난 반기 팀장은 탈퇴를 막지 않는다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
-  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
   // 반기를 넘겨 지금 팀이 지난 반기 팀이 되게 한다.
   const current = queryAll<{ cohort: number }>(
     db,
@@ -338,9 +335,10 @@ test('탈퇴 처리(DELETE)는 행을 지우지 않고 활동 상태만 WITHDRAW
   assert.deepEqual(linkedRowCounts(db, target), before);
 });
 
-test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(409), 계정을 지우면 탈퇴 처리된다', async () => {
+test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(409), 계정이 정리되면 탈퇴 처리된다', async () => {
   const { db, call } = await setup();
   // 시드의 HOST 계정 host_c(계정 주인 u_27_01). 팀장 사유는 따로 보므로 팀장을 먼저 비운다.
+  // (API가 아닌 SQL로 비워 계정 정리가 돌지 않으므로 계정이 남는다. 다음 반기 팀장처럼 계정만 남은 경우다.)
   execute(db, 'UPDATE teams SET leader_id = NULL WHERE leader_id = ?', ['u_27_01']);
   const listed = call<ClubMember[]>('GET', '/api/v1/club-members').find((m) => m.id === 'u_27_01');
   assert.equal(listed?.hostUsernames, 'host_c');
@@ -351,19 +349,19 @@ test('팀장이 아닌데 HOST 계정이 있으면 탈퇴 처리할 수 없고(4
     'MEMBER_HAS_HOST_ACCOUNT',
   );
   // 계정은 그대로이고 활동 상태도 바뀌지 않는다.
-  assert.equal(queryAll(db, "SELECT 1 FROM host_accounts WHERE username = 'host_c'").length, 1);
+  assert.equal(queryAll(db, "SELECT 1 FROM admin WHERE username = 'host_c'").length, 1);
 
-  execute(db, "DELETE FROM host_accounts WHERE username = 'host_c'");
+  execute(db, "DELETE FROM admin WHERE username = 'host_c'");
   assert.equal(call<ClubMember>('DELETE', '/api/v1/club-members/u_27_01').status, 'WITHDRAWN');
 });
 
 test('HOST 계정이 있는 현재 반기 팀장은 팀장 사유 하나로 409를 받고, 팀장을 바꾸라고 알린다', async () => {
   const { db, call } = await setup();
   const leader = currentLeaderOf(db);
-  execute(db, 'DELETE FROM host_accounts WHERE user_id = ?', [leader.userId]);
   execute(
     db,
-    "INSERT INTO host_accounts (id, username, initial_password, user_id, created_at) VALUES ('h_t', 'host_t', 'x', ?, '2026-10-25 10:00')",
+    `INSERT INTO admin (user_id, username, password, role, team_name, created_at, updated_at)
+     VALUES (?, 'host_t', 'x', 'HOST', '그룹리더', '2026-10-25 10:00', '2026-10-25 10:00')`,
     [leader.userId],
   );
   assert.throws(

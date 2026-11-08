@@ -115,7 +115,7 @@ function targetLabel(
       );
     case 'HOST':
       return (
-        firstValue<string>(db, 'SELECT username AS value FROM host_accounts WHERE id = ?', id) ??
+        firstValue<string>(db, 'SELECT username AS value FROM admin WHERE id = ?', id) ??
         savedLabel ??
         '삭제된 HOST 계정'
       );
@@ -168,14 +168,6 @@ function actorOf(db: Database, row: AuditRow): ActorFields {
       ? undefined
       : queryAll<{ id: number }>(db, 'SELECT id FROM admin WHERE user_id = ?', [userId])[0]?.id;
   const adminNow = adminId === undefined ? undefined : findAdminRow(db, adminId);
-  const hostCount = (activeOnly: boolean) =>
-    userId === null
-      ? 0
-      : queryAll<{ n: number }>(
-          db,
-          `SELECT COUNT(*) AS n FROM host_accounts WHERE user_id = ?${activeOnly ? ' AND active = 1' : ''}`,
-          [userId],
-        )[0].n;
   const hasAdminPermission = adminNow
     ? toAdminAccount(db, adminNow).effectivePermissions.length > 0
     : false;
@@ -186,8 +178,8 @@ function actorOf(db: Database, row: AuditRow): ActorFields {
     actorTrack: user?.track ?? null,
     actorTeam: adminNow?.team_name ?? null,
     actorRole: row.actor_role ?? adminAtLog?.role ?? null,
-    actorHasPermission: hasAdminPermission || hostCount(true) > 0,
-    actorHasAccount: adminNow !== undefined || hostCount(false) > 0,
+    actorHasPermission: hasAdminPermission,
+    actorHasAccount: adminNow !== undefined,
   };
 }
 

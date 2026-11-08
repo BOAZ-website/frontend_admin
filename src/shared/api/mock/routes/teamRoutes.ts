@@ -33,7 +33,7 @@ import {
   TEAM_PATHS,
   type TeamGroup,
 } from '../queries';
-import { detachTeamsFromHosts } from '../hostCleanup';
+import { cleanupHostAccounts } from '../hostCleanup';
 import { ApiError, type MockRequest, type MockRoute } from '../router';
 import {
   addMembersToTeam,
@@ -339,16 +339,11 @@ function teamRoutesFor(group: TeamGroup): MockRoute[] {
           const previousLeaderId = team.leaderId ?? null;
           const isLeaderChange =
             group !== 'BASE' && previousLeaderId !== null && leaderId !== previousLeaderId;
+          // 팀장이 바뀌면 트리거가 이 팀의 리더 연결(admin_group_leader)을 새 팀장 계정으로 바꾼다.
+          // 새 팀장에게 계정이 있으면 바로 이 팀 권한이 생기고, 없으면 그룹 계정 관리에서 발급한다.
           execute(db, 'UPDATE teams SET leader_id = ? WHERE id = ?', [leaderId, team.id]);
-          // 예전 팀장은 팀원으로 남고, 예전 팀장 계정에서 이 팀의 출결 권한을 회수한다.
-          // 그러면 이 팀에 연결된 계정이 없어지고, 새 팀장의 계정은 그룹 계정 관리에서 발급한다.
-          if (isLeaderChange) {
-            detachTeamsFromHosts(
-              db,
-              (teamId) => teamId === team.id,
-              (host) => host.userId === previousLeaderId,
-            );
-          }
+          // 예전 팀장은 팀원으로 남고, 맡은 그룹이 더 없는 HOST 계정이면 지운다(설계 3.3).
+          if (isLeaderChange) cleanupHostAccounts(db, [previousLeaderId]);
         }
         // ADV는 팀 이름(분석 1팀)과 프로젝트 이름이 따로 있고, 스터디·BASE는 두 이름이 같다.
         const nextStudyName = studyName ?? (group === 'ADV' ? undefined : teamName);
@@ -398,27 +393,30 @@ function teamRoutesFor(group: TeamGroup): MockRoute[] {
     {
       method: 'DELETE',
       pattern: `${base}/:teamId`,
-      summary: `${label} 삭제. 팀원·주차별 출결·사진·수정 요청이 함께 지워진다. 이 팀만 맡던 HOST 계정은 삭제하고, 다른 팀도 맡는 계정은 이 팀만 뺀다`,
+      summary: `${label} 삭제. 팀원·주차별 출결·사진·수정 요청이 함께 지워진다. 팀장의 HOST 계정은 맡은 그룹이 더 없으면 삭제한다`,
       handler: ({ db, params }) => {
         const team = findTeam(db, params.teamId, group);
-        const hosts = detachTeamsFromHosts(db, (teamId) => teamId === team.id);
         // 외래 키(ON DELETE CASCADE)가 팀원·출결·맡은 그룹 행을 함께 지운다.
         execute(db, 'DELETE FROM teams WHERE id = ?', [team.id]);
-        return { deleted: team.id, ...hosts };
+        // 팀을 지운 뒤에 판단해야 이 팀이 "맡은 그룹"으로 세어지지 않는다(설계 3.3).
+        const deletedHostIds = cleanupHostAccounts(db, [team.leaderId ?? null]);
+        return { deleted: team.id, deletedHostIds };
       },
     },
     {
       method: 'DELETE',
       pattern: `${base}/:teamId/members/:memberId`,
-      summary: `${label} 팀원 삭제. 그 팀원의 출결 기록도 함께 지워지고, 팀장이었다면 팀장이 해제된다`,
+      summary: `${label} 팀원 삭제. 그 팀원의 출결 기록도 함께 지워지고, 팀장이었다면 팀장이 해제된다(맡은 그룹이 더 없는 HOST 계정은 삭제)`,
       handler: ({ db, params }) => {
         const team = findTeam(db, params.teamId, group);
         const member = listMembers(db, team.id).find((item) => item.id === params.memberId);
         if (!member) throw new ApiError(404, 'NOT_FOUND', '팀원을 찾을 수 없습니다.');
-        if (team.leaderId === member.userId) {
+        const isLeader = team.leaderId === member.userId;
+        if (isLeader) {
           execute(db, 'UPDATE teams SET leader_id = NULL WHERE id = ?', [team.id]);
         }
         execute(db, 'DELETE FROM team_members WHERE team_id = ? AND id = ?', [team.id, member.id]);
+        if (isLeader) cleanupHostAccounts(db, [member.userId]);
         return { members: listMembers(db, team.id) };
       },
     },

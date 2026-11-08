@@ -14,12 +14,15 @@ import type {
   SemesterWeekDto,
 } from '../src/entities/cohort/model/dto';
 import { activityWeekDates } from '../src/entities/cohort/model/schedule';
-import { loadHosts } from '../src/entities/host-account/api/hostRepository';
 import { ApiError } from '../src/shared/api/apiError';
 import { recordWrite } from '../src/shared/api/mock/audit';
 import { MOCK_ROUTES } from '../src/shared/api/mock/mockRoutes';
 import { createRouter } from '../src/shared/api/mock/router';
 import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
+
+/** HOST 계정 수(운영진 계정과 같은 admin 표에 role = 'HOST'로 있다). */
+const hostCountOf = (db: Parameters<typeof queryAll>[0]) =>
+  queryAll<{ n: number }>(db, "SELECT COUNT(*) AS n FROM admin WHERE role = 'HOST'")[0].n;
 
 // 유저 DB + 행사 DB(앱과 같은 순서로 함께 올린다)
 const read = (file: string) => readFileSync(new URL(`../db/${file}`, import.meta.url), 'utf8');
@@ -182,14 +185,14 @@ test('명단 변경 실패: 없는 회원 id는 400 USER_NOT_FOUND이고 명단�
   assert.deepEqual(roster('27-1'), before);
 });
 
-test('새 반기를 시작하면 이전 반기 팀이 HOST 계정에서 떨어지고 지난 팀은 남는다(반기 수정과 같다)', async () => {
+test('새 반기를 시작하면 지난 반기 팀만 맡은 HOST 계정을 지우고 지난 팀은 남는다(반기 수정과 같다)', async () => {
   const { db, start, count } = await setup();
-  assert.ok(loadHosts(db).length > 0);
+  assert.ok(hostCountOf(db) > 0);
   const teams = count('teams');
 
   start();
 
-  assert.equal(loadHosts(db).length, 0);
+  assert.equal(hostCountOf(db), 0);
   assert.equal(count('teams'), teams);
 });
 
@@ -301,7 +304,7 @@ test('시작 실패: 방학·학기 날짜가 어긋나면 400 INVALID_DATE_RANG
 
 test('실패한 시작은 반기·명단·현재 반기·HOST 계정·감사 기록을 바꾸지 않는다', async () => {
   const { db, start, currentLabels, count } = await setup();
-  const hosts = loadHosts(db).length;
+  const hosts = hostCountOf(db);
   const tables = ['cohorts', 'semester_members', 'semester_periods', 'audit_log'];
   const before = tables.map(count);
   const failures: Partial<PrepareSemesterRequest>[] = [
@@ -316,7 +319,7 @@ test('실패한 시작은 반기·명단·현재 반기·HOST 계정·감사 기
 
   assert.deepEqual(tables.map(count), before);
   assert.deepEqual(currentLabels(), ['26-2']);
-  assert.equal(loadHosts(db).length, hosts);
+  assert.equal(hostCountOf(db), hosts);
 });
 
 test('활동별 주차 날짜는 1주차 시작일에 7일씩 더한 값이다', () => {

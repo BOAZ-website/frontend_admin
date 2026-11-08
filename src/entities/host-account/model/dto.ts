@@ -1,28 +1,15 @@
-/** HOST 계정 생성(POST)·수정(PATCH) 요청. 수정은 보낸 값만 바뀐다. */
-export interface HostUpsertRequest {
-  /** 생성 시 필수. */
-  username?: string;
-  initialPassword?: string;
-  /** 계정 주인인 users.id. */
-  userId?: string;
-  hostName?: string;
-  generation?: string;
-  track?: string;
-  role?: string;
-  accountType?: 'STUDY' | 'ADV';
-  /** 담당 팀(teams.id). 빈 문자열이나 null이면 해제. */
-  teamId?: string | null;
-  permissions?: ('ADV' | 'STUDY')[];
-  /** 맡은 그룹(teams.id 목록). */
-  assignedTeamIds?: string[];
-  concurrentRoles?: string[];
-  active?: boolean;
-  /** true면 계정 주인을 담당 팀의 팀장으로 연결한다. */
-  linkLeader?: boolean;
+/** HOST 계정 발급(POST /api/v1/hosts). 계정 주인은 그 팀의 현재 팀장으로 서버가 정한다. */
+export interface HostIssueRequest {
+  teamId: string;
+  username: string;
+  /** 운영지원팀이 정한 초기 비밀번호. 응답에는 담기지 않는다. */
+  password: string;
 }
 
-export interface HostListQuery {
-  active?: boolean;
-  permission?: 'ADV' | 'STUDY';
-  teamId?: string;
+/** HOST 계정 발급 응답. */
+export interface HostIssueResponse {
+  /** admin.id */
+  id: number;
+  userId: string;
+  username: string;
 }

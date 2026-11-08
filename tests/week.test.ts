@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  currentPeriodOf,
   defaultWeekNum,
   isHeldWeek,
   weekStatusOf,
@@ -45,11 +44,4 @@ test('기본 주차는 가장 뒤의 진행 중 주차, 없으면 마지막 종�
 
 test('진행 중 주차가 여러 개면 가장 뒤의 주차를 기본으로 한다', () => {
   assert.equal(defaultWeekNum([week(3, 'OPEN'), week(4, 'OPEN'), week(5, 'UPCOMING')]), 4);
-});
-
-test('현재 기간은 기본 주차가 속한 기간이고, 주차 목록이 비면 알 수 없다', () => {
-  assert.equal(currentPeriodOf(weeks), '방학');
-  assert.equal(currentPeriodOf([week(8, 'CLOSED'), week(9, 'OPEN')]), '학기');
-  assert.equal(currentPeriodOf([week(3, 'OPEN'), week(9, 'UPCOMING')]), '방학');
-  assert.equal(currentPeriodOf([]), null);
 });

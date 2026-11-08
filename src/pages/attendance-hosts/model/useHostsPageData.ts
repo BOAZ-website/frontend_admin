@@ -1,21 +1,22 @@
 /**
- * HOST 관리 화면 데이터. 화면을 열 때 HOST 계정·현재 반기의 ADV/스터디 팀·회원을 API로 읽고,
- * 저장·삭제도 API로 한 뒤 다시 읽는다.
+ * 그룹 계정 관리 화면 데이터. 화면을 열 때 진행 중인 그룹의 팀장 계정·현재 반기의 ADV/스터디 팀·회원을 API로 읽고,
+ * 계정 발급·비밀번호 초기화도 API로 한 뒤 다시 읽는다.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { createHost, fetchHosts, updateHost } from '@/entities/host-account/api/hostApi';
-import type { HostUpsertRequest } from '@/entities/host-account/model/dto';
-import type { HostAccount } from '@/entities/host-account/model/types';
+import { changeAdminPassword } from '@/entities/admin-account/api/adminAccountApi';
+import { fetchGroupLeaderAccounts, issueHostAccount } from '@/entities/host-account/api/hostApi';
+import type { HostIssueRequest } from '@/entities/host-account/model/dto';
+import type { GroupLeaderAccount } from '@/entities/host-account/model/types';
 import { fetchTeams } from '@/entities/study-team/api/teamApi';
 import { splitTeamList } from '@/entities/study-team/model/adapters';
 import type { TeamListItemDto } from '@/entities/study-team/model/dto';
-import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
+import type { StudyTeamInfo } from '@/entities/study-team/model/types';
 import { fetchUsers } from '@/entities/user/api/usersApi';
 import type { UserProfile } from '@/entities/user/model/types';
 
 interface HostsPageSource {
-  hosts: HostAccount[];
+  leaders: GroupLeaderAccount[];
   advTeams: TeamListItemDto[];
   studyTeams: TeamListItemDto[];
   users: UserProfile[];
@@ -24,40 +25,20 @@ interface HostsPageSource {
 export interface HostsPageData {
   status: 'loading' | 'ready' | 'error';
   error: Error | null;
-  hosts: HostAccount[];
+  /** 진행 중인 그룹마다 현재 팀장과 그 계정(표의 행). */
+  leaders: GroupLeaderAccount[];
   advTeams: StudyTeamInfo[];
   studyTeams: StudyTeamInfo[];
-  membersMap: Record<string, Member[]>;
   users: UserProfile[];
-  /** 계정을 만들거나 고치고, 팀장 이름이 그 팀의 팀원이면 팀장으로 지정한다. */
-  saveHost: (account: HostAccount) => Promise<void>;
-  resetPassword: (hostId: string, password: string) => Promise<void>;
+  /** 계정이 없는 팀장에게 HOST 계정을 발급한다. */
+  issueAccount: (request: HostIssueRequest) => Promise<void>;
+  /** 계정 비밀번호를 운영지원팀이 정한 값으로 초기화한다. */
+  resetPassword: (accountId: number, password: string) => Promise<void>;
 }
 
-const EMPTY_SOURCE: HostsPageSource = { hosts: [], advTeams: [], studyTeams: [], users: [] };
+const EMPTY_SOURCE: HostsPageSource = { leaders: [], advTeams: [], studyTeams: [], users: [] };
 
-/** 화면의 계정 모양을 생성·수정 API 본문으로 바꾼다. */
-function toHostRequest(account: HostAccount): HostUpsertRequest {
-  return {
-    username: account.username,
-    initialPassword: account.initialPassword,
-    userId: account.userId,
-    hostName: account.hostName,
-    generation: account.generation,
-    track: account.track,
-    role: account.role,
-    accountType: account.accountType,
-    teamId: account.teamId ?? null,
-    permissions: account.permissions,
-    assignedTeamIds: (account.assignedGroups ?? [])
-      .map((group) => group.teamId)
-      .filter((teamId): teamId is string => Boolean(teamId)),
-    concurrentRoles: account.concurrentRoles,
-    active: account.active,
-  };
-}
-
-/** @param onChanged 저장·삭제가 끝난 뒤 다른 화면 데이터도 다시 읽게 할 때 쓴다. */
+/** @param onChanged 발급·초기화가 끝난 뒤 다른 화면 데이터도 다시 읽게 할 때 쓴다. */
 export function useHostsPageData(onChanged?: () => void): HostsPageData {
   const [version, setVersion] = useState(0);
   const [state, setState] = useState<{
@@ -73,17 +54,17 @@ export function useHostsPageData(onChanged?: () => void): HostsPageData {
   useEffect(() => {
     let isCancelled = false;
     Promise.all([
-      fetchHosts({ active: true }),
+      fetchGroupLeaderAccounts(),
       fetchTeams('ADV'),
       // 스터디 목록 API는 기간을 생략하면 지금 기간(방학·학기) 스터디만 준다.
-      // 계정 관리는 반기 안의 모든 스터디 계정을 다뤄야 하므로 두 기간을 모두 읽는다.
+      // 표에 어떤 팀을 보일지는 계정 API(진행 중인 그룹)가 정하므로 두 기간을 모두 읽어 둔다.
       fetchTeams('STUDY', { period: 'all' }),
       fetchUsers(),
     ])
-      .then(([hosts, adv, study, users]) => {
+      .then(([leaders, adv, study, users]) => {
         if (!isCancelled) {
           setState({
-            source: { hosts, advTeams: adv.teams, studyTeams: study.teams, users },
+            source: { leaders, advTeams: adv.teams, studyTeams: study.teams, users },
             status: 'ready',
             error: null,
           });
@@ -109,34 +90,25 @@ export function useHostsPageData(onChanged?: () => void): HostsPageData {
   }, [onChanged]);
 
   const { source } = state;
-  const view = useMemo(() => {
-    const adv = splitTeamList(source.advTeams);
-    const study = splitTeamList(source.studyTeams);
-    return {
-      advTeams: adv.teams,
-      studyTeams: study.teams,
-      membersMap: { ...adv.members, ...study.members },
-    };
-  }, [source]);
+  const view = useMemo(
+    () => ({
+      advTeams: splitTeamList(source.advTeams).teams,
+      studyTeams: splitTeamList(source.studyTeams).teams,
+    }),
+    [source],
+  );
 
-  const saveHost = useCallback(
-    async (account: HostAccount) => {
-      const request = toHostRequest(account);
-      if (source.hosts.some((host) => host.id === account.id)) {
-        await updateHost(account.id, request);
-      } else {
-        await createHost({ ...request, username: account.username });
-      }
-
-      // 팀장은 그 팀의 팀원 중에서만 지정한다(같은 이름·기수·부문의 회원).
+  const issueAccount = useCallback(
+    async (request: HostIssueRequest) => {
+      await issueHostAccount(request);
       reload();
     },
-    [source, reload],
+    [reload],
   );
 
   const resetPassword = useCallback(
-    async (hostId: string, password: string) => {
-      await updateHost(hostId, { initialPassword: password });
+    async (accountId: number, password: string) => {
+      await changeAdminPassword(accountId, { newPassword: password });
       reload();
     },
     [reload],
@@ -145,10 +117,10 @@ export function useHostsPageData(onChanged?: () => void): HostsPageData {
   return {
     status: state.status,
     error: state.error,
-    hosts: source.hosts,
+    leaders: source.leaders,
     users: source.users,
     ...view,
-    saveHost,
+    issueAccount,
     resetPassword,
   };
 }

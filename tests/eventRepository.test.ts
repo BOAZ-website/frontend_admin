@@ -9,7 +9,6 @@ import {
   loadEventState,
   persistAttendees,
   persistEvents,
-  persistTemplates,
 } from '../src/entities/event/api/eventRepository';
 import type { AttendanceEvent, AttendeeRecord } from '../src/entities/event/model/types';
 import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
@@ -64,19 +63,18 @@ function newAttendee(id: string, overrides: Partial<AttendeeRecord> = {}): Atten
   };
 }
 
-test('시드의 행사·참가자·템플릿이 DB에서 그대로 읽힌다', async () => {
+test('시드의 행사·참가자가 DB에서 그대로 읽힌다', async () => {
   const state = loadEventState(await freshDb());
 
   // 출결 방식별 예시 행사 3개(신입 특칙형 · 컨퍼런스 1/2차형 · 일반 행사형). 모두 현재 반기(27) 목록에 보인다.
   assert.equal(state.events.length, 3);
   assert.equal(state.events.filter((event) => event.targetTerms.includes(27)).length, 3);
-  assert.equal(state.templates.length, 3);
   assert.equal(state.attendees.length, 21);
 
   const conference = state.events.find((event) => event.id === 'evt_ex_conference');
   assert.ok(conference);
   assert.equal(conference.allowExternal, true);
-  assert.deepEqual(conference.targetTerms, [27, 28]);
+  assert.deepEqual(conference.targetTerms, [26, 27]);
   assert.equal(conference.statusColumnIndex, undefined);
 
   // 명단은 position 순서를 유지하고, 추가 컬럼 값(JSON)이 객체로 복원된다.
@@ -84,7 +82,7 @@ test('시드의 행사·참가자·템플릿이 DB에서 그대로 읽힌다', a
   assert.equal(first.id, 'att_ex_nc1');
   assert.equal(first.userId, 'u_28_01');
   assert.equal(first.name, '김서하');
-  assert.equal(first.customAnswers?.['뒤풀이 비용'], 'O');
+  assert.equal(first.customAnswers?.['기수'], '27기');
 
   const internalWithoutUser = queryAll<{ id: string }>(
     await freshDb(),
@@ -190,9 +188,9 @@ test('동아리 회원의 이름·기수·부문은 저장 API에서 바꿀 수 
   const member = before.attendees.find((attendee) => attendee.id === 'att_ex_cf1');
   const external = before.attendees.find((attendee) => attendee.id === 'att_ex_cf7');
   assert.ok(member && external);
-  // 회원 DB 값: 김서하 · 28기 · 분석
+  // 회원 DB 값: 김서하 · 27기 · 분석
   assert.equal(member.userId, 'u_28_01');
-  assert.equal(member.customAnswers?.['기수'], '28기');
+  assert.equal(member.customAnswers?.['기수'], '27기');
   assert.equal(member.customAnswers?.['부문'], '분석');
 
   const edited = before.attendees.map((attendee) => {
@@ -212,14 +210,14 @@ test('동아리 회원의 이름·기수·부문은 저장 API에서 바꿀 수 
   const after = loadEventState(db);
   const savedMember = after.attendees.find((attendee) => attendee.id === member.id);
   assert.equal(savedMember?.name, '김서하');
-  assert.equal(savedMember?.term, 28);
-  assert.equal(savedMember?.customAnswers?.['기수'], '28기');
+  assert.equal(savedMember?.term, 27);
+  assert.equal(savedMember?.customAnswers?.['기수'], '27기');
   assert.equal(savedMember?.customAnswers?.['부문'], '분석');
   assert.equal(savedMember?.memo, '회원 비고');
   // 저장소에도 회원 DB 값으로 남는다.
   assert.deepEqual(
     queryAll(db, 'SELECT name, term FROM event_attendees WHERE id = ?', [member.id]),
-    [{ name: '김서하', term: 28 }],
+    [{ name: '김서하', term: 27 }],
   );
   assert.equal(
     after.attendees.find((attendee) => attendee.id === external.id)?.name,
@@ -233,9 +231,9 @@ test('올릴 때 연결한 회원만 저장되고, 이름이 같아도 연결 �
   persistEvents(db, state.events, [newEvent(), ...state.events]);
   const usersBefore = queryAll<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM users')[0].n;
 
-  const linked = newAttendee('att_linked', { name: '김서하', term: 28, userId: 'u_28_01' });
+  const linked = newAttendee('att_linked', { name: '김서하', term: 27, userId: 'u_28_01' });
   // 회원과 이름·기수가 같지만 올릴 때 연결하지 않은 참가자(예: 회원 확인 실패)
-  const unlinked = newAttendee('att_unlinked', { name: '정채원', term: 28 });
+  const unlinked = newAttendee('att_unlinked', { name: '정채원', term: 27 });
   const unknown = newAttendee('att_unknown', { name: '처음 보는 사람', term: 28 });
   persistAttendees(db, state.attendees, [linked, unlinked, unknown, ...state.attendees]);
 
@@ -253,7 +251,7 @@ test('행사 참가자는 행사 DB만 읽는다(유저 DB와 조인하지 않�
   const member = loadEventState(db).attendees.find((a) => a.id === 'att_ex_cf1');
   assert.equal(member?.userId, 'u_28_01');
   assert.equal(member?.name, '김서하');
-  assert.equal(member?.term, 28);
+  assert.equal(member?.term, 27);
 });
 
 test('참가자를 앞에 추가하면 순서가 유지되고 상태·비고 수정이 저장된다', async () => {
@@ -323,51 +321,4 @@ test('저장되지 않은 행사의 참가자는 저장하지 않는다', async 
     loadEventState(db).attendees.some((attendee) => attendee.id === 'orphan'),
     false,
   );
-});
-
-test('템플릿을 추가·수정·삭제할 수 있다', async () => {
-  const db = await freshDb();
-  const state = loadEventState(db);
-  const template = {
-    id: 'tmpl_new',
-    title: '새 양식',
-    description: '',
-    allowExternal: false,
-    defaultCheckinMethod: 'CODE' as const,
-    createdAt: '2026-09-01',
-    customFields: [
-      {
-        id: 'f1',
-        label: '구분',
-        type: 'SELECT' as const,
-        options: ['부원', '외부인'],
-        isRequired: true,
-        target: 'ALL' as const,
-      },
-    ],
-  };
-
-  persistTemplates(db, state.templates, [...state.templates, template]);
-  const created = loadEventState(db).templates.find((item) => item.id === 'tmpl_new');
-  assert.deepEqual(created?.customFields[0].options, ['부원', '외부인']);
-  assert.equal(created?.customFields[0].isRequired, true);
-
-  const withNew = loadEventState(db).templates;
-  persistTemplates(
-    db,
-    withNew,
-    withNew.map((item) => (item.id === 'tmpl_new' ? { ...item, title: '수정한 양식' } : item)),
-  );
-  assert.equal(
-    loadEventState(db).templates.find((item) => item.id === 'tmpl_new')?.title,
-    '수정한 양식',
-  );
-
-  const edited = loadEventState(db).templates;
-  persistTemplates(
-    db,
-    edited,
-    edited.filter((item) => item.id !== 'tmpl_new'),
-  );
-  assert.equal(loadEventState(db).templates.length, 3);
 });

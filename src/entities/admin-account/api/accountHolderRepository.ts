@@ -1,7 +1,7 @@
 /**
  * 계정 통합 목록을 임시 DB에서 만든다. 임시 API(adminAccountRoutes)만 쓴다.
- * 운영진 계정(admin)과 HOST 계정(host_accounts)을 회원(users.id) 단위로 합치고,
- * 이번 반기 맡은 그룹은 teams.leader_id로 찾는다.
+ * 운영진 계정과 HOST 계정(admin.role = 'HOST')을 회원(users.id) 단위로 합치고,
+ * 이번 반기 맡은 그룹은 teams.leader_id로 찾는다. 회원 한 명에 계정은 하나라서 한 사람은 둘 중 하나만 가진다.
  */
 import type { Database } from 'sql.js';
 
@@ -11,14 +11,12 @@ import type { AccountHolder, HostLogin, LeaderGroup } from '../model/types';
 import { listAdminRows, toAdminAccount } from './adminAccountRepository';
 
 interface HostLoginRow extends Record<string, unknown> {
-  id: string;
-  user_id: string | null;
+  id: number;
+  user_id: string;
   username: string;
-  active: number;
-  last_login: string | null;
-  holder_name: string | null;
-  holder_term: number | null;
-  holder_track: string | null;
+  holder_name: string;
+  holder_term: number;
+  holder_track: string;
 }
 
 interface LeaderGroupRow extends Record<string, unknown> {
@@ -27,13 +25,6 @@ interface LeaderGroupRow extends Record<string, unknown> {
   team_name: string;
   group_type: 'ADV' | 'STUDY';
   kind: 'MENTORING' | 'GENERAL';
-}
-
-interface UserRow extends Record<string, unknown> {
-  id: string;
-  name: string;
-  term: number;
-  track: string;
 }
 
 const groupByKey = <T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> => {
@@ -47,11 +38,11 @@ export function listAccountHolders(db: Database): AccountHolder[] {
   const admins = listAdminRows(db).map((row) => toAdminAccount(db, row));
   const hostRows = queryAll<HostLoginRow>(
     db,
-    `SELECT h.id, h.user_id, h.username, h.active, h.last_login,
-            COALESCE(u.name, h.host_name) AS holder_name, u.term AS holder_term,
-            COALESCE(u.track, h.track) AS holder_track
-       FROM host_accounts h LEFT JOIN users u ON u.id = h.user_id
-      ORDER BY h.created_at, h.id`,
+    `SELECT a.id, a.user_id, a.username,
+            u.name AS holder_name, u.term AS holder_term, u.track AS holder_track
+       FROM admin a JOIN users u ON u.id = a.user_id
+      WHERE a.role = 'HOST'
+      ORDER BY a.created_at, a.id`,
   );
   const groups = groupByKey(
     queryAll<LeaderGroupRow>(
@@ -64,14 +55,15 @@ export function listAccountHolders(db: Database): AccountHolder[] {
     ),
     (row) => row.leader_id,
   );
-  const hostsByKey = groupByKey(hostRows, (row) => row.user_id ?? `host:${row.id}`);
+  const hostsByKey = groupByKey(hostRows, (row) => row.user_id);
 
   const toLogins = (rows: readonly HostLoginRow[]): HostLogin[] =>
     rows.map((row) => ({
-      id: row.id,
+      id: String(row.id),
       username: row.username,
-      active: row.active === 1,
-      lastLogin: row.last_login,
+      // 임시 DB는 HOST 계정을 비활성화하지 않고(정리할 때 지운다) 마지막 접속 시각을 기록하지 않는다.
+      active: true,
+      lastLogin: null,
     }));
   const toGroups = (userId: string | null): LeaderGroup[] =>
     (userId ? (groups.get(userId) ?? []) : []).map((row) => ({
@@ -92,24 +84,17 @@ export function listAccountHolders(db: Database): AccountHolder[] {
     leaderGroups: toGroups(account.userId),
   }));
   const adminUserIds = new Set(admins.map((account) => account.userId));
-  const users = new Map(
-    queryAll<UserRow>(db, 'SELECT id, name, term, track FROM users').map((row) => [row.id, row]),
-  );
   const hostOnly: AccountHolder[] = [...hostsByKey.entries()]
     .filter(([key]) => !adminUserIds.has(key))
-    .map(([key, rows]) => {
-      const userId = rows[0].user_id;
-      const user = userId ? users.get(userId) : undefined;
-      return {
-        key,
-        userId,
-        name: user?.name ?? rows[0].holder_name ?? rows[0].username,
-        term: user?.term ?? rows[0].holder_term,
-        track: user?.track ?? rows[0].holder_track,
-        adminAccount: null,
-        hostLogins: toLogins(rows),
-        leaderGroups: toGroups(userId),
-      };
-    });
+    .map(([userId, rows]) => ({
+      key: userId,
+      userId,
+      name: rows[0].holder_name,
+      term: rows[0].holder_term,
+      track: rows[0].holder_track,
+      adminAccount: null,
+      hostLogins: toLogins(rows),
+      leaderGroups: toGroups(userId),
+    }));
   return [...fromAdmins, ...hostOnly];
 }

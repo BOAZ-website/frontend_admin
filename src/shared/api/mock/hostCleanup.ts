@@ -1,91 +1,42 @@
 /**
- * HOST 계정과 팀의 연결을 정리하는 임시 API 공용 함수.
- * 팀 삭제와 반기 전환이 같은 규칙을 쓴다. 호출한 요청의 트랜잭션 안에서 실행되므로,
+ * 맡은 그룹이 없어진 HOST 계정을 지우는 임시 API 공용 함수(설계문서 2026-11-06판 3.3·3.4·4.3).
+ * 팀장 변경·팀장 해제·팀 삭제·반기 전환이 같은 규칙을 쓴다. 호출한 요청의 트랜잭션 안에서 실행되므로,
  * 중간에 실패하면 계정 정리도 함께 취소된다.
+ *  · 운영진 계정은 지우지 않는다. 리더 권한은 admin_group_leader 행이 빠지면서 함께 빠진다.
+ *  · 시작 전이거나 진행 중인 그룹을 하나라도 맡은 HOST 계정은 남긴다(다음 반기 팀장으로 미리 지정된 사람 포함).
+ *  · 그 밖의 HOST 계정은 지운다. 맡은 그룹 연결(admin_group_leader)도 외래 키로 함께 지워진다.
+ * 맡은 그룹은 admin_group_leader가 아니라 teams.leader_id로 판단한다. admin_group_leader는 현재 반기 팀만 담아서
+ * 다음 반기 팀장 여부를 알 수 없기 때문이다.
  */
 import type { Database } from 'sql.js';
 
-import { loadHosts } from '@/entities/host-account/api/hostRepository';
-import type { HostAccount } from '@/entities/host-account/model/types';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 
-import { findTeam } from './queries';
-
-/** 계정이 맡은 팀 id(담당 팀 + 맡은 그룹, 중복 없이). */
-export function managedTeamIds(host: HostAccount): string[] {
-  return [
-    ...new Set(
-      [host.teamId, ...(host.assignedGroups ?? []).map((group) => group.teamId)].filter(
-        (id): id is string => Boolean(id),
-      ),
-    ),
-  ];
-}
-
-/** 반기에 속한 팀 id(BASE·ADV·스터디 모두). */
-export function teamIdsOfSemester(db: Database, cohort: number): Set<string> {
-  return new Set(
-    queryAll<{ team_id: string }>(
-      db,
-      'SELECT team_id FROM team_semesters WHERE semester_cohort = ?',
-      [cohort],
-    ).map((row) => row.team_id),
-  );
-}
+import { groupStates } from './groupState';
 
 /**
- * shouldDetach가 true인 팀을 HOST(출결) 계정에서 뗀다. 시스템 계정 등 다른 계정은 다루지 않는다.
- *  · 그 팀들만 맡던 계정은 출결 접근이 남지 않으므로 지운다.
- *  · 다른 팀도 맡는 계정은 남기고 그 팀들만 뺀다. 담당 팀이 빠지면 남은 팀 중 첫 팀을 담당 팀으로 두고,
- *    ADV·스터디 권한도 남은 팀에 맞춘다.
- *  · 맡은 팀이 하나도 없는 계정(팀 개설 대기)은 건드리지 않는다.
- * isTargetHost를 주면 그 조건에 맞는 계정만 다룬다(예: 팀장이 바뀐 팀의 예전 팀장 계정).
+ * 맡은 그룹이 없는 HOST 계정을 지우고, 지운 계정 id를 돌려준다.
+ * userIds를 주면 그 회원의 계정만 본다(팀장 변경·해제·팀 삭제의 예전 팀장). 주지 않으면 모든 HOST 계정을 본다(반기 전환).
  */
-export function detachTeamsFromHosts(
-  db: Database,
-  shouldDetach: (teamId: string) => boolean,
-  isTargetHost: (host: HostAccount) => boolean = () => true,
-) {
-  const deletedHostIds: string[] = [];
-  const detachedHostIds: string[] = [];
-  loadHosts(db).forEach((host) => {
-    if (!isTargetHost(host)) return;
-    const managed = managedTeamIds(host);
-    const removed = managed.filter(shouldDetach);
-    if (removed.length === 0) return;
-    const remaining = managed.filter((id) => !removed.includes(id));
-    if (remaining.length === 0) {
-      execute(db, 'DELETE FROM host_accounts WHERE id = ?', [host.id]);
-      deletedHostIds.push(host.id);
-      return;
-    }
-    removed.forEach((teamId) =>
-      execute(db, 'DELETE FROM host_assigned_groups WHERE host_id = ? AND team_id = ?', [
-        host.id,
-        teamId,
-      ]),
-    );
-    if (host.teamId && removed.includes(host.teamId)) {
-      const next = findTeam(db, remaining[0]);
-      execute(db, 'UPDATE host_accounts SET team_id = ?, group_type = ? WHERE id = ?', [
-        next.id,
-        next.group === 'ADV' ? 'ADV' : '스터디',
-        host.id,
-      ]);
-    }
-    // 출결 접근 권한(ADV·스터디)도 남은 팀에 맞춘다. 예: 스터디 팀이 모두 빠지면 스터디 권한도 뺀다.
-    const permissions = [
-      ...new Set(remaining.map((id) => (findTeam(db, id).group === 'ADV' ? 'ADV' : 'STUDY'))),
-    ];
-    execute(db, 'DELETE FROM host_permissions WHERE host_id = ?', [host.id]);
-    permissions.forEach((permission, position) =>
-      execute(db, 'INSERT INTO host_permissions (host_id, position, permission) VALUES (?, ?, ?)', [
-        host.id,
-        position,
-        permission,
-      ]),
-    );
-    detachedHostIds.push(host.id);
-  });
-  return { deletedHostIds, detachedHostIds };
+export function cleanupHostAccounts(db: Database, userIds?: readonly (string | null)[]): number[] {
+  const targets = userIds?.filter((id): id is string => Boolean(id));
+  if (targets?.length === 0) return [];
+
+  const states = groupStates(db);
+  const leadingUserIds = new Set(
+    queryAll<{ id: string; leader_id: string }>(
+      db,
+      "SELECT id, leader_id FROM teams WHERE leader_id IS NOT NULL AND group_type IN ('ADV', 'STUDY')",
+    )
+      .filter((team) => states.has(team.id) && states.get(team.id) !== 'ENDED')
+      .map((team) => team.leader_id),
+  );
+  const hosts = queryAll<{ id: number; user_id: string }>(
+    db,
+    "SELECT id, user_id FROM admin WHERE role = 'HOST'",
+  ).filter((host) => !targets || targets.includes(host.user_id));
+
+  const deleted = hosts.filter((host) => !leadingUserIds.has(host.user_id)).map((host) => host.id);
+  deleted.forEach((id) => execute(db, 'DELETE FROM admin WHERE id = ?', [id]));
+  return deleted;
 }

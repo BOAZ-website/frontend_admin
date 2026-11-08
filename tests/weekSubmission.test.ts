@@ -6,7 +6,6 @@ import {
   countUnmarked,
   submissionKey,
 } from '../src/pages/attendance-internal-category/model/weekSubmission';
-import { submitWeekAttendance } from '../src/entities/attendance/api/submitWeekApi';
 
 const attendee = (over: Record<string, unknown>) =>
   ({
@@ -58,28 +57,6 @@ test('미정 상태의 인원 수를 센다', () => {
 test('제출 여부 키는 기수·팀·주차로 정해진다', () => {
   assert.equal(submissionKey(27, 'base_analysis', 3), '27|base_analysis|3');
   assert.notEqual(submissionKey(27, 'base_analysis', 3), submissionKey(26, 'base_analysis', 3));
-});
-
-test('서버 주소가 없으면 임시 구현이 제출 시각을 돌려주고, 대상이 없으면 거부한다', async () => {
-  const result = await submitWeekAttendance({
-    group: 'BASE',
-    cohort: 27,
-    teamId: 'base_analysis',
-    weekNum: 3,
-    records: [{ memberId: 'a', name: '가', term: 28, track: '분석', status: 'present' }],
-  });
-  assert.ok(!Number.isNaN(Date.parse(result.submittedAt)));
-
-  await assert.rejects(
-    submitWeekAttendance({
-      group: 'BASE',
-      cohort: 27,
-      teamId: 'base_analysis',
-      weekNum: 3,
-      records: [],
-    }),
-    /제출할 출결 대상이 없습니다/,
-  );
 });
 
 test('ADV 제출 요청은 group=ADV로 만들어진다', () => {

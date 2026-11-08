@@ -89,6 +89,40 @@ test('예외는 기본 세트보다 우선하고, 담당 그룹 권한은 맡은
   assert.equal(isEffectivelyAllowed(studyOwn, advLeader), false);
 });
 
+test('담당 그룹 권한은 예외로 회수하면 빠지고, 그룹을 맡지 않았으면 추가 예외가 있어도 생기지 않는다', () => {
+  const advOwn = permissionOf('ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE');
+  const subject = { role: 'TEAM', teamName: '기획팀', leadership: ['ADV'] as const, overrides: {} };
+
+  assert.equal(
+    isEffectivelyAllowed(advOwn, {
+      ...subject,
+      overrides: { ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE: false },
+    }),
+    false,
+  );
+  assert.equal(
+    isEffectivelyAllowed(advOwn, {
+      ...subject,
+      leadership: [],
+      overrides: { ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE: true },
+    }),
+    false,
+  );
+});
+
+test('맡은 그룹에서 생긴 담당 그룹 권한을 체크 해제하면 회수로 남고, 맡지 않은 종류는 남기지 않는다', () => {
+  const overrides = toOverrides(
+    {
+      ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE: false,
+      ATTENDANCE_ADV_ENTRY_OWN_GROUP_READ: true,
+      ATTENDANCE_STUDY_ENTRY_OWN_GROUP_WRITE: false,
+    },
+    'otherTeam',
+    ['ADV'],
+  );
+  assert.deepEqual(overrides, { ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE: false });
+});
+
 test('체크 상태에서 기본 세트와 다른 항목만 예외로 남기고, 담당 그룹 권한은 넣지 않는다', () => {
   const overrides = toOverrides(
     {

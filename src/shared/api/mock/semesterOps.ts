@@ -10,7 +10,7 @@ import { ACTIVITY_WEEK_COUNT } from '@/entities/cohort/model/schedule';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 import { isValidIsoDate } from '@/shared/lib/date';
 
-import { detachTeamsFromHosts, teamIdsOfSemester } from './hostCleanup';
+import { cleanupHostAccounts } from './hostCleanup';
 import { ApiError } from './router';
 import { readBody } from './validate';
 
@@ -28,16 +28,16 @@ const currentCohort = (db: Database): number | null =>
 
 /**
  * 이 반기를 현재 반기(진행)로 만든다. 준비 반기였으면 준비 표시를 지운다.
- * 다른 반기에서 넘어오면 지난 반기 팀을 HOST 계정에서 뗀다(요청 트랜잭션 안).
+ * 다른 반기에서 넘어오면 시작 전·진행 중인 그룹을 맡지 않은 HOST 계정을 지운다(요청 트랜잭션 안, 설계 3.4).
  */
 export function makeSemesterCurrent(db: Database, cohort: number): void {
   const isRollover = currentCohort(db) !== cohort;
   execute(db, 'UPDATE cohorts SET is_current = 0 WHERE is_current = 1');
   execute(db, 'UPDATE cohorts SET is_current = 1, is_preparing = 0 WHERE cohort = ?', [cohort]);
   if (isRollover) {
-    // 새 현재 반기에 없는 팀(지난 반기 팀)은 HOST 계정에서 떼고, 맡은 팀이 남지 않은 계정은 지운다.
-    const keep = teamIdsOfSemester(db, cohort);
-    detachTeamsFromHosts(db, (teamId) => !keep.has(teamId));
+    // 지난 반기 팀은 종료된 그룹이 되므로 그 팀만 맡은 HOST 계정을 지운다.
+    // 리더 연결(admin_group_leader)은 트리거가 새 현재 반기 기준으로 다시 만든다.
+    cleanupHostAccounts(db);
   }
 }
 
