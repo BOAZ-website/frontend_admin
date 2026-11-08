@@ -2,7 +2,7 @@
  * 회원(users) API. 반기 출결 명단 기준의 회원 검색·이름 검증(팀원·팀장 선택)과
  * users 테이블의 기수 목록(동아리원 명단의 기수 필터)을 내려준다.
  */
-import { listSemesterUsers, listUserTerms } from '@/entities/user/api/usersRepository';
+import { listSelectableSemesterUsers, listUserTerms } from '@/entities/user/api/usersRepository';
 
 import { resolveSemester } from '../queries';
 import type { MockRoute } from '../router';
@@ -12,14 +12,15 @@ export const userRoutes: MockRoute[] = [
   {
     method: 'GET',
     pattern: '/api/v1/users',
-    summary: '회원 목록·검색(팀장·팀원·트랙원 선택). name은 정확히, keyword는 이름 일부로 찾는다',
+    summary:
+      '회원 목록·검색(팀장·팀원·트랙원 선택). 반기 명단 중 활동 중인 회원만 준다. name은 정확히, keyword는 이름 일부로 찾는다',
     handler: ({ db, query }) => {
       const semester = resolveSemester(db, query.get('semester'));
       const name = query.get('name')?.trim();
       const keyword = query.get('keyword')?.trim();
       const term = parsePositiveInt(query.get('term'), 'term');
       const track = query.get('track')?.trim();
-      return listSemesterUsers(db, semester.cohort).filter(
+      return listSelectableSemesterUsers(db, semester.cohort).filter(
         (user) =>
           (!name || user.name === name) &&
           (!keyword || user.name.includes(keyword)) &&
@@ -36,7 +37,7 @@ export const userRoutes: MockRoute[] = [
       const semester = resolveSemester(db, query.get('semester'));
       const name = query.get('name')?.trim() ?? '';
       const matches = name
-        ? listSemesterUsers(db, semester.cohort).filter((user) => user.name === name)
+        ? listSelectableSemesterUsers(db, semester.cohort).filter((user) => user.name === name)
         : [];
       return { name, registered: matches.length > 0, matches };
     },
