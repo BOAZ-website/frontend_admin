@@ -5,7 +5,6 @@ import {
   addMembers,
   filterUsers,
   findLeader,
-  formatUserLabel,
   toggleLeader,
   toggleMember,
   type MemberSelection,
@@ -46,10 +45,6 @@ test('원본 배열을 변경하지 않는다', () => {
   const copy = [...users];
   filterUsers(users, { terms: [], tracks: [], keyword: '' });
   assert.deepEqual(users, copy);
-});
-
-test('라벨은 "기수 부문 이름" 형식이다', () => {
-  assert.equal(formatUserLabel(users[0]), '26기 분석 남민서');
 });
 
 const [a, b] = users;

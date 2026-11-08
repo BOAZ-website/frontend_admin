@@ -222,6 +222,8 @@ test('팀에는 해당 반기 명단에 등록된 회원만 추가할 수 있다
   router.dispatch(db, 'PUT', '/api/v1/semesters/27-1/members', {
     userIds: ['u_28_01'],
   });
+  // 미래 반기에는 팀을 만들 수 없으므로 먼저 현재 반기로 바꾼다.
+  router.dispatch(db, 'PATCH', '/api/v1/semesters/27-1', { isCurrent: true });
 
   assert.throws(
     () =>

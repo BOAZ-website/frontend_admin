@@ -62,7 +62,7 @@ GitHub 이슈와 노션 링크는 생성 시 채운다.
 | PLT-FORM | 일부 | M0 |  |  | 공통 검증, 페이징, 명단 CSV 검증(행 번호 오류 표시·전체 취소), 지정 화면 공통 적용 |
 | PLT-CONFIRM | 없음 | M0 |  |  | 티켓 전체(본문 What·Acceptance 참고) |
 | PLT-PILOT | 없음 | M0 |  |  | 티켓 전체(본문 What·Acceptance 참고) |
-| PLT-TEST | 일부 | M0 |  |  | `package.json`에 테스트 실행 스크립트 추가, PR CI에 테스트 단계 추가. 현재 76개 중 14개 실패(10개는 테스트가 가져오는 함수가 코드에 없음). |
+| PLT-TEST | 일부 | M0 |  |  | `package.json`에 테스트 실행 스크립트 추가, PR CI에 테스트 단계 추가. 기존 테스트 실패는 #54에서 정리함(실패 0개). |
 | PLT-MONITOR | 없음 | M0 |  |  | 티켓 전체(본문 What·Acceptance 참고) |
 | REC-POST | 완료 (목업) | M1 |  | 등록 | 기수 중복 차단, 지원서가 있는 공고의 삭제 차단, 전형 일정 편집(POST-06, 현재 표시만), 삭제 확인을 공용 확인 모달로 교체(PLT-CONFIRM) |
 | REC-QST | 완료 (목업) | M1 |  | 등록 | 문항 라벨 중복 검증 |
