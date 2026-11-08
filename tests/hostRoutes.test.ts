@@ -317,3 +317,58 @@ test('HOST 계정이 있는 회원은 운영진으로 지정할 수 없다(409 D
     'DUPLICATE_MEMBER_ACCOUNT',
   );
 });
+
+// ── 담당 그룹 권한 회수(설계 5.3 2단계) ─────────────────────────────
+
+test('담당 그룹 권한 회수: 팀장 자리는 두고 출결 입력 권한만 빼고, 다시 켜면 돌아온다', async () => {
+  const { call, actAs } = await setup();
+  actAs(MASTER_ID);
+  const ownWrite = 'ATTENDANCE_STUDY_ENTRY_OWN_GROUP_WRITE';
+  const permissionsOf = () =>
+    call<{ effectivePermissions: string[] }>('GET', '/api/v1/admin/accounts/me')
+      .effectivePermissions;
+  const save = (keys: string[]) =>
+    call('PUT', `/api/v1/admin/accounts/${MASTER_ID}/permissions`, { permissions: keys });
+
+  // boaz_master는 study_a 스터디장이라 스터디 담당 그룹 권한이 있다.
+  const held = permissionsOf();
+  assert.ok(held.includes(ownWrite));
+
+  save(held.filter((key) => key !== ownWrite));
+  assert.ok(!permissionsOf().includes(ownWrite));
+  assert.ok(permissionsOf().includes('ATTENDANCE_STUDY_ENTRY_OWN_GROUP_READ'));
+
+  save([...permissionsOf(), ownWrite]);
+  assert.ok(permissionsOf().includes(ownWrite));
+});
+
+test('담당 그룹 권한 회수: 그룹을 맡지 않은 계정에 더해도 생기지 않는다', async () => {
+  const { call, actAs } = await setup();
+  actAs(MASTER_ID);
+  const planner = call<{ effectivePermissions: string[] }>(
+    'PUT',
+    `/api/v1/admin/accounts/${PLANNER_ID}/permissions`,
+    { permissions: ['ADMIN_ACCOUNT_SELF_WRITE', 'ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE'] },
+  );
+
+  assert.ok(!planner.effectivePermissions.includes('ATTENDANCE_ADV_ENTRY_OWN_GROUP_WRITE'));
+});
+
+test('담당 그룹 권한 회수: 팀장이 바뀐 뒤 다른 권한을 저장해도 회수는 남아, 다시 팀장이 되어도 빠져 있다', async () => {
+  const { call, actAs } = await setup();
+  actAs(MASTER_ID);
+  const ownWrite = 'ATTENDANCE_STUDY_ENTRY_OWN_GROUP_WRITE';
+  const me = () =>
+    call<{ effectivePermissions: string[] }>('GET', '/api/v1/admin/accounts/me')
+      .effectivePermissions;
+  const save = (keys: string[]) =>
+    call('PUT', `/api/v1/admin/accounts/${MASTER_ID}/permissions`, { permissions: keys });
+
+  save(me().filter((key) => key !== ownWrite));
+  call('PATCH', '/api/v1/study-teams/study_a', { leaderId: 'u_28_01' });
+  save([...me()]);
+  call('PATCH', '/api/v1/study-teams/study_a', { leaderId: 'u_26_01' });
+
+  assert.ok(me().includes('ATTENDANCE_STUDY_ENTRY_OWN_GROUP_READ'));
+  assert.ok(!me().includes(ownWrite));
+});

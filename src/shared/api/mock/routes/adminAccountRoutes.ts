@@ -581,13 +581,25 @@ export const adminAccountRoutes: MockRoute[] = [
   {
     method: 'PUT',
     pattern: '/api/v1/admin/accounts/:accountId/permissions',
-    summary: '계정별 권한 저장. 체크된 최종 집합을 받아 기본 세트와의 차이만 예외로 저장한다',
+    summary:
+      '계정별 권한 저장. 체크된 최종 집합을 받아 기본 세트와의 차이만 예외로 저장한다. 맡은 그룹에서 생긴 담당 그룹 권한을 빼면 회수로 남고, 지금 맡지 않은 종류의 회수는 그대로 둔다',
     handler: ({ db, params, body }) => {
       const actor = requireAny(db, 'ADMIN_PERMISSION_WRITE');
       const target = findTarget(db, params.accountId);
       const desired = new Set(readPermissionKeys(readBody(body)));
       const checked = Object.fromEntries(PERMISSIONS.map((p) => [p.key, desired.has(p.key)]));
-      const overrides = toOverrides(checked, baseSetKeyOf(target.role, target.team_name));
+      const { leadership } = toAdminAccount(db, target);
+      const previous = overridesOf(db, target.id);
+      // 지금 맡지 않은 종류의 담당 그룹 권한 회수는 화면에 보이지 않으므로 다른 권한을 저장할 때 지우지 않는다.
+      const dormantRevokes = Object.fromEntries(
+        PERMISSIONS.filter(
+          (p) => p.ownGroup && !leadership.includes(p.ownGroup) && previous[p.key] === false,
+        ).map((p) => [p.key, false] as const),
+      );
+      const overrides = {
+        ...dormantRevokes,
+        ...toOverrides(checked, baseSetKeyOf(target.role, target.team_name), leadership),
+      };
       guardLockout(db, actor, new Map([[target.id, { overrides }]]));
       replaceOverrides(db, target.id, overrides, actor.id);
       return toAdminAccount(db, target);
