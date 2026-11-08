@@ -12,6 +12,7 @@ import {
   listSemesterRoster,
   updateSemesterSchedule,
 } from '@/entities/cohort/api/semesterRepository';
+import { LAST_WEEK_NUM as MAX_WEEK } from '@/entities/attendance/model/week';
 import type { SemesterDto } from '@/entities/cohort/model/dto';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 import { localDateTime } from '@/shared/lib/date';
@@ -39,6 +40,19 @@ function checkTerms(body: Body) {
     throw new ApiError(400, 'INVALID_TERM', 'ADV 기수는 BASE 기수보다 작아야 합니다.');
   }
   return { baseTerm, advTerm };
+}
+
+/** ADV 팀장 입력 시작 주차(1~16). 비어 있거나 범위 밖이면 반기를 만들지 않는다. */
+function checkAdvLeaderEntryWeek(body: Body): number {
+  const week = body.advLeaderEntryFromWeek;
+  if (typeof week !== 'number' || !Number.isInteger(week) || week < 1 || week > MAX_WEEK) {
+    throw new ApiError(
+      400,
+      'ADV_LEADER_ENTRY_WEEK_REQUIRED',
+      `ADV 팀장 입력 시작 주차를 1~${MAX_WEEK}주차 중에서 정하세요.`,
+    );
+  }
+  return week;
 }
 
 const reread = (db: Database, cohort: number): SemesterDto => {
@@ -106,7 +120,14 @@ function checkPrepare(db: Database, body: unknown) {
       `지운 ${baseTerm}기 반기에 팀·점수 규칙이 연결되어 있어 같은 기수로 만들 수 없습니다.`,
     );
   }
-  return { input, label, baseTerm, advTerm, schedule: checkSchedule(input.schedule) };
+  return {
+    input,
+    label,
+    baseTerm,
+    advTerm,
+    advLeaderEntryFromWeek: checkAdvLeaderEntryWeek(input),
+    schedule: checkSchedule(input.schedule),
+  };
 }
 
 /** 탈동한 회원은 새 반기 명단에 넣지 않는다. 지난 반기 명단(PUT /members)은 그 뒤에 탈동한 사람도 남아 있어 막지 않는다. */
@@ -133,7 +154,10 @@ export const semesterRoutes: MockRoute[] = [
     summary:
       '진행 예정 반기 만들기: 반기 + 일정·시작일·무효 주차 + 고른 명단(userIds) 저장(실패하면 모두 취소). 진행 반기는 바꾸지 않는다. 명단은 자동으로 채우지 않는다. 없는 회원은 400 USER_NOT_FOUND, 탈동 회원은 400 USER_WITHDRAWN, 빈 명단은 409 ROSTER_EMPTY, 진행 예정 반기가 이미 있으면 409 SEMESTER_PREPARING_EXISTS',
     handler: ({ db, body }) => {
-      const { input, label, baseTerm, advTerm, schedule } = checkPrepare(db, body);
+      const { input, label, baseTerm, advTerm, advLeaderEntryFromWeek, schedule } = checkPrepare(
+        db,
+        body,
+      );
       const userIds = stringArray(input, 'userIds');
       assertUsersExist(db, userIds);
       assertNotWithdrawn(db, userIds);
@@ -151,6 +175,7 @@ export const semesterRoutes: MockRoute[] = [
         isCurrent: false,
         status: 'PREPARING',
         advTerm,
+        advLeaderEntryFromWeek,
         memberTerms: [advTerm, baseTerm],
         currentWeekNum: null,
         currentPeriod: null,

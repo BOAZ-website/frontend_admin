@@ -111,7 +111,8 @@ export type ScheduleField = 'vacation' | 'term' | SemesterActivity;
 export type ScheduleFieldErrors = Partial<Record<ScheduleField, string>>;
 
 /** 칸을 화면에서 찾는 id. 첫 오류 칸으로 포커스를 옮길 때 쓴다. */
-export const scheduleFieldId = (field: ScheduleField | 'name'): string => `semester-field-${field}`;
+export const scheduleFieldId = (field: ScheduleField | 'name' | 'advLeaderEntryFromWeek'): string =>
+  `semester-field-${field}`;
 
 /** 칸 아래 오류 문장의 id: 칸 id 뒤에 '-error'. 입력칸의 aria-describedby가 가리킨다. */
 export const errorIdOf = (fieldId: string): string => `${fieldId}-error`;

@@ -1,6 +1,7 @@
 /**
  * 출결 입력(스터디·ADV) 화면 데이터. 화면을 열 때 현재 반기의 팀·팀원·주차별 출결을 API로 읽는다.
  * 입력·사진·PDF는 화면 초안에만 두었다가 제출할 때 제출 API 한 번으로 보낸다.
+ * 팀원 삭제는 이 탭에서 하지 않는다(HOST는 삭제할 수 없고, 운영진은 출결 관리에서 삭제한다. 설계 5.1·6.1).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
@@ -8,7 +9,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { submitTeamWeek } from '@/entities/attendance/api/attendanceApi';
 import type { AttendanceRecordInput, FileUpload } from '@/entities/attendance/model/dto';
 import type { AttendanceState, SessionRecord } from '@/entities/attendance/model/types';
-import { fetchTeams, removeTeamMember } from '@/entities/study-team/api/teamApi';
+import { fetchTeams } from '@/entities/study-team/api/teamApi';
 import { attendanceOfTeams, splitTeamList } from '@/entities/study-team/model/adapters';
 import type { TeamListItemDto } from '@/entities/study-team/model/dto';
 import type { Member, StudyTeamInfo } from '@/entities/study-team/model/types';
@@ -22,7 +23,6 @@ export interface InputPageData {
   attendance: AttendanceState;
   setAttendance: Dispatch<SetStateAction<AttendanceState>>;
   submitWeek: (teamId: string, weekNum: number, record: SessionRecord) => Promise<void>;
-  removeMember: (teamId: string, memberId: string) => Promise<void>;
 }
 
 function fileOf(
@@ -62,7 +62,8 @@ export function useInputPageData(isAdv: boolean, onChanged?: () => void): InputP
 
   useEffect(() => {
     let isCancelled = false;
-    fetchTeams(group, { include: 'sessions', period: 'all' })
+    // scope=entry: 모든 그룹 조회 권한이 없으면 서버가 본인이 팀장인 진행 중 그룹만 돌려준다.
+    fetchTeams(group, { include: 'sessions', period: 'all', scope: 'entry' })
       .then(({ teams }) => {
         if (isCancelled) return;
         setState({ teams, status: 'ready', error: null });
@@ -106,14 +107,6 @@ export function useInputPageData(isAdv: boolean, onChanged?: () => void): InputP
     [group, state.teams, reload],
   );
 
-  const removeMember = useCallback(
-    async (teamId: string, memberId: string) => {
-      await removeTeamMember(group, teamId, memberId);
-      reload();
-    },
-    [group, reload],
-  );
-
   return {
     status: state.status,
     error: state.error,
@@ -121,6 +114,5 @@ export function useInputPageData(isAdv: boolean, onChanged?: () => void): InputP
     attendance,
     setAttendance,
     submitWeek,
-    removeMember,
   };
 }

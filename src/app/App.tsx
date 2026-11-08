@@ -661,6 +661,7 @@ export default function App() {
               weeks={weeks}
               currentWeekNum={currentSemester?.currentWeekNum ?? null}
               currentPeriod={currentSemester?.currentPeriod ?? null}
+              advLeaderEntryFromWeek={currentSemester?.advLeaderEntryFromWeek ?? null}
               onDataChanged={refreshTeamState}
             />
           )}

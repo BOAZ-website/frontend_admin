@@ -4,6 +4,7 @@
  */
 import type { Database } from 'sql.js';
 
+import { groupStates } from '@/shared/api/mock/groupState';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 import { localDateTime } from '@/shared/lib/date';
 
@@ -74,17 +75,24 @@ export function overridesOf(db: Database, adminId: number): PermissionOverrides 
   return Object.fromEntries(rows.map((row) => [row.permission, row.effect === 'GRANT']));
 }
 
-/** 맡은 그룹의 종류(ADV·STUDY). 그룹이 몇 개든 종류별로 한 번씩만 나온다. */
+/**
+ * 맡은 그룹의 종류(ADV·STUDY). 그룹이 몇 개든 종류별로 한 번씩만 나온다.
+ * 진행 중인 그룹만 센다(설계 4.1). 시작 전·종료된 그룹의 팀장에게는 담당 그룹 권한(_OWN_GROUP_)이 생기지 않는다.
+ */
 export function leadershipOf(db: Database, adminId: number): LeadershipGroup[] {
-  return queryAll<{ group_type: LeadershipGroup }>(
+  const states = groupStates(db);
+  const types = queryAll<{ group_id: string; group_type: LeadershipGroup }>(
     db,
-    `SELECT DISTINCT t.group_type
+    `SELECT g.group_id, t.group_type
        FROM admin_group_leader g
        JOIN teams t ON t.id = g.group_id
       WHERE g.admin_id = ? AND t.group_type IN ('ADV', 'STUDY')
       ORDER BY t.group_type`,
     [adminId],
-  ).map((row) => row.group_type);
+  )
+    .filter((row) => states.get(row.group_id) === 'IN_PROGRESS')
+    .map((row) => row.group_type);
+  return [...new Set(types)];
 }
 
 /** 계정 행에 기본 권한 세트·맡은 그룹·예외·유효 권한을 붙여 응답 형태로 만든다. */

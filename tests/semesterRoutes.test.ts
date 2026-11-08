@@ -42,6 +42,7 @@ const START: PrepareSemesterRequest = {
   semester: '27-1',
   baseTerm: 28,
   advTerm: 27,
+  advLeaderEntryFromWeek: 4,
   schedule: SCHEDULE,
   userIds: [],
 };
@@ -156,6 +157,24 @@ test('새 반기를 시작하면 기간·활동별 1주차 시작일·무효 주
   assert.equal(schedule.weeks.BASE.find((week) => week.weekNum === 3)?.isInvalid, true);
   assert.equal(schedule.weeks.BASE.filter((week) => week.isInvalid).length, 1);
   assert.deepEqual(schedule.weeks.ADV, []);
+});
+
+test('ADV 팀장 입력 시작 주차가 비어 있으면 반기를 만들지 않고(400), 정한 값은 반기에 저장된다', async () => {
+  const { call, prepare } = await setup();
+  const semesterCount = () =>
+    call<SemesterDto[]>('GET', '/api/v1/semesters?includePreparing=true').length;
+  const before = semesterCount();
+
+  for (const advLeaderEntryFromWeek of [undefined, null, '', 0, 17, 2.5]) {
+    expectApiError(
+      () => prepare({ advLeaderEntryFromWeek } as unknown as Partial<PrepareSemesterRequest>),
+      400,
+      'ADV_LEADER_ENTRY_WEEK_REQUIRED',
+    );
+  }
+  assert.equal(semesterCount(), before);
+
+  assert.equal(prepare({ advLeaderEntryFromWeek: 6 }).advLeaderEntryFromWeek, 6);
 });
 
 test('진행 예정 반기 명단에서 사람을 빼고 다른 기수 사람을 더하면 더한 사람은 수료 기수(EXTRA)로 나온다', async () => {

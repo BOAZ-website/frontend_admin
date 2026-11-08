@@ -1,3 +1,4 @@
+import { LAST_WEEK_NUM } from '@/entities/attendance/model/week';
 import type { PrepareSemesterRequest, SemesterDto } from '@/entities/cohort/model/dto';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { FIELD_INPUT, MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
@@ -10,6 +11,7 @@ import { ScheduleSections } from './ScheduleSections';
 import { LabeledRow, SectionBox } from './SectionBox';
 
 const NAME_ID = scheduleFieldId('name');
+const ENTRY_WEEK_ID = scheduleFieldId('advLeaderEntryFromWeek');
 
 interface NewSemesterPanelProps {
   /** 임시 저장해 둔 입력. */
@@ -29,6 +31,8 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
   const form = useNewSemesterForm(options);
   const nameError = form.shownErrors.name;
   const nameErrorId = nameError ? errorIdOf(NAME_ID) : undefined;
+  const entryWeekError = form.shownErrors.advLeaderEntryFromWeek;
+  const entryWeekErrorId = entryWeekError ? errorIdOf(ENTRY_WEEK_ID) : undefined;
 
   return (
     <div className="space-y-6">
@@ -71,6 +75,26 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
               buttonClassName="h-10 w-40 text-left"
               onChange={(value) => form.handleChangeAdvTerm(Number(value))}
             />
+          </LabeledRow>
+          <LabeledRow label="ADV 팀장 입력" error={entryWeekError} errorId={entryWeekErrorId}>
+            <input
+              id={ENTRY_WEEK_ID}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={LAST_WEEK_NUM}
+              value={form.draftAdvLeaderEntryFromWeek}
+              onChange={(event) => form.handleChangeAdvLeaderEntryFromWeek(event.target.value)}
+              onBlur={() => form.handleBlurField('advLeaderEntryFromWeek')}
+              aria-label="ADV 팀장 입력 시작 주차"
+              aria-invalid={entryWeekError ? true : undefined}
+              aria-describedby={entryWeekErrorId}
+              disabled={form.isSaving}
+              className={`${FIELD_INPUT} w-24 ${entryWeekError ? 'border-red-400' : ''}`}
+            />
+            <span className="text-sm text-slate-600">
+              주차부터 (그 전 주차는 운영지원팀이 입력)
+            </span>
           </LabeledRow>
         </div>
       </SectionBox>

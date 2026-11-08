@@ -10,7 +10,13 @@ type PageProps = ComponentProps<typeof InputPage>;
 /** 화면이 API로 직접 읽는 값은 빼고, 로그인·주차·수정 요청 같은 설정만 위에서 받는다. */
 type ContainerProps = Pick<
   PageProps,
-  'pageTitle' | 'currentHostTeam' | 'currentRole' | 'weeks' | 'currentWeekNum' | 'currentPeriod'
+  | 'pageTitle'
+  | 'currentHostTeam'
+  | 'currentRole'
+  | 'weeks'
+  | 'currentWeekNum'
+  | 'currentPeriod'
+  | 'advLeaderEntryFromWeek'
 > & {
   /** 제출·삭제한 뒤 아직 API로 옮기지 않은 다른 화면 데이터도 다시 읽게 한다. */
   onDataChanged?: () => void;

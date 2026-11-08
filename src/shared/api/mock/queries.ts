@@ -70,6 +70,7 @@ interface SemesterRow extends Record<string, unknown> {
   is_current: number;
   is_preparing: number;
   adv_term: number | null;
+  adv_leader_entry_from_week: number;
 }
 
 function toSemesterDto(db: Database, row: SemesterRow): SemesterDto {
@@ -83,6 +84,7 @@ function toSemesterDto(db: Database, row: SemesterRow): SemesterDto {
     isCurrent: row.is_current === 1,
     status: row.is_current === 1 ? 'ACTIVE' : row.is_preparing === 1 ? 'PREPARING' : 'ENDED',
     advTerm: row.adv_term,
+    advLeaderEntryFromWeek: row.adv_leader_entry_from_week,
     memberTerms: queryAll<{ term: number }>(
       db,
       'SELECT term FROM semester_member_terms WHERE cohort = ? ORDER BY term',
@@ -110,7 +112,7 @@ function attendanceKindsOf(db: Database, cohort: number): SemesterAttendanceKind
 
 /** 지운 반기(deleted_at)는 목록·조회에서 뺀다. 뒤에 붙이는 조건은 AND로 잇는다. */
 const SEMESTER_SELECT =
-  'SELECT cohort, semester_label, start_date, end_date, is_current, is_preparing, adv_term FROM cohorts WHERE deleted_at IS NULL';
+  'SELECT cohort, semester_label, start_date, end_date, is_current, is_preparing, adv_term, adv_leader_entry_from_week FROM cohorts WHERE deleted_at IS NULL';
 
 /** 진행·종료 반기(큰 기수부터). 준비 반기는 includePreparing일 때만 넣는다(반기 관리 화면). */
 export function listSemesters(db: Database, includePreparing = false): SemesterDto[] {
@@ -161,6 +163,7 @@ function plannedNextSemester(current: SemesterDto): SemesterDto {
     isCurrent: false,
     status: 'PREPARING',
     advTerm: current.advTerm === null ? null : current.advTerm + 1,
+    advLeaderEntryFromWeek: current.advLeaderEntryFromWeek,
     memberTerms: current.memberTerms.map((term) => term + 1),
     currentWeekNum: null,
     currentPeriod: null,
@@ -173,12 +176,19 @@ export function nextSemester(db: Database): SemesterDto {
   return registeredNextSemester(db) ?? plannedNextSemester(currentSemester(db));
 }
 
-/** 반기를 등록한다. 주차는 모두 진행 예정으로 만든다. */
-export function insertSemester(db: Database, semester: SemesterDto): void {
+/**
+ * 반기를 등록한다. 주차는 모두 진행 예정으로 만든다.
+ * ADV 팀장 입력 시작 주차를 주지 않으면 DB 기본값(4주차)이다. 반기 관리의 반기 만들기는 항상 값을 준다.
+ */
+export function insertSemester(
+  db: Database,
+  semester: Omit<SemesterDto, 'advLeaderEntryFromWeek'> & { advLeaderEntryFromWeek?: number },
+): void {
   execute(
     db,
-    `INSERT INTO cohorts (cohort, semester_label, start_date, end_date, is_current, is_preparing, adv_term)
-     VALUES (?, ?, ?, ?, 0, ?, ?)`,
+    `INSERT INTO cohorts (cohort, semester_label, start_date, end_date, is_current, is_preparing, adv_term,
+                          adv_leader_entry_from_week)
+     VALUES (?, ?, ?, ?, 0, ?, ?, COALESCE(?, 4))`,
     [
       semester.cohort,
       semester.semester,
@@ -186,6 +196,7 @@ export function insertSemester(db: Database, semester: SemesterDto): void {
       semester.endDate,
       semester.status === 'PREPARING' ? 1 : 0,
       semester.advTerm,
+      semester.advLeaderEntryFromWeek ?? null,
     ],
   );
   semester.memberTerms.forEach((term) =>

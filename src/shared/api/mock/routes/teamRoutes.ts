@@ -33,6 +33,7 @@ import {
   TEAM_PATHS,
   type TeamGroup,
 } from '../queries';
+import { entryTeamFilter } from '../groupEntry';
 import { cleanupHostAccounts } from '../hostCleanup';
 import { ApiError, type MockRequest, type MockRoute } from '../router';
 import {
@@ -264,7 +265,7 @@ function teamRoutesFor(group: TeamGroup): MockRoute[] {
     {
       method: 'GET',
       pattern: base,
-      summary: `${label} 목록 + 팀원 + 주차별 제출·출결 현황(semester[all이면 전체 반기]·term·period·kind·track으로 거른다. include=sessions면 주차별 출결 기록까지)`,
+      summary: `${label} 목록 + 팀원 + 주차별 제출·출결 현황(semester[all이면 전체 반기]·term·period·kind·track으로 거른다. include=sessions면 주차별 출결 기록까지. scope=entry면 출결 입력 탭에서 요청자가 볼 수 있는 그룹만)`,
       handler: ({ db, query }) => {
         const isAllSemesters = query.get('semester') === 'all';
         const semester = resolveSemester(db, isAllSemesters ? null : query.get('semester'));
@@ -289,9 +290,12 @@ function teamRoutesFor(group: TeamGroup): MockRoute[] {
           kind: oneOf(query.get('kind') ?? undefined, STUDY_KINDS, 'kind'),
           track: query.get('track') ?? undefined,
         });
+        // scope=entry: 출결 입력 탭(리더 전용)의 그룹 목록. 요청자가 볼 수 있는 그룹만 돌려준다(설계 5.5).
+        const isEntryScope = query.get('scope') === 'entry' && group !== 'BASE';
+        const visibleTeams = isEntryScope ? teams.filter(entryTeamFilter(db, group)) : teams;
         return {
           semester,
-          teams: teams.map((team) => {
+          teams: visibleTeams.map((team) => {
             const sessions = loadSessions(db, team.id);
             return {
               ...team,

@@ -2,6 +2,7 @@
  * 팀의 주차 출결 쓰기 API. 스터디·ADV·BASE가 같은 경로 구조를 쓴다.
  *   PUT  .../:teamId/weeks/:weekNum/attendance          출결·비고 저장(제출 전 임시 저장, 운영진의 수정)
  *   POST .../:teamId/weeks/:weekNum/submit              출결 + 활동 사진 + PDF를 한 번에 제출(재제출 가능)
+ * ADV·스터디는 요청자의 담당 그룹 판정(groupEntry.ts)을 거친다. 로그인하지 않았으면 401이다.
  */
 import type { Database } from 'sql.js';
 
@@ -12,6 +13,7 @@ import { localDateTime } from '@/shared/lib/date';
 import { toFilePath } from '@/shared/lib/file';
 import { toImagePath } from '@/shared/lib/imagePath';
 
+import { checkGroupEntryWrite } from '../groupEntry';
 import {
   ATTENDANCE_STATUSES,
   findTeam,
@@ -74,6 +76,8 @@ function resolveWeekContext(db: Database, request: MockRequest, group: TeamGroup
       `${week.label}는 아직 열리지 않아 출결을 입력할 수 없습니다.`,
     );
   }
+  // 그룹·주차 검증 뒤에 요청자 판정을 한다(설계 5.5). BASE는 출결 입력 탭이 없어 판정하지 않는다.
+  if (group !== 'BASE') checkGroupEntryWrite(db, team, group, week);
   return { team, weekId: weekIdOf(db, weekNum), weekNum };
 }
 
@@ -220,7 +224,7 @@ function attendanceRoutesFor(group: TeamGroup): MockRoute[] {
         const photo = filePayload(body, 'photo');
         const pdf = filePayload(body, 'pdf');
 
-        // 이미 제출한 주차도 다시 제출할 수 있다(운영진이 수정한 뒤 재제출). HOST의 수정 제한은 로그인이 붙기 전까지 화면이 맡는다.
+        // 이미 제출한 주차도 다시 제출할 수 있다(운영진이 수정한 뒤 재제출). HOST의 마감 주차 수정은 resolveWeekContext가 막는다.
         const resubmitted = ensureSession(db, context.team.id, context.weekId).submitted;
         writeRecords(db, context.team.id, context.weekId, records);
         if (photo !== undefined) writePhoto(db, context.team.id, context.weekId, photo);

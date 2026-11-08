@@ -12,6 +12,12 @@ export type WeekStatus = 'CLOSED' | 'OPEN' | 'UPCOMING';
  */
 export const ADV_DIRECT_SELECT_LAST_WEEK = 3;
 
+/** 반기의 마지막 주차 번호(방학 1~8, 학기 9~16주차). */
+export const LAST_WEEK_NUM = 16;
+
+/** 새 반기의 ADV 팀장 입력 시작 주차 기본값(v0.5 기본안: 무효 주차를 포함한 4번째 주차). */
+export const DEFAULT_ADV_LEADER_ENTRY_FROM_WEEK = 4;
+
 export interface WeekInfo {
   id: string;
   weekNum: number;

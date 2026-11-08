@@ -1,3 +1,5 @@
+import { DEFAULT_ADV_LEADER_ENTRY_FROM_WEEK } from '@/entities/attendance/model/week';
+
 import { ACTIVITIES, type ScheduleForm } from './scheduleForm';
 
 /** 시작하기 전의 새 반기 입력. 목록의 "예정" 묶음에 보이고, 이 브라우저에 임시 저장한다. */
@@ -5,6 +7,8 @@ export interface SemesterDraft {
   name: string;
   baseTerm: number;
   advTerm: number;
+  /** ADV 팀장 입력 시작 주차 입력칸의 글자(비우면 반기를 만들 수 없다). */
+  advLeaderEntryFromWeek: string;
   form: ScheduleForm;
 }
 
@@ -49,7 +53,17 @@ export function parseSemesterDraft(raw: string | null): SemesterDraft | null {
   ) {
     return null;
   }
-  return { name: value.name, baseTerm: value.baseTerm, advTerm: value.advTerm, form: value.form };
+  return {
+    name: value.name,
+    baseTerm: value.baseTerm,
+    advTerm: value.advTerm,
+    // 이 칸이 생기기 전에 저장한 입력에는 값이 없어 기본 주차로 채운다.
+    advLeaderEntryFromWeek:
+      typeof value.advLeaderEntryFromWeek === 'string'
+        ? value.advLeaderEntryFromWeek
+        : String(DEFAULT_ADV_LEADER_ENTRY_FROM_WEEK),
+    form: value.form,
+  };
 }
 
 export function loadSemesterDraft(): SemesterDraft | null {
