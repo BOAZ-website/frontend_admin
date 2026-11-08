@@ -4,6 +4,8 @@ import { FIELD_TEXT_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
 import { useExistingSemester } from '../model/useExistingSemester';
 import { RosterSection } from './RosterSection';
 import { ScheduleSections } from './ScheduleSections';
+import { SemesterCalendar } from './SemesterCalendar';
+import { SemesterSummaryTable } from './SemesterSummaryTable';
 import { LabeledRow, READONLY_VALUE, SectionBox } from './SectionBox';
 
 /** 상태는 출결 화면의 "제출 완료"처럼 배지 없이 글자로만 보여 준다. 진행 중인 반기만 진하게. */
@@ -30,42 +32,55 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
   const status = STATUS_TEXT[semester.status];
 
   return (
-    <div className="space-y-6">
-      {/* 반기 이름은 패널 제목에 있어 다시 적지 않는다. */}
-      <SectionBox title="기본">
-        <div className="space-y-2">
-          <LabeledRow label="상태">
-            <span className={status.className}>{status.label}</span>
-            {view.isScheduleLocked && <span className="text-sm text-slate-500">조회 전용</span>}
-            {onActivate && (
-              // 저장하지 않은 일정·명단이 있으면 먼저 저장하게 한다(활성화는 저장된 명단으로 한다).
-              <button
-                type="button"
-                className={`${MODAL_CONFIRM_BTN} ml-auto`}
-                disabled={isActivating || view.isDirty || view.pending !== null}
-                onClick={onActivate}
-              >
-                {isActivating ? '활성화하는 중' : '활성화'}
-              </button>
-            )}
-          </LabeledRow>
+    <div className="space-y-4">
+      {/* 반기 이름은 패널 제목으로만 보인다. 고칠 수 없는 반기는 기수·일정을 표 하나로 보인다(상태 글자는 두지 않는다). */}
+      {view.isScheduleLocked ? (
+        // 요약 표 옆에 달력을 두어 스크롤하지 않고 함께 보이게 한다. 좁은 폭에서는 위아래로 쌓는다.
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <SemesterSummaryTable semester={semester} form={view.form} />
+          {view.form && <SemesterCalendar form={view.form} />}
         </div>
-      </SectionBox>
+      ) : (
+        <>
+          <SectionBox title="기본">
+            <div>
+              <LabeledRow label="상태">
+                <span className={`${READONLY_VALUE} ${status.className}`}>{status.label}</span>
+                {onActivate && (
+                  // 저장하지 않은 일정·명단이 있으면 먼저 저장하게 한다(활성화는 저장된 명단으로 한다).
+                  <button
+                    type="button"
+                    className={`${MODAL_CONFIRM_BTN} ml-auto`}
+                    disabled={isActivating || view.isDirty || view.pending !== null}
+                    onClick={onActivate}
+                  >
+                    {isActivating ? '활성화하는 중' : '활성화'}
+                  </button>
+                )}
+              </LabeledRow>
+            </div>
+          </SectionBox>
 
-      <SectionBox title="기수 지정">
-        <div className="space-y-2">
-          {(
-            [
-              ['BASE 기수', semester.cohort],
-              ['ADV 기수', semester.advTerm],
-            ] as const
-          ).map(([label, term]) => (
-            <LabeledRow key={label} label={label}>
-              <span className={READONLY_VALUE}>{term === null ? '-' : `${term}기`}</span>
-            </LabeledRow>
-          ))}
-        </div>
-      </SectionBox>
+          <SectionBox title="기수 지정">
+            {/* BASE·ADV를 한 줄에 나란히 둔다. */}
+            <div className="flex flex-wrap gap-x-8">
+              {(
+                [
+                  ['BASE', semester.cohort],
+                  ['ADV', semester.advTerm],
+                ] as const
+              )
+                // 정해지지 않은 기수(ADV 기수가 없는 반기 등)는 그리지 않는다.
+                .filter(([, term]) => term !== null)
+                .map(([label, term]) => (
+                  <LabeledRow key={label} label={label}>
+                    <span className={READONLY_VALUE}>{term === null ? '-' : `${term}기`}</span>
+                  </LabeledRow>
+                ))}
+            </div>
+          </SectionBox>
+        </>
+      )}
 
       {/* 다시 읽기에 실패해도 이전 값은 그대로 보여 주고, 실패했다는 안내를 함께 둔다(R10-5). */}
       {view.scheduleError && (
@@ -88,6 +103,7 @@ export function ExistingSemesterPanel(props: ExistingSemesterPanelProps) {
             form={view.form}
             onChange={view.handleChangeSchedule}
             isReadOnly={view.isScheduleReadOnly}
+            isLocked={view.isScheduleLocked}
             errors={view.scheduleErrors}
             onBlurField={view.handleBlurScheduleField}
           />

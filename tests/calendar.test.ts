@@ -30,3 +30,12 @@ test('범위 검사는 비어 있는 쪽 제한을 두지 않고 경계 날짜�
   assert.ok(!isWithinRange('2026-12-31', '2027-01-01'));
   assert.ok(isWithinRange('2030-01-01', undefined, undefined));
 });
+
+test('달력 첫 요일을 월요일로 주면 그달 1일이 있는 주의 월요일부터 42칸이다', () => {
+  // 2026-07-01은 수요일이다.
+  const days = calendarDaysOf(2026, 6, 1);
+
+  assert.equal(days.length, 42);
+  assert.equal(days[0], '2026-06-29');
+  assert.equal(days[2], '2026-07-01');
+});

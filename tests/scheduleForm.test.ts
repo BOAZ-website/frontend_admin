@@ -10,6 +10,12 @@ import {
   withCheckedRange,
 } from '../src/pages/system-semesters/model/roster';
 import {
+  activitySpansOf,
+  calendarMarksOf,
+  initialCalendarMonth,
+  semesterWeekOf,
+} from '../src/pages/system-semesters/model/calendarMarks';
+import {
   emptyScheduleForm,
   formFromSchedule,
   invalidKey,
@@ -198,4 +204,76 @@ test('활동 일정 선택을 취소하면 그 활동의 1주차 시작일과 �
   assert.equal(cleared.starts.BASE, '');
   assert.equal(cleared.starts.STUDY_TERM, VALID.starts.STUDY_TERM);
   assert.deepEqual(cleared.invalid, { [invalidKey('ADV', 2)]: '' });
+});
+
+test('달력은 주차 시작일부터 7일 안에서 BASE·ADV는 트랙 세션 요일에, 스터디는 월요일에 찍고 휴동 주차를 표시한다', () => {
+  const form = {
+    ...emptyScheduleForm(),
+    // 2026-07-07은 화요일, 2026-07-08은 수요일이다.
+    starts: { BASE: '2026-07-07', ADV: '2026-07-08', STUDY_VACATION: '2026-07-07', STUDY_TERM: '' },
+    invalid: { [invalidKey('BASE', 3)]: '' },
+  };
+
+  const marks = calendarMarksOf(form);
+
+  // BASE 1주차(7/7~7/13): 수 엔지니어링, 목 분석, 월 시각화. ADV 1주차(7/8~7/14)도 같은 날이다.
+  assert.deepEqual(marks['2026-07-08'], [
+    { activity: 'BASE', weekNum: 1, isInvalid: false, track: '엔지니어링' },
+    { activity: 'ADV', weekNum: 1, isInvalid: false, track: '엔지니어링' },
+  ]);
+  assert.equal(marks['2026-07-09'][0].track, '분석');
+  // 스터디 1주차(7/7~7/13)는 트랙 없이 월요일(7/13)에만 찍히고, 같은 날 BASE·ADV 시각화 뒤에 둔다.
+  assert.deepEqual(marks['2026-07-13'], [
+    { activity: 'BASE', weekNum: 1, isInvalid: false, track: '시각화' },
+    { activity: 'ADV', weekNum: 1, isInvalid: false, track: '시각화' },
+    { activity: 'STUDY_VACATION', weekNum: 1, isInvalid: false },
+  ]);
+  assert.equal(marks['2026-07-07'], undefined);
+  // 휴동인 BASE 3주차(7/21~7/27)의 세션은 모두 휴동으로 표시한다.
+  assert.deepEqual(
+    ['2026-07-22', '2026-07-23', '2026-07-27'].map((date) => marks[date][0]),
+    [
+      { activity: 'BASE', weekNum: 3, isInvalid: true, track: '엔지니어링' },
+      { activity: 'BASE', weekNum: 3, isInvalid: true, track: '분석' },
+      { activity: 'BASE', weekNum: 3, isInvalid: true, track: '시각화' },
+    ],
+  );
+  // BASE 8주차(8/25~8/31)의 마지막 세션은 8/31(월)이고, 그 뒤로는 없다.
+  assert.equal(marks['2026-08-31'][0].weekNum, 8);
+  assert.equal(marks['2026-09-02'], undefined);
+});
+
+test('달력은 오늘이 활동 범위 안이면 이번 달, 아니면 첫 활동 달에서 시작하고 활동이 없으면 null이다', () => {
+  const marks = calendarMarksOf({
+    ...emptyScheduleForm(),
+    starts: { BASE: '2026-07-07', ADV: '', STUDY_VACATION: '', STUDY_TERM: '' },
+  });
+
+  assert.equal(initialCalendarMonth(marks, '2026-08-10'), '2026-08');
+  assert.equal(initialCalendarMonth(marks, '2026-11-07'), '2026-07');
+  assert.equal(initialCalendarMonth({}, '2026-11-07'), null);
+});
+
+test('반기 주차는 반기 시작일이 든 월요일 시작 줄을 1주차로 세고, 반기 밖의 줄은 null이다', () => {
+  // 반기 시작일 2026-07-01(수)이 든 줄은 6/29(월)에 시작한다.
+  assert.equal(semesterWeekOf('2026-06-29', '2026-07-01', '2026-12-31'), 1);
+  assert.equal(semesterWeekOf('2026-07-06', '2026-07-01', '2026-12-31'), 2);
+  assert.equal(semesterWeekOf('2026-06-22', '2026-07-01', '2026-12-31'), null);
+  assert.equal(semesterWeekOf('2027-01-04', '2026-07-01', '2026-12-31'), null);
+  assert.equal(semesterWeekOf('2026-07-06', '', '2026-12-31'), null);
+});
+
+test('활동 기간은 달력에 찍힌 첫 세션부터 마지막 세션까지이고, 시작일이 없는 활동은 빠진다', () => {
+  const marks = calendarMarksOf({
+    ...emptyScheduleForm(),
+    // 2026-07-07은 화요일이다.
+    starts: { BASE: '2026-07-07', ADV: '', STUDY_VACATION: '2026-07-07', STUDY_TERM: '' },
+  });
+
+  assert.deepEqual(activitySpansOf(marks), {
+    // BASE 1주차 첫 세션은 수요일(7/8), 8주차(8/25~8/31) 마지막 세션은 월요일(8/31)이다.
+    BASE: { first: '2026-07-08', last: '2026-08-31' },
+    // 스터디는 주차마다 월요일: 7/13 ~ 8/31.
+    STUDY_VACATION: { first: '2026-07-13', last: '2026-08-31' },
+  });
 });
