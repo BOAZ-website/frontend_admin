@@ -14,7 +14,7 @@ import {
   type LeadershipGroup,
   type PermissionOverrides,
 } from '../model/permissions';
-import type { AdminAccount, AdminRole } from '../model/types';
+import type { AccountRole, AdminAccount } from '../model/types';
 
 /** admin 테이블의 열과, 계정 주인 회원(users)에서 합쳐 읽는 이름·기수·부문. */
 export interface AdminFields {
@@ -23,7 +23,7 @@ export interface AdminFields {
   username: string;
   /** 임시 DB 전용 평문(실제 서버는 해시). */
   password: string;
-  role: AdminRole;
+  role: AccountRole;
   /** users.name */
   name: string;
   /** users.track */
@@ -40,7 +40,7 @@ export interface AdminFields {
 
 export type AdminRow = AdminFields & Record<string, unknown>;
 
-/** 운영진 계정과 계정 주인 회원을 합쳐 읽는다. 이름·기수·부문은 users에만 있다. */
+/** 계정과 계정 주인 회원을 합쳐 읽는다. 이름·기수·부문은 users에만 있다. */
 const SELECT_ADMIN = `
   SELECT a.id, a.user_id, a.username, a.password, a.role, a.team_name, a.is_team_lead,
          a.created_by, a.created_at, a.updated_at,
@@ -48,8 +48,11 @@ const SELECT_ADMIN = `
     FROM admin a
     JOIN users u ON u.id = a.user_id`;
 
+/** 운영진 계정 목록. HOST 계정(스터디장·ADV 팀장)은 그룹 계정 관리에서 다루므로 빼고 읽는다. */
 export const listAdminRows = (db: Database): AdminRow[] =>
-  queryAll<AdminRow>(db, `${SELECT_ADMIN} ORDER BY a.created_at, a.id`);
+  queryAll<AdminRow>(db, `${SELECT_ADMIN} WHERE a.role <> 'HOST' ORDER BY a.created_at, a.id`);
+
+/** 계정 하나(운영진·HOST 모두). */
 
 export const findAdminRow = (db: Database, id: number): AdminRow | undefined =>
   queryAll<AdminRow>(db, `${SELECT_ADMIN} WHERE a.id = ?`, [id])[0];
@@ -57,7 +60,7 @@ export const findAdminRow = (db: Database, id: number): AdminRow | undefined =>
 export const userExists = (db: Database, userId: string): boolean =>
   queryAll(db, 'SELECT 1 FROM users WHERE id = ?', [userId]).length > 0;
 
-/** 그 회원에게 이미 운영진 계정이 있는지(회원 한 명에 계정 하나). */
+/** 그 회원에게 이미 계정(운영진·HOST)이 있는지(회원 한 명에 계정 하나). */
 export const hasAdminAccount = (db: Database, userId: string): boolean =>
   queryAll(db, 'SELECT 1 FROM admin WHERE user_id = ?', [userId]).length > 0;
 

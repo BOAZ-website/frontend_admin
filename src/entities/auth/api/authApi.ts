@@ -9,7 +9,7 @@ import type { AuthSession, LoginRequest } from '../model/types';
 
 /**
  * 아이디·비밀번호로 로그인한다. 운영진 계정이 맞으면 운영진 세션, HOST 계정이 맞으면 HOST 세션이다.
- * 틀리면 401(INVALID_CREDENTIALS), 회수된 HOST 계정이면 403(ACCOUNT_LOCKED)으로 거절된다.
+ * 틀리면 401(INVALID_CREDENTIALS)로 거절된다. 정리된(삭제된) HOST 계정도 같은 401이다.
  */
 export function login(request: LoginRequest): Promise<AuthSession> {
   return api.post('/api/v1/auth/login', request);
