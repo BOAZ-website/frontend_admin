@@ -7,6 +7,7 @@ import {
   type InterviewQuestionItem,
   TRACK_LABELS,
 } from '../model/types';
+import { ApplicantAnswerList } from './ApplicantAnswerList';
 
 interface ApplicantReviewDetailProps {
   applicant: ApplicantEvaluationDto;
@@ -89,29 +90,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
               ))}
             </div>
           </details>
-          {p.answers.map((answer, i) => (
-            <section className="review-question" key={answer.question_id}>
-              <div className="review-question-title">
-                <span>{answer.label || String(i + 1).padStart(2, '0')}</span>
-                <h2>{answer.content}</h2>
-              </div>
-              {answer.type === 'TABLE' && answer.answer && typeof answer.answer === 'object' ? (
-                <table>
-                  <tbody>
-                    {Object.entries(answer.answer).map(([key, value]) => (
-                      <tr key={key}>
-                        <th scope="row">{key}</th>
-                        <td>{String(value)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="review-answer">{String(answer.answer ?? '')}</p>
-              )}
-            </section>
-          ))}
-          {!p.answers.length && <p className="review-answer">제출된 답변이 없습니다.</p>}
+          <ApplicantAnswerList answers={p.answers} />
         </article>
         <aside className="review-aside">
           <form

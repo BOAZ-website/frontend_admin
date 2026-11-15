@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   applyFinalDecision,
@@ -7,8 +7,12 @@ import {
   CURRENT_EVALUATOR,
   type EvaluationData,
   INITIAL_DATA,
+  listAnswersMock,
+  listApplicantsMock,
+  readMockScenario,
 } from './evaluationMock';
 import type {
+  ApplicantAnswerDto,
   ApplicantEvaluationDto,
   EvaluationDecision,
   MyEvaluationInput,
@@ -19,6 +23,10 @@ import type {
 export interface EvaluationDataState extends EvaluationData {
   /** 지금 평가하는 관리자 id. 다른 평가자 결과와 구분할 때 쓴다. */
   currentEvaluatorId: number;
+  /** [REC-ADMIN-13·14] 지원자 목록을 읽는다. useLoaded에 넘길 수 있게 참조가 바뀌지 않는다. */
+  fetchApplicants: () => Promise<ApplicantEvaluationDto[]>;
+  /** [REC-ADMIN-20] 지원서 답변을 읽는다. useLoaded 키(지원서 id 문자열)를 받는다. */
+  fetchAnswers: (applicantIdKey: string) => Promise<ApplicantAnswerDto[]>;
   /** 개인 평가를 저장하고 갱신된 지원자를 돌려준다. */
   saveMyEvaluation: (
     applicant: ApplicantEvaluationDto,
@@ -29,10 +37,14 @@ export interface EvaluationDataState extends EvaluationData {
 }
 
 // PoC 응답 지연. 실제 API 연동 때 지운다.
+const LOAD_DELAY_MS = 200;
 const SAVE_DELAY_MS = 300;
 const PROMOTE_DELAY_MS = 700;
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// 개발 서버에서만 주소의 ?mockScenario= 값으로 조회 실패·빈 목록을 재현한다(evaluationMock.ts).
+const mockScenario = () => (import.meta.env?.DEV ? readMockScenario(window.location.search) : null);
 
 /**
  * [PoC] 목 데이터(evaluationMock.ts)를 상태로 들고 저장 함수를 제공한다. 새로고침하면 처음 데이터로 돌아간다.
@@ -40,6 +52,24 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
  */
 export function useEvaluationData(): EvaluationDataState {
   const [data, setData] = useState<EvaluationData>(INITIAL_DATA);
+  // 읽기 함수는 참조를 고정하고, 부를 때마다 최신 데이터를 읽는다.
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  const fetchApplicants = useCallback(async (): Promise<ApplicantEvaluationDto[]> => {
+    await wait(LOAD_DELAY_MS);
+    return listApplicantsMock(dataRef.current, mockScenario());
+  }, []);
+
+  const fetchAnswers = useCallback(
+    async (applicantIdKey: string): Promise<ApplicantAnswerDto[]> => {
+      await wait(LOAD_DELAY_MS);
+      return listAnswersMock(dataRef.current, Number(applicantIdKey), mockScenario());
+    },
+    [],
+  );
 
   const saveMyEvaluation = async (
     applicant: ApplicantEvaluationDto,
@@ -68,6 +98,8 @@ export function useEvaluationData(): EvaluationDataState {
   return {
     ...data,
     currentEvaluatorId: CURRENT_EVALUATOR.admin_id,
+    fetchApplicants,
+    fetchAnswers,
     saveMyEvaluation,
     updateFinalDecision,
     promoteUsers,

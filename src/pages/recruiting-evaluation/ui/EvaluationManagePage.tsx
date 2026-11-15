@@ -23,6 +23,7 @@ import {
 } from '../model/types';
 import { useEvaluationData } from '../model/useEvaluationData';
 import { ApplicantReviewDetail } from './ApplicantReviewDetail';
+import { ApplicantsOverview } from './ApplicantsOverview';
 
 interface EvaluationManagePageProps {
   initialTab?: EvaluationTab;
@@ -43,6 +44,8 @@ export function EvaluationManagePage({
     evaluatorsMap,
     interviewQuestionsMap,
     currentEvaluatorId,
+    fetchApplicants,
+    fetchAnswers,
     saveMyEvaluation,
     updateFinalDecision,
     promoteUsers,
@@ -160,6 +163,14 @@ export function EvaluationManagePage({
     setEditScore(app.my_score !== null ? app.my_score : 8);
     setEditMemo(app.my_memo || '');
     setEditInterviewQuestion(app.my_interview_question || '');
+  }
+
+  // 전체 지원 현황 상세의 "평가하기": 개인 평가 탭으로 옮기고 그 지원자의 평가 화면을 연다.
+  function handleEvaluateFromOverview(applicantId: number) {
+    const app = applicants.find((item) => item.id === applicantId);
+    if (!app || app.status !== 'SUBMITTED') return;
+    handleTabChange('my');
+    handleOpenModal(app, 'review');
   }
 
   // Prev / Next Navigation in Modal
@@ -335,7 +346,7 @@ export function EvaluationManagePage({
 
         {/* Right Info: Track Filter & Logged-In User Badge */}
         <div className="flex items-center gap-3">
-          {mainTab !== 'promotions' && (
+          {(mainTab === 'my' || mainTab === 'group') && (
             <select
               value={selectedTrack}
               onChange={(e) => setSelectedTrack(e.target.value)}
@@ -366,8 +377,16 @@ export function EvaluationManagePage({
         </div>
       </div>
 
-      {/* shortcut: 전체 지원 현황·개인 평가·전체 평가가 같은 목록을 쓴다, 탭별 명세를 구현할 때 나눈다 */}
-      {mainTab !== 'promotions' && (
+      {mainTab === 'applicants' && (
+        <ApplicantsOverview
+          fetchApplicants={fetchApplicants}
+          fetchAnswers={fetchAnswers}
+          onEvaluate={handleEvaluateFromOverview}
+        />
+      )}
+
+      {/* shortcut: 개인 평가·전체 평가가 같은 목록을 쓴다, 탭별 명세를 구현할 때 나눈다 */}
+      {(mainTab === 'my' || mainTab === 'group') && (
         <div className="space-y-4">
           {/* Top Stats Summary Bar */}
           <div className="evaluation-stats grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -427,9 +446,7 @@ export function EvaluationManagePage({
             <div className="p-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3 bg-white/[0.01]">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-foreground">
-                  {mainTab !== 'applicants'
-                    ? '서류 심사 대시보드 (합격 수 내림차순 정렬)'
-                    : '전체 지원서 목록 (DRAFT / SUBMITTED)'}
+                  서류 심사 대시보드 (합격 수 내림차순 정렬)
                 </span>
                 <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-[#8ba5ff]">
                   총 {displayedApplicants.length}명

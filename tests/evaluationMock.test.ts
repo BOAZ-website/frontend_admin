@@ -7,7 +7,11 @@ import {
   applyPromotion,
   CURRENT_EVALUATOR,
   INITIAL_DATA,
+  listAnswersMock,
+  listApplicantsMock,
+  readMockScenario,
 } from '../src/pages/recruiting-evaluation/model/evaluationMock';
+import { ApiError } from '../src/shared/api/apiError';
 
 const applicantOf = (id: number) => {
   const applicant = INITIAL_DATA.applicants.find((a) => a.id === id);
@@ -82,4 +86,37 @@ test('승격하면 고른 사용자만 승격 표시가 붙고 성공 목록으�
         Boolean(applicantOf(applicant.id).is_promoted_to_member),
     );
   }
+});
+
+test('주소의 mockScenario 값은 정해진 시나리오만 읽는다', () => {
+  assert.equal(readMockScenario('?mockScenario=applicants-error'), 'applicants-error');
+  assert.equal(readMockScenario('?mockScenario=unknown'), null);
+  assert.equal(readMockScenario(''), null);
+});
+
+test('목록 조회 시나리오는 실패·빈 목록·정상 목록을 구분해 돌려준다', () => {
+  assert.throws(
+    () => listApplicantsMock(INITIAL_DATA, 'applicants-error'),
+    (error) => error instanceof ApiError && error.code === 'NETWORK_ERROR',
+  );
+  assert.deepEqual(listApplicantsMock(INITIAL_DATA, 'applicants-empty'), []);
+  assert.equal(listApplicantsMock(INITIAL_DATA, null).length, INITIAL_DATA.applicants.length);
+});
+
+test('답변 조회는 없는 지원서를 404 APPLICATION_NOT_FOUND로 거절한다', () => {
+  const id = INITIAL_DATA.applicants[0].id;
+
+  assert.deepEqual(listAnswersMock(INITIAL_DATA, id, null), INITIAL_DATA.answersMap[id] ?? []);
+  assert.throws(
+    () => listAnswersMock(INITIAL_DATA, 999999, null),
+    (error) => error instanceof ApiError && error.status === 404,
+  );
+  assert.throws(
+    () => listAnswersMock(INITIAL_DATA, id, 'answers-not-found'),
+    (error) => error instanceof ApiError && error.code === 'APPLICATION_NOT_FOUND',
+  );
+  assert.throws(
+    () => listAnswersMock(INITIAL_DATA, id, 'answers-error'),
+    (error) => error instanceof ApiError && error.code === 'NETWORK_ERROR',
+  );
 });

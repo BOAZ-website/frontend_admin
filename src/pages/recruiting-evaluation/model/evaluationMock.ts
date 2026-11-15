@@ -3,6 +3,8 @@
  * 실제 API 연동 때 이 파일 전체를 entities의 API 함수(REC-ADMIN-13~20, 승격 API)로 교체한다.
  * 화면은 이 파일을 직접 부르지 않고 useEvaluationData Hook만 쓴다(R7-1).
  */
+import { ApiError } from '@/shared/api/apiError';
+
 import type {
   ApplicantAnswerDto,
   ApplicantEvaluationDto,
@@ -522,4 +524,50 @@ export function applyPromotion(
     },
     result: { successUserIds, failedList },
   };
+}
+
+/**
+ * 조회 실패·빈 목록을 재현하는 목 시나리오. 개발 서버 주소에 `?mockScenario=<값>`을 붙이면 적용된다.
+ * 화면에 시험용 버튼을 두지 않으려고 주소로만 켠다.
+ */
+export type MockScenario =
+  'applicants-error' | 'applicants-empty' | 'answers-error' | 'answers-not-found';
+
+const MOCK_SCENARIOS: readonly MockScenario[] = [
+  'applicants-error',
+  'applicants-empty',
+  'answers-error',
+  'answers-not-found',
+];
+
+/** 주소의 쿼리 문자열에서 목 시나리오를 읽는다. 모르는 값이면 null. */
+export function readMockScenario(search: string): MockScenario | null {
+  const value = new URLSearchParams(search).get('mockScenario');
+  return MOCK_SCENARIOS.find((scenario) => scenario === value) ?? null;
+}
+
+const networkError = () =>
+  new ApiError(0, 'NETWORK_ERROR', '서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+
+/** [REC-ADMIN-13·14 대체] 지원자 목록을 돌려준다. 시나리오에 따라 실패하거나 빈 목록을 준다. */
+export function listApplicantsMock(
+  data: EvaluationData,
+  scenario: MockScenario | null,
+): ApplicantEvaluationDto[] {
+  if (scenario === 'applicants-error') throw networkError();
+  if (scenario === 'applicants-empty') return [];
+  return data.applicants;
+}
+
+/** [REC-ADMIN-20 대체] 지원서 답변을 돌려준다. 없는 지원서는 404 APPLICATION_NOT_FOUND다. */
+export function listAnswersMock(
+  data: EvaluationData,
+  applicantId: number,
+  scenario: MockScenario | null,
+): ApplicantAnswerDto[] {
+  if (scenario === 'answers-error') throw networkError();
+  if (scenario === 'answers-not-found' || !data.applicants.some((a) => a.id === applicantId)) {
+    throw new ApiError(404, 'APPLICATION_NOT_FOUND', '지원서를 찾을 수 없습니다.');
+  }
+  return data.answersMap[applicantId] ?? [];
 }

@@ -105,3 +105,15 @@ export const TRACK_LABELS: Record<TrackType, string> = {
   ANALYSIS: '분석',
   VISUALIZATION: '시각화',
 };
+
+export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  SUBMITTED: '제출 완료',
+  DRAFT: '임시저장',
+};
+
+export const MILITARY_STATUS_LABELS: Record<MilitaryStatus, string> = {
+  COMPLETED: '군필',
+  EXEMPTED: '면제',
+  UNFULFILLED: '미필',
+  NOT_APPLICABLE: '해당 없음',
+};
