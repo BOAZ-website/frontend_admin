@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Search } from 'lucide-react';
 
 import { useLoaded } from '@/shared/lib/useLoaded';
@@ -14,6 +15,7 @@ import {
   type ReviewListQuery,
   type ReviewSort,
 } from '../model/applicantList';
+import { FINAL_DECISION_OPTIONS } from '../model/finalDecision';
 import {
   type ApplicantEvaluationDto,
   DECISION_LABELS,
@@ -30,32 +32,38 @@ interface MyEvaluationListProps {
   onQueryChange: (query: ReviewListQuery) => void;
   /** 지원자의 상세 화면을 연다. 이전·다음 이동은 지금 목록 순서(orderedIds)를 따른다. */
   onOpen: (applicantId: number, orderedIds: number[]) => void;
+  /** FINAL_DECISION_WRITE가 있으면 최종 판정을 고르고 저장할 수 있다. 없으면 조회만 한다. */
+  canWriteFinalDecision: boolean;
+  /** 최종 판정 저장(REC-ADMIN-18). 결과 안내는 페이지가 하고, 성공 여부만 돌려준다. */
+  onSaveFinalDecision: (
+    applicant: ApplicantEvaluationDto,
+    decision: EvaluationDecision,
+  ) => Promise<boolean>;
 }
 
 // 명세의 트랙 필터 순서(전체 / 분석 / 시각화 / 엔지니어링).
 const TRACK_FILTER_ORDER: readonly TrackType[] = ['ANALYSIS', 'VISUALIZATION', 'ENGINEERING'];
-// 최종 판정 필터 순서. 미결을 먼저 둬 남은 판정을 찾기 쉽게 한다.
-const FINAL_DECISION_FILTER_ORDER: readonly EvaluationDecision[] = [
-  'PENDING',
-  'PASS',
-  'HOLD',
-  'FAIL',
-];
-
 // 앞 세 열은 전체 지원 현황 목록과 같은 이름·표기다. 평가자별 상세는 상세 화면의 평가 현황 탭에서 본다.
 const COLUMNS = ['지원자', '트랙', '학교 / 전공', '평가 집계', '총점', '내 평가', '최종 판정'];
 
 /**
  * 서류 평가 목록. 개인 평가 목록(EVL-MY)과 전체 평가 목록(EVL-GROUP)을 합쳤다.
- * 제출 완료 지원자만 보여 주고, 개인 평가 집계와 최종 판정을 나눠 표시한다. 최종 판정은 여기서 조회만 한다.
+ * 제출 완료 지원자만 보여 주고, 개인 평가 집계와 최종 판정을 나눠 표시한다.
+ * 최종 판정은 권한이 있으면 행에서 골라 저장 버튼으로 바꾼다(명세 §5.6). 기수 전체 확정은 없다.
  */
 export function MyEvaluationList({
   fetchApplicants,
   query,
   onQueryChange,
   onOpen,
+  canWriteFinalDecision,
+  onSaveFinalDecision,
 }: MyEvaluationListProps) {
   const list = useLoaded('applicants', fetchApplicants);
+  // 행마다 고른 최종 판정(아직 저장 전). 없으면 서버 값을 보여 준다.
+  const [finalDrafts, setFinalDrafts] = useState<Record<number, EvaluationDecision>>({});
+  // 저장 중인 지원서 id. 저장이 끝날 때까지 모든 행의 저장을 막아 요청이 겹치지 않게 한다.
+  const [savingFinalId, setSavingFinalId] = useState<number | null>(null);
 
   const applicants = list.data ?? [];
   const submitted = applicants.filter((applicant) => applicant.status === 'SUBMITTED');
@@ -69,6 +77,25 @@ export function MyEvaluationList({
       applicantId,
       rows.map((row) => row.id),
     );
+
+  const finalDraftOf = (applicant: ApplicantEvaluationDto) =>
+    finalDrafts[applicant.id] ?? applicant.final_decision;
+
+  const handleSaveFinal = async (applicant: ApplicantEvaluationDto) => {
+    if (savingFinalId !== null) return;
+    setSavingFinalId(applicant.id);
+    const saved = await onSaveFinalDecision(applicant, finalDraftOf(applicant));
+    // 실패하면 고른 값을 버려 서버 값으로 되돌린다. 성공하면 고른 값이 곧 서버 값이라 다시 읽는 동안 깜빡이지 않게 둔다.
+    if (!saved) {
+      setFinalDrafts((current) => {
+        const next = { ...current };
+        delete next[applicant.id];
+        return next;
+      });
+    }
+    setSavingFinalId(null);
+    list.reload();
+  };
 
   if (list.error) {
     return <ListLoadError isRetrying={list.isLoading} onRetry={list.reload} />;
@@ -102,7 +129,7 @@ export function MyEvaluationList({
             className="px-2 py-1"
           >
             <option value="ALL">전체 최종 판정</option>
-            {FINAL_DECISION_FILTER_ORDER.map((decision) => (
+            {FINAL_DECISION_OPTIONS.map((decision) => (
               <option key={decision} value={decision}>
                 최종 {DECISION_LABELS[decision]}
               </option>
@@ -161,7 +188,7 @@ export function MyEvaluationList({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-xs">
+          <table className="w-full min-w-[900px] text-xs">
             <thead>
               <tr>
                 {COLUMNS.map((label) => (
@@ -201,9 +228,48 @@ export function MyEvaluationList({
                         : DECISION_LABELS[applicant.my_decision]}
                     </td>
                     <td className="px-4 whitespace-nowrap">
-                      <span className="review-tag">
-                        {DECISION_LABELS[applicant.final_decision]}
-                      </span>
+                      {canWriteFinalDecision ? (
+                        // 행을 누르면 상세가 열리므로 판정 고르기·저장 클릭은 행으로 올려 보내지 않는다.
+                        <div
+                          className="flex items-center gap-2"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <select
+                            aria-label={`${displayValue(applicant.name)} 최종 판정`}
+                            value={finalDraftOf(applicant)}
+                            disabled={savingFinalId !== null}
+                            onChange={(e) =>
+                              setFinalDrafts((current) => ({
+                                ...current,
+                                [applicant.id]: e.target.value as EvaluationDecision,
+                              }))
+                            }
+                            className="px-2 py-1"
+                          >
+                            {FINAL_DECISION_OPTIONS.map((decision) => (
+                              <option key={decision} value={decision}>
+                                {DECISION_LABELS[decision]}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            aria-label={`${displayValue(applicant.name)} 최종 판정 저장`}
+                            disabled={
+                              savingFinalId !== null ||
+                              finalDraftOf(applicant) === applicant.final_decision
+                            }
+                            onClick={() => void handleSaveFinal(applicant)}
+                            className="px-3"
+                          >
+                            {savingFinalId === applicant.id ? '저장 중…' : '저장'}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="review-tag">
+                          {DECISION_LABELS[applicant.final_decision]}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 text-right">
                       <button

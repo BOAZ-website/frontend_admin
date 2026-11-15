@@ -241,7 +241,8 @@
   padding: 9px 13px;
   cursor: pointer;
 }
-.applicant-review button:disabled {
+/* 저장 안 됨·저장 중처럼 누를 수 없는 버튼을 서류 평가 화면 전체에서 같은 모양으로 흐리게 보여 준다. */
+.evaluation-page button:disabled {
   opacity: 0.45;
   cursor: default;
 }

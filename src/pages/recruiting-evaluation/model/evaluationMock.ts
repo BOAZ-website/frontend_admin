@@ -557,7 +557,10 @@ export type MockScenario =
   | 'save-denied'
   | 'save-not-found'
   | 'evaluations-error'
-  | 'questions-error';
+  | 'questions-error'
+  | 'final-decision-error'
+  | 'final-decision-denied'
+  | 'final-decision-not-found';
 
 const MOCK_SCENARIOS: readonly MockScenario[] = [
   'applicants-error',
@@ -570,6 +573,9 @@ const MOCK_SCENARIOS: readonly MockScenario[] = [
   'save-not-found',
   'evaluations-error',
   'questions-error',
+  'final-decision-error',
+  'final-decision-denied',
+  'final-decision-not-found',
 ];
 
 /** 주소의 쿼리 문자열에서 목 시나리오를 읽는다. 모르는 값이면 null. */
@@ -679,4 +685,26 @@ export function checkMyEvaluationSaveMock(
   ) {
     throw invalidInput();
   }
+}
+
+const FINAL_DECISIONS: readonly EvaluationDecision[] = ['PENDING', 'PASS', 'HOLD', 'FAIL'];
+
+/**
+ * [REC-ADMIN-18 대체] 최종 판정 변경 전에 백엔드가 하는 검사를 흉내 낸다. 통과하면 아무것도 돌려주지 않는다.
+ * 검사 순서는 명세와 같다: 값 오류(400) → 지원서 없음(404) → SUBMITTED가 아님(400). 권한 없음은 403이다.
+ */
+export function checkFinalDecisionMock(
+  data: EvaluationData,
+  applicantId: number,
+  decision: string,
+  scenario: MockScenario | null,
+): void {
+  if (scenario === 'final-decision-error') throw networkError();
+  if (scenario === 'final-decision-denied') {
+    throw new ApiError(403, 'ACCESS_DENIED', '해당 리소스에 접근할 권한이 없습니다.');
+  }
+  if (!FINAL_DECISIONS.some((value) => value === decision)) throw invalidInput();
+  const applicant = data.applicants.find((a) => a.id === applicantId);
+  if (scenario === 'final-decision-not-found' || !applicant) throw applicationNotFound();
+  if (applicant.status !== 'SUBMITTED') throw invalidInput();
 }

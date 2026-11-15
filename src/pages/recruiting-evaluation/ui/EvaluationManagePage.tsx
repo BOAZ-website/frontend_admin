@@ -31,8 +31,10 @@ import {
   UNSAVED_EVALUATION_MESSAGE,
   validateMyEvaluation,
 } from '../model/myEvaluationForm';
-import { type ApplicantEvaluationDto, type EvaluationTab } from '../model/types';
+import { FINAL_DECISION_SAVED_MESSAGE, finalDecisionFailureNoticeOf } from '../model/finalDecision';
+import type { ApplicantEvaluationDto, EvaluationDecision, EvaluationTab } from '../model/types';
 import { useEvaluationData } from '../model/useEvaluationData';
+import { useFinalDecisionPermission } from '../model/useFinalDecisionPermission';
 import { ApplicantReviewDetail, type ReviewDetailTab } from './ApplicantReviewDetail';
 import { ApplicantsOverview } from './ApplicantsOverview';
 import { MyEvaluationList } from './MyEvaluationList';
@@ -60,8 +62,10 @@ export function EvaluationManagePage({
     fetchInterviewQuestions,
     fetchMyEvaluation,
     saveMyEvaluation,
+    updateFinalDecision,
     promoteUsers,
   } = useEvaluationData();
+  const canWriteFinalDecision = useFinalDecisionPermission();
 
   // 서류 평가 목록의 검색·필터·정렬. 상세에서 목록으로 돌아와도 남도록 여기서 가진다.
   const [reviewQuery, setReviewQuery] = useState<ReviewListQuery>(DEFAULT_REVIEW_QUERY);
@@ -230,6 +234,27 @@ export function EvaluationManagePage({
     }
   }
 
+  // 지원자별 최종 판정 저장(GROUP-08). 데이터 변경은 Hook이 맡고, 여기서는 결과 안내만 한다.
+  async function handleSaveFinalDecision(
+    applicant: ApplicantEvaluationDto,
+    decision: EvaluationDecision,
+  ): Promise<boolean> {
+    try {
+      await updateFinalDecision(applicant.id, decision);
+      showToast(FINAL_DECISION_SAVED_MESSAGE, 'success');
+      return true;
+    } catch (error) {
+      const notice = finalDecisionFailureNoticeOf(error, applicant.status);
+      if (notice.display === 'modal') {
+        // shortcut: 오류 안내 창을 브라우저 기본 알림으로 띄운다, 공통 확인 창(PLT-CONFIRM)이 생기면 바꾼다
+        window.alert(notice.message);
+      } else {
+        showToast(notice.message, 'error');
+      }
+      return false;
+    }
+  }
+
   // Promotion Selection Handlers (PATCH /api/v1/admin/users/promote)
   function handleTogglePromoteSelect(userId: number) {
     setSelectedPromoteUserIds((prev) =>
@@ -369,6 +394,8 @@ export function EvaluationManagePage({
           query={reviewQuery}
           onQueryChange={setReviewQuery}
           onOpen={handleOpenFromMyList}
+          canWriteFinalDecision={canWriteFinalDecision}
+          onSaveFinalDecision={handleSaveFinalDecision}
         />
       )}
 

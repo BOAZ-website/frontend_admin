@@ -4,6 +4,7 @@ import {
   applyFinalDecision,
   applyMyEvaluation,
   applyPromotion,
+  checkFinalDecisionMock,
   checkMyEvaluationSaveMock,
   CURRENT_EVALUATOR,
   type EvaluationData,
@@ -46,6 +47,7 @@ export interface EvaluationDataState extends EvaluationData {
     applicant: ApplicantEvaluationDto,
     input: MyEvaluationInput,
   ) => Promise<ApplicantEvaluationDto>;
+  /** [REC-ADMIN-18] 지원자별 최종 판정을 바꾼다. 거절되면 ApiError를 던지고 데이터는 그대로 둔다. */
   updateFinalDecision: (applicantId: number, decision: EvaluationDecision) => Promise<void>;
   promoteUsers: (userIds: readonly number[]) => Promise<PromotionResult>;
 }
@@ -126,6 +128,8 @@ export function useEvaluationData(): EvaluationDataState {
     applicantId: number,
     decision: EvaluationDecision,
   ): Promise<void> => {
+    await wait(SAVE_DELAY_MS);
+    checkFinalDecisionMock(dataRef.current, applicantId, decision, mockScenario());
     setData((current) => applyFinalDecision(current, applicantId, decision));
   };
 
