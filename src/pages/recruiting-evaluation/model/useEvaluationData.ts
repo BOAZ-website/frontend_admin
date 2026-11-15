@@ -11,12 +11,17 @@ import {
   INITIAL_DATA,
   listAnswersMock,
   listApplicantsMock,
+  listEvaluationsMock,
+  listInterviewQuestionsMock,
   readMockScenario,
+  withRecordAggregates,
 } from './evaluationMock';
 import type {
   ApplicantAnswerDto,
   ApplicantEvaluationDto,
   EvaluationDecision,
+  EvaluatorDetailItem,
+  InterviewQuestionItem,
   MyEvaluationDto,
   MyEvaluationInput,
   PromotionResult,
@@ -30,6 +35,10 @@ export interface EvaluationDataState extends EvaluationData {
   fetchApplicants: () => Promise<ApplicantEvaluationDto[]>;
   /** [REC-ADMIN-20] 지원서 답변을 읽는다. useLoaded 키(지원서 id 문자열)를 받는다. */
   fetchAnswers: (applicantIdKey: string) => Promise<ApplicantAnswerDto[]>;
+  /** [REC-ADMIN-15] 평가자별 평가를 읽는다. useLoaded 키(지원서 id 문자열)를 받는다. */
+  fetchEvaluations: (applicantIdKey: string) => Promise<EvaluatorDetailItem[]>;
+  /** [REC-ADMIN-19] 평가자별 면접 질문을 읽는다. useLoaded 키(지원서 id 문자열)를 받는다. */
+  fetchInterviewQuestions: (applicantIdKey: string) => Promise<InterviewQuestionItem[]>;
   /** [REC-ADMIN-16] 내 평가를 읽는다. 아직 평가하지 않았으면 null. */
   fetchMyEvaluation: (applicantId: number) => Promise<MyEvaluationDto | null>;
   /** 개인 평가를 저장하고 갱신된 지원자를 돌려준다. 거절되면 ApiError를 던진다. */
@@ -56,7 +65,8 @@ const mockScenario = () => (import.meta.env?.DEV ? readMockScenario(window.locat
  * 실제 API 연동 때는 이 Hook 안의 목 함수 호출만 entities API 함수 호출과 재조회로 바꾸고, 화면은 그대로 둔다.
  */
 export function useEvaluationData(): EvaluationDataState {
-  const [data, setData] = useState<EvaluationData>(INITIAL_DATA);
+  // 목록 집계는 평가자별 기록으로 계산해 둔다. 이후 저장도 같은 함수로 다시 계산한다.
+  const [data, setData] = useState<EvaluationData>(() => withRecordAggregates(INITIAL_DATA));
   // 읽기 함수는 참조를 고정하고, 부를 때마다 최신 데이터를 읽는다.
   const dataRef = useRef(data);
   useEffect(() => {
@@ -72,6 +82,22 @@ export function useEvaluationData(): EvaluationDataState {
     async (applicantIdKey: string): Promise<ApplicantAnswerDto[]> => {
       await wait(LOAD_DELAY_MS);
       return listAnswersMock(dataRef.current, Number(applicantIdKey), mockScenario());
+    },
+    [],
+  );
+
+  const fetchEvaluations = useCallback(
+    async (applicantIdKey: string): Promise<EvaluatorDetailItem[]> => {
+      await wait(LOAD_DELAY_MS);
+      return listEvaluationsMock(dataRef.current, Number(applicantIdKey), mockScenario());
+    },
+    [],
+  );
+
+  const fetchInterviewQuestions = useCallback(
+    async (applicantIdKey: string): Promise<InterviewQuestionItem[]> => {
+      await wait(LOAD_DELAY_MS);
+      return listInterviewQuestionsMock(dataRef.current, Number(applicantIdKey), mockScenario());
     },
     [],
   );
@@ -115,6 +141,8 @@ export function useEvaluationData(): EvaluationDataState {
     currentEvaluatorId: CURRENT_EVALUATOR.admin_id,
     fetchApplicants,
     fetchAnswers,
+    fetchEvaluations,
+    fetchInterviewQuestions,
     fetchMyEvaluation,
     saveMyEvaluation,
     updateFinalDecision,

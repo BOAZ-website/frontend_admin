@@ -65,6 +65,10 @@ function getInitialActivePage(): ActivePage {
     }
     if (isActivePage(hash)) return hash;
     const saved = localStorage.getItem('boaz_active_page');
+    // 전체 평가 화면은 서류 평가 화면으로 합쳤다. 예전 주소나 마지막으로 연 화면이면 서류 평가로 연다.
+    if (hash === 'evaluation-group' || saved === 'evaluation-group') {
+      return 'evaluation-my';
+    }
     if (saved && isActivePage(saved)) return saved;
   } catch {
     // ignore
@@ -541,21 +545,17 @@ export default function App() {
               initialTab={
                 activePage === 'evaluation-my'
                   ? 'my'
-                  : activePage === 'evaluation-group'
-                    ? 'group'
-                    : activePage === 'evaluation-promote'
-                      ? 'promotions'
-                      : 'applicants'
+                  : activePage === 'evaluation-promote'
+                    ? 'promotions'
+                    : 'applicants'
               }
               onTabChange={(tab) =>
                 setActivePage(
                   tab === 'my'
                     ? 'evaluation-my'
-                    : tab === 'group'
-                      ? 'evaluation-group'
-                      : tab === 'promotions'
-                        ? 'evaluation-promote'
-                        : 'evaluation-applicants',
+                    : tab === 'promotions'
+                      ? 'evaluation-promote'
+                      : 'evaluation-applicants',
                 )
               }
             />

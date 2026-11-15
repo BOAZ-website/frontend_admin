@@ -1,3 +1,6 @@
+import type { ToastMessage } from '@/shared/ui/Toast';
+
+import { applicantInfoFields } from '../model/applicantList';
 import { type MyEvaluationErrors, SCORE_OPTIONS } from '../model/myEvaluationForm';
 import {
   type ApplicantAnswerDto,
@@ -9,18 +12,34 @@ import {
   TRACK_LABELS,
 } from '../model/types';
 import { ApplicantAnswersSection } from './ApplicantAnswersSection';
+import { EvaluatorResultsTab } from './EvaluatorResultsTab';
+import { InterviewQuestionsTab } from './InterviewQuestionsTab';
+import { type SegmentedTabItem, SegmentedTabs } from './SegmentedTabs';
+
+/** 지원자 상세의 탭. 평가 현황·면접 질문은 조회 전용이고, 입력은 개인 평가 탭에만 있다. */
+export type ReviewDetailTab = 'review' | 'status' | 'interview';
+
+const DETAIL_TABS: SegmentedTabItem<ReviewDetailTab>[] = [
+  { id: 'review', label: '개인 평가' },
+  { id: 'status', label: '평가 현황' },
+  { id: 'interview', label: '면접 질문' },
+];
 
 interface ApplicantReviewDetailProps {
   applicant: ApplicantEvaluationDto;
-  /** 지금 평가하는 관리자 id. 다른 평가 목록에서 본인을 뺄 때 쓴다. */
+  /** 로그인한 평가자 id. 평가 현황·면접 질문에서 '(나)' 행을 맨 위에 둘 때 쓴다. */
   currentEvaluatorId: number;
+  /** 지금 보이는 탭. 지원자를 옮겨도 유지되도록 페이지가 가진다. */
+  tab: ReviewDetailTab;
+  onTabChange: (tab: ReviewDetailTab) => void;
   fetchAnswers: (applicantIdKey: string) => Promise<ApplicantAnswerDto[]>;
+  fetchEvaluations: (applicantIdKey: string) => Promise<EvaluatorDetailItem[]>;
+  fetchInterviewQuestions: (applicantIdKey: string) => Promise<InterviewQuestionItem[]>;
+  onNotify: (message: string, tone: ToastMessage['tone']) => void;
   /** 내 평가(REC-ADMIN-16)를 읽는 중이면 폼을 잠근다. */
   isMyEvaluationLoading: boolean;
   myEvaluationError: Error | null;
   onRetryMyEvaluation: () => void;
-  evaluators: EvaluatorDetailItem[];
-  questions: InterviewQuestionItem[];
   /** 아직 고르지 않았으면 null. 저장할 때 판정이 없으면 필드 오류를 보여 준다. */
   decision: EvaluationDecision | null;
   /** 1~10점 중 고른 값. 고르지 않으면 null(선택 입력). */
@@ -41,11 +60,12 @@ interface ApplicantReviewDetailProps {
   total: number;
 }
 
-/** 개인 평가 전체 화면. 왼쪽은 지원서, 오른쪽은 내 평가 입력과 다른 평가자 결과다. */
+/**
+ * 지원자 상세 전체 화면. 개인 평가 탭은 왼쪽 지원서·오른쪽 내 평가 입력이고, 평가 현황·면접 질문 탭은 조회만 한다.
+ * 입력값은 페이지가 가지므로 탭을 바꿔도 남는다.
+ */
 export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
   const a = p.applicant;
-  const others = p.evaluators.filter((e) => e.admin_id !== p.currentEvaluatorId);
-  const scored = p.evaluators.filter((e) => e.score !== null);
   // 내 평가를 읽는 중·실패했거나 저장 중이면 입력을 잠근다(저장 중 값이 바뀌어 다른 값이 저장되지 않게).
   const isFormLocked = p.isMyEvaluationLoading || p.myEvaluationError !== null || p.saving;
   return (
@@ -65,44 +85,49 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
           다음 →
         </button>
       </div>
-      <div className="review-layout">
+      <div className="review-tabs">
+        <SegmentedTabs
+          label="지원자 상세"
+          items={DETAIL_TABS}
+          value={p.tab}
+          onChange={p.onTabChange}
+        />
+        <span className="review-spacer" />
+        <strong>{a.name}</strong>
+        <span className="review-tag">{TRACK_LABELS[a.track]}</span>
+      </div>
+      {p.tab === 'status' && (
+        <EvaluatorResultsTab
+          key={a.id}
+          applicantId={a.id}
+          currentEvaluatorId={p.currentEvaluatorId}
+          fetchEvaluations={p.fetchEvaluations}
+        />
+      )}
+      {p.tab === 'interview' && (
+        <InterviewQuestionsTab
+          key={a.id}
+          applicantId={a.id}
+          currentEvaluatorId={p.currentEvaluatorId}
+          fetchInterviewQuestions={p.fetchInterviewQuestions}
+          onNotify={p.onNotify}
+        />
+      )}
+      {/* 다른 탭에 있는 동안에도 지원서 답변을 다시 읽지 않도록 숨기기만 한다. */}
+      <div className="review-layout" hidden={p.tab !== 'review'}>
         <article className="review-paper">
           <div className="review-person">
             <h1>{a.name}</h1>
-            <span className="review-tag">{TRACK_LABELS[a.track]}</span>
           </div>
+          {/* 인적사항은 접지 않고 전체 지원 현황 상세와 같은 항목을 모두 보여 준다. */}
           <div className="review-meta">
-            {[
-              ['학교', a.university],
-              ['전공', a.major],
-              ['이메일', a.email],
-              ['전화번호', a.phone],
-            ].map(([label, value]) => (
+            {applicantInfoFields(a).map(([label, value]) => (
               <div key={label}>
                 <span>{label}</span>
-                {value || '—'}
+                {value}
               </div>
             ))}
           </div>
-          <details className="review-extra">
-            <summary>지원자 정보 더 보기</summary>
-            <div className="review-meta">
-              {[
-                ['부·복수전공', a.minor_double_major.join(', ')],
-                ['마지막 학기', String(a.last_semester)],
-                ['병역', a.military_status],
-                ['생년월일', a.birth_date],
-                ['졸업 예정', a.graduation_date],
-                ['대학원 진학 계획', a.grad_school_plan ? '있음' : '없음'],
-                ['제출 일시', a.submitted_at || '미제출'],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <span>{label}</span>
-                  {value || '—'}
-                </div>
-              ))}
-            </div>
-          </details>
           <ApplicantAnswersSection
             applicantId={a.id}
             fetchAnswers={p.fetchAnswers}
@@ -204,66 +229,6 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
               {p.saving ? '저장 중…' : '평가 저장'}
             </button>
           </form>
-          <section className="review-panel">
-            <div className="review-heading">
-              <h2>
-                다른 평가 <span>{others.length}</span>
-              </h2>
-              <button
-                type="button"
-                onClick={() =>
-                  alert(
-                    '현재는 로컬 PoC 데이터입니다. 서버 새로고침은 API 연결 후 사용할 수 있습니다.',
-                  )
-                }
-              >
-                ↻ 새로고침
-              </button>
-            </div>
-            <div className="review-summary">
-              <span>
-                평균{' '}
-                {scored.length
-                  ? (scored.reduce((sum, e) => sum + (e.score ?? 0), 0) / scored.length).toFixed(1)
-                  : '—'}
-                점
-              </span>
-              <span>
-                {p.evaluators.filter((e) => e.decision !== null).length} / {p.evaluators.length}명
-                완료
-              </span>
-            </div>
-            {others.map((e) => (
-              <details className="review-evaluator" key={e.admin_id}>
-                <summary>
-                  <strong>{e.name}</strong>
-                  <span>{e.score === null ? '미평가' : e.score + '점'}</span>
-                  <span>{e.decision ? DECISION_LABELS[e.decision] : ''}</span>
-                </summary>
-                <p>{e.memo || '아직 작성된 의견이 없습니다.'}</p>
-              </details>
-            ))}
-            {!others.length && <p>아직 다른 평가가 없습니다.</p>}
-          </section>
-          <section className="review-panel">
-            <details>
-              <summary>면접 추천 질문 모아보기</summary>
-              {p.questions.map((q) => (
-                <div className="review-evaluator" key={q.admin_id}>
-                  <strong>{q.name}</strong>
-                  <p>{q.interview_question || '등록된 질문이 없습니다.'}</p>
-                  {q.interview_question && (
-                    <button
-                      type="button"
-                      onClick={() => navigator.clipboard.writeText(q.interview_question!)}
-                    >
-                      질문 복사
-                    </button>
-                  )}
-                </div>
-              ))}
-            </details>
-          </section>
         </aside>
       </div>
     </div>

@@ -5,6 +5,8 @@
  */
 import { ApiError } from '@/shared/api/apiError';
 
+import { aggregateEvaluations } from './evaluationStatus';
+
 import type {
   ApplicantAnswerDto,
   ApplicantEvaluationDto,
@@ -415,6 +417,25 @@ export const INITIAL_DATA: EvaluationData = {
   },
 };
 
+/** 지원서의 평가자 목록. 평가가 하나도 없으면 평가자 전원을 미평가(null)로 둔다(REC-ADMIN-15 규칙). */
+const evaluatorsOf = (data: EvaluationData, applicantId: number): EvaluatorDetailItem[] =>
+  data.evaluatorsMap[applicantId] ||
+  INITIAL_EVALUATOR_POOL.map((ev) => ({ ...ev, decision: null, score: null, memo: null }));
+
+/**
+ * 지원자 행의 집계를 평가자별 기록(evaluatorsMap)으로 다시 계산한다. 원본 목 데이터의 집계 값은 쓰지 않는다.
+ * 기록이 없는 지원자는 0건·0점(미평가)이다. 기록이나 점수를 새로 만들지 않는다.
+ */
+export function withRecordAggregates(data: EvaluationData): EvaluationData {
+  return {
+    ...data,
+    applicants: data.applicants.map((a) => ({
+      ...a,
+      ...aggregateEvaluations(data.evaluatorsMap[a.id] ?? []),
+    })),
+  };
+}
+
 /**
  * 개인 평가 저장(REC-ADMIN-17)을 목 데이터에 반영한다. 평가자별 평가·면접 질문·집계를 함께 고친다.
  * 실제 서버로 바꾸면 집계는 서버가 계산하므로 이 계산을 화면에서 다시 하지 않는다.
@@ -425,9 +446,7 @@ export function applyMyEvaluation(
   input: MyEvaluationInput,
 ): { data: EvaluationData; applicant: ApplicantEvaluationDto } {
   const me = CURRENT_EVALUATOR;
-  const existingEvaluators =
-    data.evaluatorsMap[applicant.id] ||
-    INITIAL_EVALUATOR_POOL.map((ev) => ({ ...ev, decision: null, score: null, memo: null }));
+  const existingEvaluators = evaluatorsOf(data, applicant.id);
 
   const updatedEvaluators: EvaluatorDetailItem[] = existingEvaluators.some(
     (e) => e.admin_id === me.admin_id,
@@ -474,10 +493,7 @@ export function applyMyEvaluation(
     my_score: input.score,
     my_memo: input.memo,
     my_interview_question: input.interview_question,
-    pass_count: updatedEvaluators.filter((e) => e.decision === 'PASS').length,
-    hold_count: updatedEvaluators.filter((e) => e.decision === 'HOLD').length,
-    fail_count: updatedEvaluators.filter((e) => e.decision === 'FAIL').length,
-    total_score: updatedEvaluators.reduce((acc, e) => acc + (e.score || 0), 0),
+    ...aggregateEvaluations(updatedEvaluators),
   };
 
   return {
@@ -539,7 +555,9 @@ export type MockScenario =
   | 'my-evaluation-error'
   | 'save-error'
   | 'save-denied'
-  | 'save-not-found';
+  | 'save-not-found'
+  | 'evaluations-error'
+  | 'questions-error';
 
 const MOCK_SCENARIOS: readonly MockScenario[] = [
   'applicants-error',
@@ -550,6 +568,8 @@ const MOCK_SCENARIOS: readonly MockScenario[] = [
   'save-error',
   'save-denied',
   'save-not-found',
+  'evaluations-error',
+  'questions-error',
 ];
 
 /** 주소의 쿼리 문자열에서 목 시나리오를 읽는다. 모르는 값이면 null. */
@@ -582,6 +602,31 @@ export function listAnswersMock(
     throw new ApiError(404, 'APPLICATION_NOT_FOUND', '지원서를 찾을 수 없습니다.');
   }
   return data.answersMap[applicantId] ?? [];
+}
+
+const applicationNotFound = () =>
+  new ApiError(404, 'APPLICATION_NOT_FOUND', '지원서를 찾을 수 없습니다.');
+
+/** [REC-ADMIN-15 대체] 평가자별 평가를 돌려준다. DRAFT 지원서도 조회할 수 있다. */
+export function listEvaluationsMock(
+  data: EvaluationData,
+  applicantId: number,
+  scenario: MockScenario | null,
+): EvaluatorDetailItem[] {
+  if (scenario === 'evaluations-error') throw networkError();
+  if (!data.applicants.some((a) => a.id === applicantId)) throw applicationNotFound();
+  return evaluatorsOf(data, applicantId);
+}
+
+/** [REC-ADMIN-19 대체] 평가자별 면접 질문을 돌려준다. 목 데이터는 질문을 남긴 평가자만 담고 있다. */
+export function listInterviewQuestionsMock(
+  data: EvaluationData,
+  applicantId: number,
+  scenario: MockScenario | null,
+): InterviewQuestionItem[] {
+  if (scenario === 'questions-error') throw networkError();
+  if (!data.applicants.some((a) => a.id === applicantId)) throw applicationNotFound();
+  return data.interviewQuestionsMap[applicantId] ?? [];
 }
 
 /**

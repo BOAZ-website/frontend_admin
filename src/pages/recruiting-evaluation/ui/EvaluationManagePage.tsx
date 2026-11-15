@@ -7,7 +7,6 @@ import {
   FileCheck2,
   FileText,
   RefreshCw,
-  Search,
   Shield,
   User,
   UserCheck,
@@ -17,7 +16,11 @@ import {
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { Toast, type ToastMessage } from '@/shared/ui/Toast';
 
-import { DEFAULT_APPLICANT_QUERY, filterApplicants } from '../model/applicantList';
+import {
+  DEFAULT_REVIEW_QUERY,
+  filterReviewList,
+  type ReviewListQuery,
+} from '../model/applicantList';
 import {
   draftFromMyEvaluation,
   EMPTY_DRAFT,
@@ -28,17 +31,12 @@ import {
   UNSAVED_EVALUATION_MESSAGE,
   validateMyEvaluation,
 } from '../model/myEvaluationForm';
-import {
-  type ApplicantEvaluationDto,
-  DECISION_LABELS,
-  type EvaluationDecision,
-  type EvaluationTab,
-  TRACK_LABELS,
-} from '../model/types';
+import { type ApplicantEvaluationDto, type EvaluationTab } from '../model/types';
 import { useEvaluationData } from '../model/useEvaluationData';
-import { ApplicantReviewDetail } from './ApplicantReviewDetail';
+import { ApplicantReviewDetail, type ReviewDetailTab } from './ApplicantReviewDetail';
 import { ApplicantsOverview } from './ApplicantsOverview';
 import { MyEvaluationList } from './MyEvaluationList';
+import { SegmentedTabs } from './SegmentedTabs';
 
 interface EvaluationManagePageProps {
   initialTab?: EvaluationTab;
@@ -46,7 +44,7 @@ interface EvaluationManagePageProps {
   onTabChange?: (tab: EvaluationTab) => void;
 }
 
-/** 서류 평가 탭 4개를 같은 데이터로 그린다. 데이터 접근은 useEvaluationData Hook만 거친다. */
+/** 서류 평가 탭 3개를 같은 데이터로 그린다. 데이터 접근은 useEvaluationData Hook만 거친다. */
 export function EvaluationManagePage({
   initialTab = 'applicants',
   onTabChange,
@@ -55,25 +53,22 @@ export function EvaluationManagePage({
 
   const {
     applicants,
-    evaluatorsMap,
-    interviewQuestionsMap,
     currentEvaluatorId,
     fetchApplicants,
     fetchAnswers,
+    fetchEvaluations,
+    fetchInterviewQuestions,
     fetchMyEvaluation,
     saveMyEvaluation,
-    updateFinalDecision,
     promoteUsers,
   } = useEvaluationData();
 
-  // Filters
-  const [selectedTrack, setSelectedTrack] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [decisionFilter, setDecisionFilter] = useState<'ALL' | EvaluationDecision>('ALL');
+  // 서류 평가 목록의 검색·필터·정렬. 상세에서 목록으로 돌아와도 남도록 여기서 가진다.
+  const [reviewQuery, setReviewQuery] = useState<ReviewListQuery>(DEFAULT_REVIEW_QUERY);
 
-  // Detail Modal State (for evaluations / applicants)
+  // 지원자 상세와 그 탭. 탭은 이전·다음으로 다른 지원자를 열어도 유지한다.
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantEvaluationDto | null>(null);
-  const [modalTab, setModalTab] = useState<'review' | 'status' | 'interview'>('review');
+  const [modalTab, setModalTab] = useState<ReviewDetailTab>('review');
 
   // 내 평가 입력 초안과 마지막으로 불러오거나 저장한 값. 둘이 다르면 저장하지 않은 수정이 있다.
   // 내 평가가 없으면 빈 폼이다(명세 §4.4, 판정·점수 기본값 없음).
@@ -129,60 +124,6 @@ export function EvaluationManagePage({
   const showToast = (message: string, tone: ToastMessage['tone']) =>
     setToast({ id: Date.now(), message, tone });
 
-  // Overall Statistics
-  const stats = useMemo(() => {
-    const submitted = applicants.filter((a) => a.status === 'SUBMITTED');
-    const totalCount = submitted.length;
-    const evaluatedCount = submitted.filter((a) => a.my_decision !== null).length;
-    const passCount = submitted.filter((a) => a.final_decision === 'PASS').length;
-    const holdCount = submitted.filter((a) => a.final_decision === 'HOLD').length;
-    const failCount = submitted.filter((a) => a.final_decision === 'FAIL').length;
-    const pendingCount = submitted.filter((a) => a.final_decision === 'PENDING').length;
-    const promotedCount = applicants.filter((a) => a.is_promoted_to_member).length;
-
-    return {
-      totalCount,
-      evaluatedCount,
-      passCount,
-      holdCount,
-      failCount,
-      pendingCount,
-      promotedCount,
-    };
-  }, [applicants]);
-
-  // Filtered & Sorted Applicant List (for evaluation/applicants tab)
-  const displayedApplicants = useMemo(() => {
-    return applicants
-      .filter((app) => {
-        if ((mainTab === 'my' || mainTab === 'group') && app.status !== 'SUBMITTED') {
-          return false;
-        }
-        if (selectedTrack !== 'ALL' && app.track !== selectedTrack) {
-          return false;
-        }
-        if (decisionFilter !== 'ALL' && app.final_decision !== decisionFilter) {
-          return false;
-        }
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase();
-          return (
-            app.name.toLowerCase().includes(q) ||
-            app.email.toLowerCase().includes(q) ||
-            app.university.toLowerCase().includes(q) ||
-            app.major.toLowerCase().includes(q)
-          );
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        if (b.pass_count !== a.pass_count) {
-          return b.pass_count - a.pass_count;
-        }
-        return b.total_score - a.total_score;
-      });
-  }, [applicants, mainTab, selectedTrack, decisionFilter, searchQuery]);
-
   // List of Passed Candidates for Promotion Tab (UserAdminController)
   const passedCandidates = useMemo(() => {
     return applicants.filter((a) => a.final_decision === 'PASS');
@@ -195,8 +136,8 @@ export function EvaluationManagePage({
   // 평가 화면을 열고 내 평가(REC-ADMIN-16)를 읽어 폼을 채운다. 없으면(null) 빈 폼으로 둔다.
   async function handleOpenModal(
     app: ApplicantEvaluationDto,
-    tab: 'review' | 'status' | 'interview' = 'review',
-    queueIds: number[] = displayedApplicants.map((item) => item.id),
+    tab: ReviewDetailTab,
+    queueIds: number[],
   ) {
     const requestId = ++openRequestRef.current;
     setSelectedApplicant(app);
@@ -220,22 +161,19 @@ export function EvaluationManagePage({
     }
   }
 
-  // 개인 평가 목록에서 지원자를 고르면 그 목록 순서로 평가 화면을 연다.
+  // 서류 평가 목록에서 지원자를 고르면 그 목록 순서로 평가 화면을 연다.
   function handleOpenFromMyList(applicantId: number, orderedIds: number[]) {
     const app = applicants.find((item) => item.id === applicantId);
     if (app) void handleOpenModal(app, 'review', orderedIds);
   }
 
-  // 전체 지원 현황 상세의 "평가하기": 개인 평가 탭으로 옮기고 그 지원자의 평가 화면을 연다.
+  // 전체 지원 현황 상세의 "평가하기": 서류 평가 탭으로 옮기고 그 지원자의 평가 화면을 연다.
   function handleEvaluateFromOverview(applicantId: number) {
     const app = applicants.find((item) => item.id === applicantId);
     if (!app || app.status !== 'SUBMITTED') return;
     handleTabChange('my');
-    // 이전·다음은 개인 평가 목록의 기본 순서(제출 완료, 제출일 최신순)를 따른다.
-    const defaultOrder = filterApplicants(applicants, {
-      ...DEFAULT_APPLICANT_QUERY,
-      status: 'SUBMITTED',
-    }).map((item) => item.id);
+    // 이전·다음은 서류 평가 목록의 기본 순서(제출 완료, 제출일 최신순)를 따른다.
+    const defaultOrder = filterReviewList(applicants, DEFAULT_REVIEW_QUERY).map((item) => item.id);
     void handleOpenModal(app, 'review', defaultOrder);
   }
 
@@ -292,14 +230,6 @@ export function EvaluationManagePage({
     }
   }
 
-  // 최종 판정 변경. 열려 있는 상세의 값도 같이 맞춘다.
-  function handleUpdateFinalDecision(applicantId: number, decision: EvaluationDecision) {
-    void updateFinalDecision(applicantId, decision);
-    if (selectedApplicant && selectedApplicant.id === applicantId) {
-      setSelectedApplicant((prev) => (prev ? { ...prev, final_decision: decision } : null));
-    }
-  }
-
   // Promotion Selection Handlers (PATCH /api/v1/admin/users/promote)
   function handleTogglePromoteSelect(userId: number) {
     setSelectedPromoteUserIds((prev) =>
@@ -351,12 +281,15 @@ export function EvaluationManagePage({
         <ApplicantReviewDetail
           applicant={selectedApplicant}
           currentEvaluatorId={currentEvaluatorId}
+          tab={modalTab}
+          onTabChange={setModalTab}
           fetchAnswers={fetchAnswers}
+          fetchEvaluations={fetchEvaluations}
+          fetchInterviewQuestions={fetchInterviewQuestions}
+          onNotify={showToast}
           isMyEvaluationLoading={isMyEvaluationLoading}
           myEvaluationError={myEvaluationError}
           onRetryMyEvaluation={() => void handleOpenModal(selectedApplicant, modalTab, reviewQueue)}
-          evaluators={evaluatorsMap[selectedApplicant.id] || []}
-          questions={interviewQuestionsMap[selectedApplicant.id] || []}
           decision={draft.decision}
           score={draft.score}
           memo={draft.memo}
@@ -393,72 +326,25 @@ export function EvaluationManagePage({
             </div>
           </div>
 
-          {/* 4-Tab Segmented Control — 사이드바 메뉴 4개와 같은 순서 */}
-          <div className="evaluation-header-tabs flex p-1 rounded-xl bg-slate-100 border border-slate-200">
-            {(
-              [
-                { id: 'applicants', label: '전체 지원 현황', icon: FileText },
-                { id: 'my', label: '개인 평가', icon: FileCheck2 },
-                { id: 'group', label: '전체 평가', icon: CheckSquare },
-                {
-                  id: 'promotions',
-                  label: `합격자 승격 (${unpromotedPassedCandidates.length}명)`,
-                  icon: UserCheck,
-                },
-              ] as const
-            ).map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={mainTab === id}
-                onClick={() => handleTabChange(id)}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
-                style={
-                  mainTab !== id
-                    ? { color: '#64748b' }
-                    : id === 'promotions'
-                      ? {
-                          background: 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
-                          color: '#ffffff',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                        }
-                      : {
-                          background: '#ffffff',
-                          color: '#1d4ed8',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-                        }
-                }
-              >
-                <Icon size={13} />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
+          {/* 사이드바 메뉴 3개와 같은 순서 */}
+          <SegmentedTabs
+            label="서류 평가 화면"
+            value={mainTab}
+            onChange={handleTabChange}
+            items={[
+              { id: 'applicants', label: '전체 지원 현황', icon: FileText },
+              { id: 'my', label: '서류 평가', icon: FileCheck2 },
+              {
+                id: 'promotions',
+                label: `합격자 승격 (${unpromotedPassedCandidates.length}명)`,
+                icon: UserCheck,
+              },
+            ]}
+          />
         </div>
 
         {/* Right Info: Track Filter & Logged-In User Badge */}
         <div className="flex items-center gap-3">
-          {mainTab === 'group' && (
-            <select
-              value={selectedTrack}
-              onChange={(e) => setSelectedTrack(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-foreground text-xs font-medium cursor-pointer outline-none"
-            >
-              <option value="ALL" className="bg-white">
-                전체 트랙
-              </option>
-              <option value="ENGINEERING" className="bg-white">
-                데이터 엔지니어링 (ENGINEERING)
-              </option>
-              <option value="ANALYSIS" className="bg-white">
-                데이터 분석 (ANALYSIS)
-              </option>
-              <option value="VISUALIZATION" className="bg-white">
-                데이터 시각화 (VISUALIZATION)
-              </option>
-            </select>
-          )}
-
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-bold text-emerald-400">문혁준 로그인됨</span>
@@ -478,185 +364,12 @@ export function EvaluationManagePage({
       )}
 
       {mainTab === 'my' && (
-        <MyEvaluationList fetchApplicants={fetchApplicants} onOpen={handleOpenFromMyList} />
-      )}
-
-      {/* shortcut: 전체 평가 탭은 기존 서류 심사 목록을 그대로 쓴다, 전체 평가 명세를 구현할 때 바꾼다 */}
-      {mainTab === 'group' && (
-        <div className="space-y-4">
-          {/* Top Stats Summary Bar */}
-          <div className="evaluation-stats grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {[
-              {
-                label: '제출 지원서',
-                val: `${stats.totalCount}건`,
-                sub: 'SUBMITTED 대상',
-                color: '#3b82f6',
-              },
-              {
-                label: '내 심사 완료',
-                val: `${stats.evaluatedCount} / ${stats.totalCount}`,
-                sub: `진행률 ${Math.round((stats.evaluatedCount / Math.max(stats.totalCount, 1)) * 100)}%`,
-                color: '#8b5cf6',
-              },
-              {
-                label: '최종 합격 (PASS)',
-                val: `${stats.passCount}명`,
-                sub: '대표진 확정',
-                color: '#34d399',
-              },
-              {
-                label: '최종 보류 (HOLD)',
-                val: `${stats.holdCount}명`,
-                sub: '심층 면접 고려',
-                color: '#fbbf24',
-              },
-              {
-                label: '최종 불합격 (FAIL)',
-                val: `${stats.failCount}명`,
-                sub: '기준 미달',
-                color: '#f87171',
-              },
-              {
-                label: '판정 미결 (PENDING)',
-                val: `${stats.pendingCount}명`,
-                sub: '심사 진행중',
-                color: '#9094a8',
-              },
-            ].map((card) => (
-              <div
-                key={card.label}
-                className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-1"
-              >
-                <p className="text-[11px] text-muted-foreground font-medium">{card.label}</p>
-                <p className="text-lg font-bold font-mono" style={{ color: card.color }}>
-                  {card.val}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Main Table Container */}
-          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xl">
-            {/* Table Toolbar */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3 bg-white/[0.01]">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-foreground">
-                  서류 심사 대시보드 (합격 수 내림차순 정렬)
-                </span>
-                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-[#8ba5ff]">
-                  총 {displayedApplicants.length}명
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 text-xs">
-                  <span className="text-muted-foreground text-[11px]">최종 판정:</span>
-                  <select
-                    value={decisionFilter}
-                    onChange={(e) => setDecisionFilter(e.target.value as any)}
-                    className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-foreground text-xs outline-none cursor-pointer"
-                  >
-                    <option value="ALL" className="bg-white">
-                      전체 보기
-                    </option>
-                    <option value="PASS" className="bg-white">
-                      PASS (합격)
-                    </option>
-                    <option value="HOLD" className="bg-white">
-                      HOLD (보류)
-                    </option>
-                    <option value="FAIL" className="bg-white">
-                      FAIL (불합격)
-                    </option>
-                    <option value="PENDING" className="bg-white">
-                      PENDING (미결)
-                    </option>
-                  </select>
-                </div>
-
-                <div className="relative">
-                  <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="검색"
-                    aria-label="지원자명, 대학교, 전공 검색"
-                    className="pl-8 pr-3 py-1 text-xs rounded-xl bg-slate-100 border border-slate-200 text-foreground placeholder:text-muted-foreground/60 outline-none w-52 font-mono"
-                  />
-                  <Search
-                    size={12}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Table Body */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs min-w-[960px]">
-                <thead>
-                  <tr>
-                    {['지원자', '부문', '대학교 / 전공', '내 평가', '내 점수', '최종 판정', ''].map(
-                      (label, i) => (
-                        <th key={i} scope="col" className="px-4 py-3.5 text-left">
-                          {label || <span className="sr-only">평가하기</span>}
-                        </th>
-                      ),
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedApplicants.map((app) => (
-                    <tr key={app.id}>
-                      <td className="px-4 font-semibold">
-                        {app.name}
-                        {app.status === 'DRAFT' && <small> · 작성 중</small>}
-                        {app.is_promoted_to_member && <small> · 정회원</small>}
-                      </td>
-                      <td className="px-4">{TRACK_LABELS[app.track]}</td>
-                      <td className="px-4">
-                        <p>{app.university}</p>
-                        <p className="text-muted-foreground">{app.major}</p>
-                      </td>
-                      <td className="px-4">
-                        {app.my_decision === null ? '미평가' : DECISION_LABELS[app.my_decision]}
-                      </td>
-                      <td className="px-4">
-                        {app.my_score === null ? '—' : app.my_score + ' / 10'}
-                      </td>
-                      <td className="px-4">
-                        <select
-                          aria-label={app.name + ' 최종 판정'}
-                          value={app.final_decision}
-                          onChange={(e) =>
-                            handleUpdateFinalDecision(app.id, e.target.value as EvaluationDecision)
-                          }
-                          className="px-2 py-1"
-                        >
-                          <option value="PENDING">미결</option>
-                          <option value="PASS">합격</option>
-                          <option value="HOLD">보류</option>
-                          <option value="FAIL">불합격</option>
-                        </select>
-                      </td>
-                      <td className="px-4 text-right">
-                        <button
-                          className="px-3 py-2 cursor-pointer whitespace-nowrap"
-                          aria-label={
-                            app.name + (app.my_decision === null ? ' 평가하기' : ' 평가 수정')
-                          }
-                          onClick={() => handleOpenModal(app, 'review')}
-                        >
-                          {app.my_decision === null ? '평가하기' : '수정'} →
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <MyEvaluationList
+          fetchApplicants={fetchApplicants}
+          query={reviewQuery}
+          onQueryChange={setReviewQuery}
+          onOpen={handleOpenFromMyList}
+        />
       )}
 
       {/* ─── TAB 3: 합격자 정회원 승격 전용 탭 (UserAdminController: PATCH /api/v1/admin/users/promote) ─── */}

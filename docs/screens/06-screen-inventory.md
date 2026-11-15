@@ -24,23 +24,22 @@
 | 7 | 리크루팅 공고 | 공고 및 문항 | 지원자 화면 미리보기 | `recruiting-preview` | 지원자 화면 미리보기 | [02](02-recruiting.md) |
 | 8 | 리크루팅 공고 | 지원자 데이터 | 지원서 CSV 추출 | `recruiting-csv` | 지원서 CSV 추출 | [02](02-recruiting.md) |
 | 9 | 리크루팅 공고 | 지원자 데이터 | 사전 알림 명단 | `recruiting-leads` | 사전 알림 명단 | [02](02-recruiting.md) |
-| 10 | 서류 평가 관리 | 지원서 관리 | 전체 지원 현황 | `evaluation-applicants` | 전체 지원 현황 | [03](03-evaluation.md) |
-| 11 | 서류 평가 관리 | 평가 관리 | 개인 평가 | `evaluation-my` | 개인 평가 | [03](03-evaluation.md) |
-| 12 | 서류 평가 관리 | 평가 관리 | 전체 평가 | `evaluation-group` | 전체 평가 | [03](03-evaluation.md) |
-| 13 | 서류 평가 관리 | 합격자 관리 | 합격자 승격 | `evaluation-promote` | 합격자 승격 | [03](03-evaluation.md) |
-| 14 | 출결 & 점수 | 출결 관리 | BASE Term 출결 관리 | `att-session` | BASE 출결 | [04](04-attendance.md) |
-| 15 | 출결 & 점수 | 출결 관리 | ADV Term 출결 관리 | `att-adv` | ADV 출결 | [04](04-attendance.md) |
-| 16 | 출결 & 점수 | 출결 관리 | 스터디 출결 관리 | `att-study` | 스터디 출결 | [04](04-attendance.md) |
-| 17 | 출결 & 점수 | 출결 관리 | 행사 출결 관리 | `att-events` | 행사 출결 | [04](04-attendance.md) |
-| 18 | 출결 & 점수 | 출결 관리 | 출결 점수 집계 | `att-scores` | 출결 점수 집계 | [04](04-attendance.md) |
-| 19 | 출결 & 점수 | 출결 입력 | ADV 입력 및 증빙 (팀장용) | `att-input-adv` | 리더 전용 출결 입력 | [04](04-attendance.md) |
-| 20 | 출결 & 점수 | 출결 입력 | 스터디 입력 및 증빙 (팀장용) | `att-input-study` | 리더 전용 출결 입력 | [04](04-attendance.md) |
-| 21 | 출결 & 점수 | 설정 | HOST 계정·팀 연결 (ID/PW 발급) | `att-hosts` | HOST 계정 연결 | [04](04-attendance.md) |
-| 22 | 출결 & 점수 | 설정 | 점수 규칙 | `att-rules` | 점수 규칙 | [04](04-attendance.md) |
-| 23 | 시스템·계정 | 계정 및 권한 | 운영진 계정 관리 (CRUD) | `system-accounts` | 운영진 계정 관리 | [05](05-system.md) |
-| 24 | 시스템·계정 | 계정 및 권한 | 권한 매트릭스 (10대 Permission) | `system-permissions` | 권한 매트릭스 | [05](05-system.md) |
-| 25 | 시스템·계정 | 보안 | 보안 감사 로그 | `system-audit` | 보안 감사 로그 | [05](05-system.md) |
-| 26 | 시스템·계정 | 출결 기준 | 반기 관리 | `system-semesters` | 반기 관리 (2026-11-05 추가) | [05](05-system.md) |
+| 10 | 서류 평가 관리 | — | 전체 지원 현황 | `evaluation-applicants` | 전체 지원 현황 | [03](03-evaluation.md) |
+| 11 | 서류 평가 관리 | — | 서류 평가 | `evaluation-my` | 서류 평가 | [03](03-evaluation.md) |
+| 12 | 서류 평가 관리 | — | 합격자 승격 | `evaluation-promote` | 합격자 승격 | [03](03-evaluation.md) |
+| 13 | 출결 & 점수 | 출결 관리 | BASE Term 출결 관리 | `att-session` | BASE 출결 | [04](04-attendance.md) |
+| 14 | 출결 & 점수 | 출결 관리 | ADV Term 출결 관리 | `att-adv` | ADV 출결 | [04](04-attendance.md) |
+| 15 | 출결 & 점수 | 출결 관리 | 스터디 출결 관리 | `att-study` | 스터디 출결 | [04](04-attendance.md) |
+| 16 | 출결 & 점수 | 출결 관리 | 행사 출결 관리 | `att-events` | 행사 출결 | [04](04-attendance.md) |
+| 17 | 출결 & 점수 | 출결 관리 | 출결 점수 집계 | `att-scores` | 출결 점수 집계 | [04](04-attendance.md) |
+| 18 | 출결 & 점수 | 출결 입력 | ADV 입력 및 증빙 (팀장용) | `att-input-adv` | 리더 전용 출결 입력 | [04](04-attendance.md) |
+| 19 | 출결 & 점수 | 출결 입력 | 스터디 입력 및 증빙 (팀장용) | `att-input-study` | 리더 전용 출결 입력 | [04](04-attendance.md) |
+| 20 | 출결 & 점수 | 설정 | HOST 계정·팀 연결 (ID/PW 발급) | `att-hosts` | HOST 계정 연결 | [04](04-attendance.md) |
+| 21 | 출결 & 점수 | 설정 | 점수 규칙 | `att-rules` | 점수 규칙 | [04](04-attendance.md) |
+| 22 | 시스템·계정 | 계정 및 권한 | 운영진 계정 관리 (CRUD) | `system-accounts` | 운영진 계정 관리 | [05](05-system.md) |
+| 23 | 시스템·계정 | 계정 및 권한 | 권한 매트릭스 (10대 Permission) | `system-permissions` | 권한 매트릭스 | [05](05-system.md) |
+| 24 | 시스템·계정 | 보안 | 보안 감사 로그 | `system-audit` | 보안 감사 로그 | [05](05-system.md) |
+| 25 | 시스템·계정 | 출결 기준 | 반기 관리 | `system-semesters` | 반기 관리 (2026-11-05 추가) | [05](05-system.md) |
 
 ---
 

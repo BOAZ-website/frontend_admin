@@ -3,8 +3,8 @@
  * PoC 화면만 쓰는 필드(status·my_score 등)는 실제 응답에 없을 수 있어 주석으로 구분한다.
  */
 
-/** 화면 상단 탭. 사이드바 메뉴 4개와 1:1로 대응한다. */
-export type EvaluationTab = 'applicants' | 'my' | 'group' | 'promotions';
+/** 화면 상단 탭. 사이드바 메뉴 3개와 1:1로 대응한다. */
+export type EvaluationTab = 'applicants' | 'my' | 'promotions';
 
 export type ApplicationStatus = 'DRAFT' | 'SUBMITTED';
 export type EvaluationDecision = 'PASS' | 'HOLD' | 'FAIL' | 'PENDING';

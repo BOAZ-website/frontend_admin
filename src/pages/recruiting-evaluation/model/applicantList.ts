@@ -1,7 +1,18 @@
 /**
  * 전체 지원 현황(EVL-APP) 목록의 필터·검색·정렬·통계 계산. 서버는 목록 전체를 주고 화면이 거른다(REC-ADMIN-13).
  */
-import type { ApplicantEvaluationDto, ApplicationStatus, TrackType } from './types';
+import { dateTimeTextOf } from '@/shared/lib/date';
+
+import {
+  APPLICATION_STATUS_LABELS,
+  type ApplicantSummaryDto,
+  type ApplicantEvaluationDto,
+  type ApplicationStatus,
+  type EvaluationDecision,
+  MILITARY_STATUS_LABELS,
+  TRACK_LABELS,
+  type TrackType,
+} from './types';
 
 export type ApplicantSort = 'SUBMITTED_DESC' | 'SUBMITTED_ASC' | 'NAME';
 
@@ -106,6 +117,33 @@ export function displayValue(
   return String(value);
 }
 
+/** 지원자 인적사항 항목(이름 제외). 전체 지원 현황 상세와 서류 평가 상세가 같은 항목을 같은 순서로 보여 준다. */
+export function applicantInfoFields(applicant: ApplicantSummaryDto): [string, string][] {
+  return [
+    ['트랙', applicant.track ? TRACK_LABELS[applicant.track] : '-'],
+    ['상태', APPLICATION_STATUS_LABELS[applicant.status]],
+    ['이메일', displayValue(applicant.email)],
+    ['전화번호', displayValue(applicant.phone)],
+    ['대학교', displayValue(applicant.university)],
+    ['전공', displayValue(applicant.major)],
+    ['부·복수전공', displayValue(applicant.minor_double_major)],
+    ['마지막 학기', displayValue(applicant.last_semester)],
+    ['졸업 예정', displayValue(applicant.graduation_date)],
+    ['병역', applicant.military_status ? MILITARY_STATUS_LABELS[applicant.military_status] : '-'],
+    ['생년월일', displayValue(applicant.birth_date)],
+    ['대학원 진학 계획', displayValue(applicant.grad_school_plan)],
+    ['제출일', applicant.submitted_at ? dateTimeTextOf(applicant.submitted_at) : '-'],
+  ];
+}
+
+/**
+ * 평가자별 기록이 하나도 없어 집계가 모두 0인지. 목록에서 "미평가"로 구분한다.
+ * shortcut: 목록 응답(REC-ADMIN-14)에 미결(PENDING) 수가 없어 미결만 남긴 지원자도 미평가로 보인다, 응답에 평가 수가 생기면 그 값으로 바꾼다
+ */
+export const hasNoEvaluations = (applicant: ApplicantEvaluationDto): boolean =>
+  applicant.pass_count + applicant.hold_count + applicant.fail_count === 0 &&
+  applicant.total_score === 0;
+
 /** 개인 평가 목록의 평가 상태 필터(MY-02). PENDING을 저장한 것도 저장됨이다(명세 §2.2). */
 export type MyEvaluationFilter = 'ALL' | 'UNEVALUATED' | 'SAVED';
 
@@ -123,4 +161,67 @@ export function filterByMyEvaluation(
   if (filter === 'ALL') return [...applicants];
   const isSaved = filter === 'SAVED';
   return applicants.filter((applicant) => (applicant.my_decision !== null) === isSaved);
+}
+
+/** 서류 평가 목록의 정렬. 전체 지원 현황 정렬에 전체 평가의 집계 정렬(GROUP-04)을 더했다. */
+export type ReviewSort = ApplicantSort | 'PASS_COUNT_DESC' | 'TOTAL_SCORE_DESC';
+
+export const REVIEW_SORT_LABELS: Record<ReviewSort, string> = {
+  ...APPLICANT_SORT_LABELS,
+  PASS_COUNT_DESC: '합격 평가 많은순',
+  TOTAL_SCORE_DESC: '총점 높은순',
+};
+
+/** 서류 평가 목록(개인 평가 + 전체 평가)의 조회 조건. 상세에서 목록으로 돌아와도 유지한다. */
+export interface ReviewListQuery {
+  track: 'ALL' | TrackType;
+  search: string;
+  sort: ReviewSort;
+  myFilter: MyEvaluationFilter;
+  finalDecision: 'ALL' | EvaluationDecision;
+}
+
+export const DEFAULT_REVIEW_QUERY: ReviewListQuery = {
+  track: 'ALL',
+  search: '',
+  sort: 'SUBMITTED_DESC',
+  myFilter: 'ALL',
+  finalDecision: 'ALL',
+};
+
+/** 정렬을 뺀 필터·검색 조건이 기본값과 다른지. */
+export const isFilteredReviewQuery = (query: ReviewListQuery): boolean =>
+  query.track !== 'ALL' ||
+  query.search.trim() !== '' ||
+  query.myFilter !== 'ALL' ||
+  query.finalDecision !== 'ALL';
+
+/**
+ * 제출 완료 지원자만 남겨 거르고 정렬한다. 집계 정렬은 같은 값끼리 제출일 최신순을 유지한다.
+ * 이전·다음 이동 순서도 이 결과를 따른다.
+ */
+export function filterReviewList(
+  applicants: readonly ApplicantEvaluationDto[],
+  query: ReviewListQuery,
+): ApplicantEvaluationDto[] {
+  const isCountSort = query.sort === 'PASS_COUNT_DESC' || query.sort === 'TOTAL_SCORE_DESC';
+  const rows = filterByMyEvaluation(
+    filterApplicants(applicants, {
+      status: 'SUBMITTED',
+      track: query.track,
+      search: query.search,
+      sort: isCountSort ? 'SUBMITTED_DESC' : (query.sort as ApplicantSort),
+    }),
+    query.myFilter,
+  ).filter(
+    (applicant) =>
+      query.finalDecision === 'ALL' || applicant.final_decision === query.finalDecision,
+  );
+  if (query.sort === 'PASS_COUNT_DESC') {
+    return rows.sort((a, b) => b.pass_count - a.pass_count || b.total_score - a.total_score);
+  }
+  if (query.sort === 'TOTAL_SCORE_DESC') {
+    return rows.sort((a, b) => b.total_score - a.total_score || b.pass_count - a.pass_count);
+  }
+  return rows;
 }

@@ -255,9 +255,27 @@
 .review-spacer {
   flex: 1;
 }
+/* 지원자 상세의 개인 평가 / 평가 현황 / 면접 질문 탭 줄 */
+.review-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+/* 상세 탭은 상단 페이지 탭(SegmentedTabs)과 같은 모양이어야 해서, 상세 화면의 일반 버튼 테두리·여백을 덮지 않게 되돌린다. */
+.applicant-review .evaluation-header-tabs {
+  gap: 4px;
+}
+.applicant-review .evaluation-header-tabs button {
+  padding: 0.375rem 0.875rem;
+  border: 0;
+  background: transparent;
+}
 .review-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(245px, 1fr);
+  grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+  align-items: start;
   gap: 12px;
 }
 .review-paper,
@@ -268,7 +286,7 @@
   min-width: 0;
 }
 .review-paper {
-  padding: 23px;
+  padding: 20px;
 }
 .review-person {
   display: flex;
@@ -290,7 +308,7 @@
 }
 .review-meta {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px 20px;
   padding-bottom: 24px;
   border-bottom: 1px solid #eee;
@@ -302,13 +320,6 @@
   color: #85878c;
   font-size: 12px;
   margin-bottom: 3px;
-}
-.review-extra {
-  margin-top: 16px;
-  font-size: 12px;
-}
-.review-extra .review-meta {
-  padding-top: 16px;
 }
 .review-question {
   padding-top: 27px;
@@ -343,7 +354,7 @@
   min-width: 0;
 }
 .review-panel {
-  padding: 18px;
+  padding: 20px;
 }
 .review-heading {
   display: flex;
@@ -360,7 +371,8 @@
   font-size: 11px;
   color: #888;
 }
-.review-heading button {
+.review-heading button,
+.review-evaluator button {
   font-size: 12px;
   padding: 6px 9px;
 }
@@ -442,8 +454,7 @@
   line-height: 1.8;
   margin-top: 12px;
 }
-.review-panel summary,
-.review-extra summary {
+.review-panel summary {
   cursor: pointer;
 }
 @media (max-width: 900px) {

@@ -55,19 +55,13 @@ const SIDEBAR_NAV = [
     permission: 'EVALUATION',
     groups: [
       {
-        title: '지원서 관리',
-        pages: [{ id: 'evaluation-applicants', label: '전체 지원 현황' }],
-      },
-      {
-        title: '평가 관리',
+        // 메뉴가 3개뿐이라 그룹 제목 없이 보여 준다(빈 제목은 사이드바가 그리지 않는다).
+        title: '',
         pages: [
-          { id: 'evaluation-my', label: '개인 평가' },
-          { id: 'evaluation-group', label: '전체 평가' },
+          { id: 'evaluation-applicants', label: '전체 지원 현황' },
+          { id: 'evaluation-my', label: '서류 평가' },
+          { id: 'evaluation-promote', label: '합격자 승격' },
         ],
-      },
-      {
-        title: '합격자 관리',
-        pages: [{ id: 'evaluation-promote', label: '합격자 승격' }],
       },
     ],
   },

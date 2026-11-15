@@ -24,7 +24,6 @@ export type ActivePage =
   | 'evaluation'
   | 'evaluation-applicants'
   | 'evaluation-my'
-  | 'evaluation-group'
   | 'evaluation-promote'
   | 'system'
   | 'system-members'

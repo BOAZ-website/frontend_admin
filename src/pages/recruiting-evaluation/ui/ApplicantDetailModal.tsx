@@ -1,17 +1,10 @@
 import { useRef } from 'react';
 import { X } from 'lucide-react';
 
-import { dateTimeTextOf } from '@/shared/lib/date';
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 
-import { displayValue } from '../model/applicantList';
-import {
-  type ApplicantAnswerDto,
-  type ApplicantEvaluationDto,
-  APPLICATION_STATUS_LABELS,
-  MILITARY_STATUS_LABELS,
-  TRACK_LABELS,
-} from '../model/types';
+import { applicantInfoFields, displayValue } from '../model/applicantList';
+import type { ApplicantAnswerDto, ApplicantEvaluationDto } from '../model/types';
 import { ApplicantAnswersSection } from './ApplicantAnswersSection';
 
 interface ApplicantDetailModalProps {
@@ -36,21 +29,7 @@ export function ApplicantDetailModal({
   useDialogKeyboard(panelRef, onClose);
   const titleId = `applicant-detail-${applicant.id}`;
 
-  const fields: [string, string][] = [
-    ['트랙', applicant.track ? TRACK_LABELS[applicant.track] : '-'],
-    ['상태', APPLICATION_STATUS_LABELS[applicant.status]],
-    ['이메일', displayValue(applicant.email)],
-    ['전화번호', displayValue(applicant.phone)],
-    ['대학교', displayValue(applicant.university)],
-    ['전공', displayValue(applicant.major)],
-    ['부·복수전공', displayValue(applicant.minor_double_major)],
-    ['마지막 학기', displayValue(applicant.last_semester)],
-    ['졸업 예정', displayValue(applicant.graduation_date)],
-    ['병역', applicant.military_status ? MILITARY_STATUS_LABELS[applicant.military_status] : '-'],
-    ['생년월일', displayValue(applicant.birth_date)],
-    ['대학원 진학 계획', displayValue(applicant.grad_school_plan)],
-    ['제출일', applicant.submitted_at ? dateTimeTextOf(applicant.submitted_at) : '-'],
-  ];
+  const fields = applicantInfoFields(applicant);
 
   return (
     <div className="evaluation-detail-overlay fixed inset-0 z-60 flex items-center justify-center p-4">
