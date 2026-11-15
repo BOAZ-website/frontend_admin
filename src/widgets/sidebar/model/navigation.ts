@@ -1,4 +1,5 @@
 import { BookOpen, ClipboardList, FileText, Megaphone, Settings } from 'lucide-react';
+
 import type { UserRole } from '@/entities/user/model/types';
 
 const SIDEBAR_NAV = [

@@ -1,9 +1,11 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, ChevronsLeft } from 'lucide-react';
-import boazLogo from '@/shared/assets/boaz-logo.png';
-import { navigationForRole } from '../model/navigation';
+
 import type { UserRole } from '@/entities/user/model/types';
+import boazLogo from '@/shared/assets/boaz-logo.png';
 import type { ActivePage } from '@/shared/config/activePage';
+
+import { navigationForRole } from '../model/navigation';
 
 export function Sidebar({
   activePage,
