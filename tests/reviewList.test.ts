@@ -8,8 +8,8 @@ import {
 } from '../src/pages/recruiting-evaluation/model/applicantList';
 import {
   aggregateEvaluations,
+  mergeEvaluatorRecords,
   orderForViewer,
-  summarizeEvaluations,
 } from '../src/pages/recruiting-evaluation/model/evaluationStatus';
 import {
   applyMyEvaluation,
@@ -104,23 +104,39 @@ test('로그인한 평가자는 id로 찾아 맨 위에 두고 나머지는 원�
   );
 });
 
-test('평가 현황 집계는 판정이 있는 평가를 완료로 세고 평균은 점수가 있는 평가만 쓴다', () => {
-  const base = { name: 'x', track: 'ENGINEERING' as const, memo: null };
-  assert.deepEqual(
-    summarizeEvaluations([
-      { ...base, admin_id: 1, decision: 'PASS', score: 8 },
-      { ...base, admin_id: 2, decision: 'HOLD', score: null },
-      { ...base, admin_id: 3, decision: null, score: null },
-      { ...base, admin_id: 4, decision: 'FAIL', score: 5 },
-    ]),
-    { completed: 3, total: 4, totalScore: 13, averageScore: 6.5 },
-  );
-  assert.deepEqual(summarizeEvaluations([]), {
-    completed: 0,
-    total: 0,
-    totalScore: 0,
-    averageScore: null,
+test('평가 현황은 평가자별 평가에 같은 평가자의 면접 추천 질문을 붙이고 질문만 있는 평가자도 남긴다', () => {
+  const evaluation = (admin_id: number, name: string) => ({
+    admin_id,
+    name,
+    track: 'ENGINEERING' as const,
+    decision: 'PASS' as const,
+    score: 8,
+    memo: '메모',
   });
+  const question = (admin_id: number, name: string, interview_question: string | null) => ({
+    admin_id,
+    name,
+    track: 'ENGINEERING' as const,
+    interview_question,
+  });
+
+  const rows = mergeEvaluatorRecords(
+    [evaluation(2, '강민석'), evaluation(1, '문혁준')],
+    [
+      question(1, '문혁준', '역할은?'),
+      question(9, '외부', '배운 점은?'),
+      question(2, '강민석', null),
+    ],
+  );
+  assert.deepEqual(
+    rows.map((row) => [row.admin_id, row.memo, row.interview_question, row.decision]),
+    [
+      [2, '메모', null, 'PASS'],
+      [1, '메모', '역할은?', 'PASS'],
+      [9, null, '배운 점은?', null],
+    ],
+  );
+  assert.deepEqual(mergeEvaluatorRecords([], []), []);
 });
 
 test('평가자별 평가·면접 질문 조회는 없는 지원서를 404로, 시나리오 실패를 네트워크 오류로 거절한다', () => {
@@ -162,7 +178,6 @@ function assertListMatchesRecords(data: typeof INITIAL_DATA) {
       aggregateEvaluations(records),
       `지원자 ${row.id}`,
     );
-    assert.equal(total_score, summarizeEvaluations(records).totalScore, `지원자 ${row.id} 총점`);
   }
 }
 

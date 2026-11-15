@@ -256,14 +256,6 @@
 .review-spacer {
   flex: 1;
 }
-/* 지원자 상세의 개인 평가 / 평가 현황 / 면접 질문 탭 줄 */
-.review-tabs {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
 /* 상세 탭은 상단 페이지 탭(SegmentedTabs)과 같은 모양이어야 해서, 상세 화면의 일반 버튼 테두리·여백을 덮지 않게 되돌린다. */
 .applicant-review .evaluation-header-tabs {
   gap: 4px;
@@ -272,6 +264,53 @@
   padding: 0.375rem 0.875rem;
   border: 0;
   background: transparent;
+}
+/* 지원자 상세 위쪽 인적사항 카드. 탭과 관계없이 그대로이고, 아래 2열과 같은 간격으로 떨어진다. */
+.review-profile {
+  margin-bottom: 12px;
+}
+.review-profile .review-meta {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.review-section-title {
+  font-size: 16px;
+  font-weight: 650;
+}
+/* 평가 현황의 운영진 한 명. 판정·점수 아래에 메모와 면접 추천 질문을 평가자에 붙여 보여 준다. */
+.review-record-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.review-record-head strong {
+  flex: 1;
+}
+.review-record dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+.review-record dt {
+  color: #85878c;
+  font-size: 12px;
+  padding-top: 1px;
+}
+.review-record dd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.review-record-question {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.review-record-question button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .review-layout {
   display: grid;

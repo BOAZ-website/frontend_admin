@@ -13,21 +13,19 @@ import {
 } from '../model/types';
 import { ApplicantAnswersSection } from './ApplicantAnswersSection';
 import { EvaluatorResultsTab } from './EvaluatorResultsTab';
-import { InterviewQuestionsTab } from './InterviewQuestionsTab';
 import { type SegmentedTabItem, SegmentedTabs } from './SegmentedTabs';
 
-/** 지원자 상세의 탭. 평가 현황·면접 질문은 조회 전용이고, 입력은 개인 평가 탭에만 있다. */
-export type ReviewDetailTab = 'review' | 'status' | 'interview';
+/** 지원자 상세 오른쪽 영역의 탭. 평가 현황은 조회 전용이고, 입력은 개인 평가 탭에만 있다. */
+export type ReviewDetailTab = 'review' | 'status';
 
 const DETAIL_TABS: SegmentedTabItem<ReviewDetailTab>[] = [
   { id: 'review', label: '개인 평가' },
   { id: 'status', label: '평가 현황' },
-  { id: 'interview', label: '면접 질문' },
 ];
 
 interface ApplicantReviewDetailProps {
   applicant: ApplicantEvaluationDto;
-  /** 로그인한 평가자 id. 평가 현황·면접 질문에서 '(나)' 행을 맨 위에 둘 때 쓴다. */
+  /** 로그인한 평가자 id. 평가 현황에서 '(나)' 행을 맨 위에 둘 때 쓴다. */
   currentEvaluatorId: number;
   /** 지금 보이는 탭. 지원자를 옮겨도 유지되도록 페이지가 가진다. */
   tab: ReviewDetailTab;
@@ -61,8 +59,8 @@ interface ApplicantReviewDetailProps {
 }
 
 /**
- * 지원자 상세 전체 화면. 개인 평가 탭은 왼쪽 지원서·오른쪽 내 평가 입력이고, 평가 현황·면접 질문 탭은 조회만 한다.
- * 입력값은 페이지가 가지므로 탭을 바꿔도 남는다.
+ * 지원자 상세 전체 화면. 위에 인적사항 카드, 아래 왼쪽은 지원서 답변, 오른쪽은 탭(개인 평가 / 평가 현황)에 따라 바뀐다.
+ * 탭은 오른쪽 영역만 바꾸고, 입력값은 페이지가 가지므로 탭을 바꿔도 남는다.
  */
 export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
   const a = p.applicant;
@@ -74,6 +72,12 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
         <button type="button" disabled={p.saving} onClick={p.onBack}>
           ← 목록
         </button>
+        <SegmentedTabs
+          label="오른쪽 영역"
+          items={DETAIL_TABS}
+          value={p.tab}
+          onChange={p.onTabChange}
+        />
         <span className="review-spacer" />
         <span>
           {p.position} / {p.total}
@@ -85,49 +89,28 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
           다음 →
         </button>
       </div>
-      <div className="review-tabs">
-        <SegmentedTabs
-          label="지원자 상세"
-          items={DETAIL_TABS}
-          value={p.tab}
-          onChange={p.onTabChange}
-        />
-        <span className="review-spacer" />
-        <strong>{a.name}</strong>
-        <span className="review-tag">{TRACK_LABELS[a.track]}</span>
-      </div>
-      {p.tab === 'status' && (
-        <EvaluatorResultsTab
-          key={a.id}
-          applicantId={a.id}
-          currentEvaluatorId={p.currentEvaluatorId}
-          fetchEvaluations={p.fetchEvaluations}
-        />
-      )}
-      {p.tab === 'interview' && (
-        <InterviewQuestionsTab
-          key={a.id}
-          applicantId={a.id}
-          currentEvaluatorId={p.currentEvaluatorId}
-          fetchInterviewQuestions={p.fetchInterviewQuestions}
-          onNotify={p.onNotify}
-        />
-      )}
-      {/* 다른 탭에 있는 동안에도 지원서 답변을 다시 읽지 않도록 숨기기만 한다. */}
-      <div className="review-layout" hidden={p.tab !== 'review'}>
-        <article className="review-paper">
-          <div className="review-person">
-            <h1>{a.name}</h1>
-          </div>
-          {/* 인적사항은 접지 않고 전체 지원 현황 상세와 같은 항목을 모두 보여 준다. */}
-          <div className="review-meta">
-            {applicantInfoFields(a).map(([label, value]) => (
+      {/* 인적사항은 탭과 관계없이 그대로다. 전체 지원 현황 상세와 같은 항목을 접지 않고 모두 보여 준다. */}
+      <section className="review-paper review-profile" aria-label="지원자 정보">
+        <div className="review-person">
+          <h1>{a.name}</h1>
+          <span className="review-tag">{TRACK_LABELS[a.track]}</span>
+        </div>
+        <div className="review-meta">
+          {applicantInfoFields(a)
+            .filter(([label]) => label !== '트랙')
+            .map(([label, value]) => (
               <div key={label}>
                 <span>{label}</span>
                 {value}
               </div>
             ))}
-          </div>
+        </div>
+      </section>
+      <div className="review-layout">
+        <article className="review-paper" aria-labelledby="review-answers-title">
+          <h2 id="review-answers-title" className="review-section-title">
+            지원서 답변
+          </h2>
           <ApplicantAnswersSection
             applicantId={a.id}
             fetchAnswers={p.fetchAnswers}
@@ -135,7 +118,19 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
             deniedAction={{ label: '목록으로 돌아가기', onClick: p.onBack }}
           />
         </article>
-        <aside className="review-aside">
+        {p.tab === 'status' && (
+          <aside className="review-aside">
+            <EvaluatorResultsTab
+              key={a.id}
+              applicantId={a.id}
+              currentEvaluatorId={p.currentEvaluatorId}
+              fetchEvaluations={p.fetchEvaluations}
+              fetchInterviewQuestions={p.fetchInterviewQuestions}
+              onNotify={p.onNotify}
+            />
+          </aside>
+        )}
+        <aside className="review-aside" hidden={p.tab !== 'review'}>
           <form
             className="review-panel"
             onSubmit={(e) => {

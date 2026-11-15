@@ -1,8 +1,13 @@
 /**
- * 지원자 상세의 평가 현황(REC-ADMIN-15)·면접 질문(REC-ADMIN-19) 탭 계산.
+ * 지원자 상세의 평가 현황 계산. 평가(REC-ADMIN-15)와 면접 추천 질문(REC-ADMIN-19)을 평가자별로 묶는다.
  * 로그인한 평가자 행을 맨 위에 두고, 나머지는 서버가 준 순서를 그대로 둔다.
  */
-import type { ApplicantEvaluationDto, EvaluationDecision, EvaluatorDetailItem } from './types';
+import type {
+  ApplicantEvaluationDto,
+  EvaluationDecision,
+  EvaluatorDetailItem,
+  InterviewQuestionItem,
+} from './types';
 
 /** 평가자 행에 '(나)' 표시 여부와 표시 이름을 더한 것. */
 export type ViewerRow<T> = T & { isMe: boolean; displayName: string };
@@ -44,22 +49,25 @@ export function aggregateEvaluations(rows: readonly EvaluatorDetailItem[]): Eval
   };
 }
 
-/** 평가 현황 집계. 총점은 목록의 총점과 같고, 평균은 점수를 남긴 평가 수로 나눈다(점수는 선택 입력). */
-export interface EvaluationSummary {
-  completed: number;
-  total: number;
-  totalScore: number;
-  /** 점수를 남긴 평가가 없으면 null. */
-  averageScore: number | null;
+/** 평가 현황의 평가자 한 줄. 평가(REC-ADMIN-15)와 면접 추천 질문(REC-ADMIN-19)을 평가자 id로 묶었다. */
+export interface EvaluatorRecord extends EvaluatorDetailItem {
+  interview_question: string | null;
 }
 
-export function summarizeEvaluations(rows: readonly EvaluatorDetailItem[]): EvaluationSummary {
-  const totalScore = aggregateEvaluations(rows).total_score;
-  const scoredCount = rows.filter((row) => row.score !== null).length;
-  return {
-    completed: rows.filter((row) => row.decision !== null).length,
-    total: rows.length,
-    totalScore,
-    averageScore: scoredCount ? totalScore / scoredCount : null,
-  };
+/**
+ * 평가자별 평가에 같은 평가자의 면접 추천 질문을 붙인다. 순서는 평가 목록(REC-ADMIN-15)을 따른다.
+ * 질문만 있고 평가 목록에 없는 평가자는 미평가 행으로 뒤에 붙여 질문이 빠지지 않게 한다.
+ */
+export function mergeEvaluatorRecords(
+  evaluations: readonly EvaluatorDetailItem[],
+  questions: readonly InterviewQuestionItem[],
+): EvaluatorRecord[] {
+  const questionOf = new Map(questions.map((q) => [q.admin_id, q.interview_question]));
+  const known = new Set(evaluations.map((e) => e.admin_id));
+  return [
+    ...evaluations.map((e) => ({ ...e, interview_question: questionOf.get(e.admin_id) ?? null })),
+    ...questions
+      .filter((q) => !known.has(q.admin_id))
+      .map((q) => ({ ...q, decision: null, score: null, memo: null })),
+  ];
 }
