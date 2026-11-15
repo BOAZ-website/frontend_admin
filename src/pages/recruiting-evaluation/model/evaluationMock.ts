@@ -536,7 +536,10 @@ export type MockScenario =
   | 'applicants-empty'
   | 'answers-error'
   | 'answers-not-found'
-  | 'my-evaluation-error';
+  | 'my-evaluation-error'
+  | 'save-error'
+  | 'save-denied'
+  | 'save-not-found';
 
 const MOCK_SCENARIOS: readonly MockScenario[] = [
   'applicants-error',
@@ -544,6 +547,9 @@ const MOCK_SCENARIOS: readonly MockScenario[] = [
   'answers-error',
   'answers-not-found',
   'my-evaluation-error',
+  'save-error',
+  'save-denied',
+  'save-not-found',
 ];
 
 /** 주소의 쿼리 문자열에서 목 시나리오를 읽는다. 모르는 값이면 null. */
@@ -599,4 +605,33 @@ export function findMyEvaluationMock(
     memo: applicant.my_memo,
     interview_question: applicant.my_interview_question,
   };
+}
+
+const invalidInput = () => new ApiError(400, 'INVALID_INPUT_VALUE', '입력값이 올바르지 않습니다.');
+
+/**
+ * [REC-ADMIN-17 대체] 개인 평가 저장 전에 백엔드가 하는 검사를 흉내 낸다. 통과하면 아무것도 돌려주지 않는다.
+ * DRAFT 지원서·판정 누락·점수 범위(1~10) 위반은 400 INVALID_INPUT_VALUE다.
+ */
+export function checkMyEvaluationSaveMock(
+  data: EvaluationData,
+  applicantId: number,
+  input: MyEvaluationInput,
+  scenario: MockScenario | null,
+): void {
+  if (scenario === 'save-error') throw networkError();
+  if (scenario === 'save-denied') {
+    throw new ApiError(403, 'ACCESS_DENIED', '해당 리소스에 접근할 권한이 없습니다.');
+  }
+  const applicant = data.applicants.find((a) => a.id === applicantId);
+  if (scenario === 'save-not-found' || !applicant) {
+    throw new ApiError(404, 'APPLICATION_NOT_FOUND', '지원서를 찾을 수 없습니다.');
+  }
+  if (applicant.status === 'DRAFT') throw invalidInput();
+  if (
+    input.score !== null &&
+    !(Number.isInteger(input.score) && input.score >= 1 && input.score <= 10)
+  ) {
+    throw invalidInput();
+  }
 }

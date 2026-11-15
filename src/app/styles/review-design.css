@@ -402,6 +402,12 @@
   padding: 12px;
   line-height: 1.7;
 }
+/* 개인 평가 폼의 필드 오류(필수 판정 누락 등). 오류 뜻이라 빨간색을 쓴다. */
+.applicant-review .review-field-error {
+  color: #b42318;
+  font-size: 12px;
+  margin-top: 6px;
+}
 .applicant-review .review-submit {
   width: 100%;
   background: #e9e9ec;

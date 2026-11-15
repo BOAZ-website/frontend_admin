@@ -5,6 +5,7 @@ import {
   applyFinalDecision,
   applyMyEvaluation,
   applyPromotion,
+  checkMyEvaluationSaveMock,
   CURRENT_EVALUATOR,
   findMyEvaluationMock,
   INITIAL_DATA,
@@ -152,5 +153,38 @@ test('점수를 비워 저장하면 내 점수는 null이고 총점은 점수가
   assert.equal(
     applicant.total_score,
     evaluators.reduce((sum, e) => sum + (e.score ?? 0), 0),
+  );
+});
+
+test('저장 검사는 정상 입력을 통과시키고 DRAFT·점수 범위 위반·시나리오 실패를 거절한다', () => {
+  const submitted = INITIAL_DATA.applicants.find((a) => a.status === 'SUBMITTED');
+  const draft = INITIAL_DATA.applicants.find((a) => a.status === 'DRAFT');
+  assert.ok(submitted && draft);
+  const code = (expected: string) => (error: unknown) =>
+    error instanceof ApiError && error.code === expected;
+
+  assert.doesNotThrow(() => checkMyEvaluationSaveMock(INITIAL_DATA, submitted.id, INPUT, null));
+  assert.doesNotThrow(() =>
+    checkMyEvaluationSaveMock(INITIAL_DATA, submitted.id, { ...INPUT, score: null }, null),
+  );
+  assert.throws(
+    () => checkMyEvaluationSaveMock(INITIAL_DATA, draft.id, INPUT, null),
+    code('INVALID_INPUT_VALUE'),
+  );
+  assert.throws(
+    () => checkMyEvaluationSaveMock(INITIAL_DATA, submitted.id, { ...INPUT, score: 11 }, null),
+    code('INVALID_INPUT_VALUE'),
+  );
+  assert.throws(
+    () => checkMyEvaluationSaveMock(INITIAL_DATA, submitted.id, INPUT, 'save-error'),
+    code('NETWORK_ERROR'),
+  );
+  assert.throws(
+    () => checkMyEvaluationSaveMock(INITIAL_DATA, submitted.id, INPUT, 'save-denied'),
+    code('ACCESS_DENIED'),
+  );
+  assert.throws(
+    () => checkMyEvaluationSaveMock(INITIAL_DATA, submitted.id, INPUT, 'save-not-found'),
+    code('APPLICATION_NOT_FOUND'),
   );
 });

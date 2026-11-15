@@ -4,6 +4,7 @@ import {
   applyFinalDecision,
   applyMyEvaluation,
   applyPromotion,
+  checkMyEvaluationSaveMock,
   CURRENT_EVALUATOR,
   type EvaluationData,
   findMyEvaluationMock,
@@ -31,7 +32,7 @@ export interface EvaluationDataState extends EvaluationData {
   fetchAnswers: (applicantIdKey: string) => Promise<ApplicantAnswerDto[]>;
   /** [REC-ADMIN-16] 내 평가를 읽는다. 아직 평가하지 않았으면 null. */
   fetchMyEvaluation: (applicantId: number) => Promise<MyEvaluationDto | null>;
-  /** 개인 평가를 저장하고 갱신된 지원자를 돌려준다. */
+  /** 개인 평가를 저장하고 갱신된 지원자를 돌려준다. 거절되면 ApiError를 던진다. */
   saveMyEvaluation: (
     applicant: ApplicantEvaluationDto,
     input: MyEvaluationInput,
@@ -88,7 +89,9 @@ export function useEvaluationData(): EvaluationDataState {
     input: MyEvaluationInput,
   ): Promise<ApplicantEvaluationDto> => {
     await wait(SAVE_DELAY_MS);
-    const next = applyMyEvaluation(data, applicant, input);
+    // 거절되면 오류를 던지고 데이터는 그대로 둔다(저장 실패 시 입력 유지는 화면이 맡는다).
+    checkMyEvaluationSaveMock(dataRef.current, applicant.id, input, mockScenario());
+    const next = applyMyEvaluation(dataRef.current, applicant, input);
     setData(next.data);
     return next.applicant;
   };

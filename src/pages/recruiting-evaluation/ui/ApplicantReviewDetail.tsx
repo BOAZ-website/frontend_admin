@@ -1,3 +1,4 @@
+import { type MyEvaluationErrors, SCORE_OPTIONS } from '../model/myEvaluationForm';
 import {
   type ApplicantAnswerDto,
   type ApplicantEvaluationDto,
@@ -20,10 +21,12 @@ interface ApplicantReviewDetailProps {
   onRetryMyEvaluation: () => void;
   evaluators: EvaluatorDetailItem[];
   questions: InterviewQuestionItem[];
-  /** 아직 고르지 않았으면 null. 판정을 고르기 전에는 저장할 수 없다. */
+  /** 아직 고르지 않았으면 null. 저장할 때 판정이 없으면 필드 오류를 보여 준다. */
   decision: EvaluationDecision | null;
-  /** 비워 두면 null. */
+  /** 1~10점 중 고른 값. 고르지 않으면 null(선택 입력). */
   score: number | null;
+  /** 저장을 누른 뒤 보여 줄 필드 오류. */
+  errors: MyEvaluationErrors;
   memo: string;
   interview: string;
   saving: boolean;
@@ -43,11 +46,14 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
   const a = p.applicant;
   const others = p.evaluators.filter((e) => e.admin_id !== p.currentEvaluatorId);
   const scored = p.evaluators.filter((e) => e.score !== null);
-  const isFormLocked = p.isMyEvaluationLoading || p.myEvaluationError !== null;
+  // 내 평가를 읽는 중·실패했거나 저장 중이면 입력을 잠근다(저장 중 값이 바뀌어 다른 값이 저장되지 않게).
+  const isFormLocked = p.isMyEvaluationLoading || p.myEvaluationError !== null || p.saving;
   return (
     <div className="evaluation-page applicant-review">
       <div className="review-toolbar">
-        <button onClick={p.onBack}>← 목록</button>
+        <button type="button" disabled={p.saving} onClick={p.onBack}>
+          ← 목록
+        </button>
         <span className="review-spacer" />
         <span>
           {p.position} / {p.total}
@@ -127,24 +133,39 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
             )}
             <fieldset disabled={isFormLocked} className="contents">
               <label className="review-label" htmlFor="review-score">
-                점수
+                점수 (선택)
               </label>
               <div className="review-score">
-                <input
+                <select
                   id="review-score"
-                  type="number"
-                  min={1}
-                  max={10}
-                  step={1}
                   value={p.score ?? ''}
-                  onChange={(e) => p.onScore(e.target.value === '' ? null : e.target.valueAsNumber)}
-                />
+                  aria-invalid={p.errors.score ? true : undefined}
+                  aria-describedby={p.errors.score ? 'review-score-error' : undefined}
+                  onChange={(e) => p.onScore(e.target.value === '' ? null : Number(e.target.value))}
+                >
+                  <option value="">점수 없음</option>
+                  {SCORE_OPTIONS.map((score) => (
+                    <option key={score} value={score}>
+                      {score}점
+                    </option>
+                  ))}
+                </select>
                 <span>/ 10</span>
               </div>
+              {p.errors.score && (
+                <p id="review-score-error" role="alert" className="review-field-error">
+                  {p.errors.score}
+                </p>
+              )}
               <span className="review-label" id="review-decision-label">
-                개인 결정
+                개인 결정 (필수)
               </span>
-              <div className="review-choices" role="group" aria-labelledby="review-decision-label">
+              <div
+                className="review-choices"
+                role="group"
+                aria-labelledby="review-decision-label"
+                aria-describedby={p.errors.decision ? 'review-decision-error' : undefined}
+              >
                 {(Object.keys(DECISION_LABELS) as EvaluationDecision[]).map((d) => (
                   <button
                     key={d}
@@ -156,6 +177,11 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
                   </button>
                 ))}
               </div>
+              {p.errors.decision && (
+                <p id="review-decision-error" role="alert" className="review-field-error">
+                  {p.errors.decision}
+                </p>
+              )}
               <label className="review-label" htmlFor="review-memo">
                 평가 의견
               </label>
@@ -174,11 +200,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
                 onChange={(e) => p.onInterview(e.target.value)}
               />
             </fieldset>
-            <button
-              className="review-submit"
-              type="submit"
-              disabled={p.saving || isFormLocked || p.decision === null}
-            >
+            <button className="review-submit" type="submit" disabled={p.saving || isFormLocked}>
               {p.saving ? '저장 중…' : '평가 저장'}
             </button>
           </form>

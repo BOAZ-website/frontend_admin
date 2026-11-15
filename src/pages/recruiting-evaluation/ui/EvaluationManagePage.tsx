@@ -14,7 +14,20 @@ import {
   X,
 } from 'lucide-react';
 
+import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
+import { Toast, type ToastMessage } from '@/shared/ui/Toast';
+
 import { DEFAULT_APPLICANT_QUERY, filterApplicants } from '../model/applicantList';
+import {
+  draftFromMyEvaluation,
+  EMPTY_DRAFT,
+  isDraftChanged,
+  type MyEvaluationDraft,
+  saveFailureNoticeOf,
+  toSaveInput,
+  UNSAVED_EVALUATION_MESSAGE,
+  validateMyEvaluation,
+} from '../model/myEvaluationForm';
 import {
   type ApplicantEvaluationDto,
   DECISION_LABELS,
@@ -62,12 +75,16 @@ export function EvaluationManagePage({
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantEvaluationDto | null>(null);
   const [modalTab, setModalTab] = useState<'review' | 'status' | 'interview'>('review');
 
-  // 내 평가 입력 초안. 내 평가가 없으면 빈 폼이다(명세 §4.4, 판정·점수 기본값 없음).
-  const [editDecision, setEditDecision] = useState<EvaluationDecision | null>(null);
-  const [editScore, setEditScore] = useState<number | null>(null);
-  const [editMemo, setEditMemo] = useState<string>('');
-  const [editInterviewQuestion, setEditInterviewQuestion] = useState<string>('');
+  // 내 평가 입력 초안과 마지막으로 불러오거나 저장한 값. 둘이 다르면 저장하지 않은 수정이 있다.
+  // 내 평가가 없으면 빈 폼이다(명세 §4.4, 판정·점수 기본값 없음).
+  const [draft, setDraft] = useState<MyEvaluationDraft>(EMPTY_DRAFT);
+  const [savedDraft, setSavedDraft] = useState<MyEvaluationDraft>(EMPTY_DRAFT);
+  // 저장을 한 번 눌러 검증에 걸린 뒤부터 필드 오류를 보여 준다(§7.4).
+  const [showDraftErrors, setShowDraftErrors] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const isDraftDirty = selectedApplicant !== null && isDraftChanged(draft, savedDraft);
+  const draftErrors = showDraftErrors ? validateMyEvaluation(draft) : {};
   // 내 평가(REC-ADMIN-16)를 읽는 중인지와 실패 오류. 늦게 온 옛 응답은 openRequestRef로 버린다.
   const [isMyEvaluationLoading, setIsMyEvaluationLoading] = useState(false);
   const [myEvaluationError, setMyEvaluationError] = useState<Error | null>(null);
@@ -96,6 +113,21 @@ export function EvaluationManagePage({
     setMainTab(tab);
     onTabChange?.(tab);
   }
+
+  // 저장하지 않은 평가가 있으면 사이드바로 다른 메뉴에 갈 때도 묻는다(§4.5).
+  useEffect(
+    () =>
+      isDraftDirty
+        ? registerLeaveGuard(() => window.confirm(UNSAVED_EVALUATION_MESSAGE))
+        : undefined,
+    [isDraftDirty],
+  );
+
+  /** 저장하지 않은 평가가 없거나, 있어도 버리고 옮기기로 했는지. 취소하면 입력은 그대로 남는다. */
+  const canDiscardDraft = () => !isDraftDirty || window.confirm(UNSAVED_EVALUATION_MESSAGE);
+
+  const showToast = (message: string, tone: ToastMessage['tone']) =>
+    setToast({ id: Date.now(), message, tone });
 
   // Overall Statistics
   const stats = useMemo(() => {
@@ -170,19 +202,16 @@ export function EvaluationManagePage({
     setSelectedApplicant(app);
     setModalTab(tab);
     setReviewQueue(queueIds);
-    setEditDecision(null);
-    setEditScore(null);
-    setEditMemo('');
-    setEditInterviewQuestion('');
+    setDraft(EMPTY_DRAFT);
+    setSavedDraft(EMPTY_DRAFT);
+    setShowDraftErrors(false);
     setMyEvaluationError(null);
     setIsMyEvaluationLoading(true);
     try {
-      const mine = await fetchMyEvaluation(app.id);
+      const loaded = draftFromMyEvaluation(await fetchMyEvaluation(app.id));
       if (requestId !== openRequestRef.current) return;
-      setEditDecision(mine?.decision ?? null);
-      setEditScore(mine?.score ?? null);
-      setEditMemo(mine?.memo ?? '');
-      setEditInterviewQuestion(mine?.interview_question ?? '');
+      setDraft(loaded);
+      setSavedDraft(loaded);
     } catch (error) {
       if (requestId !== openRequestRef.current) return;
       setMyEvaluationError(error instanceof Error ? error : new Error(String(error)));
@@ -222,24 +251,45 @@ export function EvaluationManagePage({
     const step = direction === 'PREV' ? -1 : 1;
     const nextId = reviewQueue[(curIdx + step + reviewQueue.length) % reviewQueue.length];
     const nextApp = applicants.find((item) => item.id === nextId);
-    if (nextApp) void handleOpenModal(nextApp, modalTab, reviewQueue);
+    if (nextApp && canDiscardDraft()) void handleOpenModal(nextApp, modalTab, reviewQueue);
   }
-  // 개인 평가 저장. 데이터 변경은 Hook(saveMyEvaluation)이 맡고, 여기서는 입력값 전달과 화면 상태만 다룬다.
+
+  // 평가 화면에서 목록으로 돌아간다. 저장하지 않은 평가가 있으면 먼저 묻는다.
+  function handleBackToList() {
+    if (canDiscardDraft()) setSelectedApplicant(null);
+  }
+
+  // 개인 평가 저장(MY-07). 검증 → 저장 → 결과 안내 순서이고, 실패해도 입력은 그대로 둔다(§4.5).
+  // 데이터 변경은 Hook(saveMyEvaluation)이 맡고, 여기서는 화면 상태와 안내만 다룬다.
   async function handleSaveMyEvaluation() {
-    // 판정은 필수다. 판정 전에는 저장 버튼이 꺼져 있다(필드 오류 안내는 저장 단계 작업에서 더한다).
-    if (!selectedApplicant || editDecision === null) {
+    if (!selectedApplicant || isSaving) {
       return;
     }
+    const input = toSaveInput(draft);
+    if (!input || Object.keys(validateMyEvaluation(draft)).length > 0) {
+      setShowDraftErrors(true);
+      return;
+    }
+    const applicant = selectedApplicant;
     setIsSaving(true);
-    const updatedApplicant = await saveMyEvaluation(selectedApplicant, {
-      decision: editDecision,
-      score: editScore,
-      memo: editMemo,
-      interview_question: editInterviewQuestion,
-    });
-    setSelectedApplicant(updatedApplicant);
-    setIsSaving(false);
-    alert('개인 평가가 정상적으로 저장되었습니다.');
+    try {
+      const updatedApplicant = await saveMyEvaluation(applicant, input);
+      setSelectedApplicant(updatedApplicant);
+      setSavedDraft(draft);
+      setShowDraftErrors(false);
+      showToast('평가가 저장되었습니다.', 'success');
+    } catch (error) {
+      const notice = saveFailureNoticeOf(error, applicant.status);
+      if (notice.display === 'modal') {
+        // shortcut: 오류 안내 창을 브라우저 기본 알림으로 띄운다, 공통 확인 창(PLT-CONFIRM)이 생기면 바꾼다
+        window.alert(notice.message);
+      } else {
+        showToast(notice.message, 'error');
+      }
+      if (notice.leave) setSelectedApplicant(null);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   // 최종 판정 변경. 열려 있는 상세의 값도 같이 맞춘다.
@@ -293,35 +343,44 @@ export function EvaluationManagePage({
     );
   }
 
+  const toastNode = <Toast toast={toast} onClose={() => setToast(null)} />;
+
   if (selectedApplicant)
     return (
-      <ApplicantReviewDetail
-        applicant={selectedApplicant}
-        currentEvaluatorId={currentEvaluatorId}
-        fetchAnswers={fetchAnswers}
-        isMyEvaluationLoading={isMyEvaluationLoading}
-        myEvaluationError={myEvaluationError}
-        onRetryMyEvaluation={() => void handleOpenModal(selectedApplicant, modalTab, reviewQueue)}
-        evaluators={evaluatorsMap[selectedApplicant.id] || []}
-        questions={interviewQuestionsMap[selectedApplicant.id] || []}
-        decision={editDecision}
-        score={editScore}
-        memo={editMemo}
-        interview={editInterviewQuestion}
-        saving={isSaving}
-        onDecision={setEditDecision}
-        onScore={setEditScore}
-        onMemo={setEditMemo}
-        onInterview={setEditInterviewQuestion}
-        onSave={handleSaveMyEvaluation}
-        onBack={() => setSelectedApplicant(null)}
-        onNavigate={handleNavigateModal}
-        position={reviewQueue.indexOf(selectedApplicant.id) + 1}
-        total={reviewQueue.length}
-      />
+      <>
+        <ApplicantReviewDetail
+          applicant={selectedApplicant}
+          currentEvaluatorId={currentEvaluatorId}
+          fetchAnswers={fetchAnswers}
+          isMyEvaluationLoading={isMyEvaluationLoading}
+          myEvaluationError={myEvaluationError}
+          onRetryMyEvaluation={() => void handleOpenModal(selectedApplicant, modalTab, reviewQueue)}
+          evaluators={evaluatorsMap[selectedApplicant.id] || []}
+          questions={interviewQuestionsMap[selectedApplicant.id] || []}
+          decision={draft.decision}
+          score={draft.score}
+          memo={draft.memo}
+          interview={draft.interview_question}
+          errors={draftErrors}
+          saving={isSaving}
+          onDecision={(decision) => setDraft((current) => ({ ...current, decision }))}
+          onScore={(score) => setDraft((current) => ({ ...current, score }))}
+          onMemo={(memo) => setDraft((current) => ({ ...current, memo }))}
+          onInterview={(interview_question) =>
+            setDraft((current) => ({ ...current, interview_question }))
+          }
+          onSave={handleSaveMyEvaluation}
+          onBack={handleBackToList}
+          onNavigate={handleNavigateModal}
+          position={reviewQueue.indexOf(selectedApplicant.id) + 1}
+          total={reviewQueue.length}
+        />
+        {toastNode}
+      </>
     );
   return (
     <div className="evaluation-page space-y-4">
+      {toastNode}
       {/* ─── Top Main Header Bar ─── */}
       <div className="evaluation-header flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-3">
         <div className="flex items-center gap-4">
