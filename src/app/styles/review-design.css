@@ -1,0 +1,455 @@
+/* Approved neutral navigation and evaluation skin. Other page bodies are untouched. */
+.admin-topbar {
+  background: #fff;
+  border-color: #e9e9eb;
+  position: relative;
+  z-index: 40;
+}
+.admin-topbar > div:first-child {
+  min-width: 0;
+}
+.admin-sidebar {
+  background: #fafafa;
+  border-right: 1px solid #e6e6e8;
+  box-shadow: none;
+  color: #303236;
+}
+.admin-sidebar .sidebar-brand {
+  background: #fafafa;
+}
+.admin-sidebar .sidebar-section {
+  background: transparent;
+  box-shadow: none;
+  color: #303236;
+  font-weight: 500;
+}
+.admin-sidebar .sidebar-section:hover {
+  background: #f0f0f2;
+}
+.admin-sidebar .sidebar-section svg {
+  color: #555;
+}
+.admin-sidebar .sidebar-page[aria-current='page'] {
+  color: #303236;
+  background: #fff;
+  border: 1px solid #d8d8dc;
+  box-shadow: 0 2px 5px #0000000c;
+}
+.admin-sidebar .sidebar-page:hover {
+  color: #303236;
+  background: #f1f1f3;
+}
+.evaluation-page {
+  --foreground: #303236;
+  --muted-foreground: #73757b;
+  color: #303236;
+  font-size: 14px;
+}
+.evaluation-page [class*='text-'],
+.evaluation-page [style*='color:'] {
+  color: #4b4d52 !important;
+}
+.evaluation-page [class*='bg-'],
+.evaluation-page [style*='background:'] {
+  background: #fff !important;
+}
+.evaluation-page [class*='border-'],
+.evaluation-page [style*='border-color:'] {
+  border-color: #e6e6e9 !important;
+}
+.evaluation-page [class*='shadow'],
+.evaluation-page [style*='box-shadow:'] {
+  box-shadow: none !important;
+}
+.evaluation-page .font-mono {
+  font-family: inherit;
+}
+.evaluation-page button {
+  min-height: 34px;
+  border-radius: 8px;
+}
+.evaluation-page button:hover:not(:disabled) {
+  background: #f5f5f6 !important;
+}
+.evaluation-page button[aria-pressed='true'],
+.evaluation-page button[aria-selected='true'] {
+  background: #ededf0 !important;
+  border: 1px solid #ccc !important;
+  font-weight: 650;
+}
+.evaluation-page :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid #555;
+  outline-offset: 2px;
+}
+.evaluation-page :is(input, select, textarea) {
+  background: #fafafa !important;
+  border: 1px solid #e6e6e9;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.evaluation-page input[type='range'] {
+  accent-color: #777;
+  border: 0;
+}
+.evaluation-page input[type='checkbox'] {
+  accent-color: #777;
+}
+.evaluation-page .evaluation-header {
+  padding-bottom: 20px;
+  gap: 18px;
+}
+.evaluation-page .evaluation-header > div:first-child {
+  flex-wrap: wrap;
+}
+.evaluation-page .evaluation-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+}
+.evaluation-page .evaluation-header-tabs {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.evaluation-page .evaluation-stats {
+  gap: 10px;
+  margin: 22px 0;
+}
+.evaluation-page .evaluation-stats > div {
+  border-radius: 12px;
+  padding: 16px;
+}
+.evaluation-page .evaluation-stats > div > p:first-child {
+  font-size: 12px;
+}
+.evaluation-page .evaluation-stats > div > p:nth-child(2) {
+  font-size: 25px;
+  font-weight: 650;
+  padding-top: 8px;
+}
+.evaluation-page table {
+  font-size: 13px;
+}
+.evaluation-page thead tr {
+  background: #f7f7f8 !important;
+}
+.evaluation-page th {
+  color: #777 !important;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.evaluation-page td {
+  padding-top: 17px;
+  padding-bottom: 17px;
+}
+.evaluation-page .evaluation-detail-overlay {
+  background: #00000030 !important;
+  backdrop-filter: blur(2px);
+}
+.evaluation-page .evaluation-detail {
+  border-radius: 16px;
+  box-shadow: 0 12px 60px #00000020 !important;
+}
+.evaluation-page .evaluation-detail-header {
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px 24px;
+}
+.evaluation-page .evaluation-detail-tabs {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.evaluation-page .evaluation-detail-tabs > div:first-child {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.evaluation-page .evaluation-detail-tabs button {
+  padding: 10px;
+}
+.evaluation-page .evaluation-detail-tabs button > .absolute {
+  display: none;
+}
+.evaluation-page .evaluation-answers {
+  background: #fff;
+  padding: 24px;
+  border: 1px solid #ededee;
+  border-radius: 12px;
+}
+.evaluation-page .evaluation-answer {
+  padding: 24px 0;
+  border: 0;
+  border-top: 1px solid #eee;
+  border-radius: 0;
+}
+.evaluation-page .evaluation-answer > p {
+  font-size: 15px;
+  line-height: 1.95;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.evaluation-page .evaluation-answer > div:first-child {
+  gap: 10px;
+  align-items: baseline;
+}
+.evaluation-page .evaluation-answer > div:first-child > span:last-child {
+  font-size: 15px;
+  line-height: 1.65;
+}
+.evaluation-page .evaluation-form {
+  padding: 22px;
+  border-radius: 12px;
+}
+.evaluation-page .evaluation-form h3 {
+  font-size: 17px;
+}
+.evaluation-page .evaluation-form label {
+  font-size: 13px;
+}
+.evaluation-page .evaluation-form textarea {
+  min-height: 140px;
+  resize: vertical;
+  line-height: 1.8;
+}
+.evaluation-page .evaluation-form > button:last-child {
+  background: #e9e9ec !important;
+  font-size: 14px;
+}
+@media (max-width: 1000px) {
+  .evaluation-page .evaluation-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .evaluation-page .evaluation-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .evaluation-page .evaluation-answers {
+    padding: 16px;
+  }
+  .evaluation-page .evaluation-detail-header {
+    padding: 16px;
+  }
+}
+.applicant-review {
+  background: #f7f7f8;
+  border-radius: 12px;
+  padding: 0 22px 22px;
+}
+.applicant-review button {
+  background: #fff;
+  border: 1px solid #e9e9eb;
+  padding: 9px 13px;
+  cursor: pointer;
+}
+.applicant-review button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.review-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  flex-wrap: wrap;
+}
+.review-spacer {
+  flex: 1;
+}
+.review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(245px, 1fr);
+  gap: 12px;
+}
+.review-paper,
+.review-panel {
+  background: #fff;
+  border: 1px solid #ededee;
+  border-radius: 12px;
+  min-width: 0;
+}
+.review-paper {
+  padding: 23px;
+}
+.review-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.review-person h1 {
+  font-size: 26px;
+  line-height: 1.3;
+  letter-spacing: -1px;
+  font-weight: 700;
+}
+.review-tag {
+  background: #f2f2f4;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.review-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.review-meta span {
+  display: block;
+  color: #85878c;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+.review-extra {
+  margin-top: 16px;
+  font-size: 12px;
+}
+.review-extra .review-meta {
+  padding-top: 16px;
+}
+.review-question {
+  padding-top: 27px;
+}
+.review-question-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.review-question-title > span {
+  color: #96989d;
+  font-size: 12px;
+}
+.review-question-title h2 {
+  font-size: 15px;
+  line-height: 1.65;
+  font-weight: 650;
+}
+.review-answer {
+  font-size: 14px;
+  line-height: 1.95;
+  color: #55585e;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.review-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.review-panel {
+  padding: 18px;
+}
+.review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.review-heading h2 {
+  font-size: 16px;
+  font-weight: 650;
+}
+.review-heading span {
+  font-size: 11px;
+  color: #888;
+}
+.review-heading button {
+  font-size: 12px;
+  padding: 6px 9px;
+}
+.review-label {
+  display: block;
+  font-size: 13px;
+  margin: 18px 0 9px;
+  font-weight: 550;
+}
+.review-score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f7f7f8;
+  border-radius: 10px;
+  padding: 12px 15px;
+}
+.applicant-review .review-score input {
+  font-size: 29px;
+  font-weight: 600;
+  border: 0;
+  background: transparent !important;
+  width: 82px;
+  padding: 0;
+}
+.review-choices {
+  display: flex;
+  gap: 6px;
+}
+.review-choices button {
+  flex: 1;
+  padding: 9px 3px;
+  font-size: 12px;
+}
+.applicant-review textarea {
+  resize: vertical;
+  min-height: 136px;
+  width: 100%;
+  padding: 12px;
+  line-height: 1.7;
+}
+.applicant-review .review-submit {
+  width: 100%;
+  background: #e9e9ec;
+  font-weight: 650;
+  margin-top: 18px;
+}
+.review-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 15px;
+  font-size: 12px;
+  color: #777;
+}
+.review-evaluator {
+  border-top: 1px solid #eee;
+  padding: 14px 0;
+  font-size: 13px;
+}
+.review-evaluator summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.review-evaluator summary strong {
+  flex: 1;
+}
+.review-evaluator p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+  margin-top: 12px;
+}
+.review-panel summary,
+.review-extra summary {
+  cursor: pointer;
+}
+@media (max-width: 900px) {
+  .review-layout {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .applicant-review {
+    padding: 0 12px 12px;
+  }
+  .review-meta {
+    grid-template-columns: 1fr;
+  }
+}

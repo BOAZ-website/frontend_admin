@@ -1,17 +1,13 @@
+import { ApplicantReviewDetail } from './ApplicantReviewDetail';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Award,
-  BookmarkCheck,
   CheckCircle2,
   CheckSquare,
-  ChevronLeft,
-  ChevronRight,
   Clock,
-  Copy,
   FileCheck2,
   FileText,
   RefreshCw,
-  RotateCcw,
   Search,
   Shield,
   User,
@@ -799,26 +795,47 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
     }, 700);
   }
 
+  if (selectedApplicant)
+    return (
+      <ApplicantReviewDetail
+        applicant={selectedApplicant}
+        answers={answersMap[selectedApplicant.id] || []}
+        evaluators={evaluatorsMap[selectedApplicant.id] || []}
+        questions={interviewQuestionsMap[selectedApplicant.id] || []}
+        decision={editDecision}
+        score={editScore}
+        memo={editMemo}
+        interview={editInterviewQuestion}
+        saving={isSaving}
+        onDecision={setEditDecision}
+        onScore={setEditScore}
+        onMemo={setEditMemo}
+        onInterview={setEditInterviewQuestion}
+        onSave={handleSaveMyEvaluation}
+        onBack={() => setSelectedApplicant(null)}
+        onNavigate={handleNavigateModal}
+        position={displayedApplicants.findIndex((a) => a.id === selectedApplicant.id) + 1}
+        total={displayedApplicants.length}
+      />
+    );
   return (
-    <div className="space-y-4">
+    <div className="evaluation-page space-y-4">
       {/* ─── Top Main Header Bar ─── */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-3">
+      <div className="evaluation-header flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-3">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-[#3b82f6] text-white flex items-center justify-center shadow-md">
               <FileText size={18} />
             </div>
             <div>
-              <h1 className="text-base font-bold text-foreground">서류 평가 & 정회원 승격 콘솔</h1>
-              <p className="text-[11px] font-mono text-muted-foreground">
-                28기 신입 지원서 서류 심사 및 정회원 승격 관리
-              </p>
+              <h1 className="text-base font-bold text-foreground">서류 평가</h1>
             </div>
           </div>
 
           {/* 3-Tab Segmented Control */}
-          <div className="flex p-1 rounded-xl bg-slate-100 border border-slate-200">
+          <div className="evaluation-header-tabs flex p-1 rounded-xl bg-slate-100 border border-slate-200">
             <button
+              aria-pressed={mainTab === 'evaluations'}
               onClick={() => setMainTab('evaluations')}
               className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
               style={
@@ -836,6 +853,7 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
             </button>
 
             <button
+              aria-pressed={mainTab === 'applicants'}
               onClick={() => setMainTab('applicants')}
               className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
               style={
@@ -852,6 +870,7 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
             </button>
 
             <button
+              aria-pressed={mainTab === 'promotions'}
               onClick={() => setMainTab('promotions')}
               className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
               style={
@@ -907,7 +926,7 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
       {(mainTab === 'evaluations' || mainTab === 'applicants') && (
         <div className="space-y-4">
           {/* Top Stats Summary Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="evaluation-stats grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
               {
                 label: '제출 지원서',
@@ -954,7 +973,6 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
                 <p className="text-lg font-bold font-mono" style={{ color: card.color }}>
                   {card.val}
                 </p>
-                <p className="text-[10px] text-muted-foreground/80">{card.sub}</p>
               </div>
             ))}
           </div>
@@ -1020,168 +1038,69 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
             <div className="overflow-x-auto">
               <table className="w-full text-xs min-w-[960px]">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/50 text-slate-400 font-semibold text-[11px] uppercase tracking-wider whitespace-nowrap">
-                    <th className="text-left px-5 py-3.5">지원자 성명 (NAME)</th>
-                    <th className="text-left px-4 py-3.5">부문 (TRACK)</th>
-                    <th className="text-left px-4 py-3.5">대학교 / 본전공</th>
-                    <th className="text-center px-3 py-3.5">졸업 예정</th>
-                    <th className="text-center px-3 py-3.5 text-emerald-600">합격 (PASS)</th>
-                    <th className="text-center px-3 py-3.5 text-amber-600">보류 (HOLD)</th>
-                    <th className="text-center px-3 py-3.5 text-rose-600">불합 (FAIL)</th>
-                    <th className="text-center px-3 py-3.5 text-slate-700">총점 (SCORE)</th>
-                    <th className="text-center px-4 py-3.5 text-blue-600">내 평가 (MY)</th>
-                    <th className="text-center px-4 py-3.5">최종 평가 (대표진)</th>
-                    <th className="text-right px-5 py-3.5">서류 심사</th>
+                  <tr>
+                    {['지원자', '부문', '대학교 / 전공', '내 평가', '내 점수', '최종 판정', ''].map(
+                      (label, i) => (
+                        <th key={i} scope="col" className="px-4 py-3.5 text-left">
+                          {label || <span className="sr-only">평가하기</span>}
+                        </th>
+                      ),
+                    )}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 font-mono">
+                <tbody>
                   {displayedApplicants.map((app) => (
-                    <tr
-                      key={app.id}
-                      onClick={() => handleOpenModal(app, 'review')}
-                      className="hover:bg-slate-50 transition-colors cursor-pointer group"
-                    >
-                      {/* Name */}
-                      <td className="px-5 py-3.5 font-sans font-bold text-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <span className="group-hover:text-[#3b82f6] transition-colors">
-                            {app.name}
-                          </span>
-                          {app.status === 'DRAFT' && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-400 font-mono">
-                              DRAFT
-                            </span>
-                          )}
-                          {app.is_promoted_to_member && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-400 font-sans font-bold">
-                              정회원
-                            </span>
-                          )}
-                        </div>
+                    <tr key={app.id}>
+                      <td className="px-4 font-semibold">
+                        {app.name}
+                        {app.status === 'DRAFT' && <small> · 작성 중</small>}
+                        {app.is_promoted_to_member && <small> · 정회원</small>}
                       </td>
-
-                      {/* Track */}
-                      <td className="px-4 py-3.5">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 border border-slate-200 text-[#8ba5ff]">
-                          {app.track}
-                        </span>
+                      <td className="px-4">
+                        {
+                          { ENGINEERING: '엔지니어링', ANALYSIS: '분석', VISUALIZATION: '시각화' }[
+                            app.track
+                          ]
+                        }
                       </td>
-
-                      {/* Univ / Major */}
-                      <td className="px-4 py-3.5 font-sans text-muted-foreground">
-                        <p className="text-foreground">{app.university}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {app.major}{' '}
-                          {app.minor_double_major.length > 0 &&
-                            `(${app.minor_double_major.join(', ')})`}
-                        </p>
+                      <td className="px-4">
+                        <p>{app.university}</p>
+                        <p className="text-muted-foreground">{app.major}</p>
                       </td>
-
-                      {/* Graduation Date */}
-                      <td className="px-3 py-3.5 text-center text-muted-foreground">
-                        {app.graduation_date || '—'}
+                      <td className="px-4">
+                        {app.my_decision === null
+                          ? '미평가'
+                          : { PASS: '합격', HOLD: '보류', FAIL: '불합격', PENDING: '미결' }[
+                              app.my_decision
+                            ]}
                       </td>
-
-                      {/* Pass Count (초록) */}
-                      <td className="px-3 py-3.5 text-center">
-                        <span className="w-6 h-6 rounded-md bg-emerald-500/15 text-emerald-400 font-bold inline-flex items-center justify-center border border-emerald-500/30">
-                          {app.pass_count}
-                        </span>
+                      <td className="px-4">
+                        {app.my_score === null ? '—' : app.my_score + ' / 10'}
                       </td>
-
-                      {/* Hold Count (노랑) */}
-                      <td className="px-3 py-3.5 text-center">
-                        <span className="w-6 h-6 rounded-md bg-amber-500/15 text-amber-400 font-bold inline-flex items-center justify-center border border-amber-500/30">
-                          {app.hold_count}
-                        </span>
-                      </td>
-
-                      {/* Fail Count (빨강) */}
-                      <td className="px-3 py-3.5 text-center">
-                        <span className="w-6 h-6 rounded-md bg-red-500/15 text-red-400 font-bold inline-flex items-center justify-center border border-red-500/30">
-                          {app.fail_count}
-                        </span>
-                      </td>
-
-                      {/* Total Score */}
-                      <td className="px-3 py-3.5 text-center text-foreground font-bold text-sm">
-                        {app.total_score}
-                      </td>
-
-                      {/* My Decision Badge */}
-                      <td className="px-4 py-3.5 text-center font-sans">
-                        <span
-                          className="px-2.5 py-1 rounded-lg text-xs font-bold inline-block"
-                          style={
-                            app.my_decision === 'PASS'
-                              ? {
-                                  background: 'rgba(52,211,153,0.15)',
-                                  color: '#34d399',
-                                  border: '1px solid rgba(52,211,153,0.3)',
-                                }
-                              : app.my_decision === 'HOLD'
-                                ? {
-                                    background: 'rgba(251,191,36,0.15)',
-                                    color: '#fbbf24',
-                                    border: '1px solid rgba(251,191,36,0.3)',
-                                  }
-                                : app.my_decision === 'FAIL'
-                                  ? {
-                                      background: 'rgba(248,113,113,0.15)',
-                                      color: '#f87171',
-                                      border: '1px solid rgba(248,113,113,0.3)',
-                                    }
-                                  : {
-                                      background: 'rgba(0,0,0,0.06)',
-                                      color: '#9094a8',
-                                      border: '1px solid rgba(0,0,0,0.08)',
-                                    }
-                          }
-                        >
-                          {app.my_decision === 'PASS'
-                            ? '합격'
-                            : app.my_decision === 'HOLD'
-                              ? '보류'
-                              : app.my_decision === 'FAIL'
-                                ? '불합격'
-                                : '미결'}
-                        </span>
-                      </td>
-
-                      {/* Final Decision */}
-                      <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4">
                         <select
+                          aria-label={app.name + ' 최종 판정'}
                           value={app.final_decision}
                           onChange={(e) =>
                             handleUpdateFinalDecision(app.id, e.target.value as EvaluationDecision)
                           }
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-foreground text-xs font-sans font-semibold cursor-pointer outline-none"
+                          className="px-2 py-1"
                         >
-                          <option value="PENDING" className="bg-white">
-                            미결 ↕
-                          </option>
-                          <option value="PASS" className="bg-white">
-                            합격 (PASS) ↕
-                          </option>
-                          <option value="HOLD" className="bg-white">
-                            보류 (HOLD) ↕
-                          </option>
-                          <option value="FAIL" className="bg-white">
-                            불합격 (FAIL) ↕
-                          </option>
+                          <option value="PENDING">미결</option>
+                          <option value="PASS">합격</option>
+                          <option value="HOLD">보류</option>
+                          <option value="FAIL">불합격</option>
                         </select>
                       </td>
-
-                      {/* Action */}
-                      <td className="px-5 py-3.5 text-right font-sans">
+                      <td className="px-4 text-right">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenModal(app, 'review');
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                          className="px-3 py-2 cursor-pointer whitespace-nowrap"
+                          aria-label={
+                            app.name + (app.my_decision === null ? ' 평가하기' : ' 평가 수정')
+                          }
+                          onClick={() => handleOpenModal(app, 'review')}
                         >
-                          평가하기
+                          {app.my_decision === null ? '평가하기' : '수정'} →
                         </button>
                       </td>
                     </tr>
@@ -1377,477 +1296,6 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
                   })}
                 </tbody>
               </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Detailed Evaluation Modal (for evaluations / applicants) ─── */}
-      {selectedApplicant && (
-        <div className="fixed inset-0 bg-black/85 z-70 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="w-full max-w-5xl max-h-[92vh] rounded-2xl overflow-hidden flex flex-col bg-white border border-slate-200 shadow-2xl">
-            {/* Modal Header */}
-            <div className="px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-white/[0.01]">
-              <div className="flex items-center gap-2.5">
-                <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#3b82f6]/15 text-[#60a5fa] border border-[#3b82f6]/30">
-                  {selectedApplicant.track === 'ENGINEERING'
-                    ? '엔지니어링'
-                    : selectedApplicant.track === 'ANALYSIS'
-                      ? '데이터 분석'
-                      : '데이터 시각화'}
-                </span>
-                <span className="text-sm font-bold text-foreground">{selectedApplicant.name}</span>
-                <span className="text-xs text-muted-foreground font-mono">
-                  ({selectedApplicant.university} · {selectedApplicant.major})
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => alert('지원서 데이터를 새로고침했습니다.')}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-foreground text-xs font-medium flex items-center gap-1 cursor-pointer"
-                >
-                  <RotateCcw size={12} />
-                  <span>새로고침</span>
-                </button>
-                <button
-                  onClick={() => setSelectedApplicant(null)}
-                  className="p-1.5 rounded-xl hover:bg-slate-100 text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Subtabs + Prev/Next Controls */}
-            <div className="px-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-6">
-                {[
-                  { id: 'review', label: '지원서 원문 & 개인 평가' },
-                  { id: 'status', label: '동료 평가 현황' },
-                  { id: 'interview', label: '면접 추천 질문' },
-                ].map((tab) => {
-                  const isActive = modalTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setModalTab(tab.id as any)}
-                      className="py-3 text-xs font-bold relative transition-colors cursor-pointer"
-                      style={{ color: isActive ? '#2563eb' : '#64748b' }}
-                    >
-                      <span>{tab.label}</span>
-                      {isActive && (
-                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#3b82f6] rounded-full" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center gap-1.5 py-2">
-                <button
-                  onClick={() => handleNavigateModal('PREV')}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-foreground text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                >
-                  <ChevronLeft size={13} /> 이전
-                </button>
-                <button
-                  onClick={() => handleNavigateModal('NEXT')}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-foreground text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                >
-                  다음 <ChevronRight size={13} />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {/* ─── TAB 1: 지원서 원문 & 개인 평가 ─── */}
-              {modalTab === 'review' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                  {/* Left Column: 지원서 원문 (7 cols) */}
-                  <div className="lg:col-span-7 space-y-5">
-                    {/* Basic Info Box */}
-                    <div className="p-4.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
-                      <p className="font-bold text-xs text-[#8ba5ff] flex items-center gap-1.5">
-                        <User size={13} /> 지원자 인적사항 명세 (ApplicantSummaryResponse)
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 text-muted-foreground text-[11px] font-mono">
-                        <p>
-                          • 성명:{' '}
-                          <strong className="text-white font-sans">{selectedApplicant.name}</strong>
-                        </p>
-                        <p>
-                          • 학년/학기:{' '}
-                          <strong className="text-white font-sans">
-                            {selectedApplicant.last_semester}학기 이수
-                          </strong>
-                        </p>
-                        <p>
-                          • 대학교:{' '}
-                          <strong className="text-white font-sans">
-                            {selectedApplicant.university}
-                          </strong>
-                        </p>
-                        <p>
-                          • 본전공:{' '}
-                          <strong className="text-white font-sans">
-                            {selectedApplicant.major}
-                          </strong>
-                        </p>
-                        <p>
-                          • 복수/부전공:{' '}
-                          <strong className="text-white font-sans">
-                            {selectedApplicant.minor_double_major.join(', ') || '없음'}
-                          </strong>
-                        </p>
-                        <p>
-                          • 병역 여부:{' '}
-                          <strong className="text-white font-sans">
-                            {selectedApplicant.military_status}
-                          </strong>
-                        </p>
-                        <p>
-                          • 졸업 예정:{' '}
-                          <strong className="text-white font-sans">
-                            {selectedApplicant.graduation_date}
-                          </strong>
-                        </p>
-                        <p>
-                          • 대학원 진학:{' '}
-                          <strong className="text-white font-sans">
-                            {selectedApplicant.grad_school_plan ? '진학 예정' : '취업/미정'}
-                          </strong>
-                        </p>
-                        <p>
-                          • 연락처:{' '}
-                          <strong className="text-white">{selectedApplicant.phone}</strong>
-                        </p>
-                        <p>
-                          • 이메일:{' '}
-                          <strong className="text-white">{selectedApplicant.email}</strong>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Answers List */}
-                    <div className="space-y-4">
-                      <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        <FileText size={14} className="text-[#3b82f6]" />
-                        <span>지원서 작성 답변 (ApplicantAnswersResponse)</span>
-                      </p>
-
-                      {(answersMap[selectedApplicant.id] || []).map((ans, idx) => (
-                        <div
-                          key={idx}
-                          className="p-4.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2.5 text-xs"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#3b82f6]/15 text-[#60a5fa] border border-[#3b82f6]/30">
-                              {ans.label}
-                            </span>
-                            <span className="font-bold text-foreground">{ans.content}</span>
-                          </div>
-
-                          {ans.type === 'TABLE' && typeof ans.answer === 'object' ? (
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 font-mono text-xs">
-                              {Object.entries(ans.answer).map(([k, v]) => (
-                                <p key={k} className="text-muted-foreground">
-                                  • <strong className="text-[#8ba5ff]">{k}:</strong> {String(v)}
-                                </p>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-foreground/90 leading-relaxed whitespace-pre-wrap pt-1 font-sans text-xs">
-                              {ans.answer}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Right Column: 내 개인 평가 작성 (5 cols) */}
-                  <div className="lg:col-span-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-4 shadow-xl">
-                    <div className="border-b border-slate-200 pb-3">
-                      <h3 className="text-xs font-bold text-foreground">
-                        개인 평가 작성 & 저장 (upsert)
-                      </h3>
-                      <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
-                        PUT /api/v1/admin/recruitment/applicants/{selectedApplicant.id}
-                        /evaluations/me
-                      </p>
-                    </div>
-
-                    <div className="space-y-4 text-xs">
-                      {/* Decision */}
-                      <div>
-                        <label className="text-muted-foreground block mb-2 font-semibold">
-                          개인 결정 (decision) <span className="text-red-400 font-bold">*</span>
-                        </label>
-                        <div className="grid grid-cols-4 gap-1.5">
-                          {[
-                            {
-                              id: 'PASS',
-                              label: '합격',
-                              color: '#34d399',
-                              bg: 'rgba(52,211,153,0.15)',
-                            },
-                            {
-                              id: 'HOLD',
-                              label: '보류',
-                              color: '#fbbf24',
-                              bg: 'rgba(251,191,36,0.18)',
-                            },
-                            {
-                              id: 'FAIL',
-                              label: '불합격',
-                              color: '#f87171',
-                              bg: 'rgba(248,113,113,0.15)',
-                            },
-                            {
-                              id: 'PENDING',
-                              label: '미결',
-                              color: '#9094a8',
-                              bg: 'rgba(0,0,0,0.06)',
-                            },
-                          ].map((btn) => {
-                            const isSelected = editDecision === btn.id;
-                            return (
-                              <button
-                                key={btn.id}
-                                type="button"
-                                onClick={() => setEditDecision(btn.id as EvaluationDecision)}
-                                className="py-2.5 text-xs font-bold rounded-xl border transition-all cursor-pointer text-center"
-                                style={
-                                  isSelected
-                                    ? {
-                                        background: btn.bg,
-                                        borderColor: btn.color,
-                                        color: btn.color,
-                                        boxShadow: `0 0 10px ${btn.color}30`,
-                                      }
-                                    : {
-                                        background: 'rgba(255,255,255,0.02)',
-                                        borderColor: 'rgba(255,255,255,0.08)',
-                                        color: '#64748b',
-                                      }
-                                }
-                              >
-                                {btn.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Score */}
-                      <div>
-                        <label className="text-muted-foreground block mb-2 font-semibold">
-                          개인 점수 (score: 1~10점)
-                        </label>
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="range"
-                            min={1}
-                            max={10}
-                            value={editScore}
-                            onChange={(e) => setEditScore(Number(e.target.value))}
-                            className="flex-1 accent-blue-500 cursor-pointer"
-                          />
-                          <span className="w-14 px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-foreground font-mono font-bold text-center text-sm">
-                            {editScore}점
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Memo */}
-                      <div>
-                        <label className="text-muted-foreground block mb-2 font-semibold">
-                          평가 메모 (memo)
-                        </label>
-                        <textarea
-                          rows={4}
-                          value={editMemo}
-                          onChange={(e) => setEditMemo(e.target.value)}
-                          placeholder="지원서 내용에 대한 강점, 보완점, 의문점을 상세히 작성해 주세요."
-                          className="w-full p-3 rounded-xl bg-slate-100 border border-slate-200 text-foreground resize-none leading-relaxed text-xs outline-none"
-                        />
-                      </div>
-
-                      {/* Interview Question */}
-                      <div>
-                        <label className="text-muted-foreground block mb-1 font-semibold">
-                          면접 추천 질문 (interview_question)
-                        </label>
-                        <input
-                          value={editInterviewQuestion}
-                          onChange={(e) => setEditInterviewQuestion(e.target.value)}
-                          placeholder="면접 때 심층 검증할 질문을 입력하세요."
-                          className="w-full px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-foreground text-xs outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleSaveMyEvaluation}
-                      disabled={isSaving}
-                      className="w-full py-3 rounded-xl text-xs font-bold text-white bg-[#3b82f6] hover:bg-[#2563eb] disabled:opacity-50 transition-all shadow-lg shadow-blue-950/50 cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      {isSaving ? (
-                        <RefreshCw size={13} className="animate-spin" />
-                      ) : (
-                        <BookmarkCheck size={14} />
-                      )}
-                      <span>개인 평가 저장하기 (PUT)</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ─── TAB 2: 동료 평가 현황 ─── */}
-              {modalTab === 'status' && (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-4 gap-3">
-                    {[
-                      {
-                        label: '합격 (PASS)',
-                        val: selectedApplicant.pass_count,
-                        color: '#34d399',
-                        bg: 'rgba(52,211,153,0.15)',
-                        border: 'rgba(52,211,153,0.3)',
-                      },
-                      {
-                        label: '보류 (HOLD)',
-                        val: selectedApplicant.hold_count,
-                        color: '#fbbf24',
-                        bg: 'rgba(251,191,36,0.15)',
-                        border: 'rgba(251,191,36,0.3)',
-                      },
-                      {
-                        label: '불합 (FAIL)',
-                        val: selectedApplicant.fail_count,
-                        color: '#f87171',
-                        bg: 'rgba(248,113,113,0.15)',
-                        border: 'rgba(248,113,113,0.3)',
-                      },
-                      {
-                        label: '합산 총점',
-                        val: selectedApplicant.total_score,
-                        color: '#0f172a',
-                        bg: '#f1f5f9',
-                        border: 'rgba(0,0,0,0.08)',
-                      },
-                    ].map((card) => (
-                      <div
-                        key={card.label}
-                        className="p-4 rounded-2xl border space-y-1"
-                        style={{ background: card.bg, borderColor: card.border }}
-                      >
-                        <p className="text-xs text-muted-foreground font-medium">{card.label}</p>
-                        <p className="text-xl font-bold font-mono" style={{ color: card.color }}>
-                          {card.val}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden shadow-xl">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-muted-foreground font-semibold">
-                          <th className="text-left px-5 py-3.5 w-36">평가자</th>
-                          <th className="text-center px-4 py-3.5 w-24">판정</th>
-                          <th className="text-center px-4 py-3.5 w-20">점수</th>
-                          <th className="text-left px-5 py-3.5">평가 메모 (memo)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5 font-mono">
-                        {(evaluatorsMap[selectedApplicant.id] || []).map((ev) => (
-                          <tr key={ev.admin_id} className="hover:bg-white/[0.015]">
-                            <td className="px-5 py-3 font-sans font-bold text-foreground">
-                              {ev.name}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span
-                                className="px-2.5 py-0.5 rounded-md text-xs font-bold font-sans inline-block"
-                                style={
-                                  ev.decision === 'PASS'
-                                    ? { background: 'rgba(52,211,153,0.15)', color: '#34d399' }
-                                    : ev.decision === 'HOLD'
-                                      ? { background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }
-                                      : ev.decision === 'FAIL'
-                                        ? { background: 'rgba(248,113,113,0.15)', color: '#f87171' }
-                                        : { background: 'rgba(0,0,0,0.06)', color: '#9094a8' }
-                                }
-                              >
-                                {ev.decision === 'PASS'
-                                  ? '합격'
-                                  : ev.decision === 'HOLD'
-                                    ? '보류'
-                                    : ev.decision === 'FAIL'
-                                      ? '불합격'
-                                      : '미결'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center font-bold">
-                              {ev.score !== null ? `${ev.score}점` : '-'}
-                            </td>
-                            <td className="px-5 py-3 text-muted-foreground font-sans text-xs break-all">
-                              {ev.memo || '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* ─── TAB 3: 면접 추천 질문 ─── */}
-              {modalTab === 'interview' && (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-foreground">
-                      평가자별 면접 추천 질문 (ApplicantInterviewQuestionsResponse)
-                    </h3>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {(interviewQuestionsMap[selectedApplicant.id] || []).length === 0 ? (
-                      <div className="p-12 text-center text-xs text-muted-foreground">
-                        작성된 면접 질문이 없습니다. [지원서 원문 & 개인 평가] 탭에서 면접 질문을
-                        등록해 보세요.
-                      </div>
-                    ) : (
-                      (interviewQuestionsMap[selectedApplicant.id] || []).map((q) => (
-                        <div
-                          key={q.admin_id}
-                          className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1.5 text-xs"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-[#8ba5ff]">{q.name}:</span>
-                            <button
-                              onClick={() => {
-                                if (q.interview_question) {
-                                  navigator.clipboard.writeText(q.interview_question);
-                                  alert('질문이 복사되었습니다.');
-                                }
-                              }}
-                              className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 cursor-pointer"
-                            >
-                              <Copy size={11} /> 복사
-                            </button>
-                          </div>
-                          <p className="text-foreground leading-relaxed pl-1">
-                            {q.interview_question}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ChevronRight, PanelLeft, User, X } from 'lucide-react';
+import { PanelLeft, User, X } from 'lucide-react';
 
 import { EventAttendanceContainer } from '@/pages/attendance-events/ui/EventAttendanceContainer';
 import { HostsPage } from '@/pages/attendance-hosts/ui/HostsPage';
@@ -37,7 +37,7 @@ import { useScoreRules } from '@/entities/score-rule/model/useScoreRules';
 import type { StudyTeamInfo } from '@/entities/study-team/model/types';
 import type { UserRole, UserTrack } from '@/entities/user/model/types';
 import type { ActivePage } from '@/shared/config/activePage';
-import { isActivePage, PAGE_LABELS } from '@/shared/config/pageLabels';
+import { isActivePage } from '@/shared/config/pageLabels';
 import { confirmLeave } from '@/shared/lib/leaveGuard';
 
 const NO_TEAMS: StudyTeamInfo[] = [];
@@ -406,7 +406,6 @@ export default function App() {
 
   const isRecruiting = Boolean(activePage?.startsWith('recruiting'));
   const isEvaluation = Boolean(activePage?.startsWith('evaluation'));
-  const isContentPage = Boolean(activePage?.startsWith('content'));
   const isAttendancePage = Boolean(activePage?.startsWith('att-'));
 
   if (isRestoringSession || (!currentTeams && !teamDbError)) {
@@ -426,21 +425,22 @@ export default function App() {
     );
   }
   const currentRole = userRoleOf(session);
+  const handlePageChange = (page: ActivePage) => {
+    // 이미 열려 있는 행사 출결 메뉴를 다시 누르면 행사 목록으로 돌아가게 알린다.
+    if (page === activePage && page === 'att-events') {
+      setEventListRequest((count) => count + 1);
+      return;
+    }
+    // 저장하지 않은 수정 내용이 있는 화면이면 옮기기 전에 묻는다(취소하면 머문다).
+    if (page !== activePage && !confirmLeave()) return;
+    setActivePage(page);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
       <Sidebar
         activePage={activePage}
-        onChange={(page) => {
-          // 이미 열려 있는 행사 출결 메뉴를 다시 누르면 행사 목록으로 돌아가게 알린다.
-          if (page === activePage && page === 'att-events') {
-            setEventListRequest((count) => count + 1);
-            return;
-          }
-          // 저장하지 않은 수정 내용이 있는 화면이면 옮기기 전에 묻는다(취소하면 머문다).
-          if (page !== activePage && !confirmLeave()) return;
-          setActivePage(page);
-        }}
+        onChange={handlePageChange}
         open={sidebarOpen}
         onClose={() => {
           setSidebarOpen(false);
@@ -456,7 +456,7 @@ export default function App() {
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f8fafc]">
         {/* Topbar */}
-        <header className="h-14 shrink-0 flex items-center justify-between px-6 bg-white border-b border-slate-200/80 select-none z-10">
+        <header className="admin-topbar h-14 shrink-0 flex items-center justify-between px-6 bg-white border-b border-slate-200/80 select-none z-10">
           <div className="flex items-center gap-2.5">
             {!sidebarOpen ? (
               <button
@@ -480,42 +480,6 @@ export default function App() {
               >
                 <PanelLeft size={16} />
               </button>
-            )}
-
-            {!sidebarOpen && (
-              <>
-                <div className="w-[1px] h-3.5 bg-slate-200" />
-
-                <div className="flex items-center gap-1.5 text-xs">
-                  {isRecruiting && (
-                    <>
-                      <span className="font-medium text-slate-500">리크루팅</span>
-                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
-                    </>
-                  )}
-                  {isEvaluation && (
-                    <>
-                      <span className="font-medium text-slate-500">서류 평가</span>
-                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
-                    </>
-                  )}
-                  {isContentPage && (
-                    <>
-                      <span className="font-medium text-slate-500">콘텐츠 관리</span>
-                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
-                    </>
-                  )}
-                  {isAttendancePage && (
-                    <>
-                      <span className="font-medium text-slate-500">출결 관리</span>
-                      <ChevronRight size={12} className="text-slate-400 stroke-[2]" />
-                    </>
-                  )}
-                  <span className="text-slate-900 font-semibold tracking-tight">
-                    {PAGE_LABELS[activePage] || '관리자 콘솔'}
-                  </span>
-                </div>
-              </>
             )}
           </div>
 
