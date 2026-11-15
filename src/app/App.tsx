@@ -539,11 +539,24 @@ export default function App() {
           {isEvaluation && (
             <EvaluationManagePage
               initialTab={
-                activePage === 'evaluation-applicants'
-                  ? 'applicants'
-                  : activePage === 'evaluation-promote'
-                    ? 'promotions'
-                    : 'evaluations'
+                activePage === 'evaluation-my'
+                  ? 'my'
+                  : activePage === 'evaluation-group'
+                    ? 'group'
+                    : activePage === 'evaluation-promote'
+                      ? 'promotions'
+                      : 'applicants'
+              }
+              onTabChange={(tab) =>
+                setActivePage(
+                  tab === 'my'
+                    ? 'evaluation-my'
+                    : tab === 'group'
+                      ? 'evaluation-group'
+                      : tab === 'promotions'
+                        ? 'evaluation-promote'
+                        : 'evaluation-applicants',
+                )
               }
             />
           )}

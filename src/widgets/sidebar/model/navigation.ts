@@ -49,20 +49,24 @@ const SIDEBAR_NAV = [
   },
   {
     id: 'evaluation',
-    label: '서류 평가',
+    label: '서류 평가 관리',
     icon: FileText,
     permission: 'EVALUATION',
     groups: [
       {
-        title: '서류 심사',
+        title: '지원서 관리',
+        pages: [{ id: 'evaluation-applicants', label: '전체 지원 현황' }],
+      },
+      {
+        title: '평가 관리',
         pages: [
-          { id: 'evaluation-evals', label: '서류 평가 대시보드 (SUBMITTED)' },
-          { id: 'evaluation-applicants', label: '전체 지원자 현황 (DRAFT 포함)' },
+          { id: 'evaluation-my', label: '개인 평가' },
+          { id: 'evaluation-group', label: '전체 평가' },
         ],
       },
       {
-        title: '합격 및 승격',
-        pages: [{ id: 'evaluation-promote', label: '최종 합불 & 정회원 승격' }],
+        title: '합격자 관리',
+        pages: [{ id: 'evaluation-promote', label: '합격자 승격' }],
       },
     ],
   },
@@ -110,6 +114,10 @@ const SIDEBAR_NAV = [
           { id: 'system-members', label: '동아리원 명단' },
           { id: 'system-accounts', label: '권한 관리' },
         ],
+      },
+      {
+        title: '운영',
+        pages: [{ id: 'system-semesters', label: '반기 관리' }],
       },
       {
         title: '보안',

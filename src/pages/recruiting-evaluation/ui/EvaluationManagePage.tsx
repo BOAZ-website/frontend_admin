@@ -1,4 +1,3 @@
-import { ApplicantReviewDetail } from './ApplicantReviewDetail';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Award,
@@ -15,490 +14,39 @@ import {
   X,
 } from 'lucide-react';
 
-export type ApplicationStatus = 'DRAFT' | 'SUBMITTED';
-export type EvaluationDecision = 'PASS' | 'HOLD' | 'FAIL' | 'PENDING';
-export type TrackType = 'ANALYSIS' | 'ENGINEERING' | 'VISUALIZATION';
-export type MilitaryStatus = 'COMPLETED' | 'EXEMPTED' | 'UNFULFILLED' | 'NOT_APPLICABLE';
-
-// 공통 ApiResponse Envelope
-export interface ApiResponse<T> {
-  status: number;
-  data: T | null;
-  error_code: string | null;
-  message: string | null;
-}
-
-// 1. 지원자 요약 DTO (ApplicantSummaryResponse)
-export interface ApplicantSummaryDto {
-  id: number;
-  user_id: number;
-  status: ApplicationStatus;
-  track: TrackType;
-  name: string;
-  email: string;
-  phone: string;
-  university: string;
-  major: string;
-  minor_double_major: string[];
-  last_semester: number;
-  military_status: MilitaryStatus;
-  birth_date: string;
-  graduation_date: string;
-  grad_school_plan: boolean;
-  submitted_at: string | null;
-}
-
-// 2. 평가 대시보드 DTO (ApplicantEvaluationResponse)
-export interface ApplicantEvaluationDto extends ApplicantSummaryDto {
-  pass_count: number;
-  hold_count: number;
-  fail_count: number;
-  total_score: number;
-  final_decision: EvaluationDecision;
-  my_decision: EvaluationDecision | null;
-  my_score: number | null;
-  my_memo: string | null;
-  my_interview_question: string | null;
-  is_promoted_to_member?: boolean;
-}
-
-// 3. 평가자 현황 DTO (ApplicantEvaluatorsResponse)
-export interface EvaluatorDetailItem {
-  admin_id: number;
-  name: string;
-  track: TrackType | 'COMMON';
-  decision: EvaluationDecision | null;
-  score: number | null;
-  memo: string | null;
-}
-
-// 4. 면접 질문 DTO (ApplicantInterviewQuestionsResponse)
-export interface InterviewQuestionItem {
-  admin_id: number;
-  name: string;
-  track: TrackType | 'COMMON';
-  interview_question: string | null;
-}
-
-// 5. 지원서 답변 DTO (ApplicantAnswersResponse)
-export interface ApplicantAnswerDto {
-  question_id: number;
-  label: string;
-  category: string;
-  type: 'TEXT' | 'TABLE';
-  content: string;
-  order_num: number;
-  answer: string | any;
-}
-
-// Mock Evaluators Pool
-const INITIAL_EVALUATOR_POOL: { admin_id: number; name: string; track: TrackType | 'COMMON' }[] = [
-  { admin_id: 1, name: '문혁준 (나)', track: 'ENGINEERING' },
-  { admin_id: 2, name: '강민석', track: 'ENGINEERING' },
-  { admin_id: 3, name: '김대현', track: 'ENGINEERING' },
-  { admin_id: 4, name: '남민서', track: 'ENGINEERING' },
-  { admin_id: 5, name: '손채민', track: 'ENGINEERING' },
-  { admin_id: 6, name: '신재원', track: 'ENGINEERING' },
-  { admin_id: 7, name: '이욱성', track: 'ENGINEERING' },
-  { admin_id: 8, name: '이주영', track: 'ENGINEERING' },
-  { admin_id: 9, name: '장민주', track: 'ENGINEERING' },
-  { admin_id: 10, name: '최재은', track: 'ENGINEERING' },
-];
-
-const INITIAL_DATA: {
-  applicants: ApplicantEvaluationDto[];
-  answersMap: Record<number, ApplicantAnswerDto[]>;
-  evaluatorsMap: Record<number, EvaluatorDetailItem[]>;
-  interviewQuestionsMap: Record<number, InterviewQuestionItem[]>;
-} = {
-  applicants: [
-    {
-      id: 101,
-      user_id: 55,
-      status: 'SUBMITTED',
-      track: 'ENGINEERING',
-      name: '이도현',
-      email: 'dohyun@snu.ac.kr',
-      phone: '010-3819-2910',
-      university: '서울대학교',
-      major: '컴퓨터공학과',
-      minor_double_major: ['통계학 (복수전공)'],
-      last_semester: 6,
-      military_status: 'COMPLETED',
-      birth_date: '2002-05-14',
-      graduation_date: '2028-02',
-      grad_school_plan: false,
-      submitted_at: '2026-08-15T19:20:00',
-      pass_count: 2,
-      hold_count: 1,
-      fail_count: 0,
-      total_score: 23,
-      final_decision: 'PASS',
-      my_decision: 'HOLD',
-      my_score: 8,
-      my_memo:
-        'AIOps 실시간 파이프라인 개발 경험이 매우 우수함. 면접 때 인프라 장애 대응 경험 질의 권장.',
-      my_interview_question:
-        'Kafka 파티션 분배 전략 및 트래픽 폭증 시 데이터 유실 방지 아키텍처는?',
-      is_promoted_to_member: false,
-    },
-    {
-      id: 102,
-      user_id: 56,
-      status: 'SUBMITTED',
-      track: 'ENGINEERING',
-      name: '박성훈',
-      email: 'sunghoon.p@naver.com',
-      phone: '010-9182-4122',
-      university: '고려대학교',
-      major: '컴퓨터학과',
-      minor_double_major: [],
-      last_semester: 7,
-      military_status: 'COMPLETED',
-      birth_date: '2001-08-20',
-      graduation_date: '2027-08',
-      grad_school_plan: true,
-      submitted_at: '2026-08-16T10:15:00',
-      pass_count: 1,
-      hold_count: 0,
-      fail_count: 0,
-      total_score: 9,
-      final_decision: 'PENDING',
-      my_decision: null,
-      my_score: null,
-      my_memo: null,
-      my_interview_question: null,
-      is_promoted_to_member: false,
-    },
-    {
-      id: 103,
-      user_id: 57,
-      status: 'SUBMITTED',
-      track: 'ENGINEERING',
-      name: '이지원',
-      email: 'jiwon.lee@snu.ac.kr',
-      phone: '010-3321-8890',
-      university: '서울대학교',
-      major: '전기정보공학부',
-      minor_double_major: [],
-      last_semester: 5,
-      military_status: 'NOT_APPLICABLE',
-      birth_date: '2003-02-11',
-      graduation_date: '2028-02',
-      grad_school_plan: false,
-      submitted_at: '2026-08-16T11:30:00',
-      pass_count: 0,
-      hold_count: 1,
-      fail_count: 0,
-      total_score: 6,
-      final_decision: 'PENDING',
-      my_decision: null,
-      my_score: null,
-      my_memo: null,
-      my_interview_question: null,
-      is_promoted_to_member: false,
-    },
-    {
-      id: 104,
-      user_id: 58,
-      status: 'SUBMITTED',
-      track: 'ANALYSIS',
-      name: '김서하',
-      email: 'seoha.kim@yonsei.ac.kr',
-      phone: '010-5519-8821',
-      university: '연세대학교',
-      major: '경영학과',
-      minor_double_major: ['응용통계학'],
-      last_semester: 6,
-      military_status: 'NOT_APPLICABLE',
-      birth_date: '2002-09-22',
-      graduation_date: '2027-08',
-      grad_school_plan: true,
-      submitted_at: '2026-08-16T11:30:00',
-      pass_count: 3,
-      hold_count: 0,
-      fail_count: 0,
-      total_score: 27,
-      final_decision: 'PASS',
-      my_decision: 'PASS',
-      my_score: 9,
-      my_memo: '비즈니스 인사이트 및 그로스 실험 설계 역량이 탁월함',
-      my_interview_question: 'A/B 테스트 시 p-value 해석과 표본 크기 산정 기준은?',
-      is_promoted_to_member: false,
-    },
-    {
-      id: 105,
-      user_id: 59,
-      status: 'SUBMITTED',
-      track: 'VISUALIZATION',
-      name: '최민혁',
-      email: 'minhyuk.c@yonsei.ac.kr',
-      phone: '010-5512-7019',
-      university: '연세대학교',
-      major: '산업공학과',
-      minor_double_major: ['시각디자인'],
-      last_semester: 8,
-      military_status: 'COMPLETED',
-      birth_date: '2001-11-03',
-      graduation_date: '2027-02',
-      grad_school_plan: false,
-      submitted_at: '2026-08-16T14:00:00',
-      pass_count: 1,
-      hold_count: 1,
-      fail_count: 0,
-      total_score: 15,
-      final_decision: 'PASS',
-      my_decision: null,
-      my_score: null,
-      my_memo: null,
-      my_interview_question: null,
-      is_promoted_to_member: false,
-    },
-    {
-      id: 106,
-      user_id: 60,
-      status: 'DRAFT',
-      track: 'ENGINEERING',
-      name: '한소희',
-      email: 'sohee.han@korea.ac.kr',
-      phone: '010-2219-9041',
-      university: '고려대학교',
-      major: '컴퓨터학과',
-      minor_double_major: [],
-      last_semester: 4,
-      military_status: 'NOT_APPLICABLE',
-      birth_date: '2004-03-12',
-      graduation_date: '2029-02',
-      grad_school_plan: false,
-      submitted_at: null,
-      pass_count: 0,
-      hold_count: 0,
-      fail_count: 0,
-      total_score: 0,
-      final_decision: 'PENDING',
-      my_decision: null,
-      my_score: null,
-      my_memo: null,
-      my_interview_question: null,
-      is_promoted_to_member: false,
-    },
-  ],
-  answersMap: {
-    101: [
-      {
-        question_id: 1,
-        label: '공통0',
-        category: 'COMMON',
-        type: 'TEXT',
-        content: '면접 가능 일정을 선택해 주세요.',
-        order_num: 0,
-        answer: '7월 4일(토) 13:00~15:00, 11:00~13:00 / 7월 5일(일) 13:00~15:00',
-      },
-      {
-        question_id: 2,
-        label: '공통1',
-        category: 'COMMON',
-        type: 'TEXT',
-        content: '자기소개와 BOAZ에 지원한 동기를 서술해주세요.',
-        order_num: 1,
-        answer:
-          '저는 시스템 인프라를 직접 구성하고 운영하며 동작 원리를 파고드는 것을 즐깁니다. AIOps 플랫폼을 개발하며 실시간 분산 파이프라인의 안정성이 서비스의 생명임을 배웠고, BOAZ에서 대규모 트래픽을 다루는 엔지니어들과 함께 성장하고 싶습니다.',
-      },
-      {
-        question_id: 3,
-        label: '엔지니어링1',
-        category: 'ENGINEERING',
-        type: 'TABLE',
-        content: '엔지니어링 관련 주요 기술 스택 및 프로젝트 활용 경험',
-        order_num: 2,
-        answer: {
-          Kafka: '3노드 클러스터 구축, 파티셔닝 최적화 (숙련도: 상)',
-          'Spark / PySpark': '대규모 배치 데이터 집계 파이프라인 구축 (숙련도: 중)',
-          'Docker / K8s': '컨테이너 오케스트레이션 및 모니터링 (숙련도: 중)',
-        },
-      },
-      {
-        question_id: 4,
-        label: '엔지니어링2',
-        category: 'ENGINEERING',
-        type: 'TEXT',
-        content:
-          '[엔지니어링] RDBMS/NoSQL 모델링 또는 분산 데이터 파이프라인(Kafka, Spark 등) 구축 및 인프라 운용 경험을 작성해 주세요.',
-        order_num: 3,
-        answer:
-          'Kafka 3노드 클러스터를 기반으로 분당 5만 건의 로그를 Elasticsearch로 색인하는 실시간 파이프라인을 구축했습니다. 지연율이 급증하던 병목을 Kafka Consumer 그룹 파티션 재분배 및 Batch Size 튜닝으로 해결했습니다.',
-      },
-    ],
-    102: [
-      {
-        question_id: 2,
-        label: '공통1',
-        category: 'COMMON',
-        type: 'TEXT',
-        content: '자기소개와 BOAZ 지원 동기',
-        order_num: 1,
-        answer: '분산 스토리지 시스템 최적화 연구에 깊은 관심이 있습니다.',
-      },
-      {
-        question_id: 4,
-        label: '엔지니어링2',
-        category: 'ENGINEERING',
-        type: 'TEXT',
-        content: '파이프라인 구축 경험',
-        order_num: 2,
-        answer: 'Spark 배치 집계 파이프라인 최적화 프로젝트를 완수했습니다.',
-      },
-    ],
-    104: [
-      {
-        question_id: 2,
-        label: '공통1',
-        category: 'COMMON',
-        type: 'TEXT',
-        content: '자기소개와 BOAZ 지원 동기',
-        order_num: 1,
-        answer: '데이터 기반의 그로스 실험과 비즈니스 인사이트 도출을 전공했습니다.',
-      },
-      {
-        question_id: 5,
-        label: '분석1',
-        category: 'ANALYSIS',
-        type: 'TEXT',
-        content: '[데이터 분석] 가설 검정 및 모델링 경험',
-        order_num: 2,
-        answer:
-          '이커머스 결제 전환율 개선을 위한 A/B 테스트 및 LightGBM 고객 이탈 예측 모델링을 수행했습니다.',
-      },
-    ],
-  },
-  evaluatorsMap: {
-    101: [
-      {
-        admin_id: 1,
-        name: '문혁준 (나)',
-        track: 'ENGINEERING',
-        decision: 'HOLD',
-        score: 8,
-        memo: 'AIOps 실시간 파이프라인 경험 우수. 트래픽 장애 대응 확인 필요',
-      },
-      {
-        admin_id: 2,
-        name: '강민석',
-        track: 'ENGINEERING',
-        decision: 'PASS',
-        score: 9,
-        memo: '카프카 파티셔닝 이해도 매우 높음',
-      },
-      {
-        admin_id: 3,
-        name: '김대현',
-        track: 'ENGINEERING',
-        decision: 'PASS',
-        score: 6,
-        memo: '성실하게 서류 작성함',
-      },
-      {
-        admin_id: 4,
-        name: '남민서',
-        track: 'ENGINEERING',
-        decision: null,
-        score: null,
-        memo: null,
-      },
-      {
-        admin_id: 5,
-        name: '손채민',
-        track: 'ENGINEERING',
-        decision: null,
-        score: null,
-        memo: null,
-      },
-      {
-        admin_id: 6,
-        name: '신재원',
-        track: 'ENGINEERING',
-        decision: null,
-        score: null,
-        memo: null,
-      },
-      {
-        admin_id: 7,
-        name: '이욱성',
-        track: 'ENGINEERING',
-        decision: null,
-        score: null,
-        memo: null,
-      },
-    ],
-    104: [
-      {
-        admin_id: 1,
-        name: '문혁준 (나)',
-        track: 'COMMON',
-        decision: 'PASS',
-        score: 9,
-        memo: '비즈니스 인사이트 및 그로스 분석 경험 우수',
-      },
-      {
-        admin_id: 11,
-        name: '박서연',
-        track: 'ANALYSIS',
-        decision: 'PASS',
-        score: 9,
-        memo: '통계적 가설 검증과 모델링 기초 탄탄함',
-      },
-      {
-        admin_id: 12,
-        name: '윤지후',
-        track: 'ANALYSIS',
-        decision: 'PASS',
-        score: 9,
-        memo: '포트폴리오 완성도 최상',
-      },
-    ],
-  },
-  interviewQuestionsMap: {
-    101: [
-      {
-        admin_id: 1,
-        name: '문혁준 (나)',
-        track: 'ENGINEERING',
-        interview_question: 'Kafka 파티션 분배 전략 및 트래픽 폭증 시 데이터 유실 방지 아키텍처는?',
-      },
-      {
-        admin_id: 2,
-        name: '강민석',
-        track: 'ENGINEERING',
-        interview_question: 'Elasticsearch 인덱스 설계 시 샤드(Shard) 수 결정 기준은?',
-      },
-    ],
-    104: [
-      {
-        admin_id: 1,
-        name: '문혁준 (나)',
-        track: 'COMMON',
-        interview_question: 'A/B 테스트 시 p-value 해석과 표본 크기 산정 기준은?',
-      },
-    ],
-  },
-};
+import {
+  type ApplicantEvaluationDto,
+  DECISION_LABELS,
+  type EvaluationDecision,
+  type EvaluationTab,
+  TRACK_LABELS,
+} from '../model/types';
+import { useEvaluationData } from '../model/useEvaluationData';
+import { ApplicantReviewDetail } from './ApplicantReviewDetail';
 
 interface EvaluationManagePageProps {
-  initialTab?: 'evaluations' | 'applicants' | 'promotions';
+  initialTab?: EvaluationTab;
+  /** 상단 탭을 누르면 사이드바 선택도 같은 메뉴로 맞춘다. */
+  onTabChange?: (tab: EvaluationTab) => void;
 }
 
-export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationManagePageProps) {
-  // Main Subtabs: "evaluations" (서류 심사) | "applicants" (지원자 현황) | "promotions" (합격자 승격 전용 탭)
-  const [mainTab, setMainTab] = useState<'evaluations' | 'applicants' | 'promotions'>(initialTab);
+/** 서류 평가 탭 4개를 같은 데이터로 그린다. 데이터 접근은 useEvaluationData Hook만 거친다. */
+export function EvaluationManagePage({
+  initialTab = 'applicants',
+  onTabChange,
+}: EvaluationManagePageProps) {
+  const [mainTab, setMainTab] = useState<EvaluationTab>(initialTab);
 
-  const [applicants, setApplicants] = useState<ApplicantEvaluationDto[]>(INITIAL_DATA.applicants);
-  const [answersMap] = useState<Record<number, ApplicantAnswerDto[]>>(INITIAL_DATA.answersMap);
-  const [evaluatorsMap, setEvaluatorsMap] = useState<Record<number, EvaluatorDetailItem[]>>(
-    INITIAL_DATA.evaluatorsMap,
-  );
-  const [interviewQuestionsMap, setInterviewQuestionsMap] = useState<
-    Record<number, InterviewQuestionItem[]>
-  >(INITIAL_DATA.interviewQuestionsMap);
+  const {
+    applicants,
+    answersMap,
+    evaluatorsMap,
+    interviewQuestionsMap,
+    currentEvaluatorId,
+    saveMyEvaluation,
+    updateFinalDecision,
+    promoteUsers,
+  } = useEvaluationData();
 
   // Filters
   const [selectedTrack, setSelectedTrack] = useState<string>('ALL');
@@ -533,6 +81,11 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
     }
   }, [initialTab]);
 
+  function handleTabChange(tab: EvaluationTab) {
+    setMainTab(tab);
+    onTabChange?.(tab);
+  }
+
   // Overall Statistics
   const stats = useMemo(() => {
     const submitted = applicants.filter((a) => a.status === 'SUBMITTED');
@@ -559,7 +112,7 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
   const displayedApplicants = useMemo(() => {
     return applicants
       .filter((app) => {
-        if (mainTab === 'evaluations' && app.status !== 'SUBMITTED') {
+        if ((mainTab === 'my' || mainTab === 'group') && app.status !== 'SUBMITTED') {
           return false;
         }
         if (selectedTrack !== 'ALL' && app.track !== selectedTrack) {
@@ -631,105 +184,26 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
     const nextApp = displayedApplicants[nextIdx];
     handleOpenModal(nextApp, modalTab);
   }
-
-  // 7. 개인 평가 저장 (upsert) — PUT /api/v1/admin/recruitment/applicants/{id}/evaluations/me
-  function handleSaveMyEvaluation() {
+  // 개인 평가 저장. 데이터 변경은 Hook(saveMyEvaluation)이 맡고, 여기서는 입력값 전달과 화면 상태만 다룬다.
+  async function handleSaveMyEvaluation() {
     if (!selectedApplicant) {
       return;
     }
     setIsSaving(true);
-
-    const currentAdminId = 1;
-    const currentAdminName = '문혁준 (나)';
-
-    setTimeout(() => {
-      const existingEvaluators =
-        evaluatorsMap[selectedApplicant.id] ||
-        INITIAL_EVALUATOR_POOL.map((ev) => ({
-          ...ev,
-          decision: null,
-          score: null,
-          memo: null,
-        }));
-
-      const updatedEvaluators: EvaluatorDetailItem[] = existingEvaluators.some(
-        (e) => e.admin_id === currentAdminId,
-      )
-        ? existingEvaluators.map((e) =>
-            e.admin_id === currentAdminId
-              ? {
-                  ...e,
-                  decision: editDecision,
-                  score: editScore,
-                  memo: editMemo || null,
-                }
-              : e,
-          )
-        : [
-            ...existingEvaluators,
-            {
-              admin_id: currentAdminId,
-              name: currentAdminName,
-              track: selectedApplicant.track,
-              decision: editDecision,
-              score: editScore,
-              memo: editMemo || null,
-            },
-          ];
-
-      setEvaluatorsMap((prev) => ({ ...prev, [selectedApplicant.id]: updatedEvaluators }));
-
-      if (editInterviewQuestion.trim()) {
-        const existingQuestions = interviewQuestionsMap[selectedApplicant.id] || [];
-        const updatedQuestions = existingQuestions.some((q) => q.admin_id === currentAdminId)
-          ? existingQuestions.map((q) =>
-              q.admin_id === currentAdminId
-                ? { ...q, interview_question: editInterviewQuestion }
-                : q,
-            )
-          : [
-              ...existingQuestions,
-              {
-                admin_id: currentAdminId,
-                name: currentAdminName,
-                track: selectedApplicant.track,
-                interview_question: editInterviewQuestion,
-              },
-            ];
-        setInterviewQuestionsMap((prev) => ({ ...prev, [selectedApplicant.id]: updatedQuestions }));
-      }
-
-      const pass_count = updatedEvaluators.filter((e) => e.decision === 'PASS').length;
-      const hold_count = updatedEvaluators.filter((e) => e.decision === 'HOLD').length;
-      const fail_count = updatedEvaluators.filter((e) => e.decision === 'FAIL').length;
-      const total_score = updatedEvaluators.reduce((acc, e) => acc + (e.score || 0), 0);
-
-      const updatedApplicant: ApplicantEvaluationDto = {
-        ...selectedApplicant,
-        my_decision: editDecision,
-        my_score: editScore,
-        my_memo: editMemo,
-        my_interview_question: editInterviewQuestion,
-        pass_count,
-        hold_count,
-        fail_count,
-        total_score,
-      };
-
-      setApplicants((prev) =>
-        prev.map((a) => (a.id === selectedApplicant.id ? updatedApplicant : a)),
-      );
-      setSelectedApplicant(updatedApplicant);
-      setIsSaving(false);
-      alert('개인 평가가 정상적으로 저장되었습니다.');
-    }, 300);
+    const updatedApplicant = await saveMyEvaluation(selectedApplicant, {
+      decision: editDecision,
+      score: editScore,
+      memo: editMemo,
+      interview_question: editInterviewQuestion,
+    });
+    setSelectedApplicant(updatedApplicant);
+    setIsSaving(false);
+    alert('개인 평가가 정상적으로 저장되었습니다.');
   }
 
-  // 8. 최종 평가 수정 — PATCH /api/v1/admin/recruitment/applicants/{id}/final-decision
+  // 최종 판정 변경. 열려 있는 상세의 값도 같이 맞춘다.
   function handleUpdateFinalDecision(applicantId: number, decision: EvaluationDecision) {
-    setApplicants((prev) =>
-      prev.map((a) => (a.id === applicantId ? { ...a, final_decision: decision } : a)),
-    );
+    void updateFinalDecision(applicantId, decision);
     if (selectedApplicant && selectedApplicant.id === applicantId) {
       setSelectedApplicant((prev) => (prev ? { ...prev, final_decision: decision } : null));
     }
@@ -761,44 +235,28 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
     setShowPromoteConfirmModal(true);
   }
 
-  // PATCH /api/v1/admin/users/promote 실행
-  function handleExecutePromotion() {
+  // 승격 실행. 데이터 변경은 Hook(promoteUsers)이 맡고, 여기서는 창 상태와 결과 안내만 다룬다.
+  async function handleExecutePromotion() {
     if (!promoteCheck1 || !promoteCheck2) {
       return;
     }
     setIsPromoting(true);
-
-    setTimeout(() => {
-      // 서버 부분 성공 시뮬레이션: failed_user_ids가 없으면 전체 성공
-      const failed_user_ids: { user_id: number; error_code: string }[] = [];
-
-      const successUserIds = selectedPromoteUserIds.filter(
-        (uid) => !failed_user_ids.some((f) => f.user_id === uid),
-      );
-
-      // 성공한 user_id에 해당하는 지원서 is_promoted_to_member 업데이트
-      setApplicants((prev) =>
-        prev.map((a) =>
-          successUserIds.includes(a.user_id) ? { ...a, is_promoted_to_member: true } : a,
-        ),
-      );
-
-      setIsPromoting(false);
-      setShowPromoteConfirmModal(false);
-      setSelectedPromoteUserIds([]);
-
-      alert(
-        `정회원 승격 처리가 완료되었습니다.\n` +
-          `• 승격 완료: ${successUserIds.length}명\n` +
-          `• 실패 건수: ${failed_user_ids.length}건`,
-      );
-    }, 700);
+    const result = await promoteUsers(selectedPromoteUserIds);
+    setIsPromoting(false);
+    setShowPromoteConfirmModal(false);
+    setSelectedPromoteUserIds([]);
+    alert(
+      `정회원 승격 처리가 완료되었습니다.\n` +
+        `• 승격 완료: ${result.successUserIds.length}명\n` +
+        `• 실패 건수: ${result.failedList.length}건`,
+    );
   }
 
   if (selectedApplicant)
     return (
       <ApplicantReviewDetail
         applicant={selectedApplicant}
+        currentEvaluatorId={currentEvaluatorId}
         answers={answersMap[selectedApplicant.id] || []}
         evaluators={evaluatorsMap[selectedApplicant.id] || []}
         questions={interviewQuestionsMap[selectedApplicant.id] || []}
@@ -832,60 +290,46 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
             </div>
           </div>
 
-          {/* 3-Tab Segmented Control */}
+          {/* 4-Tab Segmented Control — 사이드바 메뉴 4개와 같은 순서 */}
           <div className="evaluation-header-tabs flex p-1 rounded-xl bg-slate-100 border border-slate-200">
-            <button
-              aria-pressed={mainTab === 'evaluations'}
-              onClick={() => setMainTab('evaluations')}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
-              style={
-                mainTab === 'evaluations'
-                  ? {
-                      background: '#ffffff',
-                      color: '#1d4ed8',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-                    }
-                  : { color: '#64748b' }
-              }
-            >
-              <FileCheck2 size={13} />
-              <span>1. 서류 심사 대시보드</span>
-            </button>
-
-            <button
-              aria-pressed={mainTab === 'applicants'}
-              onClick={() => setMainTab('applicants')}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
-              style={
-                mainTab === 'applicants'
-                  ? {
-                      background: '#ffffff',
-                      color: '#1d4ed8',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-                    }
-                  : { color: '#64748b' }
-              }
-            >
-              2. 전체 지원자 현황
-            </button>
-
-            <button
-              aria-pressed={mainTab === 'promotions'}
-              onClick={() => setMainTab('promotions')}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
-              style={
-                mainTab === 'promotions'
-                  ? {
-                      background: 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
-                      color: '#ffffff',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                    }
-                  : { color: '#64748b' }
-              }
-            >
-              <UserCheck size={13} />
-              <span>3. 합격자 정회원 승격 관리 ({unpromotedPassedCandidates.length}명)</span>
-            </button>
+            {(
+              [
+                { id: 'applicants', label: '전체 지원 현황', icon: FileText },
+                { id: 'my', label: '개인 평가', icon: FileCheck2 },
+                { id: 'group', label: '전체 평가', icon: CheckSquare },
+                {
+                  id: 'promotions',
+                  label: `합격자 승격 (${unpromotedPassedCandidates.length}명)`,
+                  icon: UserCheck,
+                },
+              ] as const
+            ).map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={mainTab === id}
+                onClick={() => handleTabChange(id)}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                style={
+                  mainTab !== id
+                    ? { color: '#64748b' }
+                    : id === 'promotions'
+                      ? {
+                          background: 'linear-gradient(135deg, #059669 0%, #0d9488 100%)',
+                          color: '#ffffff',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                        }
+                      : {
+                          background: '#ffffff',
+                          color: '#1d4ed8',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                        }
+                }
+              >
+                <Icon size={13} />
+                <span>{label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -922,8 +366,8 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
         </div>
       </div>
 
-      {/* ─── TAB 1 & 2: 서류 심사 대시보드 / 지원자 현황 ─── */}
-      {(mainTab === 'evaluations' || mainTab === 'applicants') && (
+      {/* shortcut: 전체 지원 현황·개인 평가·전체 평가가 같은 목록을 쓴다, 탭별 명세를 구현할 때 나눈다 */}
+      {mainTab !== 'promotions' && (
         <div className="space-y-4">
           {/* Top Stats Summary Bar */}
           <div className="evaluation-stats grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -983,7 +427,7 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
             <div className="p-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3 bg-white/[0.01]">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-foreground">
-                  {mainTab === 'evaluations'
+                  {mainTab !== 'applicants'
                     ? '서류 심사 대시보드 (합격 수 내림차순 정렬)'
                     : '전체 지원서 목록 (DRAFT / SUBMITTED)'}
                 </span>
@@ -1056,23 +500,13 @@ export function EvaluationManagePage({ initialTab = 'evaluations' }: EvaluationM
                         {app.status === 'DRAFT' && <small> · 작성 중</small>}
                         {app.is_promoted_to_member && <small> · 정회원</small>}
                       </td>
-                      <td className="px-4">
-                        {
-                          { ENGINEERING: '엔지니어링', ANALYSIS: '분석', VISUALIZATION: '시각화' }[
-                            app.track
-                          ]
-                        }
-                      </td>
+                      <td className="px-4">{TRACK_LABELS[app.track]}</td>
                       <td className="px-4">
                         <p>{app.university}</p>
                         <p className="text-muted-foreground">{app.major}</p>
                       </td>
                       <td className="px-4">
-                        {app.my_decision === null
-                          ? '미평가'
-                          : { PASS: '합격', HOLD: '보류', FAIL: '불합격', PENDING: '미결' }[
-                              app.my_decision
-                            ]}
+                        {app.my_decision === null ? '미평가' : DECISION_LABELS[app.my_decision]}
                       </td>
                       <td className="px-4">
                         {app.my_score === null ? '—' : app.my_score + ' / 10'}

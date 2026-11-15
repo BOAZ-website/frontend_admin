@@ -1,13 +1,17 @@
-import type {
-  ApplicantAnswerDto,
-  ApplicantEvaluationDto,
-  EvaluationDecision,
-  EvaluatorDetailItem,
-  InterviewQuestionItem,
-} from './EvaluationManagePage';
+import {
+  type ApplicantAnswerDto,
+  type ApplicantEvaluationDto,
+  DECISION_LABELS,
+  type EvaluationDecision,
+  type EvaluatorDetailItem,
+  type InterviewQuestionItem,
+  TRACK_LABELS,
+} from '../model/types';
 
-type Props = {
+interface ApplicantReviewDetailProps {
   applicant: ApplicantEvaluationDto;
+  /** 지금 평가하는 관리자 id. 다른 평가 목록에서 본인을 뺄 때 쓴다. */
+  currentEvaluatorId: number;
   answers: ApplicantAnswerDto[];
   evaluators: EvaluatorDetailItem[];
   questions: InterviewQuestionItem[];
@@ -25,11 +29,12 @@ type Props = {
   onNavigate: (direction: 'PREV' | 'NEXT') => void;
   position: number;
   total: number;
-};
-const labels = { PASS: '합격', HOLD: '보류', FAIL: '불합격', PENDING: '미결' };
-export function ApplicantReviewDetail(p: Props) {
+}
+
+/** 개인 평가 전체 화면. 왼쪽은 지원서, 오른쪽은 내 평가 입력과 다른 평가자 결과다. */
+export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
   const a = p.applicant;
-  const others = p.evaluators.filter((e) => e.admin_id !== 1);
+  const others = p.evaluators.filter((e) => e.admin_id !== p.currentEvaluatorId);
   const scored = p.evaluators.filter((e) => e.score !== null);
   return (
     <div className="evaluation-page applicant-review">
@@ -50,9 +55,7 @@ export function ApplicantReviewDetail(p: Props) {
         <article className="review-paper">
           <div className="review-person">
             <h1>{a.name}</h1>
-            <span className="review-tag">
-              {{ ENGINEERING: '엔지니어링', ANALYSIS: '분석', VISUALIZATION: '시각화' }[a.track]}
-            </span>
+            <span className="review-tag">{TRACK_LABELS[a.track]}</span>
           </div>
           <div className="review-meta">
             {[
@@ -142,14 +145,14 @@ export function ApplicantReviewDetail(p: Props) {
               개인 결정
             </span>
             <div className="review-choices" role="group" aria-labelledby="review-decision-label">
-              {(Object.keys(labels) as EvaluationDecision[]).map((d) => (
+              {(Object.keys(DECISION_LABELS) as EvaluationDecision[]).map((d) => (
                 <button
                   key={d}
                   type="button"
                   aria-pressed={p.decision === d}
                   onClick={() => p.onDecision(d)}
                 >
-                  {labels[d]}
+                  {DECISION_LABELS[d]}
                 </button>
               ))}
             </div>
@@ -208,7 +211,7 @@ export function ApplicantReviewDetail(p: Props) {
                 <summary>
                   <strong>{e.name}</strong>
                   <span>{e.score === null ? '미평가' : e.score + '점'}</span>
-                  <span>{e.decision ? labels[e.decision] : ''}</span>
+                  <span>{e.decision ? DECISION_LABELS[e.decision] : ''}</span>
                 </summary>
                 <p>{e.memo || '아직 작성된 의견이 없습니다.'}</p>
               </details>

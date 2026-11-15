@@ -17,7 +17,7 @@
   },
   "src/pages/recruiting-evaluation/ui/EvaluationManagePage.tsx": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 1
     }
   },
   "src/pages/recruiting-manage/ui/RecruitmentManagePage.tsx": {

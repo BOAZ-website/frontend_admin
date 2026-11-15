@@ -149,7 +149,7 @@ export function Sidebar({
       {/* Brand Header */}
       <div className="sidebar-brand h-14 shrink-0 px-4 flex items-center justify-between border-b border-slate-100 bg-white">
         <div className="flex items-center gap-2.5">
-                    <img
+          <img
             src={boazLogo}
             alt="bigdata BOAZ"
             className="w-8 h-8 rounded-full object-contain shrink-0 select-none border border-slate-100/80 shadow-2xs"
@@ -191,7 +191,7 @@ export function Sidebar({
                   if (section.id === 'recruiting') {
                     onChange('recruiting-posts');
                   } else if (section.id === 'evaluation') {
-                    onChange('evaluation-evals');
+                    onChange('evaluation-applicants');
                   } else if (section.id === 'attendance') {
                     onChange(currentRole === 'HOST' ? 'att-input-study' : 'att-session');
                   } else if (section.id === 'content') {
