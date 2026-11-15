@@ -5,6 +5,7 @@ import {
   DEFAULT_APPLICANT_QUERY,
   displayValue,
   filterApplicants,
+  filterByMyEvaluation,
   isFilteredQuery,
   summarizeApplicants,
 } from '../src/pages/recruiting-evaluation/model/applicantList';
@@ -79,4 +80,14 @@ test('비어 있는 값은 -로, 목록은 쉼표로, 참거짓은 있음·없�
 
 test('서버 일시는 분까지 공백으로 이어 보여 준다', () => {
   assert.equal(dateTimeTextOf('2026-08-15T19:20:00'), '2026-08-15 19:20');
+});
+
+test('평가 상태 필터는 my_decision이 null이면 미평가, PENDING을 포함해 값이 있으면 저장됨으로 나눈다', () => {
+  const pending = { ...applicants[0], my_decision: 'PENDING' as const };
+  const none = { ...applicants[0], id: -1, my_decision: null };
+  const list = [pending, none];
+
+  assert.deepEqual(filterByMyEvaluation(list, 'SAVED'), [pending]);
+  assert.deepEqual(filterByMyEvaluation(list, 'UNEVALUATED'), [none]);
+  assert.equal(filterByMyEvaluation(list, 'ALL').length, 2);
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Award,
   CheckCircle2,
@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 
+import { DEFAULT_APPLICANT_QUERY, filterApplicants } from '../model/applicantList';
 import {
   type ApplicantEvaluationDto,
   DECISION_LABELS,
@@ -24,6 +25,7 @@ import {
 import { useEvaluationData } from '../model/useEvaluationData';
 import { ApplicantReviewDetail } from './ApplicantReviewDetail';
 import { ApplicantsOverview } from './ApplicantsOverview';
+import { MyEvaluationList } from './MyEvaluationList';
 
 interface EvaluationManagePageProps {
   initialTab?: EvaluationTab;
@@ -40,12 +42,12 @@ export function EvaluationManagePage({
 
   const {
     applicants,
-    answersMap,
     evaluatorsMap,
     interviewQuestionsMap,
     currentEvaluatorId,
     fetchApplicants,
     fetchAnswers,
+    fetchMyEvaluation,
     saveMyEvaluation,
     updateFinalDecision,
     promoteUsers,
@@ -60,12 +62,18 @@ export function EvaluationManagePage({
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantEvaluationDto | null>(null);
   const [modalTab, setModalTab] = useState<'review' | 'status' | 'interview'>('review');
 
-  // Form State (PUT /api/v1/admin/recruitment/applicants/{id}/evaluations/me)
-  const [editDecision, setEditDecision] = useState<EvaluationDecision>('PENDING');
-  const [editScore, setEditScore] = useState<number>(8);
+  // 내 평가 입력 초안. 내 평가가 없으면 빈 폼이다(명세 §4.4, 판정·점수 기본값 없음).
+  const [editDecision, setEditDecision] = useState<EvaluationDecision | null>(null);
+  const [editScore, setEditScore] = useState<number | null>(null);
   const [editMemo, setEditMemo] = useState<string>('');
   const [editInterviewQuestion, setEditInterviewQuestion] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
+  // 내 평가(REC-ADMIN-16)를 읽는 중인지와 실패 오류. 늦게 온 옛 응답은 openRequestRef로 버린다.
+  const [isMyEvaluationLoading, setIsMyEvaluationLoading] = useState(false);
+  const [myEvaluationError, setMyEvaluationError] = useState<Error | null>(null);
+  const openRequestRef = useRef(0);
+  // 평가 화면의 이전·다음 이동 순서(지원서 id). 화면을 연 목록의 필터·정렬 순서를 따른다.
+  const [reviewQueue, setReviewQueue] = useState<number[]>([]);
 
   // Promotions Tab Selection State (UserAdminController: PATCH /api/v1/admin/users/promote)
   const [selectedPromoteUserIds, setSelectedPromoteUserIds] = useState<number[]>([]);
@@ -152,17 +160,41 @@ export function EvaluationManagePage({
     return passedCandidates.filter((a) => !a.is_promoted_to_member);
   }, [passedCandidates]);
 
-  // Open Detailed Modal
-  function handleOpenModal(
+  // 평가 화면을 열고 내 평가(REC-ADMIN-16)를 읽어 폼을 채운다. 없으면(null) 빈 폼으로 둔다.
+  async function handleOpenModal(
     app: ApplicantEvaluationDto,
     tab: 'review' | 'status' | 'interview' = 'review',
+    queueIds: number[] = displayedApplicants.map((item) => item.id),
   ) {
+    const requestId = ++openRequestRef.current;
     setSelectedApplicant(app);
     setModalTab(tab);
-    setEditDecision(app.my_decision || 'PENDING');
-    setEditScore(app.my_score !== null ? app.my_score : 8);
-    setEditMemo(app.my_memo || '');
-    setEditInterviewQuestion(app.my_interview_question || '');
+    setReviewQueue(queueIds);
+    setEditDecision(null);
+    setEditScore(null);
+    setEditMemo('');
+    setEditInterviewQuestion('');
+    setMyEvaluationError(null);
+    setIsMyEvaluationLoading(true);
+    try {
+      const mine = await fetchMyEvaluation(app.id);
+      if (requestId !== openRequestRef.current) return;
+      setEditDecision(mine?.decision ?? null);
+      setEditScore(mine?.score ?? null);
+      setEditMemo(mine?.memo ?? '');
+      setEditInterviewQuestion(mine?.interview_question ?? '');
+    } catch (error) {
+      if (requestId !== openRequestRef.current) return;
+      setMyEvaluationError(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      if (requestId === openRequestRef.current) setIsMyEvaluationLoading(false);
+    }
+  }
+
+  // 개인 평가 목록에서 지원자를 고르면 그 목록 순서로 평가 화면을 연다.
+  function handleOpenFromMyList(applicantId: number, orderedIds: number[]) {
+    const app = applicants.find((item) => item.id === applicantId);
+    if (app) void handleOpenModal(app, 'review', orderedIds);
   }
 
   // 전체 지원 현황 상세의 "평가하기": 개인 평가 탭으로 옮기고 그 지원자의 평가 화면을 연다.
@@ -170,34 +202,32 @@ export function EvaluationManagePage({
     const app = applicants.find((item) => item.id === applicantId);
     if (!app || app.status !== 'SUBMITTED') return;
     handleTabChange('my');
-    handleOpenModal(app, 'review');
+    // 이전·다음은 개인 평가 목록의 기본 순서(제출 완료, 제출일 최신순)를 따른다.
+    const defaultOrder = filterApplicants(applicants, {
+      ...DEFAULT_APPLICANT_QUERY,
+      status: 'SUBMITTED',
+    }).map((item) => item.id);
+    void handleOpenModal(app, 'review', defaultOrder);
   }
 
-  // Prev / Next Navigation in Modal
+  // 평가 화면의 이전·다음 이동. 화면을 연 목록 순서(reviewQueue)를 끝에서 처음으로 돌아가며 따른다.
   function handleNavigateModal(direction: 'PREV' | 'NEXT') {
     if (!selectedApplicant) {
       return;
     }
-    const curIdx = displayedApplicants.findIndex((a) => a.id === selectedApplicant.id);
+    const curIdx = reviewQueue.indexOf(selectedApplicant.id);
     if (curIdx === -1) {
       return;
     }
-
-    const nextIdx =
-      direction === 'PREV'
-        ? curIdx > 0
-          ? curIdx - 1
-          : displayedApplicants.length - 1
-        : curIdx < displayedApplicants.length - 1
-          ? curIdx + 1
-          : 0;
-
-    const nextApp = displayedApplicants[nextIdx];
-    handleOpenModal(nextApp, modalTab);
+    const step = direction === 'PREV' ? -1 : 1;
+    const nextId = reviewQueue[(curIdx + step + reviewQueue.length) % reviewQueue.length];
+    const nextApp = applicants.find((item) => item.id === nextId);
+    if (nextApp) void handleOpenModal(nextApp, modalTab, reviewQueue);
   }
   // 개인 평가 저장. 데이터 변경은 Hook(saveMyEvaluation)이 맡고, 여기서는 입력값 전달과 화면 상태만 다룬다.
   async function handleSaveMyEvaluation() {
-    if (!selectedApplicant) {
+    // 판정은 필수다. 판정 전에는 저장 버튼이 꺼져 있다(필드 오류 안내는 저장 단계 작업에서 더한다).
+    if (!selectedApplicant || editDecision === null) {
       return;
     }
     setIsSaving(true);
@@ -268,7 +298,10 @@ export function EvaluationManagePage({
       <ApplicantReviewDetail
         applicant={selectedApplicant}
         currentEvaluatorId={currentEvaluatorId}
-        answers={answersMap[selectedApplicant.id] || []}
+        fetchAnswers={fetchAnswers}
+        isMyEvaluationLoading={isMyEvaluationLoading}
+        myEvaluationError={myEvaluationError}
+        onRetryMyEvaluation={() => void handleOpenModal(selectedApplicant, modalTab, reviewQueue)}
         evaluators={evaluatorsMap[selectedApplicant.id] || []}
         questions={interviewQuestionsMap[selectedApplicant.id] || []}
         decision={editDecision}
@@ -283,8 +316,8 @@ export function EvaluationManagePage({
         onSave={handleSaveMyEvaluation}
         onBack={() => setSelectedApplicant(null)}
         onNavigate={handleNavigateModal}
-        position={displayedApplicants.findIndex((a) => a.id === selectedApplicant.id) + 1}
-        total={displayedApplicants.length}
+        position={reviewQueue.indexOf(selectedApplicant.id) + 1}
+        total={reviewQueue.length}
       />
     );
   return (
@@ -346,7 +379,7 @@ export function EvaluationManagePage({
 
         {/* Right Info: Track Filter & Logged-In User Badge */}
         <div className="flex items-center gap-3">
-          {(mainTab === 'my' || mainTab === 'group') && (
+          {mainTab === 'group' && (
             <select
               value={selectedTrack}
               onChange={(e) => setSelectedTrack(e.target.value)}
@@ -385,8 +418,12 @@ export function EvaluationManagePage({
         />
       )}
 
-      {/* shortcut: 개인 평가·전체 평가가 같은 목록을 쓴다, 탭별 명세를 구현할 때 나눈다 */}
-      {(mainTab === 'my' || mainTab === 'group') && (
+      {mainTab === 'my' && (
+        <MyEvaluationList fetchApplicants={fetchApplicants} onOpen={handleOpenFromMyList} />
+      )}
+
+      {/* shortcut: 전체 평가 탭은 기존 서류 심사 목록을 그대로 쓴다, 전체 평가 명세를 구현할 때 바꾼다 */}
+      {mainTab === 'group' && (
         <div className="space-y-4">
           {/* Top Stats Summary Bar */}
           <div className="evaluation-stats grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

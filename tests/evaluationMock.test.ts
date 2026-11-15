@@ -6,6 +6,7 @@ import {
   applyMyEvaluation,
   applyPromotion,
   CURRENT_EVALUATOR,
+  findMyEvaluationMock,
   INITIAL_DATA,
   listAnswersMock,
   listApplicantsMock,
@@ -118,5 +119,38 @@ test('답변 조회는 없는 지원서를 404 APPLICATION_NOT_FOUND로 거절�
   assert.throws(
     () => listAnswersMock(INITIAL_DATA, id, 'answers-error'),
     (error) => error instanceof ApiError && error.code === 'NETWORK_ERROR',
+  );
+});
+
+test('내 평가 조회는 평가하지 않은 지원자에 null을, 평가한 지원자에 저장 값을 돌려준다', () => {
+  const unevaluated = INITIAL_DATA.applicants.find((a) => a.my_decision === null);
+  const evaluated = INITIAL_DATA.applicants.find((a) => a.my_decision !== null);
+  assert.ok(unevaluated && evaluated);
+
+  assert.equal(findMyEvaluationMock(INITIAL_DATA, unevaluated.id, null), null);
+  const mine = findMyEvaluationMock(INITIAL_DATA, evaluated.id, null);
+  assert.deepEqual(
+    [mine?.decision, mine?.score, mine?.memo],
+    [evaluated.my_decision, evaluated.my_score, evaluated.my_memo],
+  );
+  assert.throws(
+    () => findMyEvaluationMock(INITIAL_DATA, evaluated.id, 'my-evaluation-error'),
+    (error) => error instanceof ApiError && error.code === 'NETWORK_ERROR',
+  );
+});
+
+test('점수를 비워 저장하면 내 점수는 null이고 총점은 점수가 있는 평가만 더한다', () => {
+  const { data, applicant } = applyMyEvaluation(INITIAL_DATA, applicantOf(102), {
+    ...INPUT,
+    score: null,
+  });
+
+  assert.equal(applicant.my_score, null);
+  const evaluators = data.evaluatorsMap[102];
+  const mine = evaluators.find((e) => e.admin_id === CURRENT_EVALUATOR.admin_id);
+  assert.equal(mine?.score, null);
+  assert.equal(
+    applicant.total_score,
+    evaluators.reduce((sum, e) => sum + (e.score ?? 0), 0),
   );
 });

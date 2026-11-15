@@ -6,6 +6,7 @@ import {
   applyPromotion,
   CURRENT_EVALUATOR,
   type EvaluationData,
+  findMyEvaluationMock,
   INITIAL_DATA,
   listAnswersMock,
   listApplicantsMock,
@@ -15,6 +16,7 @@ import type {
   ApplicantAnswerDto,
   ApplicantEvaluationDto,
   EvaluationDecision,
+  MyEvaluationDto,
   MyEvaluationInput,
   PromotionResult,
 } from './types';
@@ -27,6 +29,8 @@ export interface EvaluationDataState extends EvaluationData {
   fetchApplicants: () => Promise<ApplicantEvaluationDto[]>;
   /** [REC-ADMIN-20] 지원서 답변을 읽는다. useLoaded 키(지원서 id 문자열)를 받는다. */
   fetchAnswers: (applicantIdKey: string) => Promise<ApplicantAnswerDto[]>;
+  /** [REC-ADMIN-16] 내 평가를 읽는다. 아직 평가하지 않았으면 null. */
+  fetchMyEvaluation: (applicantId: number) => Promise<MyEvaluationDto | null>;
   /** 개인 평가를 저장하고 갱신된 지원자를 돌려준다. */
   saveMyEvaluation: (
     applicant: ApplicantEvaluationDto,
@@ -71,6 +75,14 @@ export function useEvaluationData(): EvaluationDataState {
     [],
   );
 
+  const fetchMyEvaluation = useCallback(
+    async (applicantId: number): Promise<MyEvaluationDto | null> => {
+      await wait(LOAD_DELAY_MS);
+      return findMyEvaluationMock(dataRef.current, applicantId, mockScenario());
+    },
+    [],
+  );
+
   const saveMyEvaluation = async (
     applicant: ApplicantEvaluationDto,
     input: MyEvaluationInput,
@@ -100,6 +112,7 @@ export function useEvaluationData(): EvaluationDataState {
     currentEvaluatorId: CURRENT_EVALUATOR.admin_id,
     fetchApplicants,
     fetchAnswers,
+    fetchMyEvaluation,
     saveMyEvaluation,
     updateFinalDecision,
     promoteUsers,

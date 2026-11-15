@@ -7,22 +7,28 @@ import {
   type InterviewQuestionItem,
   TRACK_LABELS,
 } from '../model/types';
-import { ApplicantAnswerList } from './ApplicantAnswerList';
+import { ApplicantAnswersSection } from './ApplicantAnswersSection';
 
 interface ApplicantReviewDetailProps {
   applicant: ApplicantEvaluationDto;
   /** 지금 평가하는 관리자 id. 다른 평가 목록에서 본인을 뺄 때 쓴다. */
   currentEvaluatorId: number;
-  answers: ApplicantAnswerDto[];
+  fetchAnswers: (applicantIdKey: string) => Promise<ApplicantAnswerDto[]>;
+  /** 내 평가(REC-ADMIN-16)를 읽는 중이면 폼을 잠근다. */
+  isMyEvaluationLoading: boolean;
+  myEvaluationError: Error | null;
+  onRetryMyEvaluation: () => void;
   evaluators: EvaluatorDetailItem[];
   questions: InterviewQuestionItem[];
-  decision: EvaluationDecision;
-  score: number;
+  /** 아직 고르지 않았으면 null. 판정을 고르기 전에는 저장할 수 없다. */
+  decision: EvaluationDecision | null;
+  /** 비워 두면 null. */
+  score: number | null;
   memo: string;
   interview: string;
   saving: boolean;
   onDecision: (value: EvaluationDecision) => void;
-  onScore: (value: number) => void;
+  onScore: (value: number | null) => void;
   onMemo: (value: string) => void;
   onInterview: (value: string) => void;
   onSave: () => void;
@@ -37,6 +43,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
   const a = p.applicant;
   const others = p.evaluators.filter((e) => e.admin_id !== p.currentEvaluatorId);
   const scored = p.evaluators.filter((e) => e.score !== null);
+  const isFormLocked = p.isMyEvaluationLoading || p.myEvaluationError !== null;
   return (
     <div className="evaluation-page applicant-review">
       <div className="review-toolbar">
@@ -90,7 +97,12 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
               ))}
             </div>
           </details>
-          <ApplicantAnswerList answers={p.answers} />
+          <ApplicantAnswersSection
+            applicantId={a.id}
+            fetchAnswers={p.fetchAnswers}
+            missingAction={{ label: '목록으로 돌아가기', onClick: p.onBack }}
+            deniedAction={{ label: '목록으로 돌아가기', onClick: p.onBack }}
+          />
         </article>
         <aside className="review-aside">
           <form
@@ -102,57 +114,71 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
           >
             <div className="review-heading">
               <h2>내 평가</h2>
-              <span>{a.my_decision === null ? '미평가' : '평가 완료'}</span>
+              <span>{a.my_decision === null ? '미평가' : '저장됨'}</span>
             </div>
-            <label className="review-label" htmlFor="review-score">
-              점수
-            </label>
-            <div className="review-score">
-              <input
-                id="review-score"
-                type="number"
-                min={1}
-                max={10}
-                step={1}
-                required
-                value={p.score}
-                onChange={(e) => p.onScore(e.target.valueAsNumber)}
-              />
-              <span>/ 10</span>
-            </div>
-            <span className="review-label" id="review-decision-label">
-              개인 결정
-            </span>
-            <div className="review-choices" role="group" aria-labelledby="review-decision-label">
-              {(Object.keys(DECISION_LABELS) as EvaluationDecision[]).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={p.decision === d}
-                  onClick={() => p.onDecision(d)}
-                >
-                  {DECISION_LABELS[d]}
+            {p.isMyEvaluationLoading && <p role="status">내 평가를 불러오는 중입니다.</p>}
+            {p.myEvaluationError && (
+              <div role="alert">
+                <p>내 평가를 불러오지 못했습니다.</p>
+                <button type="button" onClick={p.onRetryMyEvaluation}>
+                  다시 시도
                 </button>
-              ))}
-            </div>
-            <label className="review-label" htmlFor="review-memo">
-              평가 의견
-            </label>
-            <textarea
-              id="review-memo"
-              value={p.memo}
-              onChange={(e) => p.onMemo(e.target.value)}
-              placeholder="판단의 근거가 된 답변과 의견을 남겨주세요."
-            />
-            <label className="review-label" htmlFor="review-interview">
-              면접 추천 질문
-            </label>
-            <textarea
-              id="review-interview"
-              value={p.interview}
-              onChange={(e) => p.onInterview(e.target.value)}
-            />
-            <button className="review-submit" type="submit" disabled={p.saving}>
+              </div>
+            )}
+            <fieldset disabled={isFormLocked} className="contents">
+              <label className="review-label" htmlFor="review-score">
+                점수
+              </label>
+              <div className="review-score">
+                <input
+                  id="review-score"
+                  type="number"
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={p.score ?? ''}
+                  onChange={(e) => p.onScore(e.target.value === '' ? null : e.target.valueAsNumber)}
+                />
+                <span>/ 10</span>
+              </div>
+              <span className="review-label" id="review-decision-label">
+                개인 결정
+              </span>
+              <div className="review-choices" role="group" aria-labelledby="review-decision-label">
+                {(Object.keys(DECISION_LABELS) as EvaluationDecision[]).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={p.decision === d}
+                    onClick={() => p.onDecision(d)}
+                  >
+                    {DECISION_LABELS[d]}
+                  </button>
+                ))}
+              </div>
+              <label className="review-label" htmlFor="review-memo">
+                평가 의견
+              </label>
+              <textarea
+                id="review-memo"
+                value={p.memo}
+                onChange={(e) => p.onMemo(e.target.value)}
+                placeholder="판단의 근거가 된 답변과 의견을 남겨주세요."
+              />
+              <label className="review-label" htmlFor="review-interview">
+                면접 추천 질문
+              </label>
+              <textarea
+                id="review-interview"
+                value={p.interview}
+                onChange={(e) => p.onInterview(e.target.value)}
+              />
+            </fieldset>
+            <button
+              className="review-submit"
+              type="submit"
+              disabled={p.saving || isFormLocked || p.decision === null}
+            >
               {p.saving ? '저장 중…' : '평가 저장'}
             </button>
           </form>

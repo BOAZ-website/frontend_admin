@@ -82,9 +82,20 @@ export interface ApplicantAnswerDto {
 /** 개인 평가 저장 요청(REC-ADMIN-17 body). */
 export interface MyEvaluationInput {
   decision: EvaluationDecision;
-  score: number;
+  /** 1~10 정수. 비워 두면 null. */
+  score: number | null;
   memo: string;
   interview_question: string;
+}
+
+/** 내 평가(REC-ADMIN-16 data). 아직 평가하지 않았으면 응답 data가 null이다(오류 아님). */
+export interface MyEvaluationDto {
+  evaluation_id: number;
+  applicant_id: number;
+  decision: EvaluationDecision;
+  score: number | null;
+  memo: string | null;
+  interview_question: string | null;
 }
 
 /** 승격 실행 결과. 실패 목록 모양은 백엔드 PromoteUsersResponse와 맞춰야 한다(연동 때 확인). */

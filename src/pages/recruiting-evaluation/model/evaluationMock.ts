@@ -11,6 +11,7 @@ import type {
   EvaluationDecision,
   EvaluatorDetailItem,
   InterviewQuestionItem,
+  MyEvaluationDto,
   MyEvaluationInput,
   PromotionResult,
   TrackType,
@@ -531,13 +532,18 @@ export function applyPromotion(
  * 화면에 시험용 버튼을 두지 않으려고 주소로만 켠다.
  */
 export type MockScenario =
-  'applicants-error' | 'applicants-empty' | 'answers-error' | 'answers-not-found';
+  | 'applicants-error'
+  | 'applicants-empty'
+  | 'answers-error'
+  | 'answers-not-found'
+  | 'my-evaluation-error';
 
 const MOCK_SCENARIOS: readonly MockScenario[] = [
   'applicants-error',
   'applicants-empty',
   'answers-error',
   'answers-not-found',
+  'my-evaluation-error',
 ];
 
 /** 주소의 쿼리 문자열에서 목 시나리오를 읽는다. 모르는 값이면 null. */
@@ -570,4 +576,27 @@ export function listAnswersMock(
     throw new ApiError(404, 'APPLICATION_NOT_FOUND', '지원서를 찾을 수 없습니다.');
   }
   return data.answersMap[applicantId] ?? [];
+}
+
+/**
+ * [REC-ADMIN-16 대체] 내 평가를 돌려준다. 아직 평가하지 않았으면 null이다(서버의 data:null과 같음).
+ * PoC 지원자 행의 my_* 값에서 만든다. evaluation_id는 목 데이터에 없어 지원서 id를 쓴다.
+ */
+export function findMyEvaluationMock(
+  data: EvaluationData,
+  applicantId: number,
+  scenario: MockScenario | null,
+): MyEvaluationDto | null {
+  if (scenario === 'my-evaluation-error') throw networkError();
+  const applicant = data.applicants.find((a) => a.id === applicantId);
+  if (!applicant) throw new ApiError(404, 'APPLICATION_NOT_FOUND', '지원서를 찾을 수 없습니다.');
+  if (applicant.my_decision === null) return null;
+  return {
+    evaluation_id: applicant.id,
+    applicant_id: applicant.id,
+    decision: applicant.my_decision,
+    score: applicant.my_score,
+    memo: applicant.my_memo,
+    interview_question: applicant.my_interview_question,
+  };
 }

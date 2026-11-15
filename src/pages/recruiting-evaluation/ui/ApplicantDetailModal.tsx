@@ -1,10 +1,8 @@
 import { useRef } from 'react';
 import { X } from 'lucide-react';
 
-import { ApiError } from '@/shared/api/apiError';
 import { dateTimeTextOf } from '@/shared/lib/date';
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
-import { useLoaded } from '@/shared/lib/useLoaded';
 
 import { displayValue } from '../model/applicantList';
 import {
@@ -14,7 +12,7 @@ import {
   MILITARY_STATUS_LABELS,
   TRACK_LABELS,
 } from '../model/types';
-import { ApplicantAnswerList } from './ApplicantAnswerList';
+import { ApplicantAnswersSection } from './ApplicantAnswersSection';
 
 interface ApplicantDetailModalProps {
   applicant: ApplicantEvaluationDto;
@@ -36,8 +34,6 @@ export function ApplicantDetailModal({
 }: ApplicantDetailModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   useDialogKeyboard(panelRef, onClose);
-  const answers = useLoaded(String(applicant.id), fetchAnswers);
-  const errorCode = answers.error instanceof ApiError ? answers.error.code : null;
   const titleId = `applicant-detail-${applicant.id}`;
 
   const fields: [string, string][] = [
@@ -84,34 +80,12 @@ export function ApplicantDetailModal({
             ))}
           </div>
 
-          {answers.isLoading && !answers.data && !answers.error && (
-            <p className="review-answer py-6">지원서를 불러오는 중입니다.</p>
-          )}
-          {answers.error && (
-            <div role="alert" className="flex flex-col items-start gap-3 py-6">
-              <p className="text-sm font-semibold">
-                {errorCode === 'APPLICATION_NOT_FOUND'
-                  ? '지원서를 찾을 수 없습니다.'
-                  : errorCode === 'ACCESS_DENIED'
-                    ? '해당 지원서를 열람할 권한이 없습니다.'
-                    : '지원서를 불러오지 못했습니다.'}
-              </p>
-              {errorCode === 'APPLICATION_NOT_FOUND' ? (
-                <button type="button" onClick={onMissing} className="px-3">
-                  닫고 목록 새로고침
-                </button>
-              ) : errorCode === 'ACCESS_DENIED' ? (
-                <button type="button" onClick={onClose} className="px-3">
-                  상세 닫기
-                </button>
-              ) : (
-                <button type="button" onClick={answers.reload} className="px-3">
-                  다시 시도
-                </button>
-              )}
-            </div>
-          )}
-          {answers.data && !answers.error && <ApplicantAnswerList answers={answers.data} />}
+          <ApplicantAnswersSection
+            applicantId={applicant.id}
+            fetchAnswers={fetchAnswers}
+            missingAction={{ label: '닫고 목록 새로고침', onClick: onMissing }}
+            deniedAction={{ label: '상세 닫기', onClick: onClose }}
+          />
         </div>
 
         {applicant.status === 'SUBMITTED' && (

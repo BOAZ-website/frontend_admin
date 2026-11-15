@@ -105,3 +105,22 @@ export function displayValue(
   if (typeof value === 'boolean') return value ? '있음' : '없음';
   return String(value);
 }
+
+/** 개인 평가 목록의 평가 상태 필터(MY-02). PENDING을 저장한 것도 저장됨이다(명세 §2.2). */
+export type MyEvaluationFilter = 'ALL' | 'UNEVALUATED' | 'SAVED';
+
+export const MY_EVALUATION_FILTER_LABELS: Record<MyEvaluationFilter, string> = {
+  ALL: '전체',
+  UNEVALUATED: '미평가',
+  SAVED: '저장됨',
+};
+
+/** 내 평가 저장 여부로 거른다. my_decision이 null이면 미평가다. */
+export function filterByMyEvaluation(
+  applicants: readonly ApplicantEvaluationDto[],
+  filter: MyEvaluationFilter,
+): ApplicantEvaluationDto[] {
+  if (filter === 'ALL') return [...applicants];
+  const isSaved = filter === 'SAVED';
+  return applicants.filter((applicant) => (applicant.my_decision !== null) === isSaved);
+}
