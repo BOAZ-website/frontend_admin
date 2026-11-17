@@ -253,19 +253,22 @@ export function RecruitmentManagePage({
     ...questions.filter((q) => q.category === previewTrack),
   ];
   /**
-   * 미리보기 문항 목록의 상태. 문항 수와 빈 목록 안내는 두 조회가 모두 성공했을 때만 보인다.
-   * 다시 읽다 실패하면 이전 목록이 남아 있어도 실패로 본다(이전 목록을 지금 상태로 보이지 않기 위해).
+   * 미리보기 문항 목록의 상태. 문항 수와 빈 목록 안내는 두 조회가 모두 끝나고 성공했을 때만 보인다.
+   * 다시 읽는 중(다시 불러오기 포함)이면 이전 목록·이전 오류가 남아 있어도 불러오는 중으로 보고,
+   * 다시 읽다 실패하면 이전 목록이 남아 있어도 실패로 본다. 지난 결과를 지금 상태로 보이지 않기 위해서다.
    */
   const previewStatus: 'failed' | 'loading' | 'noRecruitment' | 'ready' =
-    recruitmentsState.error || questionsState.error
-      ? 'failed'
-      : recruitmentsState.recruitments === null
-        ? 'loading'
-        : selectedRecruitment === null
-          ? 'noRecruitment'
-          : questionsState.questions === null
-            ? 'loading'
-            : 'ready';
+    recruitmentsState.isLoading || questionsState.isLoading
+      ? 'loading'
+      : recruitmentsState.error || questionsState.error
+        ? 'failed'
+        : recruitmentsState.recruitments === null
+          ? 'loading'
+          : selectedRecruitment === null
+            ? 'noRecruitment'
+            : questionsState.questions === null
+              ? 'loading'
+              : 'ready';
 
   return (
     <div className="space-y-6 w-full">
