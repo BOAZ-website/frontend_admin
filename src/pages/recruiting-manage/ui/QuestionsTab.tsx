@@ -182,6 +182,7 @@ export function QuestionsTab({
   const [draft, setDraft] = useState<QuestionDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const isBusy = busyId !== null || state.isLoading;
   const questions = state.questions ?? [];
   const shown = questions.filter((q) => filter === 'ALL' || q.category === filter);
 
@@ -277,7 +278,7 @@ export function QuestionsTab({
           )}
           <Btn
             onClick={() => setDraft(newDraft(filter === 'ALL' ? 'COMMON' : filter))}
-            disabled={state.questions === null}
+            disabled={state.questions === null || isBusy}
           >
             <Plus size={14} /> 새 문항 추가
           </Btn>
@@ -344,7 +345,7 @@ export function QuestionsTab({
               <button
                 type="button"
                 onClick={() => void handleMove(question, 'UP')}
-                disabled={busyId !== null}
+                disabled={isBusy}
                 aria-label={`${question.label} 위로 이동`}
                 className={`${ICON_BTN} disabled:opacity-40`}
               >
@@ -353,7 +354,7 @@ export function QuestionsTab({
               <button
                 type="button"
                 onClick={() => void handleMove(question, 'DOWN')}
-                disabled={busyId !== null}
+                disabled={isBusy}
                 aria-label={`${question.label} 아래로 이동`}
                 className={`${ICON_BTN} disabled:opacity-40`}
               >
@@ -362,15 +363,16 @@ export function QuestionsTab({
               <button
                 type="button"
                 onClick={() => setDraft(draftOf(question))}
+                disabled={isBusy}
                 aria-label={`${question.label} 수정`}
-                className={ICON_BTN}
+                className={`${ICON_BTN} disabled:opacity-40`}
               >
                 <Edit3 size={13} />
               </button>
               <button
                 type="button"
                 onClick={() => void handleDelete(question)}
-                disabled={busyId !== null}
+                disabled={isBusy}
                 aria-label={`${question.label} 삭제`}
                 className={`${ICON_BTN} hover:text-red-600 disabled:opacity-40`}
               >

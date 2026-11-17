@@ -128,6 +128,36 @@ test('마감 일시가 시작 일시보다 늦지 않으면 400 INVALID_INPUT_VA
   );
 });
 
+test('달력에 없는 날짜나 범위를 벗어난 시각은 400 INVALID_INPUT_VALUE다', async () => {
+  const { call } = await setup();
+
+  const invalid = [
+    { start_date: '2026-02-30T00:00:00' },
+    { end_date: '2027-13-01T23:59:59' },
+    { end_date: '2027-01-27T24:00:00' },
+    { end_date: '2027-01-27T23:60:00' },
+    { end_date: '2027-01-27T23:59:60' },
+  ];
+  for (const override of invalid) {
+    expectApiError(
+      () => call('POST', BASE, { ...newRecruitment, ...override }),
+      400,
+      'INVALID_INPUT_VALUE',
+    );
+  }
+  expectApiError(
+    () => call('PATCH', `${BASE}/${TERM_27}`, { end_date: '2026-02-31T23:59:59' }),
+    400,
+    'INVALID_INPUT_VALUE',
+  );
+  call('POST', BASE, {
+    ...newRecruitment,
+    term: 30,
+    start_date: '2028-02-29T00:00:00',
+    end_date: '2028-03-10T23:59:59',
+  });
+});
+
 test('공고 수정은 보낸 값만 바꾸고, 홍보 책자 주소는 null을 보내면 지운다', async () => {
   const { call, recruitments } = await setup();
   const before = recruitments().find((item) => item.recruitment_id === TERM_27);

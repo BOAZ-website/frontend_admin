@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 /** 서버 데이터를 읽는 Hook들이 함께 쓰는 읽기 상태. key가 바뀌거나 reload를 부르면 다시 읽는다. */
 export interface LoadedState<T> {
-  /** 아직 한 번도 읽지 못했으면 null. 다시 읽는 동안에는 이전 값을 그대로 둔다. */
+  /** 같은 key를 다시 읽는 동안에는 이전 값을 두고, key가 바뀌면 새 응답이 올 때까지 null이다. */
   data: T | null;
   isLoading: boolean;
   error: Error | null;
@@ -23,21 +23,25 @@ export function useLoaded<T>(
     data: T | null;
     error: Error | null;
     loadedKey: string | null;
-  }>({ data: null, error: null, loadedKey: null });
+    /** data·error를 요청한 key(version 제외). */
+    dataKey: string | null;
+  }>({ data: null, error: null, loadedKey: null, dataKey: null });
 
   useEffect(() => {
     if (key === null || requestKey === null) return;
     let isCancelled = false;
     load(key)
       .then((data) => {
-        if (!isCancelled) setState({ data, error: null, loadedKey: requestKey });
+        if (!isCancelled) setState({ data, error: null, loadedKey: requestKey, dataKey: key });
       })
       .catch((error: unknown) => {
         if (isCancelled) return;
         setState((current) => ({
-          ...current,
+          // 같은 key를 다시 읽다 실패했으면 이전 값을 두고, 다른 key의 값은 버린다.
+          data: current.dataKey === key ? current.data : null,
           error: error instanceof Error ? error : new Error(String(error)),
           loadedKey: requestKey,
+          dataKey: key,
         }));
       });
     return () => {
@@ -47,8 +51,8 @@ export function useLoaded<T>(
 
   const reload = useCallback(() => setVersion((value) => value + 1), []);
   return {
-    data: state.data,
-    error: state.error,
+    data: state.dataKey === key ? state.data : null,
+    error: state.dataKey === key ? state.error : null,
     isLoading: requestKey !== null && state.loadedKey !== requestKey,
     reload,
   };

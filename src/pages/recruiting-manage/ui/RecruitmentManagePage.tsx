@@ -379,6 +379,12 @@ export function RecruitmentManagePage({
                 2. 자기소개 및 전공 역량 문항 ({previewQuestions.length}문항)
               </h3>
 
+              {questionsState.questions === null && !questionsState.error && (
+                <p className="text-xs text-slate-500">문항을 불러오는 중입니다.</p>
+              )}
+              {questionsState.questions !== null && previewQuestions.length === 0 && (
+                <p className="text-xs text-slate-500">등록된 문항이 없습니다.</p>
+              )}
               {previewQuestions.map((q, idx) => {
                 const meta = CATEGORY_META[q.category];
                 return (

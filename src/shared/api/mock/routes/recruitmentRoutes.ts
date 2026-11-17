@@ -45,12 +45,14 @@ import {
   type Subscription,
 } from '@/entities/recruitment/model/types';
 
+import { isValidIsoDate } from '@/shared/lib/date';
+
 import { ApiError, type MockRoute } from '../router';
 import { parsePositiveInt, readBody, type Body } from '../validate';
 import { requireAny } from './adminAccountRoutes';
 
 const BASE = '/api/v1/admin/recruitment';
-const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/;
 /** 백엔드 application_question.label 열 길이. */
 const LABEL_MAX_LENGTH = 20;
 
@@ -92,8 +94,12 @@ function text(value: unknown, key: string): string {
 }
 
 function dateTime(value: unknown, key: string): string {
-  if (typeof value !== 'string' || !DATE_TIME_PATTERN.test(value)) {
-    throw invalidInput(`${key} 값은 YYYY-MM-DDTHH:mm:ss 형식이어야 합니다.`);
+  if (
+    typeof value !== 'string' ||
+    !DATE_TIME_PATTERN.test(value) ||
+    !isValidIsoDate(value.slice(0, 10))
+  ) {
+    throw invalidInput(`${key} 값은 실제로 있는 일시를 YYYY-MM-DDTHH:mm:ss 형식으로 써야 합니다.`);
   }
   return value;
 }
