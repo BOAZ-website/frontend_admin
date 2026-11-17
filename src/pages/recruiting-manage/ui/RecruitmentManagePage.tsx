@@ -252,6 +252,20 @@ export function RecruitmentManagePage({
     ...questions.filter((q) => q.category === 'COMMON'),
     ...questions.filter((q) => q.category === previewTrack),
   ];
+  /**
+   * 미리보기 문항 목록의 상태. 문항 수와 빈 목록 안내는 두 조회가 모두 성공했을 때만 보인다.
+   * 다시 읽다 실패하면 이전 목록이 남아 있어도 실패로 본다(이전 목록을 지금 상태로 보이지 않기 위해).
+   */
+  const previewStatus: 'failed' | 'loading' | 'noRecruitment' | 'ready' =
+    recruitmentsState.error || questionsState.error
+      ? 'failed'
+      : recruitmentsState.recruitments === null
+        ? 'loading'
+        : selectedRecruitment === null
+          ? 'noRecruitment'
+          : questionsState.questions === null
+            ? 'loading'
+            : 'ready';
 
   return (
     <div className="space-y-6 w-full">
@@ -305,7 +319,7 @@ export function RecruitmentManagePage({
       {/* ─── TAB 3: 지원자 화면 미리보기 (Preview) ─── */}
       {activeTab === 'preview' && (
         <div className="space-y-4 max-w-4xl mx-auto">
-          {(recruitmentsState.error || questionsState.error) && (
+          {previewStatus === 'failed' && (
             <DataLoadFailedNotice
               onRetry={() => {
                 recruitmentsState.reload();
@@ -385,16 +399,22 @@ export function RecruitmentManagePage({
             {/* Dynamic Application Questions List */}
             <div className="space-y-6">
               <h3 className="text-xs font-bold text-slate-700">
-                2. 자기소개 및 전공 역량 문항 ({previewQuestions.length}문항)
+                2. 자기소개 및 전공 역량 문항
+                {previewStatus === 'ready' && ` (${previewQuestions.length}문항)`}
               </h3>
 
-              {questionsState.questions === null && questionsState.isLoading && (
+              {previewStatus === 'loading' && (
                 <p className="text-xs text-slate-500">문항을 불러오는 중입니다.</p>
               )}
-              {questionsState.questions !== null && previewQuestions.length === 0 && (
+              {previewStatus === 'noRecruitment' && (
+                <p className="text-xs text-slate-500">
+                  등록된 모집 공고가 없습니다. 모집 공고를 먼저 등록해 주세요.
+                </p>
+              )}
+              {previewStatus === 'ready' && previewQuestions.length === 0 && (
                 <p className="text-xs text-slate-500">등록된 문항이 없습니다.</p>
               )}
-              {previewQuestions.map((q, idx) => {
+              {(previewStatus === 'ready' ? previewQuestions : []).map((q, idx) => {
                 const meta = CATEGORY_META[q.category];
                 return (
                   <div
