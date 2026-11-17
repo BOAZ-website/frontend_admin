@@ -22,9 +22,6 @@
   },
   "src/pages/recruiting-manage/ui/RecruitmentManagePage.tsx": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
   }
