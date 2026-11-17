@@ -3,11 +3,12 @@ import { ArrowDown, ArrowUp, Edit3, Plus, Trash2 } from 'lucide-react';
 
 import type { QuestionCreateItem } from '@/entities/recruitment/model/dto';
 import type { QuestionsState } from '@/entities/recruitment/model/useQuestions';
-import type {
-  Question,
-  QuestionCategory,
-  QuestionType,
-  Recruitment,
+import {
+  QUESTION_TYPES,
+  type Question,
+  type QuestionCategory,
+  type QuestionType,
+  type Recruitment,
 } from '@/entities/recruitment/model/types';
 import { alertApiError } from '@/shared/lib/alertApiError';
 import { BRAND_SELECTED } from '@/shared/ui/modalStyles';
@@ -410,14 +411,25 @@ export function QuestionsTab({
         >
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <span className={FIELD_LABEL}>트랙 구분</span>
-              <SelectDropdown
-                ariaLabel="트랙 구분"
+              <label htmlFor="question-category" className={FIELD_LABEL}>
+                트랙 구분
+              </label>
+              {/* 창 안에서는 기본 선택칸을 쓴다. 공용 드롭다운은 목록을 창 밖에 그려 키보드로 닿지 않는다. */}
+              <select
+                id="question-category"
                 value={draft.category}
-                options={CATEGORY_ORDER.map((c) => ({ value: c, label: CATEGORY_LABEL[c] }))}
-                onChange={(category) => setDraft({ ...draft, category })}
-                buttonClassName="h-10 w-full"
-              />
+                onChange={(event) => {
+                  const category = CATEGORY_ORDER.find((c) => c === event.target.value);
+                  if (category) setDraft({ ...draft, category });
+                }}
+                className={FIELD_INPUT}
+              >
+                {CATEGORY_ORDER.map((c) => (
+                  <option key={c} value={c}>
+                    {CATEGORY_LABEL[c]}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label htmlFor="question-label" className={FIELD_LABEL}>
@@ -457,17 +469,24 @@ export function QuestionsTab({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <span className={FIELD_LABEL}>문항 유형</span>
-              <SelectDropdown
-                ariaLabel="문항 유형"
+              <label htmlFor="question-type" className={FIELD_LABEL}>
+                문항 유형
+              </label>
+              <select
+                id="question-type"
                 value={draft.type}
-                options={(['TEXT', 'TABLE'] as const).map((t) => ({
-                  value: t,
-                  label: TYPE_LABEL[t],
-                }))}
-                onChange={(type) => setDraft({ ...draft, type })}
-                buttonClassName="h-10 w-full"
-              />
+                onChange={(event) => {
+                  const type = QUESTION_TYPES.find((t) => t === event.target.value);
+                  if (type) setDraft({ ...draft, type });
+                }}
+                className={FIELD_INPUT}
+              >
+                {QUESTION_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {TYPE_LABEL[t]}
+                  </option>
+                ))}
+              </select>
             </div>
             {draft.type === 'TEXT' ? (
               <div>

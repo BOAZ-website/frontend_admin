@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import type { Question } from '../src/entities/recruitment/model/types';
 import {
+  changedPeriod,
   fillMessageTemplate,
   moveQuestionChanges,
   nextOrderNum,
@@ -10,6 +11,7 @@ import {
   scheduleStepsOf,
   toDateTime,
 } from '../src/pages/recruiting-manage/model/recruitmentView';
+import { kstDateTime } from '../src/shared/lib/date';
 
 const period = { start_date: '2026-12-01T00:00:00', end_date: '2026-12-20T23:59:59' };
 
@@ -90,4 +92,21 @@ test('메시지 양식의 치환 변수는 모두 바뀌고, 값이 없는 변�
   });
 
   assert.equal(message, '29기 29기, 2026-12-01~2026-12-20 {name}');
+});
+
+test('지금 시각은 실행 환경의 시간대와 관계없이 한국 시각으로 쓴다', () => {
+  assert.equal(kstDateTime(new Date('2026-11-30T15:00:00Z')), '2026-12-01T00:00:00');
+  assert.equal(kstDateTime(new Date('2026-12-01T14:59:59Z')), '2026-12-01T23:59:59');
+});
+
+test('공고 수정은 날짜를 바꾼 쪽의 일시만 보내, 그대로 둔 접수 시각을 덮어쓰지 않는다', () => {
+  const original = { start_date: '2026-12-01T10:00:00', end_date: '2026-12-20T18:00:00' };
+
+  assert.deepEqual(changedPeriod(original, '2026-12-01', '2026-12-20'), {});
+  assert.deepEqual(changedPeriod(original, '2026-12-01', '2026-12-22'), {
+    end_date: '2026-12-22T23:59:59',
+  });
+  assert.deepEqual(changedPeriod(original, '2026-12-02', '2026-12-20'), {
+    start_date: '2026-12-02T00:00:00',
+  });
 });

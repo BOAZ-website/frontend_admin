@@ -17,7 +17,7 @@ const DEFAULT_TEMPLATE = `[BOAZ] 기다리시던 BOAZ 제{term}기 정규 신입
 
 국내 최초 빅데이터 동아리 BOAZ에서 함께 성장할 부원을 모집합니다.
 
-■ 모집 기간: {start_date} ~ {end_date} 23:59까지
+■ 모집 기간: {start_date} ~ {end_date}까지
 ■ 모집 트랙: 데이터 분석 / 데이터 엔지니어링 / 데이터 시각화
 
 새로운 도전을 기다립니다. 많은 관심과 지원 부탁드립니다!`;
@@ -25,9 +25,12 @@ const DEFAULT_TEMPLATE = `[BOAZ] 기다리시던 BOAZ 제{term}기 정규 신입
 /** 쓸 수 있는 치환 변수. 신청자 이름·관심 트랙은 서버가 보관하지 않아 쓸 수 없다. */
 const VARIABLES = [
   { tag: '{term}', description: '기수' },
-  { tag: '{start_date}', description: '접수 시작일' },
-  { tag: '{end_date}', description: '접수 마감일' },
+  { tag: '{start_date}', description: '접수 시작 일시' },
+  { tag: '{end_date}', description: '접수 마감 일시' },
 ] as const;
+
+/** 'YYYY-MM-DDTHH:mm:ss' → 'YYYY-MM-DD HH:mm'. 안내 문구에 실제 접수 시각을 적는다. */
+const minuteOf = (dateTime: string) => dateTime.slice(0, 16).replace('T', ' ');
 
 function readSavedTemplate(): string {
   try {
@@ -65,8 +68,8 @@ export function NotificationsTab({ recruitments, onToast }: NotificationsTabProp
   const message = latest
     ? fillMessageTemplate(template, {
         term: String(latest.term),
-        start_date: latest.start_date.slice(0, 10),
-        end_date: latest.end_date.slice(0, 10),
+        start_date: minuteOf(latest.start_date),
+        end_date: minuteOf(latest.end_date),
       })
     : template;
   const subscriptions = state.subscriptions ?? [];

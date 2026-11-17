@@ -45,7 +45,7 @@ import {
   type Subscription,
 } from '@/entities/recruitment/model/types';
 
-import { isValidIsoDate } from '@/shared/lib/date';
+import { isValidIsoDate, kstDateTime } from '@/shared/lib/date';
 
 import { ApiError, type MockRoute } from '../router';
 import { parsePositiveInt, readBody, type Body } from '../validate';
@@ -64,15 +64,6 @@ const missingParameter = () =>
 const recruitmentNotFound = () =>
   new ApiError(404, 'RECRUITMENT_NOT_FOUND', '해당 모집 공고를 찾을 수 없습니다.');
 const questionNotFound = () => new ApiError(404, 'QUESTIONS_NOT_FOUND', '등록된 질문이 없습니다.');
-
-/** 지금 시각 'YYYY-MM-DDTHH:mm:ss'(이 컴퓨터 시각). 접수 기간과 문자열로 비교한다. */
-function now(): string {
-  const date = new Date();
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours(),
-  )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
 
 /** 경로의 id. 숫자가 아니면 400이고, 0은 어떤 행과도 맞지 않아 404로 이어진다. */
 const idOf = (value: string | undefined, key: string): number => parsePositiveInt(value, key) ?? 0;
@@ -316,7 +307,7 @@ export const recruitmentRoutes: MockRoute[] = [
     summary: '모집 공고 목록. 기수가 큰 순서. is_active는 지금이 접수 기간 안인지다',
     handler: ({ db }): Recruitment[] => {
       requireAny(db, 'RECRUITMENT_NOTICE_READ');
-      return listRecruitments(db, now());
+      return listRecruitments(db, kstDateTime());
     },
   },
   {

@@ -4,12 +4,13 @@ import { BookOpen, Calendar, Clock, Edit3, Plus, Trash2 } from 'lucide-react';
 import type { RecruitmentsState } from '@/entities/recruitment/model/useRecruitments';
 import type { Recruitment } from '@/entities/recruitment/model/types';
 import { alertApiError } from '@/shared/lib/alertApiError';
+import { kstDateTime } from '@/shared/lib/date';
 import { Btn } from '@/shared/ui/Btn';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
 import { FIELD_INPUT, FIELD_LABEL, ICON_BTN } from '@/shared/ui/systemStyles';
 
 import {
-  nowDateTime,
+  changedPeriod,
   recruitmentStatusOf,
   scheduleStepsOf,
   toDateTime,
@@ -33,7 +34,7 @@ interface PostDraft {
   brochureUrl: string;
 }
 
-const today = () => nowDateTime().slice(0, 10);
+const today = () => kstDateTime().slice(0, 10);
 
 function draftOf(recruitment: Recruitment): PostDraft {
   return {
@@ -64,7 +65,7 @@ export function PostsTab({ state, onToast }: PostsTabProps) {
   const [draft, setDraft] = useState<PostDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const now = nowDateTime();
+  const now = kstDateTime();
 
   const openNew = () => {
     const latestTerm = state.recruitments?.[0]?.term ?? 0;
@@ -100,7 +101,12 @@ export function PostsTab({ state, onToast }: PostsTabProps) {
           ...(brochureUrl ? { brochure_url: brochureUrl } : {}),
         });
       } else {
-        await state.update(draft.recruitmentId, { ...period, brochure_url: brochureUrl || null });
+        const original = state.recruitments?.find((r) => r.recruitment_id === draft.recruitmentId);
+        await state.update(draft.recruitmentId, {
+          term: period.term,
+          ...changedPeriod(original, draft.startDate, draft.endDate),
+          brochure_url: brochureUrl || null,
+        });
       }
     } catch (error) {
       alertApiError(error); // 입력은 그대로 둔다

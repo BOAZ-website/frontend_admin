@@ -4,6 +4,7 @@ import { BellRing, CheckCircle2, Download, Eye, HelpCircle, Megaphone } from 'lu
 import { useQuestions } from '@/entities/recruitment/model/useQuestions';
 import { useRecruitments } from '@/entities/recruitment/model/useRecruitments';
 import type { QuestionCategory } from '@/entities/recruitment/model/types';
+import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
 
 import { NotificationsTab } from './NotificationsTab';
 import { PostsTab } from './PostsTab';
@@ -304,6 +305,14 @@ export function RecruitmentManagePage({
       {/* ─── TAB 3: 지원자 화면 미리보기 (Preview) ─── */}
       {activeTab === 'preview' && (
         <div className="space-y-4 max-w-4xl mx-auto">
+          {(recruitmentsState.error || questionsState.error) && (
+            <DataLoadFailedNotice
+              onRetry={() => {
+                recruitmentsState.reload();
+                questionsState.reload();
+              }}
+            />
+          )}
           <div className="flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
             <div>
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -379,7 +388,7 @@ export function RecruitmentManagePage({
                 2. 자기소개 및 전공 역량 문항 ({previewQuestions.length}문항)
               </h3>
 
-              {questionsState.questions === null && !questionsState.error && (
+              {questionsState.questions === null && questionsState.isLoading && (
                 <p className="text-xs text-slate-500">문항을 불러오는 중입니다.</p>
               )}
               {questionsState.questions !== null && previewQuestions.length === 0 && (

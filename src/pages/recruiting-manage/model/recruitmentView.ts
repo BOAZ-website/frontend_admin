@@ -21,7 +21,7 @@ export const CATEGORY_ORDER: readonly QuestionCategory[] = [
 /** 모집 예정 · 모집 진행 중 · 모집 마감. API에 값이 없어 접수 기간으로 계산한다. */
 export type RecruitmentStatus = 'UPCOMING' | 'ACTIVE' | 'CLOSED';
 
-/** now는 'YYYY-MM-DDTHH:mm:ss'. 같은 형식끼리라 문자열 비교로 순서를 정한다. */
+/** now는 한국 시각 'YYYY-MM-DDTHH:mm:ss'(shared/lib/date.ts의 kstDateTime). 같은 형식끼리라 문자열로 비교한다. */
 export function recruitmentStatusOf(
   recruitment: Pick<Recruitment, 'start_date' | 'end_date'>,
   now: string,
@@ -30,17 +30,28 @@ export function recruitmentStatusOf(
   return now <= recruitment.end_date ? 'ACTIVE' : 'CLOSED';
 }
 
-/** 이 컴퓨터 시각을 'YYYY-MM-DDTHH:mm:ss'로. 공고 일시는 한국 시각이고 시간대 표기가 없다. */
-export function nowDateTime(date: Date = new Date()): string {
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours(),
-  )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
-
 /** 날짜 입력값('YYYY-MM-DD')을 접수 시작(0시) 또는 마감(23시 59분 59초) 일시로 바꾼다. */
 export function toDateTime(date: string, edge: 'start' | 'end'): string {
   return `${date}T${edge === 'start' ? '00:00:00' : '23:59:59'}`;
+}
+
+/**
+ * 공고 수정 요청에 넣을 접수 일시. 날짜를 바꾸지 않은 쪽은 뺀다.
+ * 화면은 날짜만 고치므로, 그대로 둔 날짜까지 보내면 0시·23시 59분이 아닌 기존 시각을 덮어쓴다.
+ */
+export function changedPeriod(
+  original: Pick<Recruitment, 'start_date' | 'end_date'> | undefined,
+  startDate: string,
+  endDate: string,
+): { start_date?: string; end_date?: string } {
+  return {
+    ...(original?.start_date.slice(0, 10) === startDate
+      ? {}
+      : { start_date: toDateTime(startDate, 'start') }),
+    ...(original?.end_date.slice(0, 10) === endDate
+      ? {}
+      : { end_date: toDateTime(endDate, 'end') }),
+  };
 }
 
 /** 전형 일정 한 단계. 서버는 이 모양을 검사하지 않으므로 화면이 정한 키 이름이다. */
