@@ -390,6 +390,56 @@ BEGIN
    WHERE t.group_type IN ('ADV', 'STUDY') AND t.semester_cohort = NEW.cohort;
 END;
 
+-- ─────────────────────────── 리크루팅 ───────────────────────────
+-- 모집 공고·지원서 문항·사전 알림 신청. 테이블·열 이름은 백엔드 recruitment 도메인과 맞춘다.
+-- 기수 중복, 문항 라벨·순서 번호 중복은 임시 API가 백엔드와 같은 오류 코드로 먼저 막는다(recruitmentRoutes.ts).
+
+-- 모집 공고. 공고 상태(예정·진행·마감)는 열이 없고 접수 기간으로 계산한다.
+CREATE TABLE recruitment (
+  id           INTEGER PRIMARY KEY,
+  term         INTEGER NOT NULL UNIQUE CHECK (term > 0), -- 모집 기수. 한 기수에 공고 하나
+  start_date   TEXT    NOT NULL,                         -- 접수 시작 일시 'YYYY-MM-DDTHH:MM:SS'(한국 시각)
+  end_date     TEXT    NOT NULL,                         -- 접수 마감 일시
+  schedule     TEXT    NOT NULL DEFAULT '[]',            -- 전형 일정(JSON 배열). 항목 모양은 검사하지 않는다
+  brochure_url TEXT,                                     -- 홍보 책자 PDF 주소
+  CHECK (start_date < end_date)
+);
+
+-- 지원서 문항. TEXT는 limit_length, TABLE은 metadata만 채운다.
+CREATE TABLE application_question (
+  id             INTEGER PRIMARY KEY,
+  recruitment_id INTEGER NOT NULL REFERENCES recruitment(id),
+  label          TEXT    NOT NULL,                       -- 표기명(예: '공통1'). 같은 공고 안에서 겹칠 수 없다
+  category       TEXT    NOT NULL CHECK (category IN ('COMMON', 'ANALYSIS', 'VISUALIZATION', 'ENGINEERING')),
+  type           TEXT    NOT NULL CHECK (type IN ('TEXT', 'TABLE')),
+  content        TEXT    NOT NULL,                       -- 지원자에게 보이는 질문
+  description    TEXT,                                   -- 답변 작성 안내
+  limit_length   INTEGER CHECK (limit_length > 0),       -- 글자 수 제한(TEXT)
+  metadata       TEXT,                                   -- 표 정의(TABLE, JSON): multiple·columns·rows
+  order_num      INTEGER NOT NULL CHECK (order_num > 0), -- 같은 공고·같은 분류 안에서 겹칠 수 없다
+  is_required    INTEGER NOT NULL DEFAULT 1 CHECK (is_required IN (0, 1)),
+  UNIQUE (recruitment_id, label),
+  UNIQUE (recruitment_id, category, order_num)
+);
+
+-- 지원자와 답변. 공고·문항을 지울 수 있는지 판정하는 데 필요한 열만 둔다(평가 화면이 붙을 때 넓힌다).
+CREATE TABLE applicant (
+  id             INTEGER PRIMARY KEY,
+  recruitment_id INTEGER NOT NULL REFERENCES recruitment(id)
+);
+CREATE TABLE applicant_answer (
+  id           INTEGER PRIMARY KEY,
+  applicant_id INTEGER NOT NULL REFERENCES applicant(id),
+  question_id  INTEGER NOT NULL REFERENCES application_question(id)
+);
+
+-- 사전 알림 신청. 공개 사이트 신청 폼으로만 들어오고, 보관하는 값은 이메일과 신청 시각뿐이다.
+CREATE TABLE subscription (
+  id         INTEGER PRIMARY KEY,
+  email      TEXT NOT NULL,
+  created_at TEXT NOT NULL                               -- 'YYYY-MM-DDTHH:MM:SS'
+);
+
 -- ─────────────────────────── 보안 감사 로그 ───────────────────────────
 -- 관리자의 쓰기 작업 하나가 한 줄이다(docs/spec/04-evaluation.md §4.5 공용 감사 테이블, SYS-LOG가 조회).
 -- 대상이 지워져도 기록은 남아야 하므로 외래 키를 걸지 않는다. detail에는 식별자와 바꾼 항목 이름만 담고,

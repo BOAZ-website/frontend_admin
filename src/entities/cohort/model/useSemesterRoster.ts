@@ -1,6 +1,6 @@
 import { fetchSemesterRoster, replaceSemesterMembers } from '../api/semesterApi';
 import type { RosterEntryDto } from './dto';
-import { useLoaded } from './useLoaded';
+import { useLoaded } from '@/shared/lib/useLoaded';
 
 /** 반기 명단 Hook이 돌려주는 값. */
 export interface SemesterRosterState {

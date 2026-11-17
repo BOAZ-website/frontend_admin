@@ -90,6 +90,8 @@ export const AUDIT_ACTIONS = {
   RECRUITMENT_CREATE: { label: '모집 공고 등록', category: 'RECRUITING' },
   RECRUITMENT_UPDATE: { label: '모집 공고 수정', category: 'RECRUITING' },
   RECRUITMENT_CLOSE: { label: '모집 마감', category: 'RECRUITING' },
+  RECRUITMENT_DELETE: { label: '모집 공고 삭제', category: 'RECRUITING' },
+  PRE_NOTIFICATION_DELETE: { label: '사전 알림 명단 전체 삭제', category: 'RECRUITING' },
 
   DECISION_CONFIRM: { label: '합불 확정', category: 'EVALUATION' },
   PROMOTION: { label: '정회원 승격', category: 'EVALUATION' },

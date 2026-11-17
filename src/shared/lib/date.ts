@@ -46,6 +46,15 @@ export function localDateTime(date: Date = new Date()): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
+/**
+ * 한국 시각을 'YYYY-MM-DDTHH:mm:ss'로 쓴다. 이 컴퓨터의 시간대와 관계없이 같은 값이다.
+ * 모집 공고 일시(한국 시각, 시간대 표기 없음)와 문자열로 비교할 때 쓴다.
+ */
+export function kstDateTime(date: Date = new Date()): string {
+  // sv-SE 표기는 'YYYY-MM-DD HH:mm:ss'다.
+  return date.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).replace(' ', 'T');
+}
+
 /** 'YYYY-MM-DD…'의 연도를 두 자리로 줄인다. 예: '2026-10-12 16:21:03' → '26-10-12 16:21:03'. */
 export function twoDigitYearOf(value: string): string {
   return value.slice(2);

@@ -1,6 +1,6 @@
 import { fetchSemesterSchedule, saveSemesterSchedule } from '../api/semesterApi';
 import type { SaveSemesterScheduleRequest, SemesterScheduleDto } from './dto';
-import { useLoaded } from './useLoaded';
+import { useLoaded } from '@/shared/lib/useLoaded';
 
 /** 반기 일정 Hook이 돌려주는 값. */
 export interface SemesterScheduleState {

@@ -5,7 +5,7 @@ import {
   prepareSemester,
 } from '../api/semesterApi';
 import type { PrepareSemesterRequest, SemesterDto } from './dto';
-import { useLoaded } from './useLoaded';
+import { useLoaded } from '@/shared/lib/useLoaded';
 
 /** 반기 관리 목록 Hook이 돌려주는 값. */
 export interface SemestersState {
