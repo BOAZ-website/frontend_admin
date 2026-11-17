@@ -1733,3 +1733,36 @@ INSERT INTO audit_log (occurred_at, actor_admin_id, action, target_type, target_
 INSERT INTO audit_log (occurred_at, actor_admin_id, actor_user_id, actor_role, action, target_type, target_ids, api_method, api_path, detail, ip) VALUES
   ('2026-08-20 17:42:05', 99, 'u_25_03', 'TEAM', 'CONTENT_UPDATE', 'CONTENT', '["faq-12"]', 'PATCH', '/api/v1/admin/faqs/faq-12', '{"kind":"FAQ","label":"지원 자격이 있나요?","fields":["body"],"request":{"answer":"BOAZ에 지원하려면 대학생 또는 대학원생이어야 하며, 전공은 상관없습니다. 활동 기간(1년) 동안 매주 세션에 참여할 수 있어야 합니다."}}', '10.0.12.39'),
   ('2026-09-23 22:05:13', 101, 'u_27_01', 'HOST', 'ATTENDANCE_SUBMIT', 'TEAM', '["study_c"]', 'POST', '/api/v1/study-teams/study_c/weeks/3/submit', '{"group":"STUDY","week":3,"label":"태블로 & D3.js 스터디","request":{"records":[{"memberId":"c1","subType":"","status":"absent","memo":"개인 일정으로 인한 결석"},{"memberId":"c2","subType":"","status":"present"},{"memberId":"c3","subType":"","status":"present"},{"memberId":"c4","subType":"","status":"present"}]}}', '10.0.12.88');
+
+-- ─────────────────────────── 리크루팅 ───────────────────────────
+-- 28기 공고(1번)에는 문항 6개와 지원자 3명이 있고, 27기 공고(2번)에는 문항·지원자가 없다(삭제할 수 있는 공고).
+INSERT INTO recruitment (id, term, start_date, end_date, schedule, brochure_url) VALUES
+  (1, 28, '2026-08-01T00:00:00', '2026-08-25T23:59:59',
+   '[{"step":"서류 접수","startDate":"2026-08-01","endDate":"2026-08-25"},{"step":"1차 서류 발표","startDate":"2026-08-28","endDate":"2026-08-28"},{"step":"2차 면접 전형","startDate":"2026-08-30","endDate":"2026-09-02"},{"step":"최종 합격자 발표","startDate":"2026-09-04","endDate":"2026-09-04"}]',
+   'https://example.com/brochures/28th_boaz_recruit.pdf'),
+  (2, 27, '2026-01-05T00:00:00', '2026-01-28T23:59:59',
+   '[{"step":"서류 접수","startDate":"2026-01-05","endDate":"2026-01-28"},{"step":"1차 서류 발표","startDate":"2026-01-31","endDate":"2026-01-31"},{"step":"2차 면접 전형","startDate":"2026-02-02","endDate":"2026-02-05"},{"step":"최종 합격자 발표","startDate":"2026-02-07","endDate":"2026-02-07"}]',
+   'https://example.com/brochures/27th_boaz_recruit.pdf');
+
+INSERT INTO application_question (id, recruitment_id, label, category, type, content, description, limit_length, metadata, order_num, is_required) VALUES
+  (1, 1, '공통1', 'COMMON', 'TEXT', 'BOAZ에 지원하게 된 동기와 입부 후 활동 목표를 구체적으로 서술해 주세요.', NULL, 800, NULL, 1, 1),
+  (2, 1, '공통2', 'COMMON', 'TEXT', '협업 또는 팀 프로젝트 과정에서 발생한 의견 충돌이나 어려움을 주도적으로 해결한 경험을 작성해 주세요.', NULL, 800, NULL, 2, 1),
+  (3, 1, '분석1', 'ANALYSIS', 'TABLE', '데이터 분석 관련 수강 이력 또는 다뤄본 라이브러리 목록을 입력해 주세요.', '과목/라이브러리명, 숙련도, 활용 프로젝트 내용을 행 단위로 작성', NULL,
+   '{"multiple":true,"columns":["과목/라이브러리명","숙련도 (상/중/하)","활용 경험 및 프로젝트"],"rows":["1. 기초 통계학 / 머신러닝","2. 딥러닝 프레임워크 (PyTorch/TensorFlow)","3. 데이터 전처리 / SQL"]}', 1, 1),
+  (4, 1, '분석2', 'ANALYSIS', 'TEXT', '머신러닝/딥러닝 모델링 프로젝트 중 가설 설정부터 성능 검증까지의 전 과정을 구체적으로 설명해 주세요.', NULL, 1000, NULL, 2, 1),
+  (5, 1, '엔지니어링1', 'ENGINEERING', 'TEXT', '데이터 파이프라인 구축 또는 백엔드/클라우드 인프라 운영 경험을 기술해 주세요.', NULL, 1000, NULL, 1, 1),
+  (6, 1, '시각화1', 'VISUALIZATION', 'TEXT', '데이터를 효과적으로 전달하기 위해 UI/UX 또는 대시보드를 직접 기획/개발한 경험을 기술해 주세요.', NULL, 1000, NULL, 1, 1);
+
+-- 지원자 3명(분석·엔지니어링·시각화 한 명씩). 분석2(4번) 문항에는 아직 답변이 없다(삭제할 수 있는 문항).
+INSERT INTO applicant (id, recruitment_id) VALUES (1, 1), (2, 1), (3, 1);
+INSERT INTO applicant_answer (applicant_id, question_id) VALUES
+  (1, 1), (1, 2), (1, 3),
+  (2, 1), (2, 2), (2, 5),
+  (3, 1), (3, 2), (3, 6);
+
+INSERT INTO subscription (id, email, created_at) VALUES
+  (1, 'subscriber01@example.com', '2026-07-25T14:20:00'),
+  (2, 'subscriber02@example.com', '2026-07-28T19:10:00'),
+  (3, 'subscriber03@example.com', '2026-07-30T11:45:00'),
+  (4, 'subscriber04@example.com', '2026-08-01T09:15:00'),
+  (5, 'subscriber05@example.com', '2026-08-02T16:30:00');

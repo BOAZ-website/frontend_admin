@@ -137,6 +137,10 @@ function actionPermission(input: ActionPermissionInput): ActionPermission {
     case 'RECRUITMENT_UPDATE':
     case 'RECRUITMENT_CLOSE':
       return { key: 'RECRUITMENT_NOTICE_WRITE', operation: 'UPDATE' };
+    case 'RECRUITMENT_DELETE':
+      return { key: 'RECRUITMENT_NOTICE_WRITE', operation: 'DELETE' };
+    case 'PRE_NOTIFICATION_DELETE':
+      return { key: 'PRE_NOTIFICATION_DELETE', operation: 'DELETE' };
 
     case 'DECISION_CONFIRM':
       return { key: 'FINAL_DECISION_WRITE', operation: 'UPDATE' };

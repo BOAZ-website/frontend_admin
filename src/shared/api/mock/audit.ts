@@ -139,6 +139,17 @@ const param =
   ({ params }: MockRequest): string[] =>
     params[name] ? [params[name]] : [];
 
+/** 값 하나를 대상 ID 목록으로 바꾼다. 값이 없으면 빈 목록이다. */
+const idList = (id: unknown): string[] => (id === undefined || id === null ? [] : [String(id)]);
+
+/** 문항이 속한 모집 공고를 대상 ID로 쓴다. 문항을 지우기 전에 읽는다. */
+const recruitmentOfQuestion = ({ db, params }: MockRequest): string[] =>
+  queryAll<{ recruitment_id: number }>(
+    db,
+    'SELECT recruitment_id FROM application_question WHERE id = ?',
+    [params.questionId],
+  ).map((row) => String(row.recruitment_id));
+
 /** 생성 응답의 id를 대상 ID로 쓴다. */
 const resultId = (_request: MockRequest, result: unknown): string[] => {
   const id = (result as { id?: unknown } | null)?.id;
@@ -516,6 +527,62 @@ export const AUDIT_RULES: readonly AuditRule[] = [
 
   // 스터디·팀(그룹별 경로), 주차 출결 입력
   ...GROUP_RULES,
+
+  // 리크루팅: 모집 공고·지원서 문항·사전 알림 명단. 문항 변경은 그 문항이 속한 공고의 수정으로 남긴다.
+  {
+    method: 'POST',
+    pattern: '/api/v1/admin/recruitment',
+    action: 'RECRUITMENT_CREATE',
+    targetType: 'RECRUITMENT',
+    targets: (_request, result) =>
+      idList((result as { recruitment_id?: unknown } | null)?.recruitment_id),
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/v1/admin/recruitment/:id',
+    action: 'RECRUITMENT_UPDATE',
+    targetType: 'RECRUITMENT',
+    targets: param('id'),
+    detail: changedFields,
+    compareTable: 'recruitment',
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/v1/admin/recruitment/:id',
+    action: 'RECRUITMENT_DELETE',
+    targetType: 'RECRUITMENT',
+    targets: param('id'),
+  },
+  {
+    method: 'POST',
+    pattern: '/api/v1/admin/recruitment/questions',
+    action: 'RECRUITMENT_UPDATE',
+    targetType: 'RECRUITMENT',
+    targets: (request) => idList(bodyOf(request).recruitment_id),
+  },
+  {
+    method: 'PATCH',
+    pattern: '/api/v1/admin/recruitment/questions/:questionId',
+    action: 'RECRUITMENT_UPDATE',
+    targetType: 'RECRUITMENT',
+    targets: recruitmentOfQuestion,
+    detail: changedFields,
+  },
+  {
+    method: 'DELETE',
+    pattern: '/api/v1/admin/recruitment/questions/:questionId',
+    action: 'RECRUITMENT_UPDATE',
+    targetType: 'RECRUITMENT',
+    targets: recruitmentOfQuestion,
+  },
+  {
+    // 명단 전체가 대상이라 대상 ID가 없다.
+    method: 'DELETE',
+    pattern: '/api/v1/admin/recruitment/subscriptions',
+    action: 'PRE_NOTIFICATION_DELETE',
+    targetType: 'RECRUITMENT',
+    targets: () => [],
+  },
 ];
 
 /**
@@ -545,6 +612,8 @@ function nonPersonLabel(db: Database, type: AuditTargetType, id: string): string
       return loadEventState(db).events.find((event) => event.id === id)?.title;
     case 'SEMESTER':
       return `${id} 반기`;
+    case 'RECRUITMENT':
+      return first("SELECT term || '기 모집 공고' AS value FROM recruitment WHERE id = ?");
     default:
       return undefined;
   }
