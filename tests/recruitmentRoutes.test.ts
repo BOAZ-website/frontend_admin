@@ -6,9 +6,10 @@ import initSqlJs from 'sql.js';
 
 import type { Question, Recruitment, Subscription } from '../src/entities/recruitment/model/types';
 import { ApiError } from '../src/shared/api/apiError';
+import { recordWrite } from '../src/shared/api/mock/audit';
 import { MOCK_ROUTES } from '../src/shared/api/mock/mockRoutes';
 import { createRouter } from '../src/shared/api/mock/router';
-import { createDatabase } from '../src/shared/db/createDatabase';
+import { createDatabase, queryAll } from '../src/shared/db/createDatabase';
 
 // 리크루팅 관리 API. 경로·응답·오류 코드는 백엔드 RecruitmentAdminController와 RecruitmentService를 따른다.
 
@@ -338,4 +339,42 @@ test('사전 알림 명단은 최근 신청 순으로 이메일과 신청 시각
   call('DELETE', `${BASE}/subscriptions`);
 
   assert.deepEqual(call<Subscription[]>('GET', `${BASE}/subscriptions`), []);
+});
+
+// ── 감사 기록 ───────────────────────────────────────────────────────
+
+test('리크루팅 쓰기는 대상 공고와 함께 감사 기록에 남고, 거절된 요청은 남지 않는다', async () => {
+  const SQL = await initSqlJs();
+  const db = createDatabase(SQL, schema, seed);
+  const router = createRouter(MOCK_ROUTES, { aroundWrite: recordWrite });
+  const call = <T>(method: Method, path: string, body?: unknown) =>
+    router.dispatch(db, method, path, body) as T;
+  call('PUT', '/api/v1/mock/admin-session', { accountId: MASTER_ID });
+  const count = () => queryAll<{ n: number }>(db, 'SELECT COUNT(*) AS n FROM audit_log')[0].n;
+  const latest = () => {
+    const row = queryAll<{ action: string; target_ids: string; detail: string | null }>(
+      db,
+      'SELECT action, target_ids, detail FROM audit_log ORDER BY id DESC LIMIT 1',
+    )[0];
+    return { action: row.action, targetIds: row.target_ids, detail: row.detail ?? '' };
+  };
+
+  const created = call<{ recruitment_id: number }>('POST', BASE, newRecruitment);
+  assert.deepEqual(
+    [latest().action, latest().targetIds],
+    ['RECRUITMENT_CREATE', `["${created.recruitment_id}"]`],
+  );
+
+  // 문항을 지우면 그 문항이 속했던 공고의 수정으로 남는다.
+  call('DELETE', `${BASE}/questions/${QUESTION_WITHOUT_ANSWER}`);
+  assert.deepEqual([latest().action, latest().targetIds], ['RECRUITMENT_UPDATE', `["${TERM_28}"]`]);
+
+  // 지워진 공고도 알아볼 수 있게 이름을 남긴다.
+  call('DELETE', `${BASE}/${TERM_27}`);
+  assert.equal(latest().action, 'RECRUITMENT_DELETE');
+  assert.match(latest().detail, /27기 모집 공고/);
+
+  const before = count();
+  expectApiError(() => call('DELETE', `${BASE}/${TERM_28}`), 400, 'RECRUITMENT_HAS_REFERENCES');
+  assert.equal(count(), before);
 });
