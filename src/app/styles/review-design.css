@@ -94,53 +94,62 @@
 .evaluation-page input[type='checkbox'] {
   accent-color: #777;
 }
-.evaluation-page .evaluation-header {
-  padding-bottom: 20px;
-  gap: 18px;
+/* 공용 도구 줄 컴포넌트(FilterDropdown·SearchInput)는 출결 화면과 같은 모양을 유지한다(위의 버튼·입력칸 일괄 규칙에서 뺀다). */
+.evaluation-page :is(button, input).rounded-sm {
+  border-radius: 0.25rem;
 }
-.evaluation-page .evaluation-header > div:first-child {
-  flex-wrap: wrap;
+.evaluation-page input.text-xs {
+  font-size: 0.75rem;
 }
-.evaluation-page .evaluation-header h1 {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.6px;
+.evaluation-page [role='option'][aria-selected='true'] {
+  border: 0 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  background: #f1f5f9 !important;
+}
+/* 제목은 출결 화면 제목과 같은 색을 쓴다(위의 글자색 일괄 규칙에서 뺀다). */
+.evaluation-page h1.text-slate-900 {
+  color: #0f172a !important;
 }
 .evaluation-page .evaluation-header-tabs {
   flex-wrap: wrap;
   gap: 4px;
 }
-.evaluation-page .evaluation-stats {
-  gap: 10px;
-  margin: 22px 0;
-}
-.evaluation-page .evaluation-stats > div {
-  border-radius: 12px;
-  padding: 16px;
-}
-.evaluation-page .evaluation-stats > div > p:first-child {
+/* 목록 표는 출결 화면 표(EventAttendanceManagePage)와 같은 모양: 회색 머리글, 세로 구분선, 가운데 정렬, 50px 행. */
+.evaluation-page table:has(> thead) {
   font-size: 12px;
+  border-collapse: collapse;
 }
-.evaluation-page .evaluation-stats > div > p:nth-child(2) {
-  font-size: 25px;
-  font-weight: 650;
-  padding-top: 8px;
+.evaluation-page table:has(> thead) thead tr {
+  height: 44px;
+  background: #f1f5f9e6 !important;
+  border-bottom: 1px solid #e2e8f0;
 }
-.evaluation-page table {
-  font-size: 13px;
-}
-.evaluation-page thead tr {
-  background: #f7f7f8 !important;
-}
-.evaluation-page th {
-  color: #777 !important;
-  font-size: 12px;
+.evaluation-page table:has(> thead) th {
+  color: #334155 !important;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
   text-transform: none;
   letter-spacing: 0;
 }
-.evaluation-page td {
-  padding-top: 17px;
-  padding-bottom: 17px;
+.evaluation-page table:has(> thead) td {
+  height: 50px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  text-align: center;
+}
+.evaluation-page table:has(> thead) :is(th, td) + :is(th, td) {
+  border-left: 1px solid #e2e8f0;
+}
+.evaluation-page table:has(> thead) tbody tr + tr {
+  border-top: 1px solid #e2e8f0;
+}
+.evaluation-page table:has(> thead) tbody tr:hover {
+  background: #f8fafcb3;
+}
+.evaluation-page table:has(> thead) td .flex {
+  justify-content: center;
 }
 .evaluation-page .evaluation-detail-overlay {
   background: #00000030 !important;
@@ -214,15 +223,7 @@
   background: #e9e9ec !important;
   font-size: 14px;
 }
-@media (max-width: 1000px) {
-  .evaluation-page .evaluation-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
 @media (max-width: 640px) {
-  .evaluation-page .evaluation-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .evaluation-page .evaluation-answers {
     padding: 16px;
   }

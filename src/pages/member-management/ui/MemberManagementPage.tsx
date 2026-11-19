@@ -1,20 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
+import { FormDialog } from '@/shared/ui/FormDialog';
 import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import {
   FIELD_INPUT,
   FIELD_LABEL,
   FIELD_READONLY,
   LIST_SECTION_TITLE,
-  MODAL_CANCEL_BTN,
-  MODAL_CLOSE_BTN,
-  MODAL_CONFIRM_BTN,
   TD_CLASS,
   TH_CLASS,
 } from '@/shared/ui/systemStyles';
-import { MODAL_SURFACE } from '@/shared/ui/modalStyles';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { Tooltip } from '@/shared/ui/Tooltip';
 
@@ -813,208 +810,176 @@ export function MemberManagementPage() {
 
       {/* 동아리원 추가·정보 수정 팝업 */}
       {form && (
-        <div
-          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-900/40 p-4"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeModal();
-          }}
+        <FormDialog
+          title={isCreating ? '동아리원 추가' : '동아리원 정보 수정'}
+          onClose={closeModal}
+          onSubmit={saveMember}
+          submitDisabled={!canSave}
         >
-          <form
-            onSubmit={saveMember}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="member-modal-title"
-            className={`w-full max-w-xl space-y-4 rounded-lg p-6 animate-in fade-in duration-150 ${MODAL_SURFACE}`}
-          >
-            <div className="flex items-center justify-between">
-              <h3 id="member-modal-title" className="text-base font-bold text-slate-900">
-                {isCreating ? '동아리원 추가' : '동아리원 정보 수정'}
-              </h3>
-              <button
-                type="button"
-                onClick={closeModal}
-                className={MODAL_CLOSE_BTN}
-                aria-label="창 닫기"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="grid gap-x-4 gap-y-5 text-xs sm:grid-cols-2">
-              {/* 활동기수 회원의 이름·기수·부문은 보기만 한다(서버도 고치면 400 ACTIVE_MEMBER_IDENTITY_LOCKED). */}
-              {isIdentityLocked ? (
-                <div className="grid grid-cols-3 gap-4 sm:col-span-2">
-                  {(
-                    [
-                      ['member-name-view', '이름', form.name],
-                      ['member-term-view', '기수', `${form.term}기`],
-                      ['member-track-view', '부문', form.track],
-                    ] as const
-                  ).map(([id, label, value]) => (
-                    <div key={id} className="min-w-0">
-                      <span id={id} className={FIELD_LABEL}>
-                        {label}
-                      </span>
-                      <p aria-labelledby={id} className={FIELD_READONLY}>
-                        <span className="truncate">{value}</span>
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label htmlFor="member-name" className={FIELD_LABEL}>
-                      이름 *
-                    </label>
-                    <input
-                      id="member-name"
-                      required
-                      className={FIELD_INPUT}
-                      value={form.name}
-                      onChange={(event) => updateForm({ name: event.target.value })}
-                    />
+          <div className="grid gap-x-4 gap-y-5 text-xs sm:grid-cols-2">
+            {/* 활동기수 회원의 이름·기수·부문은 보기만 한다(서버도 고치면 400 ACTIVE_MEMBER_IDENTITY_LOCKED). */}
+            {isIdentityLocked ? (
+              <div className="grid grid-cols-3 gap-4 sm:col-span-2">
+                {(
+                  [
+                    ['member-name-view', '이름', form.name],
+                    ['member-term-view', '기수', `${form.term}기`],
+                    ['member-track-view', '부문', form.track],
+                  ] as const
+                ).map(([id, label, value]) => (
+                  <div key={id} className="min-w-0">
+                    <span id={id} className={FIELD_LABEL}>
+                      {label}
+                    </span>
+                    <p aria-labelledby={id} className={FIELD_READONLY}>
+                      <span className="truncate">{value}</span>
+                    </p>
                   </div>
-                  <div>
-                    <label htmlFor="member-term" className={FIELD_LABEL}>
-                      기수 *
-                    </label>
-                    <input
-                      id="member-term"
-                      required
-                      min={1}
-                      type="number"
-                      className={FIELD_INPUT}
-                      value={form.term}
-                      onChange={(event) => updateForm({ term: Number(event.target.value) })}
-                    />
-                  </div>
-                  <div>
-                    <span className={FIELD_LABEL}>부문</span>
-                    <SelectDropdown<ClubMemberTrack>
-                      ariaLabel="부문"
-                      value={form.track}
-                      options={TRACK_OPTIONS}
-                      // 병행 부문이 새 부문과 같아지면 지운다(서버도 같은 값을 400으로 막는다).
-                      onChange={(track) =>
-                        updateForm({
-                          track,
-                          ...(form.parallelTrack === track ? { parallelTrack: null } : {}),
-                        })
-                      }
-                      buttonClassName={FIELD_SELECT}
-                    />
-                  </div>
-                </>
-              )}
-              <div>
-                <span className={FIELD_LABEL}>병행 부문</span>
-                <SelectDropdown
-                  ariaLabel="병행 부문"
-                  value={form.parallelTrack ?? NO_PARALLEL_TRACK}
-                  options={parallelTrackOptions(form.track)}
-                  onChange={(value) =>
-                    updateForm({
-                      parallelTrack:
-                        value === NO_PARALLEL_TRACK ? null : (value as ClubMemberTrack),
-                    })
-                  }
-                  buttonClassName={FIELD_SELECT}
-                />
+                ))}
               </div>
-              {editingMember && (
+            ) : (
+              <>
                 <div>
-                  <span id="member-operator-label" className={FIELD_LABEL}>
-                    운영진
-                  </span>
-                  {/* 보기만 한다. 운영진 팀·팀장은 권한 관리에서 정한다(백엔드 협의 2026-11-05). */}
-                  <p aria-labelledby="member-operator-label" className={FIELD_READONLY}>
-                    <span className="truncate">{operatorLabelOf(editingMember)}</span>
-                  </p>
+                  <label htmlFor="member-name" className={FIELD_LABEL}>
+                    이름 *
+                  </label>
+                  <input
+                    id="member-name"
+                    required
+                    className={FIELD_INPUT}
+                    value={form.name}
+                    onChange={(event) => updateForm({ name: event.target.value })}
+                  />
                 </div>
-              )}
-              <div>
-                <span className={FIELD_LABEL}>활동 상태</span>
-                <SelectDropdown<ClubMemberStatus>
-                  ariaLabel="활동 상태"
-                  value={form.status}
-                  options={isCreating ? CREATE_STATUS_OPTIONS : STATUS_OPTIONS}
-                  onChange={(status) => updateForm({ status })}
-                  buttonClassName={FIELD_SELECT}
-                />
-              </div>
-              <div>
-                <label htmlFor="member-email" className={FIELD_LABEL}>
-                  이메일 *
-                </label>
-                <input
-                  id="member-email"
-                  required
-                  type="email"
-                  className={FIELD_INPUT}
-                  value={form.email}
-                  onChange={(event) => updateForm({ email: event.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="member-phone" className={FIELD_LABEL}>
-                  연락처 *
-                </label>
-                <input
-                  id="member-phone"
-                  required
-                  className={FIELD_INPUT}
-                  value={form.phone}
-                  onChange={(event) => updateForm({ phone: event.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="member-birth-date" className={FIELD_LABEL}>
-                  생년월일
-                </label>
-                {/* 비우면 null로 보낸다(빈 문자열은 서버가 400으로 막는다). */}
-                <input
-                  id="member-birth-date"
-                  type="date"
-                  className={`${FIELD_INPUT} tabular-nums`}
-                  value={form.birthDate ?? ''}
-                  onChange={(event) => updateForm({ birthDate: event.target.value || null })}
-                />
-              </div>
-              <div>
-                <label htmlFor="member-university" className={FIELD_LABEL}>
-                  대학교
-                </label>
-                <input
-                  id="member-university"
-                  className={FIELD_INPUT}
-                  value={form.university}
-                  onChange={(event) => updateForm({ university: event.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="member-major" className={FIELD_LABEL}>
-                  전공
-                </label>
-                <input
-                  id="member-major"
-                  className={FIELD_INPUT}
-                  value={form.major}
-                  onChange={(event) => updateForm({ major: event.target.value })}
-                />
-              </div>
+                <div>
+                  <label htmlFor="member-term" className={FIELD_LABEL}>
+                    기수 *
+                  </label>
+                  <input
+                    id="member-term"
+                    required
+                    min={1}
+                    type="number"
+                    className={FIELD_INPUT}
+                    value={form.term}
+                    onChange={(event) => updateForm({ term: Number(event.target.value) })}
+                  />
+                </div>
+                <div>
+                  <span className={FIELD_LABEL}>부문</span>
+                  <SelectDropdown<ClubMemberTrack>
+                    ariaLabel="부문"
+                    value={form.track}
+                    options={TRACK_OPTIONS}
+                    // 병행 부문이 새 부문과 같아지면 지운다(서버도 같은 값을 400으로 막는다).
+                    onChange={(track) =>
+                      updateForm({
+                        track,
+                        ...(form.parallelTrack === track ? { parallelTrack: null } : {}),
+                      })
+                    }
+                    buttonClassName={FIELD_SELECT}
+                  />
+                </div>
+              </>
+            )}
+            <div>
+              <span className={FIELD_LABEL}>병행 부문</span>
+              <SelectDropdown
+                ariaLabel="병행 부문"
+                value={form.parallelTrack ?? NO_PARALLEL_TRACK}
+                options={parallelTrackOptions(form.track)}
+                onChange={(value) =>
+                  updateForm({
+                    parallelTrack: value === NO_PARALLEL_TRACK ? null : (value as ClubMemberTrack),
+                  })
+                }
+                buttonClassName={FIELD_SELECT}
+              />
             </div>
-
-            <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
-              <button type="button" onClick={closeModal} className={MODAL_CANCEL_BTN}>
-                취소
-              </button>
-              <button type="submit" disabled={!canSave} className={MODAL_CONFIRM_BTN}>
-                저장
-              </button>
+            {editingMember && (
+              <div>
+                <span id="member-operator-label" className={FIELD_LABEL}>
+                  운영진
+                </span>
+                {/* 보기만 한다. 운영진 팀·팀장은 권한 관리에서 정한다(백엔드 협의 2026-11-05). */}
+                <p aria-labelledby="member-operator-label" className={FIELD_READONLY}>
+                  <span className="truncate">{operatorLabelOf(editingMember)}</span>
+                </p>
+              </div>
+            )}
+            <div>
+              <span className={FIELD_LABEL}>활동 상태</span>
+              <SelectDropdown<ClubMemberStatus>
+                ariaLabel="활동 상태"
+                value={form.status}
+                options={isCreating ? CREATE_STATUS_OPTIONS : STATUS_OPTIONS}
+                onChange={(status) => updateForm({ status })}
+                buttonClassName={FIELD_SELECT}
+              />
             </div>
-          </form>
-        </div>
+            <div>
+              <label htmlFor="member-email" className={FIELD_LABEL}>
+                이메일 *
+              </label>
+              <input
+                id="member-email"
+                required
+                type="email"
+                className={FIELD_INPUT}
+                value={form.email}
+                onChange={(event) => updateForm({ email: event.target.value })}
+              />
+            </div>
+            <div>
+              <label htmlFor="member-phone" className={FIELD_LABEL}>
+                연락처 *
+              </label>
+              <input
+                id="member-phone"
+                required
+                className={FIELD_INPUT}
+                value={form.phone}
+                onChange={(event) => updateForm({ phone: event.target.value })}
+              />
+            </div>
+            <div>
+              <label htmlFor="member-birth-date" className={FIELD_LABEL}>
+                생년월일
+              </label>
+              {/* 비우면 null로 보낸다(빈 문자열은 서버가 400으로 막는다). */}
+              <input
+                id="member-birth-date"
+                type="date"
+                className={`${FIELD_INPUT} tabular-nums`}
+                value={form.birthDate ?? ''}
+                onChange={(event) => updateForm({ birthDate: event.target.value || null })}
+              />
+            </div>
+            <div>
+              <label htmlFor="member-university" className={FIELD_LABEL}>
+                대학교
+              </label>
+              <input
+                id="member-university"
+                className={FIELD_INPUT}
+                value={form.university}
+                onChange={(event) => updateForm({ university: event.target.value })}
+              />
+            </div>
+            <div>
+              <label htmlFor="member-major" className={FIELD_LABEL}>
+                전공
+              </label>
+              <input
+                id="member-major"
+                className={FIELD_INPUT}
+                value={form.major}
+                onChange={(event) => updateForm({ major: event.target.value })}
+              />
+            </div>
+          </div>
+        </FormDialog>
       )}
     </div>
   );

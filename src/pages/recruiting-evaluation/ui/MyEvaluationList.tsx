@@ -44,7 +44,7 @@ interface MyEvaluationListProps {
 // 명세의 트랙 필터 순서(전체 / 분석 / 시각화 / 엔지니어링).
 const TRACK_FILTER_ORDER: readonly TrackType[] = ['ANALYSIS', 'VISUALIZATION', 'ENGINEERING'];
 // 앞 세 열은 전체 지원 현황 목록과 같은 이름·표기다. 평가자별 상세는 상세 화면의 평가 현황 탭에서 본다.
-const COLUMNS = ['지원자', '트랙', '학교 / 전공', '평가 집계', '총점', '내 평가', '최종 판정'];
+const COLUMNS = ['지원자', '트랙', '학교', '전공', '평가 집계', '총점', '내 평가', '최종 판정'];
 
 /**
  * 서류 평가 목록. 개인 평가 목록(EVL-MY)과 전체 평가 목록(EVL-GROUP)을 합쳤다.
@@ -102,8 +102,8 @@ export function MyEvaluationList({
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
         <span className="text-xs font-bold">
           평가 대상 <span className="font-mono">총 {rows.length}명</span>
         </span>
@@ -187,7 +187,7 @@ export function MyEvaluationList({
           지원자 목록을 불러오는 중입니다.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-2xs">
           <table className="w-full min-w-[900px] text-xs">
             <thead>
               <tr>
@@ -212,10 +212,8 @@ export function MyEvaluationList({
                   >
                     <td className="px-4 font-semibold">{displayValue(applicant.name)}</td>
                     <td className="px-4">{TRACK_LABELS[applicant.track]}</td>
-                    <td className="px-4">
-                      <p>{displayValue(applicant.university)}</p>
-                      <p className="text-muted-foreground">{displayValue(applicant.major)}</p>
-                    </td>
+                    <td className="px-4">{displayValue(applicant.university)}</td>
+                    <td className="px-4">{displayValue(applicant.major)}</td>
                     <td className="px-4 whitespace-nowrap">
                       {hasNoEvaluations(applicant)
                         ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED

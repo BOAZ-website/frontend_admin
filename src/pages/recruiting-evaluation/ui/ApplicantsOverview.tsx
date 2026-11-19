@@ -1,29 +1,25 @@
 import { useState } from 'react';
-import { Search } from 'lucide-react';
 
 import { dateTimeTextOf } from '@/shared/lib/date';
 import { useLoaded } from '@/shared/lib/useLoaded';
+import { FilterDropdown, type FilterDropdownOption } from '@/shared/ui/FilterDropdown';
+import { SearchInput } from '@/shared/ui/SearchInput';
 
 import {
-  APPLICANT_SORT_LABELS,
   type ApplicantListQuery,
-  type ApplicantSort,
   DEFAULT_APPLICANT_QUERY,
   displayValue,
   filterApplicants,
   isFilteredQuery,
-  summarizeApplicants,
 } from '../model/applicantList';
 import {
   type ApplicantAnswerDto,
   type ApplicantEvaluationDto,
   APPLICATION_STATUS_LABELS,
   TRACK_LABELS,
-  type TrackType,
 } from '../model/types';
 import { ApplicantDetailModal } from './ApplicantDetailModal';
 import { ListLoadError } from './ListLoadError';
-import { StatCard } from './StatCard';
 
 interface ApplicantsOverviewProps {
   fetchApplicants: () => Promise<ApplicantEvaluationDto[]>;
@@ -32,12 +28,24 @@ interface ApplicantsOverviewProps {
   onEvaluate: (applicantId: number) => void;
 }
 
+const STATUS_FILTER_OPTIONS: readonly FilterDropdownOption<ApplicantListQuery['status']>[] = [
+  { value: 'ALL', label: '전체' },
+  { value: 'SUBMITTED', label: APPLICATION_STATUS_LABELS.SUBMITTED },
+  { value: 'DRAFT', label: APPLICATION_STATUS_LABELS.DRAFT },
+];
+
 // 명세의 트랙 필터 순서(전체 / 분석 / 시각화 / 엔지니어링).
-const TRACK_FILTER_ORDER: readonly TrackType[] = ['ANALYSIS', 'VISUALIZATION', 'ENGINEERING'];
+const TRACK_FILTER_OPTIONS: readonly FilterDropdownOption<ApplicantListQuery['track']>[] = [
+  { value: 'ALL', label: '전체' },
+  ...(['ANALYSIS', 'VISUALIZATION', 'ENGINEERING'] as const).map((track) => ({
+    value: track,
+    label: TRACK_LABELS[track],
+  })),
+];
 
-const COLUMNS = ['지원자', '트랙', '학교 / 전공', '학기', '졸업 예정', '제출일', '상태'];
+const COLUMNS = ['지원자', '트랙', '학교', '전공', '학기', '졸업 예정', '제출일', '상태'];
 
-/** 전체 지원 현황(EVL-APP). DRAFT를 포함한 지원서 목록, 지원·평가 현황 통계, 지원서 상세를 보여 준다. */
+/** 전체 지원 현황(EVL-APP). DRAFT를 포함한 지원서 목록과 지원서 상세를 보여 준다. */
 export function ApplicantsOverview({
   fetchApplicants,
   fetchAnswers,
@@ -49,7 +57,6 @@ export function ApplicantsOverview({
 
   const applicants = list.data ?? [];
   const rows = filterApplicants(applicants, query);
-  const summary = summarizeApplicants(applicants);
   const isFirstLoad = list.isLoading && !list.data;
 
   const updateQuery = (patch: Partial<ApplicantListQuery>) =>
@@ -66,88 +73,38 @@ export function ApplicantsOverview({
 
   return (
     <div className="space-y-4">
-      {/* 지원 현황 통계(지원자·제출 완료·임시저장)는 개인 평가 탭에 둔다(사용자 결정, 명세 §3.4와 다름). */}
-      {isFirstLoad ? (
+      {isFirstLoad && (
         <p role="status" className="rounded-md border border-slate-200 bg-white p-6 text-sm">
           지원자 목록을 불러오는 중입니다.
         </p>
-      ) : (
-        <section aria-label="평가 현황">
-          <h2 className="text-xs font-semibold">평가 현황</h2>
-          <div className="evaluation-stats grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard label="제출 지원서" value={`${summary.submitted}건`} />
-            <StatCard
-              label="내 평가 완료"
-              value={`${summary.myEvaluated} / ${summary.submitted}`}
-            />
-            <StatCard label="최종 합격" value={`${summary.finalPass}명`} />
-            <StatCard label="최종 보류" value={`${summary.finalHold}명`} />
-            <StatCard label="최종 불합격" value={`${summary.finalFail}명`} />
-            <StatCard label="최종 미결" value={`${summary.finalPending}명`} />
-          </div>
-        </section>
       )}
 
-      <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4">
-          <span className="text-xs font-bold">
-            전체 지원서 목록 <span className="font-mono">총 {rows.length}명</span>
-          </span>
+      <div>
+        <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <select
-              aria-label="제출 상태"
+            <FilterDropdown
+              ariaLabel="제출 상태 필터"
+              title="전체"
               value={query.status}
-              onChange={(e) =>
-                updateQuery({ status: e.target.value as ApplicantListQuery['status'] })
-              }
-              className="px-2 py-1"
-            >
-              <option value="ALL">전체 상태</option>
-              <option value="SUBMITTED">{APPLICATION_STATUS_LABELS.SUBMITTED}</option>
-              <option value="DRAFT">{APPLICATION_STATUS_LABELS.DRAFT}</option>
-            </select>
-            <select
-              aria-label="트랙"
+              options={STATUS_FILTER_OPTIONS}
+              onChange={(status) => updateQuery({ status })}
+            />
+            <FilterDropdown
+              ariaLabel="부문 필터"
+              title="부문"
               value={query.track}
-              onChange={(e) =>
-                updateQuery({ track: e.target.value as ApplicantListQuery['track'] })
-              }
-              className="px-2 py-1"
-            >
-              <option value="ALL">전체 트랙</option>
-              {TRACK_FILTER_ORDER.map((track) => (
-                <option key={track} value={track}>
-                  {TRACK_LABELS[track]}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="정렬"
-              value={query.sort}
-              onChange={(e) => updateQuery({ sort: e.target.value as ApplicantSort })}
-              className="px-2 py-1"
-            >
-              {(Object.keys(APPLICANT_SORT_LABELS) as ApplicantSort[]).map((sort) => (
-                <option key={sort} value={sort}>
-                  {APPLICANT_SORT_LABELS[sort]}
-                </option>
-              ))}
-            </select>
-            <label className="flex items-center gap-1">
-              <Search size={13} aria-hidden="true" />
-              <input
-                type="search"
-                aria-label="지원자 검색"
-                placeholder="이름·이메일·학교·전공"
-                value={query.search}
-                onChange={(e) => updateQuery({ search: e.target.value })}
-                className="w-48 px-2 py-1"
-              />
-            </label>
+              options={TRACK_FILTER_OPTIONS}
+              onChange={(track) => updateQuery({ track })}
+            />
+            <SearchInput
+              ariaLabel="지원자 검색"
+              value={query.search}
+              onChange={(search) => updateQuery({ search })}
+            />
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-2xs">
           <table className="w-full min-w-[880px] text-xs">
             <thead>
               <tr>
@@ -170,10 +127,8 @@ export function ApplicantsOverview({
                 >
                   <td className="px-4 font-semibold">{displayValue(applicant.name)}</td>
                   <td className="px-4">{applicant.track ? TRACK_LABELS[applicant.track] : '-'}</td>
-                  <td className="px-4">
-                    <p>{displayValue(applicant.university)}</p>
-                    <p className="text-muted-foreground">{displayValue(applicant.major)}</p>
-                  </td>
+                  <td className="px-4">{displayValue(applicant.university)}</td>
+                  <td className="px-4">{displayValue(applicant.major)}</td>
                   <td className="px-4 text-right">{displayValue(applicant.last_semester)}</td>
                   <td className="px-4">{displayValue(applicant.graduation_date)}</td>
                   <td className="px-4 whitespace-nowrap">

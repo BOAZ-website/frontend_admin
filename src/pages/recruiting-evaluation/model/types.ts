@@ -22,12 +22,12 @@ export interface ApplicantSummaryDto {
   email: string;
   phone: string;
   university: string;
-  major: string;
+  major: string | null;
   minor_double_major: string[];
-  last_semester: number;
+  last_semester: number | null;
   military_status: MilitaryStatus;
   birth_date: string;
-  graduation_date: string;
+  graduation_date: string | null;
   grad_school_plan: boolean;
   submitted_at: string | null;
 }

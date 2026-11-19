@@ -4,8 +4,6 @@ import {
   CheckCircle2,
   CheckSquare,
   Clock,
-  FileCheck2,
-  FileText,
   RefreshCw,
   Shield,
   User,
@@ -38,7 +36,13 @@ import { useFinalDecisionPermission } from '../model/useFinalDecisionPermission'
 import { ApplicantReviewDetail, type ReviewDetailTab } from './ApplicantReviewDetail';
 import { ApplicantsOverview } from './ApplicantsOverview';
 import { MyEvaluationList } from './MyEvaluationList';
-import { SegmentedTabs } from './SegmentedTabs';
+
+/** 제목은 사이드바 메뉴 이름(PAGE_LABELS)과 같다. */
+const MAIN_TAB_TITLES: Record<EvaluationTab, string> = {
+  applicants: '전체 지원 현황',
+  my: '서류 평가',
+  promotions: '합격자 승격',
+};
 
 interface EvaluationManagePageProps {
   initialTab?: EvaluationTab;
@@ -337,47 +341,13 @@ export function EvaluationManagePage({
       </>
     );
   return (
-    <div className="evaluation-page space-y-4">
+    <div className="evaluation-page space-y-6">
       {toastNode}
-      {/* ─── Top Main Header Bar ─── */}
-      <div className="evaluation-header flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-3">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#3b82f6] text-white flex items-center justify-center shadow-md">
-              <FileText size={18} />
-            </div>
-            <div>
-              <h1 className="text-base font-bold text-foreground">서류 평가</h1>
-            </div>
-          </div>
-
-          {/* 사이드바 메뉴 3개와 같은 순서 */}
-          <SegmentedTabs
-            label="서류 평가 화면"
-            value={mainTab}
-            onChange={handleTabChange}
-            items={[
-              { id: 'applicants', label: '전체 지원 현황', icon: FileText },
-              { id: 'my', label: '서류 평가', icon: FileCheck2 },
-              {
-                id: 'promotions',
-                label: `합격자 승격 (${unpromotedPassedCandidates.length}명)`,
-                icon: UserCheck,
-              },
-            ]}
-          />
-        </div>
-
-        {/* Right Info: Track Filter & Logged-In User Badge */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-bold text-emerald-400">문혁준 로그인됨</span>
-            <span className="text-[11px] text-muted-foreground font-mono">
-              {mainTab === 'promotions' ? '(서비스운영팀 팀장 권한)' : '(엔지니어링 평가자)'}
-            </span>
-          </div>
-        </div>
+      {/* 출결 화면과 같은 제목 줄. 화면 전환은 사이드바 메뉴 3개가 맡는다. */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+          {MAIN_TAB_TITLES[mainTab]}
+        </h1>
       </div>
 
       {mainTab === 'applicants' && (
@@ -469,8 +439,8 @@ export function EvaluationManagePage({
           </div>
 
           {/* Members Table */}
-          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xl">
-            <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-white/[0.01]">
+          <div>
+            <div className="pb-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                 <Shield size={13} className="text-[#34d399]" />
                 <span>PATCH /api/v1/admin/users/promote (개별 트랜잭션 부분 성공 허용)</span>
@@ -480,7 +450,7 @@ export function EvaluationManagePage({
               </span>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-2xs">
               <table className="w-full text-xs min-w-[900px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-muted-foreground font-semibold whitespace-nowrap">
