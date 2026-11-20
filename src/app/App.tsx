@@ -133,8 +133,8 @@ export default function App() {
   const { rules: scoreRules, reload: reloadScoreRules } = useScoreRules();
 
   const [activePage, setActivePage] = useState<ActivePage>(getInitialActivePage);
-  // 행사 출결 메뉴를 다시 누른 횟수. 바뀌면 행사 출결 화면이 행사 목록으로 돌아간다.
-  const [eventListRequest, setEventListRequest] = useState(0);
+  // 사이드바 메뉴를 누른 횟수. 바뀌면 행사 출결·서류 평가 화면이 상세를 닫고 목록으로 돌아간다.
+  const [listRequest, setListRequest] = useState(0);
 
   useEffect(() => {
     try {
@@ -430,13 +430,12 @@ export default function App() {
   }
   const currentRole = userRoleOf(session);
   const handlePageChange = (page: ActivePage) => {
-    // 이미 열려 있는 행사 출결 메뉴를 다시 누르면 행사 목록으로 돌아가게 알린다.
-    if (page === activePage && page === 'att-events') {
-      setEventListRequest((count) => count + 1);
-      return;
-    }
+    // 이미 열려 있는 행사 출결·서류 평가 메뉴를 다시 누르면 목록으로 돌아가게 알린다.
+    const isListPage = page === 'att-events' || page.startsWith('evaluation');
+    if (page === activePage && !isListPage) return;
     // 저장하지 않은 수정 내용이 있는 화면이면 옮기기 전에 묻는다(취소하면 머문다).
-    if (page !== activePage && !confirmLeave()) return;
+    if (!confirmLeave()) return;
+    setListRequest((count) => count + 1);
     setActivePage(page);
   };
 
@@ -542,6 +541,7 @@ export default function App() {
           {/* 2. Evaluation Management */}
           {isEvaluation && (
             <EvaluationManagePage
+              listRequest={listRequest}
               initialTab={
                 activePage === 'evaluation-my'
                   ? 'my'
@@ -621,7 +621,7 @@ export default function App() {
                 cohorts={semesterCohorts}
                 currentCohort={currentCohort}
                 cohortLabels={cohortLabels}
-                listRequest={eventListRequest}
+                listRequest={listRequest}
               />
             ))}
           {activePage === 'att-scores' && <ScoresPage />}

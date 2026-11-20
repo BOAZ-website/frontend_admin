@@ -48,12 +48,15 @@ interface EvaluationManagePageProps {
   initialTab?: EvaluationTab;
   /** 상단 탭을 누르면 사이드바 선택도 같은 메뉴로 맞춘다. */
   onTabChange?: (tab: EvaluationTab) => void;
+  /** 사이드바 메뉴를 누를 때마다 바뀐다. 바뀌면 지원자 상세를 닫고 목록으로 돌아간다. */
+  listRequest?: number;
 }
 
 /** 서류 평가 탭 3개를 같은 데이터로 그린다. 데이터 접근은 useEvaluationData Hook만 거친다. */
 export function EvaluationManagePage({
   initialTab = 'applicants',
   onTabChange,
+  listRequest = 0,
 }: EvaluationManagePageProps) {
   const [mainTab, setMainTab] = useState<EvaluationTab>(initialTab);
 
@@ -111,6 +114,22 @@ export function EvaluationManagePage({
       setMainTab(initialTab);
     }
   }, [initialTab]);
+
+  // 사이드바 메뉴로 옮기면(같은 메뉴 재클릭 포함) 상세와 입력 초안을 버린다. 이동 확인은 App이 이미 했다.
+  // 읽는 중인 내 평가 응답은 요청 번호를 올려 버린다. 목 데이터를 잃지 않도록 화면을 key로 새로 만들지 않는다.
+  const handledListRequestRef = useRef(listRequest);
+  useEffect(() => {
+    if (listRequest === handledListRequestRef.current) return;
+    handledListRequestRef.current = listRequest;
+    openRequestRef.current += 1;
+    setSelectedApplicant(null);
+    setReviewQueue([]);
+    setDraft(EMPTY_DRAFT);
+    setSavedDraft(EMPTY_DRAFT);
+    setShowDraftErrors(false);
+    setMyEvaluationError(null);
+    setIsMyEvaluationLoading(false);
+  }, [listRequest]);
 
   function handleTabChange(tab: EvaluationTab) {
     setMainTab(tab);
@@ -217,9 +236,12 @@ export function EvaluationManagePage({
       return;
     }
     const applicant = selectedApplicant;
+    // 저장 중 메뉴를 옮기면 요청 번호가 바뀐다. 그때는 저장 결과로 닫힌 상세를 다시 열지 않는다.
+    const requestId = openRequestRef.current;
     setIsSaving(true);
     try {
       const updatedApplicant = await saveMyEvaluation(applicant, input);
+      if (requestId !== openRequestRef.current) return;
       setSelectedApplicant(updatedApplicant);
       setSavedDraft(draft);
       setShowDraftErrors(false);
@@ -232,7 +254,7 @@ export function EvaluationManagePage({
       } else {
         showToast(notice.message, 'error');
       }
-      if (notice.leave) setSelectedApplicant(null);
+      if (notice.leave && requestId === openRequestRef.current) setSelectedApplicant(null);
     } finally {
       setIsSaving(false);
     }
