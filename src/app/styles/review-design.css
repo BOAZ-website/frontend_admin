@@ -362,11 +362,13 @@
   font-size: 13px;
   overflow-wrap: anywhere;
 }
-.review-meta span {
-  display: block;
+.review-meta dt {
   color: #85878c;
   font-size: 12px;
   margin-bottom: 3px;
+}
+.review-meta dd {
+  color: #303236;
 }
 .review-question {
   padding-top: 27px;
@@ -503,6 +505,39 @@
 }
 .review-panel summary {
   cursor: pointer;
+}
+/* 넓은 화면에서는 상세가 본문 높이를 채우고, 아래 답변·내 평가가 제목을 남긴 채 각자 스크롤한다.
+   인적사항은 스크롤하지 않는다. 좁은 화면은 세로로 쌓고 화면 전체가 스크롤한다. */
+.review-scroll-panel {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 901px) {
+  .applicant-review {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .applicant-review > .review-layout {
+    flex: 1;
+    min-height: 360px;
+    align-items: stretch;
+  }
+  .review-layout > * {
+    min-height: 0;
+  }
+  .review-aside {
+    overflow-y: auto;
+  }
+  .review-aside > .review-scroll-panel {
+    flex: 1;
+    min-height: 0;
+  }
+  .review-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
 }
 @media (max-width: 900px) {
   .review-layout {

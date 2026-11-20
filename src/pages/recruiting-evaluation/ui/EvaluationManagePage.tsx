@@ -348,6 +348,7 @@ export function EvaluationManagePage({
           interview={draft.interview_question}
           errors={draftErrors}
           saving={isSaving}
+          isDirty={isDraftDirty}
           onDecision={(decision) => setDraft((current) => ({ ...current, decision }))}
           onScore={(score) => setDraft((current) => ({ ...current, score }))}
           onMemo={(memo) => setDraft((current) => ({ ...current, memo }))}

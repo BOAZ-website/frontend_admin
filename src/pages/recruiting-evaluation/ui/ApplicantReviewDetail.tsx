@@ -49,6 +49,8 @@ interface ApplicantReviewDetailProps {
   memo: string;
   interview: string;
   saving: boolean;
+  /** 저장한 값과 다른 입력이 있는지. 내 평가 제목 옆에 표시한다. */
+  isDirty: boolean;
   onDecision: (value: EvaluationDecision) => void;
   onScore: (value: number | null) => void;
   onMemo: (value: string) => void;
@@ -100,28 +102,34 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
           <h1>{a.name}</h1>
           <span className="review-tag">{TRACK_LABELS[a.track]}</span>
         </div>
-        <div className="review-meta">
+        <dl className="review-meta">
           {applicantInfoFields(a)
             .filter(([label]) => label !== '트랙')
             .map(([label, value]) => (
               <div key={label}>
-                <span>{label}</span>
-                {value}
+                <dt>{label}</dt>
+                <dd>{value}</dd>
               </div>
             ))}
-        </div>
+        </dl>
       </section>
       <div className="review-layout">
-        <article className="review-paper" aria-labelledby="review-answers-title">
+        {/* 답변과 내 평가는 제목을 남긴 채 각자 스크롤한다. tabIndex로 키보드로도 스크롤 영역에 들어간다. */}
+        <article
+          className="review-paper review-scroll-panel"
+          aria-labelledby="review-answers-title"
+        >
           <h2 id="review-answers-title" className="review-section-title">
             지원서 답변
           </h2>
-          <ApplicantAnswersSection
-            applicantId={a.id}
-            fetchAnswers={p.fetchAnswers}
-            missingAction={{ label: '목록으로 돌아가기', onClick: p.onBack }}
-            deniedAction={{ label: '목록으로 돌아가기', onClick: p.onBack }}
-          />
+          <div className="review-scroll" tabIndex={0} aria-labelledby="review-answers-title">
+            <ApplicantAnswersSection
+              applicantId={a.id}
+              fetchAnswers={p.fetchAnswers}
+              missingAction={{ label: '목록으로 돌아가기', onClick: p.onBack }}
+              deniedAction={{ label: '목록으로 돌아가기', onClick: p.onBack }}
+            />
+          </div>
         </article>
         {p.tab === 'status' && (
           <aside className="review-aside">
@@ -137,94 +145,104 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
         )}
         <aside className="review-aside" hidden={p.tab !== 'review'}>
           <form
-            className="review-panel"
+            className="review-panel review-scroll-panel"
             onSubmit={(e) => {
               e.preventDefault();
               p.onSave();
             }}
           >
             <div className="review-heading">
-              <h2>내 평가</h2>
-              <span>{a.my_decision === null ? '미평가' : '저장됨'}</span>
-            </div>
-            {p.isMyEvaluationLoading && <p role="status">내 평가를 불러오는 중입니다.</p>}
-            {p.myEvaluationError && (
-              <div role="alert">
-                <p>내 평가를 불러오지 못했습니다.</p>
-                <button type="button" onClick={p.onRetryMyEvaluation}>
-                  다시 시도
-                </button>
-              </div>
-            )}
-            <fieldset disabled={isFormLocked} className="contents">
-              <label className="review-label" htmlFor="review-score">
-                점수 (선택)
-              </label>
-              <div className="review-score">
-                <select
-                  id="review-score"
-                  value={p.score ?? ''}
-                  aria-invalid={p.errors.score ? true : undefined}
-                  aria-describedby={p.errors.score ? 'review-score-error' : undefined}
-                  onChange={(e) => p.onScore(e.target.value === '' ? null : Number(e.target.value))}
-                >
-                  <option value="">점수 없음</option>
-                  {SCORE_OPTIONS.map((score) => (
-                    <option key={score} value={score}>
-                      {score}점
-                    </option>
-                  ))}
-                </select>
-                <span>/ 10</span>
-              </div>
-              {p.errors.score && (
-                <p id="review-score-error" role="alert" className="review-field-error">
-                  {p.errors.score}
-                </p>
-              )}
-              <span className="review-label" id="review-decision-label">
-                개인 결정 (필수)
+              <h2 id="review-my-title">내 평가</h2>
+              <span>
+                {p.isDirty
+                  ? '저장하지 않은 수정 있음'
+                  : a.my_decision === null
+                    ? '미평가'
+                    : '저장됨'}
               </span>
-              <div
-                className="review-choices"
-                role="group"
-                aria-labelledby="review-decision-label"
-                aria-describedby={p.errors.decision ? 'review-decision-error' : undefined}
-              >
-                {(Object.keys(DECISION_LABELS) as EvaluationDecision[]).map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    aria-pressed={p.decision === d}
-                    onClick={() => p.onDecision(d)}
-                  >
-                    {DECISION_LABELS[d]}
+            </div>
+            <div className="review-scroll" tabIndex={0} aria-labelledby="review-my-title">
+              {p.isMyEvaluationLoading && <p role="status">내 평가를 불러오는 중입니다.</p>}
+              {p.myEvaluationError && (
+                <div role="alert">
+                  <p>내 평가를 불러오지 못했습니다.</p>
+                  <button type="button" onClick={p.onRetryMyEvaluation}>
+                    다시 시도
                   </button>
-                ))}
-              </div>
-              {p.errors.decision && (
-                <p id="review-decision-error" role="alert" className="review-field-error">
-                  {p.errors.decision}
-                </p>
+                </div>
               )}
-              <label className="review-label" htmlFor="review-memo">
-                평가 의견
-              </label>
-              <textarea
-                id="review-memo"
-                value={p.memo}
-                onChange={(e) => p.onMemo(e.target.value)}
-                placeholder="판단의 근거가 된 답변과 의견을 남겨주세요."
-              />
-              <label className="review-label" htmlFor="review-interview">
-                면접 추천 질문
-              </label>
-              <textarea
-                id="review-interview"
-                value={p.interview}
-                onChange={(e) => p.onInterview(e.target.value)}
-              />
-            </fieldset>
+              <fieldset disabled={isFormLocked} className="contents">
+                <label className="review-label" htmlFor="review-score">
+                  점수 (선택)
+                </label>
+                <div className="review-score">
+                  <select
+                    id="review-score"
+                    value={p.score ?? ''}
+                    aria-invalid={p.errors.score ? true : undefined}
+                    aria-describedby={p.errors.score ? 'review-score-error' : undefined}
+                    onChange={(e) =>
+                      p.onScore(e.target.value === '' ? null : Number(e.target.value))
+                    }
+                  >
+                    <option value="">점수 없음</option>
+                    {SCORE_OPTIONS.map((score) => (
+                      <option key={score} value={score}>
+                        {score}점
+                      </option>
+                    ))}
+                  </select>
+                  <span>/ 10</span>
+                </div>
+                {p.errors.score && (
+                  <p id="review-score-error" role="alert" className="review-field-error">
+                    {p.errors.score}
+                  </p>
+                )}
+                <span className="review-label" id="review-decision-label">
+                  개인 결정 (필수)
+                </span>
+                <div
+                  className="review-choices"
+                  role="group"
+                  aria-labelledby="review-decision-label"
+                  aria-describedby={p.errors.decision ? 'review-decision-error' : undefined}
+                >
+                  {(Object.keys(DECISION_LABELS) as EvaluationDecision[]).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      aria-pressed={p.decision === d}
+                      onClick={() => p.onDecision(d)}
+                    >
+                      {DECISION_LABELS[d]}
+                    </button>
+                  ))}
+                </div>
+                {p.errors.decision && (
+                  <p id="review-decision-error" role="alert" className="review-field-error">
+                    {p.errors.decision}
+                  </p>
+                )}
+                <label className="review-label" htmlFor="review-memo">
+                  평가 의견
+                </label>
+                <textarea
+                  id="review-memo"
+                  value={p.memo}
+                  onChange={(e) => p.onMemo(e.target.value)}
+                  placeholder="판단의 근거가 된 답변과 의견을 남겨주세요."
+                />
+                <label className="review-label" htmlFor="review-interview">
+                  면접 추천 질문
+                </label>
+                <textarea
+                  id="review-interview"
+                  value={p.interview}
+                  onChange={(e) => p.onInterview(e.target.value)}
+                />
+              </fieldset>
+            </div>
             <button className="review-submit" type="submit" disabled={p.saving || isFormLocked}>
               {p.saving ? '저장 중…' : '평가 저장'}
             </button>

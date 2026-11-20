@@ -117,20 +117,23 @@ export function displayValue(
   return String(value);
 }
 
-/** 지원자 인적사항 항목(이름 제외). 전체 지원 현황 상세와 서류 평가 상세가 같은 항목을 같은 순서로 보여 준다. */
+/**
+ * 지원자 인적사항 항목(이름 제외). 전체 지원 현황 상세와 서류 평가 상세가 같은 항목을 같은 순서로 보여 준다.
+ * 순서는 API 명세(REC-ADMIN-13 ApplicantSummaryResponse)의 필드 순서이고, 내부 식별자(id·user_id)는 뺀다.
+ */
 export function applicantInfoFields(applicant: ApplicantSummaryDto): [string, string][] {
   return [
-    ['트랙', applicant.track ? TRACK_LABELS[applicant.track] : '-'],
     ['상태', APPLICATION_STATUS_LABELS[applicant.status]],
+    ['트랙', applicant.track ? TRACK_LABELS[applicant.track] : '-'],
     ['이메일', displayValue(applicant.email)],
     ['전화번호', displayValue(applicant.phone)],
     ['대학교', displayValue(applicant.university)],
     ['전공', displayValue(applicant.major)],
     ['부·복수전공', displayValue(applicant.minor_double_major)],
     ['마지막 학기', displayValue(applicant.last_semester)],
-    ['졸업 예정', displayValue(applicant.graduation_date)],
     ['병역', applicant.military_status ? MILITARY_STATUS_LABELS[applicant.military_status] : '-'],
     ['생년월일', displayValue(applicant.birth_date)],
+    ['졸업 예정', displayValue(applicant.graduation_date)],
     ['대학원 진학 계획', displayValue(applicant.grad_school_plan)],
     ['제출일', applicant.submitted_at ? dateTimeTextOf(applicant.submitted_at) : '-'],
   ];
