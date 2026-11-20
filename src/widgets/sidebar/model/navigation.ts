@@ -54,15 +54,17 @@ const SIDEBAR_NAV = [
     icon: FileText,
     permission: 'EVALUATION',
     groups: [
+      // 전체 지원 현황·합격자 승격은 부문과 관계없는 공통 메뉴라 그룹 제목 없이 둔다(빈 제목은 사이드바가 그리지 않는다).
+      { title: '', pages: [{ id: 'evaluation-applicants', label: '전체 지원 현황' }] },
       {
-        // 메뉴가 3개뿐이라 그룹 제목 없이 보여 준다(빈 제목은 사이드바가 그리지 않는다).
-        title: '',
+        title: '서류 평가',
         pages: [
-          { id: 'evaluation-applicants', label: '전체 지원 현황' },
-          { id: 'evaluation-my', label: '서류 평가' },
-          { id: 'evaluation-promote', label: '합격자 승격' },
+          { id: 'evaluation-analysis', label: '분석' },
+          { id: 'evaluation-visualization', label: '시각화' },
+          { id: 'evaluation-engineering', label: '엔지니어링' },
         ],
       },
+      { title: '', pages: [{ id: 'evaluation-promote', label: '합격자 승격' }] },
     ],
   },
   {

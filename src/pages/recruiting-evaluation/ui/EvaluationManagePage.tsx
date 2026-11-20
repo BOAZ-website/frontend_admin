@@ -30,7 +30,13 @@ import {
   validateMyEvaluation,
 } from '../model/myEvaluationForm';
 import { FINAL_DECISION_SAVED_MESSAGE, finalDecisionFailureNoticeOf } from '../model/finalDecision';
-import type { ApplicantEvaluationDto, EvaluationDecision, EvaluationTab } from '../model/types';
+import {
+  type ApplicantEvaluationDto,
+  type EvaluationDecision,
+  type EvaluationTab,
+  TRACK_LABELS,
+  type TrackType,
+} from '../model/types';
 import { useEvaluationData } from '../model/useEvaluationData';
 import { useFinalDecisionPermission } from '../model/useFinalDecisionPermission';
 import { ApplicantReviewDetail, type ReviewDetailTab } from './ApplicantReviewDetail';
@@ -46,8 +52,10 @@ const MAIN_TAB_TITLES: Record<EvaluationTab, string> = {
 
 interface EvaluationManagePageProps {
   initialTab?: EvaluationTab;
-  /** 상단 탭을 누르면 사이드바 선택도 같은 메뉴로 맞춘다. */
-  onTabChange?: (tab: EvaluationTab) => void;
+  /** 서류 평가 목록(my)이 보여 줄 부문. 사이드바의 부문 메뉴가 정한다. */
+  track: TrackType;
+  /** 그 부문의 서류 평가 메뉴로 옮긴다(전체 지원 현황의 "평가하기"). */
+  onOpenTrack: (track: TrackType) => void;
   /** 사이드바 메뉴를 누를 때마다 바뀐다. 바뀌면 지원자 상세를 닫고 목록으로 돌아간다. */
   listRequest?: number;
 }
@@ -55,7 +63,8 @@ interface EvaluationManagePageProps {
 /** 서류 평가 탭 3개를 같은 데이터로 그린다. 데이터 접근은 useEvaluationData Hook만 거친다. */
 export function EvaluationManagePage({
   initialTab = 'applicants',
-  onTabChange,
+  track,
+  onOpenTrack,
   listRequest = 0,
 }: EvaluationManagePageProps) {
   const [mainTab, setMainTab] = useState<EvaluationTab>(initialTab);
@@ -74,8 +83,12 @@ export function EvaluationManagePage({
   } = useEvaluationData();
   const canWriteFinalDecision = useFinalDecisionPermission();
 
-  // 서류 평가 목록의 검색·필터·정렬. 상세에서 목록으로 돌아와도 남도록 여기서 가진다.
-  const [reviewQuery, setReviewQuery] = useState<ReviewListQuery>(DEFAULT_REVIEW_QUERY);
+  // 부문별 서류 평가 목록의 검색·필터·정렬. 상세에서 목록으로 돌아오거나 다른 부문에 다녀와도 남도록 여기서 가진다.
+  const [reviewQueries, setReviewQueries] = useState<Record<TrackType, ReviewListQuery>>({
+    ANALYSIS: DEFAULT_REVIEW_QUERY,
+    VISUALIZATION: DEFAULT_REVIEW_QUERY,
+    ENGINEERING: DEFAULT_REVIEW_QUERY,
+  });
 
   // 지원자 상세와 그 탭. 탭은 이전·다음으로 다른 지원자를 열어도 유지한다.
   const [selectedApplicant, setSelectedApplicant] = useState<ApplicantEvaluationDto | null>(null);
@@ -130,11 +143,6 @@ export function EvaluationManagePage({
     setMyEvaluationError(null);
     setIsMyEvaluationLoading(false);
   }, [listRequest]);
-
-  function handleTabChange(tab: EvaluationTab) {
-    setMainTab(tab);
-    onTabChange?.(tab);
-  }
 
   // 저장하지 않은 평가가 있으면 사이드바로 다른 메뉴에 갈 때도 묻는다(§4.5).
   useEffect(
@@ -194,13 +202,16 @@ export function EvaluationManagePage({
     if (app) void handleOpenModal(app, 'review', orderedIds);
   }
 
-  // 전체 지원 현황 상세의 "평가하기": 서류 평가 탭으로 옮기고 그 지원자의 평가 화면을 연다.
+  // 전체 지원 현황 상세의 "평가하기": 그 지원자 부문의 서류 평가 메뉴로 옮기고 평가 화면을 연다.
   function handleEvaluateFromOverview(applicantId: number) {
     const app = applicants.find((item) => item.id === applicantId);
     if (!app || app.status !== 'SUBMITTED') return;
-    handleTabChange('my');
-    // 이전·다음은 서류 평가 목록의 기본 순서(제출 완료, 제출일 최신순)를 따른다.
-    const defaultOrder = filterReviewList(applicants, DEFAULT_REVIEW_QUERY).map((item) => item.id);
+    onOpenTrack(app.track);
+    // 이전·다음은 그 부문 서류 평가 목록의 기본 순서(제출 완료, 제출일 최신순)를 따른다.
+    const defaultOrder = filterReviewList(applicants, {
+      ...DEFAULT_REVIEW_QUERY,
+      track: app.track,
+    }).map((item) => item.id);
     void handleOpenModal(app, 'review', defaultOrder);
   }
 
@@ -368,7 +379,9 @@ export function EvaluationManagePage({
       {/* 출결 화면과 같은 제목 줄. 화면 전환은 사이드바 메뉴 3개가 맡는다. */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          {MAIN_TAB_TITLES[mainTab]}
+          {mainTab === 'my'
+            ? `${MAIN_TAB_TITLES.my} · ${TRACK_LABELS[track]}`
+            : MAIN_TAB_TITLES[mainTab]}
         </h1>
       </div>
 
@@ -383,8 +396,9 @@ export function EvaluationManagePage({
       {mainTab === 'my' && (
         <MyEvaluationList
           fetchApplicants={fetchApplicants}
-          query={reviewQuery}
-          onQueryChange={setReviewQuery}
+          track={track}
+          query={reviewQueries[track]}
+          onQueryChange={(query) => setReviewQueries((current) => ({ ...current, [track]: query }))}
           onOpen={handleOpenFromMyList}
           canWriteFinalDecision={canWriteFinalDecision}
           onSaveFinalDecision={handleSaveFinalDecision}

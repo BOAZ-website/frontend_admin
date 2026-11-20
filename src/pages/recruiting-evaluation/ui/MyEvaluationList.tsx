@@ -27,6 +27,8 @@ import { ListLoadError } from './ListLoadError';
 
 interface MyEvaluationListProps {
   fetchApplicants: () => Promise<ApplicantEvaluationDto[]>;
+  /** 사이드바 부문 메뉴가 정한 부문. 이 부문 지원자만 보여 준다. */
+  track: TrackType;
   /** 조회 조건. 상세에서 목록으로 돌아와도 남도록 페이지가 가진다. */
   query: ReviewListQuery;
   onQueryChange: (query: ReviewListQuery) => void;
@@ -41,8 +43,6 @@ interface MyEvaluationListProps {
   ) => Promise<boolean>;
 }
 
-// 명세의 트랙 필터 순서(전체 / 분석 / 시각화 / 엔지니어링).
-const TRACK_FILTER_ORDER: readonly TrackType[] = ['ANALYSIS', 'VISUALIZATION', 'ENGINEERING'];
 // 앞 세 열은 전체 지원 현황 목록과 같은 이름·표기다. 평가자별 상세는 상세 화면의 평가 현황 탭에서 본다.
 const COLUMNS = ['지원자', '트랙', '학교', '전공', '평가 집계', '총점', '내 평가', '최종 판정'];
 
@@ -53,6 +53,7 @@ const COLUMNS = ['지원자', '트랙', '학교', '전공', '평가 집계', '�
  */
 export function MyEvaluationList({
   fetchApplicants,
+  track,
   query,
   onQueryChange,
   onOpen,
@@ -66,8 +67,11 @@ export function MyEvaluationList({
   const [savingFinalId, setSavingFinalId] = useState<number | null>(null);
 
   const applicants = list.data ?? [];
-  const submitted = applicants.filter((applicant) => applicant.status === 'SUBMITTED');
-  const rows = filterReviewList(applicants, query);
+  const submitted = applicants.filter(
+    (applicant) => applicant.status === 'SUBMITTED' && applicant.track === track,
+  );
+  // 부문은 메뉴가 정하므로 목록 조건의 부문 값 대신 메뉴의 부문으로 거른다.
+  const rows = filterReviewList(applicants, { ...query, track });
   const isFirstLoad = list.isLoading && !list.data;
 
   const updateQuery = (patch: Partial<ReviewListQuery>) => onQueryChange({ ...query, ...patch });
@@ -132,19 +136,6 @@ export function MyEvaluationList({
             {FINAL_DECISION_OPTIONS.map((decision) => (
               <option key={decision} value={decision}>
                 최종 {DECISION_LABELS[decision]}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="트랙"
-            value={query.track}
-            onChange={(e) => updateQuery({ track: e.target.value as ReviewListQuery['track'] })}
-            className="px-2 py-1"
-          >
-            <option value="ALL">전체 트랙</option>
-            {TRACK_FILTER_ORDER.map((track) => (
-              <option key={track} value={track}>
-                {TRACK_LABELS[track]}
               </option>
             ))}
           </select>
