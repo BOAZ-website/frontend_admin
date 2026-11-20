@@ -11,6 +11,7 @@ import {
   displayValue,
   filterApplicants,
   isFilteredQuery,
+  TRACK_FILTER_OPTIONS,
 } from '../model/applicantList';
 import {
   type ApplicantAnswerDto,
@@ -34,16 +35,7 @@ const STATUS_FILTER_OPTIONS: readonly FilterDropdownOption<ApplicantListQuery['s
   { value: 'DRAFT', label: APPLICATION_STATUS_LABELS.DRAFT },
 ];
 
-// 명세의 트랙 필터 순서(전체 / 분석 / 시각화 / 엔지니어링).
-const TRACK_FILTER_OPTIONS: readonly FilterDropdownOption<ApplicantListQuery['track']>[] = [
-  { value: 'ALL', label: '전체' },
-  ...(['ANALYSIS', 'VISUALIZATION', 'ENGINEERING'] as const).map((track) => ({
-    value: track,
-    label: TRACK_LABELS[track],
-  })),
-];
-
-const COLUMNS = ['지원자', '트랙', '학교', '전공', '학기', '졸업 예정', '제출일', '상태'];
+const COLUMNS = ['이름', '부문', '학교', '전공', '학기', '졸업 예정', '제출일', '상태'];
 
 /** 전체 지원 현황(EVL-APP). DRAFT를 포함한 지원서 목록과 지원서 상세를 보여 준다. */
 export function ApplicantsOverview({

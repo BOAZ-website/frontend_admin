@@ -4,13 +4,13 @@ import test from 'node:test';
 import {
   applyFinalDecision,
   applyMyEvaluation,
-  applyPromotion,
   checkMyEvaluationSaveMock,
   CURRENT_EVALUATOR,
   findMyEvaluationMock,
   INITIAL_DATA,
   listAnswersMock,
   listApplicantsMock,
+  promoteUsersMock,
   readMockScenario,
 } from '../src/pages/recruiting-evaluation/model/evaluationMock';
 import { ApiError } from '../src/shared/api/apiError';
@@ -75,19 +75,43 @@ test('최종 판정을 바꾸면 그 지원자의 최종 판정만 바뀌고 개
   assert.deepEqual({ ...after, final_decision: before.final_decision }, before);
 });
 
-test('승격하면 고른 사용자만 승격 표시가 붙고 성공 목록으로 돌아온다', () => {
-  const target = applicantOf(101);
+test('부원 등록은 합격자만 등록하고, 이미 회원·미합격·지원서 없음은 실패 목록에 담는다', () => {
+  const passed = applicantOf(101); // 최종 합격
+  const pending = applicantOf(102); // 미결
 
-  const { data, result } = applyPromotion(INITIAL_DATA, [target.user_id]);
+  const first = promoteUsersMock(INITIAL_DATA, [passed.user_id, pending.user_id, 9999], null);
 
-  assert.deepEqual(result, { successUserIds: [target.user_id], failedList: [] });
-  for (const applicant of data.applicants) {
-    assert.equal(
-      Boolean(applicant.is_promoted_to_member),
-      applicant.user_id === target.user_id ||
-        Boolean(applicantOf(applicant.id).is_promoted_to_member),
-    );
-  }
+  assert.deepEqual(first.response.failed_user_ids, [
+    { user_id: pending.user_id, error_code: 'APPLICANT_NOT_PASSED' },
+    { user_id: 9999, error_code: 'APPLICATION_NOT_FOUND' },
+  ]);
+  assert.deepEqual(
+    first.data.applicants.filter((a) => a.is_promoted_to_member).map((a) => a.user_id),
+    [passed.user_id],
+  );
+  // 지원서는 지우지 않는다.
+  assert.equal(first.data.applicants.length, INITIAL_DATA.applicants.length);
+
+  const again = promoteUsersMock(first.data, [passed.user_id], null);
+  assert.deepEqual(again.response.failed_user_ids, [
+    { user_id: passed.user_id, error_code: 'ALREADY_MEMBER' },
+  ]);
+});
+
+test('부원 등록 시나리오는 서버 오류와 부분 실패를 재현한다', () => {
+  const ids = [applicantOf(101).user_id, applicantOf(104).user_id];
+  assert.throws(
+    () => promoteUsersMock(INITIAL_DATA, ids, 'promote-error'),
+    (error) => error instanceof ApiError && error.status === 500,
+  );
+  const partial = promoteUsersMock(INITIAL_DATA, ids, 'promote-partial');
+  assert.deepEqual(partial.response.failed_user_ids, [
+    { user_id: ids[0], error_code: 'USER_NOT_FOUND' },
+  ]);
+  assert.deepEqual(
+    partial.data.applicants.filter((a) => a.is_promoted_to_member).map((a) => a.user_id),
+    [ids[1]],
+  );
 });
 
 test('주소의 mockScenario 값은 정해진 시나리오만 읽는다', () => {

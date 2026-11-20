@@ -124,7 +124,7 @@ export function EvaluatorResultsTab({
     ['합격', `${aggregate.pass_count}`],
     ['보류', `${aggregate.hold_count}`],
     ['불합', `${aggregate.fail_count}`],
-    ['총점', `${aggregate.total_score}`],
+    ['총점수', `${aggregate.total_score}`],
   ];
 
   return (

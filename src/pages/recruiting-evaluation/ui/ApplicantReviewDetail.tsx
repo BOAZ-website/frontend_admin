@@ -108,7 +108,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
         </div>
         <dl className="review-meta">
           {applicantInfoFields(a)
-            .filter(([label]) => label !== '트랙')
+            .filter(([label]) => label !== '부문')
             .map(([label, value]) => (
               <div key={label}>
                 <dt>{label}</dt>

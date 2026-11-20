@@ -15,7 +15,7 @@ interface SegmentedTabsProps<T extends string> {
 }
 
 /**
- * 서류 평가 화면의 탭 버튼 묶음. 상단 페이지 전환(전체 지원 현황·서류 평가·합격자 승격)과
+ * 서류 평가 화면의 탭 버튼 묶음. 상단 페이지 전환(전체 지원 현황·서류 평가·합격자 부원 등록)과
  * 지원자 상세 탭(개인 평가·평가 현황·면접 질문)이 같은 모양을 쓴다. 고른 탭은 aria-pressed로 표시한다.
  */
 export function SegmentedTabs<T extends string>({

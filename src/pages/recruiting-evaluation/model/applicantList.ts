@@ -14,6 +14,15 @@ import {
   type TrackType,
 } from './types';
 
+/** 부문 표시·필터 순서(분석 → 시각화 → 엔지니어링). */
+export const TRACK_ORDER: readonly TrackType[] = ['ANALYSIS', 'VISUALIZATION', 'ENGINEERING'];
+
+/** 부문 필터 선택지(전체 / 분석 / 시각화 / 엔지니어링). 전체 지원 현황과 합격자 부원 등록이 쓴다. */
+export const TRACK_FILTER_OPTIONS: readonly { value: 'ALL' | TrackType; label: string }[] = [
+  { value: 'ALL', label: '전체' },
+  ...TRACK_ORDER.map((track) => ({ value: track, label: TRACK_LABELS[track] })),
+];
+
 export type ApplicantSort = 'SUBMITTED_DESC' | 'SUBMITTED_ASC' | 'NAME';
 
 /** 전체 지원 현황 목록의 조회 조건. */
@@ -124,10 +133,10 @@ export function displayValue(
 export function applicantInfoFields(applicant: ApplicantSummaryDto): [string, string][] {
   return [
     ['상태', APPLICATION_STATUS_LABELS[applicant.status]],
-    ['트랙', applicant.track ? TRACK_LABELS[applicant.track] : '-'],
+    ['부문', applicant.track ? TRACK_LABELS[applicant.track] : '-'],
     ['이메일', displayValue(applicant.email)],
     ['전화번호', displayValue(applicant.phone)],
-    ['대학교', displayValue(applicant.university)],
+    ['학교', displayValue(applicant.university)],
     ['전공', displayValue(applicant.major)],
     ['부·복수전공', displayValue(applicant.minor_double_major)],
     ['마지막 학기', displayValue(applicant.last_semester)],
@@ -172,7 +181,7 @@ export type ReviewSort = ApplicantSort | 'PASS_COUNT_DESC' | 'TOTAL_SCORE_DESC';
 export const REVIEW_SORT_LABELS: Record<ReviewSort, string> = {
   ...APPLICANT_SORT_LABELS,
   PASS_COUNT_DESC: '합격 평가 많은순',
-  TOTAL_SCORE_DESC: '총점 높은순',
+  TOTAL_SCORE_DESC: '총점수 높은순',
 };
 
 /** 서류 평가 목록(개인 평가 + 전체 평가)의 조회 조건. 상세에서 목록으로 돌아와도 유지한다. */

@@ -17,7 +17,7 @@ export const PAGE_LABELS: Record<ActivePage, string> = {
   'evaluation-analysis': '서류 평가 · 분석',
   'evaluation-visualization': '서류 평가 · 시각화',
   'evaluation-engineering': '서류 평가 · 엔지니어링',
-  'evaluation-promote': '합격자 승격',
+  'evaluation-promote': '합격자 부원 등록',
   'att-session': 'BASE Term 출결 관리',
   'att-adv': 'ADV Term 출결 관리',
   'att-events': '행사 출결 관리',

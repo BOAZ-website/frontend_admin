@@ -13,11 +13,11 @@ interface ApplicantDetailModalProps {
   onClose: () => void;
   /** 지원서가 없어졌을 때(404) 창을 닫고 목록을 다시 읽는다. */
   onMissing: () => void;
-  /** 제출 완료 지원서를 개인 평가 화면에서 연다. DRAFT에는 버튼을 두지 않는다. */
-  onEvaluate: (applicantId: number) => void;
+  /** 제출 완료 지원서를 개인 평가 화면에서 연다. 없거나 DRAFT면 버튼을 두지 않는다(합격자 부원 등록은 조회만). */
+  onEvaluate?: (applicantId: number) => void;
 }
 
-/** 전체 지원 현황의 지원서 상세(APP-06). 기본 정보와 답변을 보여 주는 조회 전용 창이다. */
+/** 지원서 상세(APP-06). 기본 정보와 답변을 보여 주는 조회 전용 창이다. 전체 지원 현황과 합격자 부원 등록이 쓴다. */
 export function ApplicantDetailModal({
   applicant,
   fetchAnswers,
@@ -67,7 +67,7 @@ export function ApplicantDetailModal({
           />
         </div>
 
-        {applicant.status === 'SUBMITTED' && (
+        {onEvaluate && applicant.status === 'SUBMITTED' && (
           <div className="flex justify-end border-t border-slate-200 px-6 py-3">
             <button type="button" onClick={() => onEvaluate(applicant.id)} className="px-4">
               평가하기

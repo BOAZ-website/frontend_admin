@@ -54,7 +54,7 @@ const SIDEBAR_NAV = [
     icon: FileText,
     permission: 'EVALUATION',
     groups: [
-      // 전체 지원 현황·합격자 승격은 부문과 관계없는 공통 메뉴라 그룹 제목 없이 둔다(빈 제목은 사이드바가 그리지 않는다).
+      // 전체 지원 현황·합격자 부원 등록은 부문과 관계없는 공통 메뉴라 그룹 제목 없이 둔다(빈 제목은 사이드바가 그리지 않는다).
       { title: '', pages: [{ id: 'evaluation-applicants', label: '전체 지원 현황' }] },
       {
         title: '서류 평가',
@@ -64,7 +64,7 @@ const SIDEBAR_NAV = [
           { id: 'evaluation-engineering', label: '엔지니어링' },
         ],
       },
-      { title: '', pages: [{ id: 'evaluation-promote', label: '합격자 승격' }] },
+      { title: '', pages: [{ id: 'evaluation-promote', label: '합격자 부원 등록' }] },
     ],
   },
   {

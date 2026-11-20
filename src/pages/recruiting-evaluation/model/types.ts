@@ -47,6 +47,7 @@ export interface ApplicantEvaluationDto extends ApplicantSummaryDto {
   my_score: number | null;
   my_memo: string | null;
   my_interview_question: string | null;
+  /** 합격자 부원 등록 상단 지표만 쓴다. 표의 행 상태는 이 값이 아니라 화면에서 보낸 요청 결과로 정한다. */
   is_promoted_to_member?: boolean;
 }
 
@@ -98,10 +99,12 @@ export interface MyEvaluationDto {
   interview_question: string | null;
 }
 
-/** 승격 실행 결과. 실패 목록 모양은 백엔드 PromoteUsersResponse와 맞춰야 한다(연동 때 확인). */
-export interface PromotionResult {
-  successUserIds: number[];
-  failedList: { user_id: number; error_code: string }[];
+/**
+ * 부원 등록(PATCH /api/v1/admin/users/promote) 200 응답의 data. 성공 목록은 없고 실패한 사람만 온다.
+ * 요청한 사람 중 이 목록에 없는 사람이 등록에 성공한 사람이다.
+ */
+export interface PromoteUsersResponse {
+  failed_user_ids: { user_id: number; error_code: string }[];
 }
 
 export const DECISION_LABELS: Record<EvaluationDecision, string> = {

@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   applyFinalDecision,
   applyMyEvaluation,
-  applyPromotion,
   checkFinalDecisionMock,
   checkMyEvaluationSaveMock,
   CURRENT_EVALUATOR,
@@ -14,6 +13,7 @@ import {
   listApplicantsMock,
   listEvaluationsMock,
   listInterviewQuestionsMock,
+  promoteUsersMock,
   readMockScenario,
   withRecordAggregates,
 } from './evaluationMock';
@@ -25,7 +25,7 @@ import type {
   InterviewQuestionItem,
   MyEvaluationDto,
   MyEvaluationInput,
-  PromotionResult,
+  PromoteUsersResponse,
 } from './types';
 
 /** 서류 평가 화면의 서버 데이터와 저장 함수. 화면의 선택·필터·입력 상태는 화면이 따로 가진다. */
@@ -49,7 +49,11 @@ export interface EvaluationDataState extends EvaluationData {
   ) => Promise<ApplicantEvaluationDto>;
   /** [REC-ADMIN-18] 지원자별 최종 판정을 바꾼다. 거절되면 ApiError를 던지고 데이터는 그대로 둔다. */
   updateFinalDecision: (applicantId: number, decision: EvaluationDecision) => Promise<void>;
-  promoteUsers: (userIds: readonly number[]) => Promise<PromotionResult>;
+  /**
+   * 부원 등록(PATCH /api/v1/admin/users/promote). 200이면 실패 목록을 돌려주고, 4xx·5xx·연결 오류는 ApiError를 던진다.
+   * 실제 API 연동 때 이 함수 안의 목 호출만 entities API 함수 호출로 바꾼다. 요청 JSON 키(user_ids)는 연동 때 서버와 확인한다.
+   */
+  promoteUsers: (userIds: readonly number[]) => Promise<PromoteUsersResponse>;
 }
 
 // PoC 응답 지연. 실제 API 연동 때 지운다.
@@ -133,11 +137,11 @@ export function useEvaluationData(): EvaluationDataState {
     setData((current) => applyFinalDecision(current, applicantId, decision));
   };
 
-  const promoteUsers = async (userIds: readonly number[]): Promise<PromotionResult> => {
+  const promoteUsers = async (userIds: readonly number[]): Promise<PromoteUsersResponse> => {
     await wait(PROMOTE_DELAY_MS);
-    const next = applyPromotion(data, userIds);
+    const next = promoteUsersMock(dataRef.current, userIds, mockScenario());
     setData(next.data);
-    return next.result;
+    return next.response;
   };
 
   return {

@@ -168,7 +168,7 @@ const STATUS_SHEET: Readonly<Record<ClubMember['status'], MemberSheet>> = {
 
 export function MemberManagementPage() {
   // 동아리원 목록은 API(임시 DB users 테이블)에서 읽고, 수정도 API로 한 뒤 다시 읽는다.
-  // 동아리원 등록은 이 화면이 아니라 서류 평가의 합격자 승격으로 한다.
+  // 동아리원 등록은 이 화면이 아니라 서류 평가의 합격자 부원 등록으로 한다.
   // terms(users 테이블의 기수 목록)는 기수 페이지가 없을 때 추가 팝업의 처음 기수로 쓴다.
   const { members: loadedMembers, terms, error: loadError, reload } = useClubMembers();
   const members = useMemo(() => loadedMembers ?? [], [loadedMembers]);

@@ -26,7 +26,7 @@
 | 9 | 리크루팅 공고 | 지원자 데이터 | 사전 알림 명단 | `recruiting-leads` | 사전 알림 명단 | [02](02-recruiting.md) |
 | 10 | 서류 평가 관리 | — | 전체 지원 현황 | `evaluation-applicants` | 전체 지원 현황 | [03](03-evaluation.md) |
 | 11 | 서류 평가 관리 | 서류 평가 | 분석 · 시각화 · 엔지니어링 | `evaluation-analysis` · `evaluation-visualization` · `evaluation-engineering` | 서류 평가 · 부문 | [03](03-evaluation.md) |
-| 12 | 서류 평가 관리 | — | 합격자 승격 | `evaluation-promote` | 합격자 승격 | [03](03-evaluation.md) |
+| 12 | 서류 평가 관리 | — | 합격자 부원 등록 | `evaluation-promote` | 합격자 부원 등록 | [03](03-evaluation.md) |
 | 13 | 출결 & 점수 | 출결 관리 | BASE Term 출결 관리 | `att-session` | BASE 출결 | [04](04-attendance.md) |
 | 14 | 출결 & 점수 | 출결 관리 | ADV Term 출결 관리 | `att-adv` | ADV 출결 | [04](04-attendance.md) |
 | 15 | 출결 & 점수 | 출결 관리 | 스터디 출결 관리 | `att-study` | 스터디 출결 | [04](04-attendance.md) |

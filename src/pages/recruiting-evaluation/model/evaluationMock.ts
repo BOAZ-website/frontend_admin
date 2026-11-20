@@ -1,6 +1,6 @@
 /**
  * [PoC 목 데이터] 서류 평가 화면이 쓰는 지원자·답변·평가·면접 질문과, 그 데이터를 바꾸는 계산 함수.
- * 실제 API 연동 때 이 파일 전체를 entities의 API 함수(REC-ADMIN-13~20, 승격 API)로 교체한다.
+ * 실제 API 연동 때 이 파일 전체를 entities의 API 함수(REC-ADMIN-13~20, 부원 등록 API)로 교체한다.
  * 화면은 이 파일을 직접 부르지 않고 useEvaluationData Hook만 쓴다(R7-1).
  */
 import { ApiError } from '@/shared/api/apiError';
@@ -15,7 +15,7 @@ import type {
   InterviewQuestionItem,
   MyEvaluationDto,
   MyEvaluationInput,
-  PromotionResult,
+  PromoteUsersResponse,
   TrackType,
 } from './types';
 
@@ -74,7 +74,6 @@ export const INITIAL_DATA: EvaluationData = {
         'AIOps 실시간 파이프라인 개발 경험이 매우 우수함. 면접 때 인프라 장애 대응 경험 질의 권장.',
       my_interview_question:
         'Kafka 파티션 분배 전략 및 트래픽 폭증 시 데이터 유실 방지 아키텍처는?',
-      is_promoted_to_member: false,
     },
     {
       id: 102,
@@ -102,7 +101,6 @@ export const INITIAL_DATA: EvaluationData = {
       my_score: null,
       my_memo: null,
       my_interview_question: null,
-      is_promoted_to_member: false,
     },
     {
       id: 103,
@@ -130,7 +128,6 @@ export const INITIAL_DATA: EvaluationData = {
       my_score: null,
       my_memo: null,
       my_interview_question: null,
-      is_promoted_to_member: false,
     },
     {
       id: 104,
@@ -158,7 +155,6 @@ export const INITIAL_DATA: EvaluationData = {
       my_score: 9,
       my_memo: '비즈니스 인사이트 및 그로스 실험 설계 역량이 탁월함',
       my_interview_question: 'A/B 테스트 시 p-value 해석과 표본 크기 산정 기준은?',
-      is_promoted_to_member: false,
     },
     {
       id: 105,
@@ -186,7 +182,6 @@ export const INITIAL_DATA: EvaluationData = {
       my_score: null,
       my_memo: null,
       my_interview_question: null,
-      is_promoted_to_member: false,
     },
     {
       id: 106,
@@ -214,7 +209,6 @@ export const INITIAL_DATA: EvaluationData = {
       my_score: null,
       my_memo: null,
       my_interview_question: null,
-      is_promoted_to_member: false,
     },
   ],
   answersMap: {
@@ -522,24 +516,45 @@ export function applyFinalDecision(
 }
 
 /**
- * 정회원 승격(PATCH /api/v1/admin/users/promote)을 목 데이터에 반영한다.
- * is_promoted_to_member는 PoC 화면 표시용 값이며 실제 서버 응답 필드가 아니다.
+ * [부원 등록 PATCH /api/v1/admin/users/promote 대체] 사람마다 따로 처리하고, 처리하지 못한 사람만 실패 목록에 담는다.
+ * 실패 판단은 서버 규칙을 따른다: 이미 회원, 제출 완료 지원서 없음, 최종 합격 아님. 지원서는 지우지 않는다.
+ * 'promote-error'는 결과를 알 수 없는 서버 오류(500), 'promote-partial'은 첫 대상의 계정 없음 실패를 재현한다.
  */
-export function applyPromotion(
+export function promoteUsersMock(
   data: EvaluationData,
   userIds: readonly number[],
-): { data: EvaluationData; result: PromotionResult } {
-  // shortcut: 목 데이터는 실패를 만들지 않는다, 부분 실패 표시를 구현할 때 실패 규칙을 더한다
-  const failedList: PromotionResult['failedList'] = [];
-  const successUserIds = userIds.filter((id) => !failedList.some((f) => f.user_id === id));
+  scenario: MockScenario | null,
+): { data: EvaluationData; response: PromoteUsersResponse } {
+  if (scenario === 'promote-error') {
+    throw new ApiError(500, 'INTERNAL_SERVER_ERROR', '서버 오류가 발생했습니다.');
+  }
+  const failed: PromoteUsersResponse['failed_user_ids'] = [];
+  const registered: number[] = [];
+  userIds.forEach((userId, index) => {
+    const application = data.applicants.find(
+      (a) => a.user_id === userId && a.status === 'SUBMITTED',
+    );
+    const errorCode =
+      scenario === 'promote-partial' && index === 0
+        ? 'USER_NOT_FOUND'
+        : application?.is_promoted_to_member || registered.includes(userId)
+          ? 'ALREADY_MEMBER'
+          : !application
+            ? 'APPLICATION_NOT_FOUND'
+            : application.final_decision !== 'PASS'
+              ? 'APPLICANT_NOT_PASSED'
+              : null;
+    if (errorCode) failed.push({ user_id: userId, error_code: errorCode });
+    else registered.push(userId);
+  });
   return {
     data: {
       ...data,
       applicants: data.applicants.map((a) =>
-        successUserIds.includes(a.user_id) ? { ...a, is_promoted_to_member: true } : a,
+        registered.includes(a.user_id) ? { ...a, is_promoted_to_member: true } : a,
       ),
     },
-    result: { successUserIds, failedList },
+    response: { failed_user_ids: failed },
   };
 }
 
@@ -560,7 +575,9 @@ export type MockScenario =
   | 'questions-error'
   | 'final-decision-error'
   | 'final-decision-denied'
-  | 'final-decision-not-found';
+  | 'final-decision-not-found'
+  | 'promote-error'
+  | 'promote-partial';
 
 const MOCK_SCENARIOS: readonly MockScenario[] = [
   'applicants-error',
@@ -576,6 +593,8 @@ const MOCK_SCENARIOS: readonly MockScenario[] = [
   'final-decision-error',
   'final-decision-denied',
   'final-decision-not-found',
+  'promote-error',
+  'promote-partial',
 ];
 
 /** 주소의 쿼리 문자열에서 목 시나리오를 읽는다. 모르는 값이면 null. */
