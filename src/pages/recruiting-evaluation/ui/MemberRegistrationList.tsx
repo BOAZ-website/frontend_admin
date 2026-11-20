@@ -240,7 +240,7 @@ export function MemberRegistrationList({
           </div>
           {/* 등록 버튼은 가로 스크롤 밖, 표 바로 아래 '상태' 열 가운데에 둔다. 고른 사람이 있을 때만 보인다. */}
           {selectedIds.length > 0 && (
-            <div className="mt-3 flex items-center justify-end text-xs">
+            <div className="mt-3 flex items-center justify-end text-xs whitespace-nowrap">
               <span className="font-bold" role="status">
                 {selectedIds.length}명 선택됨
               </span>

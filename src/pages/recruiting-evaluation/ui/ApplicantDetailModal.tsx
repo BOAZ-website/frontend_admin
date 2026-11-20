@@ -26,13 +26,23 @@ export function ApplicantDetailModal({
   onEvaluate,
 }: ApplicantDetailModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // 바깥 배경에서 누르기 시작해 바깥에서 뗐을 때만 닫는다. 창 안에서 글자를 끌어 선택하다 바깥에서 떼도 닫히지 않는다.
+  const isBackdropPressRef = useRef(false);
   useDialogKeyboard(panelRef, onClose);
   const titleId = `applicant-detail-${applicant.id}`;
 
   const fields = applicantInfoFields(applicant);
 
   return (
-    <div className="evaluation-detail-overlay fixed inset-0 z-60 flex items-center justify-center p-4">
+    <div
+      className="evaluation-detail-overlay fixed inset-0 z-60 flex items-center justify-center p-4"
+      onMouseDown={(event) => {
+        isBackdropPressRef.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        if (isBackdropPressRef.current && event.target === event.currentTarget) onClose();
+      }}
+    >
       <div
         ref={panelRef}
         role="dialog"

@@ -368,27 +368,21 @@ export function EvaluationManagePage({
 
       {mainTab === 'promotions' && (
         <div className="p-5 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.03]">
-          {/* 지표 칸은 화면 끝까지 늘리지 않고 같은 고정 너비로 왼쪽에 나란히 둔다. */}
-          <div className="flex flex-wrap gap-3 text-xs">
-            <div className="w-40 p-3 rounded-md bg-slate-50 border border-slate-100 space-y-0.5">
-              <p className="text-muted-foreground text-[11px]">최종 합격자</p>
-              <p className="text-foreground font-bold font-mono text-base">
-                {passedCandidates.length}명
-              </p>
-            </div>
-            <div className="w-40 p-3 rounded-md bg-slate-50 border border-slate-100 space-y-0.5">
-              <p className="text-muted-foreground text-[11px]">승격 대기 인원</p>
-              <p className="text-amber-400 font-bold font-mono text-base">
-                {unpromotedPassedCandidates.length}명
-              </p>
-            </div>
-            <div className="w-40 p-3 rounded-md bg-slate-50 border border-slate-100 space-y-0.5">
-              <p className="text-muted-foreground text-[11px]">정회원 승격 완료</p>
-              <p className="text-emerald-400 font-bold font-mono text-base">
-                {passedCandidates.filter((c) => c.is_promoted_to_member).length}명
-              </p>
-            </div>
-          </div>
+          {/* 지표 칸은 같은 고정 너비로 왼쪽에 나란히 두고, 좁으면 다음 줄로 넘긴다. 세 칸은 제목·숫자 모양이 같다. */}
+          <dl className="flex flex-wrap gap-3 text-xs">
+            {(
+              [
+                ['최종 합격자', passedCandidates.length],
+                ['등록 대기 인원', unpromotedPassedCandidates.length],
+                ['부원 등록 완료', passedCandidates.filter((c) => c.is_promoted_to_member).length],
+              ] as const
+            ).map(([label, count]) => (
+              <div key={label} className="w-40 p-3 rounded-md bg-slate-50 border border-slate-100">
+                <dt className="text-muted-foreground text-[11px] leading-4">{label}</dt>
+                <dd className="mt-1 text-foreground font-bold text-base leading-6">{count}명</dd>
+              </div>
+            ))}
+          </dl>
         </div>
       )}
 
