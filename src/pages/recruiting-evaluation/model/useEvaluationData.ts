@@ -25,6 +25,7 @@ import type {
   InterviewQuestionItem,
   MyEvaluationDto,
   MyEvaluationInput,
+  PromoteUsersRequest,
   PromoteUsersResponse,
 } from './types';
 
@@ -51,9 +52,9 @@ export interface EvaluationDataState extends EvaluationData {
   updateFinalDecision: (applicantId: number, decision: EvaluationDecision) => Promise<void>;
   /**
    * 부원 등록(PATCH /api/v1/admin/users/promote). 200이면 실패 목록을 돌려주고, 4xx·5xx·연결 오류는 ApiError를 던진다.
-   * 실제 API 연동 때 이 함수 안의 목 호출만 entities API 함수 호출로 바꾼다. 요청 JSON 키(user_ids)는 연동 때 서버와 확인한다.
+   * 실제 API 연동 때 이 함수 안의 목 호출만 entities API 함수 호출로 바꾼다. body는 { user_ids } 그대로 보낸다.
    */
-  promoteUsers: (userIds: readonly number[]) => Promise<PromoteUsersResponse>;
+  promoteUsers: (request: PromoteUsersRequest) => Promise<PromoteUsersResponse>;
 }
 
 // PoC 응답 지연. 실제 API 연동 때 지운다.
@@ -137,9 +138,9 @@ export function useEvaluationData(): EvaluationDataState {
     setData((current) => applyFinalDecision(current, applicantId, decision));
   };
 
-  const promoteUsers = async (userIds: readonly number[]): Promise<PromoteUsersResponse> => {
+  const promoteUsers = async (request: PromoteUsersRequest): Promise<PromoteUsersResponse> => {
     await wait(PROMOTE_DELAY_MS);
-    const next = promoteUsersMock(dataRef.current, userIds, mockScenario());
+    const next = promoteUsersMock(dataRef.current, request, mockScenario());
     setData(next.data);
     return next.response;
   };

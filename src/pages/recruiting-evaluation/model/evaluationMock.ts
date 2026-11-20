@@ -15,6 +15,7 @@ import type {
   InterviewQuestionItem,
   MyEvaluationDto,
   MyEvaluationInput,
+  PromoteUsersRequest,
   PromoteUsersResponse,
   TrackType,
 } from './types';
@@ -522,7 +523,7 @@ export function applyFinalDecision(
  */
 export function promoteUsersMock(
   data: EvaluationData,
-  userIds: readonly number[],
+  request: PromoteUsersRequest,
   scenario: MockScenario | null,
 ): { data: EvaluationData; response: PromoteUsersResponse } {
   if (scenario === 'promote-error') {
@@ -530,7 +531,7 @@ export function promoteUsersMock(
   }
   const failed: PromoteUsersResponse['failed_user_ids'] = [];
   const registered: number[] = [];
-  userIds.forEach((userId, index) => {
+  request.user_ids.forEach((userId, index) => {
     const application = data.applicants.find(
       (a) => a.user_id === userId && a.status === 'SUBMITTED',
     );

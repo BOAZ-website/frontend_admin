@@ -79,7 +79,11 @@ test('부원 등록은 합격자만 등록하고, 이미 회원·미합격·지�
   const passed = applicantOf(101); // 최종 합격
   const pending = applicantOf(102); // 미결
 
-  const first = promoteUsersMock(INITIAL_DATA, [passed.user_id, pending.user_id, 9999], null);
+  const first = promoteUsersMock(
+    INITIAL_DATA,
+    { user_ids: [passed.user_id, pending.user_id, 9999] },
+    null,
+  );
 
   assert.deepEqual(first.response.failed_user_ids, [
     { user_id: pending.user_id, error_code: 'APPLICANT_NOT_PASSED' },
@@ -92,7 +96,7 @@ test('부원 등록은 합격자만 등록하고, 이미 회원·미합격·지�
   // 지원서는 지우지 않는다.
   assert.equal(first.data.applicants.length, INITIAL_DATA.applicants.length);
 
-  const again = promoteUsersMock(first.data, [passed.user_id], null);
+  const again = promoteUsersMock(first.data, { user_ids: [passed.user_id] }, null);
   assert.deepEqual(again.response.failed_user_ids, [
     { user_id: passed.user_id, error_code: 'ALREADY_MEMBER' },
   ]);
@@ -101,10 +105,10 @@ test('부원 등록은 합격자만 등록하고, 이미 회원·미합격·지�
 test('부원 등록 시나리오는 서버 오류와 부분 실패를 재현한다', () => {
   const ids = [applicantOf(101).user_id, applicantOf(104).user_id];
   assert.throws(
-    () => promoteUsersMock(INITIAL_DATA, ids, 'promote-error'),
+    () => promoteUsersMock(INITIAL_DATA, { user_ids: ids }, 'promote-error'),
     (error) => error instanceof ApiError && error.status === 500,
   );
-  const partial = promoteUsersMock(INITIAL_DATA, ids, 'promote-partial');
+  const partial = promoteUsersMock(INITIAL_DATA, { user_ids: ids }, 'promote-partial');
   assert.deepEqual(partial.response.failed_user_ids, [
     { user_id: ids[0], error_code: 'USER_NOT_FOUND' },
   ]);

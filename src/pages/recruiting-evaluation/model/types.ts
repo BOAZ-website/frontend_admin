@@ -99,6 +99,11 @@ export interface MyEvaluationDto {
   interview_question: string | null;
 }
 
+/** 부원 등록(PATCH /api/v1/admin/users/promote) 요청 body. 키는 로컬 백엔드(SNAKE_CASE)와 같다. */
+export interface PromoteUsersRequest {
+  user_ids: number[];
+}
+
 /**
  * 부원 등록(PATCH /api/v1/admin/users/promote) 200 응답의 data. 성공 목록은 없고 실패한 사람만 온다.
  * 요청한 사람 중 이 목록에 없는 사람이 등록에 성공한 사람이다.

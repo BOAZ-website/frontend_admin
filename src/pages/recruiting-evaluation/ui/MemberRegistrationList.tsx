@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useLoaded } from '@/shared/lib/useLoaded';
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
@@ -17,6 +17,7 @@ import {
 import {
   type ApplicantAnswerDto,
   type ApplicantEvaluationDto,
+  type PromoteUsersRequest,
   type PromoteUsersResponse,
   TRACK_LABELS,
   type TrackType,
@@ -28,7 +29,7 @@ interface MemberRegistrationListProps {
   fetchApplicants: () => Promise<ApplicantEvaluationDto[]>;
   fetchAnswers: (applicantIdKey: string) => Promise<ApplicantAnswerDto[]>;
   /** 부원 등록 요청. 200이면 실패 목록을 돌려주고, 요청 자체가 실패하면 던진다. */
-  promoteUsers: (userIds: readonly number[]) => Promise<PromoteUsersResponse>;
+  promoteUsers: (request: PromoteUsersRequest) => Promise<PromoteUsersResponse>;
 }
 
 const COLUMNS = ['이름', '부문', '학교', '전공', '이메일', '연락처', '총점수', '상태'];
@@ -54,12 +55,23 @@ export function MemberRegistrationList({
   // 상태 반영 전에 버튼을 두 번 눌러도 요청이 한 번만 가게 한다.
   const registeringRef = useRef(false);
   const [detail, setDetail] = useState<ApplicantEvaluationDto | null>(null);
+  // 등록 버튼을 '상태' 열 가운데 아래에 두려고 그 열 너비를 잰다. 표 너비가 바뀌면 다시 잰다.
+  const statusHeaderRef = useRef<HTMLTableCellElement>(null);
+  const [statusWidth, setStatusWidth] = useState<number>();
 
   const candidates = registrationRows(list.data ?? [], { track: 'ALL', search: '' });
   const rows = registrationRows(list.data ?? [], { track, search });
   const visibleSelectedCount = rows.filter((row) => selectedIds.includes(row.user_id)).length;
   const isAllVisibleSelected = rows.length > 0 && visibleSelectedCount === rows.length;
   const isFirstLoad = list.isLoading && !list.data;
+
+  useEffect(() => {
+    const header = statusHeaderRef.current;
+    if (!header) return;
+    const observer = new ResizeObserver(() => setStatusWidth(header.offsetWidth));
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [isFirstLoad]);
 
   const toggle = (userId: number) =>
     setSelectedIds((current) =>
@@ -96,7 +108,7 @@ export function MemberRegistrationList({
       Object.fromEntries(targets.map((id) => [id, pick(id)]));
     setResults((current) => ({ ...current, ...withStatus(() => ({ status: 'REGISTERING' })) }));
     try {
-      const next = registrationResultsOf(targets, await promoteUsers(targets));
+      const next = registrationResultsOf(targets, await promoteUsers({ user_ids: targets }));
       setResults((current) => ({ ...current, ...next }));
       // 다시 시도할 수 있는 행(등록 실패·확인 필요)만 선택을 남긴다.
       setSelectedIds((current) =>
@@ -129,24 +141,7 @@ export function MemberRegistrationList({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
-        <div className="flex items-center gap-3 text-xs">
-          {selectedIds.length > 0 && (
-            <>
-              <span className="font-bold" role="status">
-                {selectedIds.length}명 선택됨
-              </span>
-              <button
-                type="button"
-                disabled={isRegistering}
-                onClick={() => void handleRegister()}
-                className="px-4"
-              >
-                {isRegistering ? '등록 중…' : '선택한 인원 등록'}
-              </button>
-            </>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <FilterDropdown
             ariaLabel="부문 필터"
@@ -169,74 +164,99 @@ export function MemberRegistrationList({
           합격자 목록을 불러오는 중입니다.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-2xs">
-          <table className="w-full min-w-[900px] text-xs">
-            <thead>
-              <tr>
-                <th scope="col" className="w-10 px-4 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    aria-label="보이는 합격자 모두 선택"
-                    checked={isAllVisibleSelected}
-                    disabled={rows.length === 0}
-                    ref={(element) => {
-                      if (element) {
-                        element.indeterminate = visibleSelectedCount > 0 && !isAllVisibleSelected;
-                      }
-                    }}
-                    onChange={toggleAllVisible}
-                    className="size-4 cursor-pointer"
-                  />
-                </th>
-                {COLUMNS.map((label) => (
-                  <th key={label} scope="col" className="px-4 py-3 text-left">
-                    {label}
+        <>
+          <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-2xs">
+            <table className="w-full min-w-[900px] text-xs">
+              <thead>
+                <tr>
+                  <th scope="col" className="w-10 px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      aria-label="보이는 합격자 모두 선택"
+                      checked={isAllVisibleSelected}
+                      disabled={rows.length === 0}
+                      ref={(element) => {
+                        if (element) {
+                          element.indeterminate = visibleSelectedCount > 0 && !isAllVisibleSelected;
+                        }
+                      }}
+                      onChange={toggleAllVisible}
+                      className="size-4 cursor-pointer"
+                    />
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const result = results[row.user_id] ?? WAITING;
-                return (
-                  <tr
-                    key={row.id}
-                    tabIndex={0}
-                    onClick={() => setDetail(row)}
-                    onKeyDown={(event) => event.key === 'Enter' && setDetail(row)}
-                    className="cursor-pointer"
-                  >
-                    {/* 체크박스 클릭·키 입력은 행으로 올려 보내지 않는다(상세가 열리지 않게). */}
-                    <td
-                      className="px-4"
-                      onClick={(event) => event.stopPropagation()}
-                      onKeyDown={(event) => event.stopPropagation()}
+                  {COLUMNS.map((label) => (
+                    <th
+                      key={label}
+                      ref={label === '상태' ? statusHeaderRef : undefined}
+                      scope="col"
+                      className="px-4 py-3 text-left"
                     >
-                      <input
-                        type="checkbox"
-                        aria-label={`${displayValue(row.name)} 선택`}
-                        checked={selectedIds.includes(row.user_id)}
-                        onChange={() => toggle(row.user_id)}
-                        className="size-4 cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-4 font-semibold">{displayValue(row.name)}</td>
-                    <td className="px-4">{TRACK_LABELS[row.track]}</td>
-                    <td className="px-4">{displayValue(row.university)}</td>
-                    <td className="px-4">{displayValue(row.major)}</td>
-                    <td className="px-4">{displayValue(row.email)}</td>
-                    <td className="px-4 whitespace-nowrap">{displayValue(row.phone)}</td>
-                    <td className="px-4">{row.total_score}</td>
-                    <td className="px-4 whitespace-nowrap">
-                      {REGISTRATION_STATUS_LABELS[result.status]}
-                      {result.reason && <p className="text-[11px]">{result.reason}</p>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const result = results[row.user_id] ?? WAITING;
+                  return (
+                    <tr
+                      key={row.id}
+                      tabIndex={0}
+                      onClick={() => setDetail(row)}
+                      onKeyDown={(event) => event.key === 'Enter' && setDetail(row)}
+                      className="cursor-pointer"
+                    >
+                      {/* 체크박스 클릭·키 입력은 행으로 올려 보내지 않는다(상세가 열리지 않게). */}
+                      <td
+                        className="px-4"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={`${displayValue(row.name)} 선택`}
+                          checked={selectedIds.includes(row.user_id)}
+                          onChange={() => toggle(row.user_id)}
+                          className="size-4 cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-4 font-semibold">{displayValue(row.name)}</td>
+                      <td className="px-4">{TRACK_LABELS[row.track]}</td>
+                      <td className="px-4">{displayValue(row.university)}</td>
+                      <td className="px-4">{displayValue(row.major)}</td>
+                      <td className="px-4">{displayValue(row.email)}</td>
+                      <td className="px-4 whitespace-nowrap">{displayValue(row.phone)}</td>
+                      <td className="px-4">{row.total_score}</td>
+                      <td className="px-4 whitespace-nowrap">
+                        {REGISTRATION_STATUS_LABELS[result.status]}
+                        {result.reason && <p className="text-[11px]">{result.reason}</p>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {/* 등록 버튼은 가로 스크롤 밖, 표 바로 아래 '상태' 열 가운데에 둔다. 고른 사람이 있을 때만 보인다. */}
+          {selectedIds.length > 0 && (
+            <div className="mt-3 flex items-center justify-end text-xs">
+              <span className="font-bold" role="status">
+                {selectedIds.length}명 선택됨
+              </span>
+              <div className="flex justify-center" style={{ width: statusWidth }}>
+                <button
+                  type="button"
+                  disabled={isRegistering}
+                  onClick={() => void handleRegister()}
+                  className="px-4"
+                >
+                  {isRegistering ? '등록 중…' : '등록하기'}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {!isFirstLoad && rows.length === 0 && (
