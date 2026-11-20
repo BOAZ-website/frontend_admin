@@ -259,12 +259,7 @@ export function EvaluationManagePage({
       showToast('평가가 저장되었습니다.', 'success');
     } catch (error) {
       const notice = saveFailureNoticeOf(error, applicant.status);
-      if (notice.display === 'modal') {
-        // shortcut: 오류 안내 창을 브라우저 기본 알림으로 띄운다, 공통 확인 창(PLT-CONFIRM)이 생기면 바꾼다
-        window.alert(notice.message);
-      } else {
-        showToast(notice.message, 'error');
-      }
+      window.alert(notice.message);
       if (notice.leave && requestId === openRequestRef.current) setSelectedApplicant(null);
     } finally {
       setIsSaving(false);
@@ -282,12 +277,7 @@ export function EvaluationManagePage({
       return true;
     } catch (error) {
       const notice = finalDecisionFailureNoticeOf(error, applicant.status);
-      if (notice.display === 'modal') {
-        // shortcut: 오류 안내 창을 브라우저 기본 알림으로 띄운다, 공통 확인 창(PLT-CONFIRM)이 생기면 바꾼다
-        window.alert(notice.message);
-      } else {
-        showToast(notice.message, 'error');
-      }
+      window.alert(notice.message);
       return false;
     }
   }
@@ -309,7 +299,7 @@ export function EvaluationManagePage({
 
   function handleOpenPromoteModal() {
     if (selectedPromoteUserIds.length === 0) {
-      alert('승격할 합격자를 최소 1명 이상 선택해 주세요.');
+      window.alert('승격할 합격자를 최소 1명 이상 선택해 주세요.');
       return;
     }
     setPromoteCheck1(false);
@@ -328,7 +318,7 @@ export function EvaluationManagePage({
     setIsPromoting(false);
     setShowPromoteConfirmModal(false);
     setSelectedPromoteUserIds([]);
-    alert(
+    window.alert(
       `정회원 승격 처리가 완료되었습니다.\n` +
         `• 승격 완료: ${result.successUserIds.length}명\n` +
         `• 실패 건수: ${result.failedList.length}건`,
@@ -405,24 +395,20 @@ export function EvaluationManagePage({
         />
       )}
 
-      {/* ─── TAB 3: 합격자 정회원 승격 전용 탭 (UserAdminController: PATCH /api/v1/admin/users/promote) ─── */}
+      {/* 합격자 승격. 승격 API 연동과 화면 재기획은 보류(docs/evaluation-rework-plan.md §5). */}
       {mainTab === 'promotions' && (
         <div className="space-y-4">
           {/* Promotion Header Banner */}
-          <div className="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.03] space-y-2">
+          <div className="p-5 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.03] space-y-2">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                   <UserCheck size={18} className="text-emerald-400" />
-                  <span>최종 합격자 정회원(MEMBER) 승격 관리</span>
+                  <span>최종 합격자 정회원 승격</span>
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  프론트엔드에서 합격자(PASS)를 선택하여{' '}
-                  <code className="text-foreground font-mono">user_ids</code> 목록을 전송하면,
-                  서버가 각 유저의 최신 SUBMITTED 지원서에서{' '}
-                  <strong>이름/전화번호/대학교/전공</strong>을 User 엔티티로 복사하고{' '}
-                  <code className="text-[#34d399] font-mono">memberType=MEMBER</code>로 일괄
-                  승격합니다.
+                  최종 합격자를 골라 정회원으로 승격합니다. 지원서의 이름·연락처·학교·전공 등이 회원
+                  정보로 옮겨집니다.
                 </p>
               </div>
 
@@ -430,7 +416,7 @@ export function EvaluationManagePage({
                 <button
                   onClick={handleSelectAllPromote}
                   disabled={unpromotedPassedCandidates.length === 0}
-                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-100 text-foreground border border-slate-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="px-3.5 py-2 rounded-sm text-xs font-bold bg-slate-100 hover:bg-slate-100 text-foreground border border-slate-200 flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
                 >
                   <CheckSquare size={13} />
                   <span>
@@ -444,29 +430,29 @@ export function EvaluationManagePage({
                 <button
                   onClick={handleOpenPromoteModal}
                   disabled={selectedPromoteUserIds.length === 0}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-950/40"
+                  className="px-4 py-2 rounded-sm text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer "
                 >
                   <Award size={14} />
-                  <span>선택한 {selectedPromoteUserIds.length}명 정회원 승격 실행 (PATCH)</span>
+                  <span>선택한 {selectedPromoteUserIds.length}명 승격</span>
                 </button>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3 pt-2 text-xs">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-0.5">
-                <p className="text-muted-foreground text-[11px]">최종 합격자 (PASS)</p>
+              <div className="p-3 rounded-md bg-slate-50 border border-slate-100 space-y-0.5">
+                <p className="text-muted-foreground text-[11px]">최종 합격자</p>
                 <p className="text-foreground font-bold font-mono text-base">
                   {passedCandidates.length}명
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-0.5">
+              <div className="p-3 rounded-md bg-slate-50 border border-slate-100 space-y-0.5">
                 <p className="text-muted-foreground text-[11px]">승격 대기 인원</p>
                 <p className="text-amber-400 font-bold font-mono text-base">
                   {unpromotedPassedCandidates.length}명
                 </p>
               </div>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-0.5">
-                <p className="text-muted-foreground text-[11px]">정회원 승격 완료 (MEMBER)</p>
+              <div className="p-3 rounded-md bg-slate-50 border border-slate-100 space-y-0.5">
+                <p className="text-muted-foreground text-[11px]">정회원 승격 완료</p>
                 <p className="text-emerald-400 font-bold font-mono text-base">
                   {passedCandidates.filter((c) => c.is_promoted_to_member).length}명
                 </p>
@@ -476,28 +462,21 @@ export function EvaluationManagePage({
 
           {/* Members Table */}
           <div>
-            <div className="pb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-                <Shield size={13} className="text-[#34d399]" />
-                <span>PATCH /api/v1/admin/users/promote (개별 트랜잭션 부분 성공 허용)</span>
-              </div>
-              <span className="text-[11px] text-muted-foreground">
-                평가 점수는 노출되지 않으며 회원 정보만 안전하게 조회됩니다.
-              </span>
-            </div>
+            <p className="pb-3 text-[11px] text-muted-foreground">
+              평가 점수는 보이지 않고 회원 정보만 보입니다.
+            </p>
 
             <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-2xs">
               <table className="w-full text-xs min-w-[900px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-muted-foreground font-semibold whitespace-nowrap">
                     <th className="text-center px-4 py-3.5 w-12">선택</th>
-                    <th className="text-left px-4 py-3.5 w-20">User ID</th>
                     <th className="text-left px-5 py-3.5">지원자 성명</th>
                     <th className="text-left px-4 py-3.5">합격 부문</th>
-                    <th className="text-left px-4 py-3.5">이메일 주소 (계정 ID)</th>
+                    <th className="text-left px-4 py-3.5">이메일</th>
                     <th className="text-left px-4 py-3.5">연락처</th>
                     <th className="text-left px-4 py-3.5">대학교 / 본전공</th>
-                    <th className="text-center px-4 py-3.5">계정 상태 & 권한</th>
+                    <th className="text-center px-4 py-3.5">회원 상태</th>
                     <th className="text-right px-5 py-3.5">승격 상태</th>
                   </tr>
                 </thead>
@@ -524,11 +503,6 @@ export function EvaluationManagePage({
                             onChange={() => handleTogglePromoteSelect(candidate.user_id)}
                             className="rounded accent-emerald-500 w-4 h-4 cursor-pointer disabled:opacity-40"
                           />
-                        </td>
-
-                        {/* User ID */}
-                        <td className="px-4 py-3.5 font-bold text-[#8ba5ff]">
-                          #{candidate.user_id}
                         </td>
 
                         {/* Name */}
@@ -562,12 +536,12 @@ export function EvaluationManagePage({
                           {isPromoted ? (
                             <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-bold text-[11px] border border-emerald-500/30 flex items-center justify-center gap-1">
                               <Shield size={11} />
-                              <span>정회원 (MEMBER)</span>
+                              <span>정회원</span>
                             </span>
                           ) : (
                             <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-muted-foreground text-[11px] border border-slate-200 flex items-center justify-center gap-1">
                               <User size={11} />
-                              <span>지원자 (APPLICANT)</span>
+                              <span>지원자</span>
                             </span>
                           )}
                         </td>
@@ -576,11 +550,11 @@ export function EvaluationManagePage({
                         <td className="px-5 py-3.5 text-right font-sans">
                           {isPromoted ? (
                             <span className="text-xs font-bold text-emerald-400 flex items-center justify-end gap-1">
-                              <CheckCircle2 size={13} /> 승격 완료됨
+                              <CheckCircle2 size={13} /> 승격 완료
                             </span>
                           ) : (
                             <span className="text-xs font-semibold text-amber-400 flex items-center justify-end gap-1">
-                              <Clock size={13} /> 승격 대기중
+                              <Clock size={13} /> 승격 대기
                             </span>
                           )}
                         </td>
@@ -594,16 +568,14 @@ export function EvaluationManagePage({
         </div>
       )}
 
-      {/* ─── Modal: 합격자 정회원 승격 최종 확인 모달 (PATCH /api/v1/admin/users/promote) ─── */}
+      {/* 합격자 승격 확인 창 */}
       {showPromoteConfirmModal && (
         <div className="fixed inset-0 bg-black/85 z-80 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl overflow-hidden p-6 space-y-4 bg-white border border-slate-200 shadow-2xl">
+          <div className="w-full max-w-lg rounded-lg overflow-hidden p-6 space-y-4 bg-white border border-slate-200 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2 text-emerald-400">
                 <UserCheck size={18} />
-                <h3 className="text-base font-bold text-foreground">
-                  정회원(MEMBER) 승격 최종 확인
-                </h3>
+                <h3 className="text-base font-bold text-foreground">정회원 승격 확인</h3>
               </div>
               <button
                 onClick={() => setShowPromoteConfirmModal(false)}
@@ -614,12 +586,11 @@ export function EvaluationManagePage({
             </div>
 
             <div className="space-y-2 text-xs">
-              <p className="font-bold text-foreground flex items-center justify-between">
-                <span>승격 실행 대상 user_ids 목록 ({selectedPromoteUserIds.length}명)</span>
-                <span className="text-[#34d399] font-mono font-bold">PATCH /users/promote</span>
+              <p className="font-bold text-foreground">
+                승격 대상 {selectedPromoteUserIds.length}명
               </p>
 
-              <div className="max-h-40 overflow-y-auto rounded-xl bg-slate-100 border border-slate-200 p-3 space-y-2 divide-y divide-white/5">
+              <div className="max-h-40 overflow-y-auto rounded-md bg-slate-100 border border-slate-200 p-3 space-y-2 divide-y divide-white/5">
                 {passedCandidates
                   .filter((c) => selectedPromoteUserIds.includes(c.user_id))
                   .map((app) => (
@@ -629,7 +600,6 @@ export function EvaluationManagePage({
                     >
                       <div className="space-y-0.5">
                         <p className="font-bold text-foreground font-sans">
-                          <span className="text-[#8ba5ff] mr-1.5">User #{app.user_id}</span>
                           {app.name} ({app.university} · {app.major})
                         </p>
                         <p className="text-muted-foreground">{app.email}</p>
@@ -640,17 +610,9 @@ export function EvaluationManagePage({
                     </div>
                   ))}
               </div>
-
-              {/* JSON Request Body Preview */}
-              <div className="p-2.5 rounded-xl bg-black/50 border border-slate-100 font-mono text-[11px]">
-                <span className="text-muted-foreground">Request Body: </span>
-                <code className="text-[#34d399] font-bold">
-                  {JSON.stringify({ user_ids: selectedPromoteUserIds })}
-                </code>
-              </div>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
+            <div className="p-3.5 rounded-md bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input
                   type="checkbox"
@@ -659,8 +621,8 @@ export function EvaluationManagePage({
                   className="mt-0.5 rounded accent-emerald-500 w-4 h-4 cursor-pointer"
                 />
                 <span className="text-foreground leading-relaxed">
-                  대표진 면접 및 최종 선발 회의를 거쳐{' '}
-                  <strong>합격(PASS)이 최종 확정된 명단</strong>임을 확인했습니다.
+                  대표진 면접과 최종 선발 회의를 거쳐 <strong>합격이 최종 확정된 명단</strong>임을
+                  확인했습니다.
                 </span>
               </label>
 
@@ -672,35 +634,31 @@ export function EvaluationManagePage({
                   className="mt-0.5 rounded accent-emerald-500 w-4 h-4 cursor-pointer"
                 />
                 <span className="text-foreground leading-relaxed">
-                  승격 시 서버가 각 유저의 최신 SUBMITTED 지원서에서 이름/전화번호/대학/전공을 User
-                  엔티티로 복사하고 <strong>memberType=MEMBER로 변경</strong>합니다. (개별 트랜잭션
-                  부분 성공 허용)
+                  승격하면 지원서의 회원 정보가 계정에 옮겨지고 <strong>정회원으로 바뀝니다</strong>
+                  . 되돌리는 기능은 없습니다.
                 </span>
               </label>
             </div>
 
-            <div className="flex justify-between items-center pt-3 border-t border-slate-200">
-              <span className="text-[11px] font-mono text-muted-foreground">
-                PATCH /api/v1/admin/users/promote
-              </span>
+            <div className="flex justify-end items-center pt-3 border-t border-slate-200">
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowPromoteConfirmModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground bg-slate-100 hover:bg-slate-100 cursor-pointer"
+                  className="px-4 py-2 rounded-sm text-xs font-medium text-muted-foreground hover:text-foreground bg-slate-100 hover:bg-slate-100 cursor-pointer"
                 >
                   취소
                 </button>
                 <button
                   onClick={handleExecutePromotion}
                   disabled={!promoteCheck1 || !promoteCheck2 || isPromoting}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-950/40"
+                  className="px-5 py-2 rounded-sm text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer "
                 >
                   {isPromoting ? (
                     <RefreshCw size={13} className="animate-spin" />
                   ) : (
                     <CheckCircle2 size={14} />
                   )}
-                  <span>정회원 일괄 승격 실행</span>
+                  <span>승격</span>
                 </button>
               </div>
             </div>

@@ -82,7 +82,6 @@ export function toSaveInput(draft: MyEvaluationDraft): MyEvaluationInput | null 
  * leave가 true면 안내 뒤 평가 화면을 닫고 목록으로 돌아간다. 입력한 값은 어느 경우에도 지우지 않는다.
  */
 export interface SaveFailureNotice {
-  display: 'modal' | 'toast';
   message: string;
   leave: boolean;
 }
@@ -93,19 +92,18 @@ export function saveFailureNoticeOf(
 ): SaveFailureNotice {
   const code = error instanceof ApiError ? error.code : null;
   if (code === 'ACCESS_DENIED') {
-    return { display: 'modal', message: '해당 지원서를 평가할 권한이 없습니다.', leave: false };
+    return { message: '해당 지원서를 평가할 권한이 없습니다.', leave: false };
   }
   if (code === 'APPLICATION_NOT_FOUND') {
-    return { display: 'modal', message: '지원서를 찾을 수 없습니다.', leave: true };
+    return { message: '지원서를 찾을 수 없습니다.', leave: true };
   }
   if (code === 'INVALID_INPUT_VALUE') {
     // 서버가 DRAFT 여부를 따로 알려 주지 않으므로 화면이 아는 지원서 상태로 문구를 고른다(§8.2 주의).
     return applicantStatus === 'DRAFT'
-      ? { display: 'modal', message: '제출 완료된 지원서만 평가할 수 있습니다.', leave: true }
-      : { display: 'toast', message: '입력값이 올바르지 않습니다.', leave: false };
+      ? { message: '제출 완료된 지원서만 평가할 수 있습니다.', leave: true }
+      : { message: '입력값이 올바르지 않습니다.', leave: false };
   }
   return {
-    display: 'toast',
     message: '평가를 저장하지 못했습니다. 다시 시도해주세요.',
     leave: false,
   };

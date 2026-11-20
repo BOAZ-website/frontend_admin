@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 import { useLoaded } from '@/shared/lib/useLoaded';
+import { FilterDropdown, type FilterDropdownOption } from '@/shared/ui/FilterDropdown';
+import { SearchInput } from '@/shared/ui/SearchInput';
+import { SelectDropdown } from '@/shared/ui/SelectDropdown';
+import { ICON_BTN } from '@/shared/ui/systemStyles';
 
 import {
   DEFAULT_REVIEW_QUERY,
   displayValue,
   filterReviewList,
-  hasNoEvaluations,
   isFilteredReviewQuery,
   MY_EVALUATION_FILTER_LABELS,
   type MyEvaluationFilter,
@@ -20,7 +23,6 @@ import {
   type ApplicantEvaluationDto,
   DECISION_LABELS,
   type EvaluationDecision,
-  TRACK_LABELS,
   type TrackType,
 } from '../model/types';
 import { ListLoadError } from './ListLoadError';
@@ -43,8 +45,39 @@ interface MyEvaluationListProps {
   ) => Promise<boolean>;
 }
 
-// 앞 세 열은 전체 지원 현황 목록과 같은 이름·표기다. 평가자별 상세는 상세 화면의 평가 현황 탭에서 본다.
-const COLUMNS = ['지원자', '트랙', '학교', '전공', '평가 집계', '총점', '내 평가', '최종 판정'];
+// 부문은 메뉴가 정하므로 트랙 열이 없다. 평가자별 상세는 상세 화면의 운영진 평가 현황에서 본다.
+const COLUMNS = [
+  '지원자',
+  '학교',
+  '전공',
+  '합격',
+  '보류',
+  '불합',
+  '총점',
+  '개인 평가',
+  '최종 평가',
+];
+
+const MY_FILTER_OPTIONS: readonly FilterDropdownOption<MyEvaluationFilter>[] = (
+  Object.keys(MY_EVALUATION_FILTER_LABELS) as MyEvaluationFilter[]
+).map((filter) => ({ value: filter, label: MY_EVALUATION_FILTER_LABELS[filter] }));
+
+const FINAL_FILTER_OPTIONS: readonly FilterDropdownOption<ReviewListQuery['finalDecision']>[] = [
+  { value: 'ALL', label: '전체' },
+  ...FINAL_DECISION_OPTIONS.map((decision) => ({
+    value: decision,
+    label: DECISION_LABELS[decision],
+  })),
+];
+
+const SORT_OPTIONS: readonly FilterDropdownOption<ReviewSort>[] = (
+  Object.keys(REVIEW_SORT_LABELS) as ReviewSort[]
+).map((sort) => ({ value: sort, label: REVIEW_SORT_LABELS[sort] }));
+
+const FINAL_DECISION_SELECT_OPTIONS = FINAL_DECISION_OPTIONS.map((decision) => ({
+  value: decision,
+  label: DECISION_LABELS[decision],
+}));
 
 /**
  * 서류 평가 목록. 개인 평가 목록(EVL-MY)과 전체 평가 목록(EVL-GROUP)을 합쳤다.
@@ -108,67 +141,48 @@ export function MyEvaluationList({
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
-        <span className="text-xs font-bold">
-          평가 대상 <span className="font-mono">총 {rows.length}명</span>
-        </span>
+        <span className="text-xs font-bold">평가 대상 총 {rows.length}명</span>
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <select
-            aria-label="평가 상태"
+          <FilterDropdown
+            ariaLabel="평가 상태 필터"
+            title="평가 상태"
             value={query.myFilter}
-            onChange={(e) => updateQuery({ myFilter: e.target.value as MyEvaluationFilter })}
-            className="px-2 py-1"
-          >
-            {(Object.keys(MY_EVALUATION_FILTER_LABELS) as MyEvaluationFilter[]).map((filter) => (
-              <option key={filter} value={filter}>
-                {filter === 'ALL' ? '전체 평가 상태' : MY_EVALUATION_FILTER_LABELS[filter]}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="최종 판정"
+            options={MY_FILTER_OPTIONS}
+            onChange={(myFilter) => updateQuery({ myFilter })}
+          />
+          <FilterDropdown
+            ariaLabel="최종 평가 필터"
+            title="최종 평가"
             value={query.finalDecision}
-            onChange={(e) =>
-              updateQuery({ finalDecision: e.target.value as ReviewListQuery['finalDecision'] })
-            }
-            className="px-2 py-1"
-          >
-            <option value="ALL">전체 최종 판정</option>
-            {FINAL_DECISION_OPTIONS.map((decision) => (
-              <option key={decision} value={decision}>
-                최종 {DECISION_LABELS[decision]}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="정렬"
+            options={FINAL_FILTER_OPTIONS}
+            onChange={(finalDecision) => updateQuery({ finalDecision })}
+          />
+          <FilterDropdown
+            ariaLabel="정렬"
+            title={REVIEW_SORT_LABELS.SUBMITTED_DESC}
             value={query.sort}
-            onChange={(e) => updateQuery({ sort: e.target.value as ReviewSort })}
-            className="px-2 py-1"
-          >
-            {(Object.keys(REVIEW_SORT_LABELS) as ReviewSort[]).map((sort) => (
-              <option key={sort} value={sort}>
-                {REVIEW_SORT_LABELS[sort]}
-              </option>
-            ))}
-          </select>
-          <label className="flex items-center gap-1">
-            <Search size={13} aria-hidden="true" />
-            <input
-              type="search"
-              aria-label="지원자 검색"
-              placeholder="이름·이메일·학교·전공"
-              value={query.search}
-              onChange={(e) => updateQuery({ search: e.target.value })}
-              className="w-48 px-2 py-1"
-            />
-          </label>
+            options={SORT_OPTIONS}
+            onChange={(sort) => updateQuery({ sort })}
+          />
+          <SearchInput
+            ariaLabel="지원자 검색"
+            placeholder="이름·이메일·학교·전공"
+            value={query.search}
+            onChange={(search) => updateQuery({ search })}
+          />
           <button
             type="button"
+            aria-label="목록 새로고침"
+            title="새로고침"
             disabled={list.isLoading}
             onClick={list.reload}
-            className="px-2 py-1"
+            className={ICON_BTN}
           >
-            {list.isLoading && !isFirstLoad ? '불러오는 중…' : '↻ 새로고침'}
+            <RefreshCw
+              size={14}
+              aria-hidden="true"
+              className={list.isLoading ? 'animate-spin' : ''}
+            />
           </button>
         </div>
       </div>
@@ -202,15 +216,12 @@ export function MyEvaluationList({
                     className="cursor-pointer"
                   >
                     <td className="px-4 font-semibold">{displayValue(applicant.name)}</td>
-                    <td className="px-4">{TRACK_LABELS[applicant.track]}</td>
                     <td className="px-4">{displayValue(applicant.university)}</td>
                     <td className="px-4">{displayValue(applicant.major)}</td>
-                    <td className="px-4 whitespace-nowrap">
-                      {hasNoEvaluations(applicant)
-                        ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED
-                        : `합격 ${applicant.pass_count} · 보류 ${applicant.hold_count} · 불합격 ${applicant.fail_count}`}
-                    </td>
-                    <td className="px-4 whitespace-nowrap">{applicant.total_score}점</td>
+                    <td className="px-4">{applicant.pass_count}</td>
+                    <td className="px-4">{applicant.hold_count}</td>
+                    <td className="px-4">{applicant.fail_count}</td>
+                    <td className="px-4">{applicant.total_score}</td>
                     <td className="px-4 whitespace-nowrap">
                       {applicant.my_decision === null
                         ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED
@@ -223,24 +234,18 @@ export function MyEvaluationList({
                           className="flex items-center gap-2"
                           onClick={(event) => event.stopPropagation()}
                         >
-                          <select
-                            aria-label={`${displayValue(applicant.name)} 최종 판정`}
+                          <SelectDropdown
+                            ariaLabel={`${displayValue(applicant.name)} 최종 평가`}
                             value={finalDraftOf(applicant)}
-                            disabled={savingFinalId !== null}
-                            onChange={(e) =>
+                            options={FINAL_DECISION_SELECT_OPTIONS}
+                            onChange={(decision) =>
                               setFinalDrafts((current) => ({
                                 ...current,
-                                [applicant.id]: e.target.value as EvaluationDecision,
+                                [applicant.id]: decision,
                               }))
                             }
-                            className="px-2 py-1"
-                          >
-                            {FINAL_DECISION_OPTIONS.map((decision) => (
-                              <option key={decision} value={decision}>
-                                {DECISION_LABELS[decision]}
-                              </option>
-                            ))}
-                          </select>
+                            buttonClassName="h-[30px] w-20"
+                          />
                           <button
                             type="button"
                             aria-label={`${displayValue(applicant.name)} 최종 판정 저장`}

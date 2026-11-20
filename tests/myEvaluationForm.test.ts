@@ -66,17 +66,15 @@ test('저장 값과 하나라도 다르면 저장하지 않은 수정으로 본�
   assert.equal(isDraftChanged({ ...saved, memo: ' ' }, saved), true);
 });
 
-test('저장 실패는 오류 코드로 모달·토스트와 목록 복귀를 고른다', () => {
+test('저장 실패는 오류 코드로 안내 문구와 목록 복귀를 고른다', () => {
   const notice = (error: unknown, status: 'SUBMITTED' | 'DRAFT' = 'SUBMITTED') =>
     saveFailureNoticeOf(error, status);
 
   assert.deepEqual(notice(new ApiError(403, 'ACCESS_DENIED', 'x')), {
-    display: 'modal',
     message: '해당 지원서를 평가할 권한이 없습니다.',
     leave: false,
   });
   assert.deepEqual(notice(new ApiError(404, 'APPLICATION_NOT_FOUND', 'x')), {
-    display: 'modal',
     message: '지원서를 찾을 수 없습니다.',
     leave: true,
   });
@@ -85,12 +83,10 @@ test('저장 실패는 오류 코드로 모달·토스트와 목록 복귀를 �
     '제출 완료된 지원서만 평가할 수 있습니다.',
   );
   assert.deepEqual(notice(new ApiError(400, 'INVALID_INPUT_VALUE', 'x')), {
-    display: 'toast',
     message: '입력값이 올바르지 않습니다.',
     leave: false,
   });
   assert.deepEqual(notice(new ApiError(0, 'NETWORK_ERROR', 'x')), {
-    display: 'toast',
     message: '평가를 저장하지 못했습니다. 다시 시도해주세요.',
     leave: false,
   });

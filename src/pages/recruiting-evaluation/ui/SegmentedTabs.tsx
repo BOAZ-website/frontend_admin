@@ -28,7 +28,7 @@ export function SegmentedTabs<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="evaluation-header-tabs flex p-1 rounded-xl bg-slate-100 border border-slate-200"
+      className="evaluation-header-tabs flex p-1 rounded-sm bg-slate-100 border border-slate-200"
     >
       {items.map(({ id, label: itemLabel, icon: Icon }) => (
         <button
@@ -36,7 +36,7 @@ export function SegmentedTabs<T extends string>({
           type="button"
           aria-pressed={value === id}
           onClick={() => onChange(id)}
-          className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+          className="px-3.5 py-1.5 rounded-sm text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
         >
           {Icon && <Icon size={13} />}
           <span>{itemLabel}</span>

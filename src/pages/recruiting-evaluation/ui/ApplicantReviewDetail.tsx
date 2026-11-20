@@ -1,3 +1,5 @@
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+
 import type { ToastMessage } from '@/shared/ui/Toast';
 
 import { applicantInfoFields } from '../model/applicantList';
@@ -70,7 +72,8 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
     <div className="evaluation-page applicant-review">
       <div className="review-toolbar">
         <button type="button" disabled={p.saving} onClick={p.onBack}>
-          ← 목록
+          <ArrowLeft size={14} aria-hidden="true" />
+          목록
         </button>
         <SegmentedTabs
           label="오른쪽 영역"
@@ -83,10 +86,12 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
           {p.position} / {p.total}
         </span>
         <button disabled={p.saving} onClick={() => p.onNavigate('PREV')}>
-          ← 이전
+          <ChevronLeft size={14} aria-hidden="true" />
+          이전
         </button>
         <button disabled={p.saving} onClick={() => p.onNavigate('NEXT')}>
-          다음 →
+          다음
+          <ChevronRight size={14} aria-hidden="true" />
         </button>
       </div>
       {/* 인적사항은 탭과 관계없이 그대로다. 전체 지원 현황 상세와 같은 항목을 접지 않고 모두 보여 준다. */}

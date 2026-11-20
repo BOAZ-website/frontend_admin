@@ -77,24 +77,23 @@ test('최종 판정을 바꿔도 개인 평가 집계는 그대로다', () => {
   assert.equal(next.evaluatorsMap, INITIAL_DATA.evaluatorsMap);
 });
 
-test('최종 판정 저장 실패는 오류 코드와 지원서 상태로 모달·토스트 문구를 고른다', () => {
+test('최종 판정 저장 실패는 오류 코드와 지원서 상태로 안내 문구를 고른다', () => {
   const notice = (error: unknown, status: 'SUBMITTED' | 'DRAFT' = 'SUBMITTED') =>
     finalDecisionFailureNoticeOf(error, status);
   assert.deepEqual(notice(new ApiError(403, 'ACCESS_DENIED', 'x')), {
-    display: 'modal',
     message: '최종 판정을 변경할 권한이 없습니다.',
   });
   assert.deepEqual(notice(new ApiError(404, 'APPLICATION_NOT_FOUND', 'x')), {
-    display: 'modal',
     message: '지원서를 찾을 수 없습니다.',
   });
   assert.deepEqual(notice(new ApiError(400, 'INVALID_INPUT_VALUE', 'x'), 'DRAFT'), {
-    display: 'modal',
     message: '제출 완료된 지원서만 최종 판정을 변경할 수 있습니다.',
   });
-  assert.equal(notice(new ApiError(400, 'INVALID_INPUT_VALUE', 'x')).display, 'toast');
+  assert.equal(
+    notice(new ApiError(400, 'INVALID_INPUT_VALUE', 'x')).message,
+    '입력값이 올바르지 않습니다.',
+  );
   assert.deepEqual(notice(new ApiError(0, 'NETWORK_ERROR', 'x')), {
-    display: 'toast',
     message: '최종 판정을 변경하지 못했습니다.',
   });
 });

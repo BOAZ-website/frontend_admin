@@ -1,3 +1,5 @@
+import { RefreshCw } from 'lucide-react';
+
 import { ApiError } from '@/shared/api/apiError';
 import { useLoaded } from '@/shared/lib/useLoaded';
 import type { ToastMessage } from '@/shared/ui/Toast';
@@ -51,7 +53,7 @@ export function EvaluatorResultsTab({
       await navigator.clipboard.writeText(text);
       onNotify('질문이 복사되었습니다.', 'success');
     } catch {
-      onNotify('질문을 복사하지 못했습니다. 질문을 직접 선택해 복사해주세요.', 'error');
+      window.alert('질문을 복사하지 못했습니다. 질문을 직접 선택해 복사해주세요.');
     }
   };
 
@@ -60,7 +62,12 @@ export function EvaluatorResultsTab({
       <div className="review-heading">
         <h2 id="review-status-title">운영진 평가 현황</h2>
         <button type="button" disabled={isLoading} onClick={reload}>
-          {isLoading && isLoaded ? '불러오는 중…' : '↻ 새로고침'}
+          <RefreshCw
+            size={14}
+            aria-hidden="true"
+            className={isLoading && isLoaded ? 'animate-spin' : ''}
+          />
+          새로고침
         </button>
       </div>
       {error ? (
