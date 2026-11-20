@@ -110,6 +110,8 @@ export function EvaluationManagePage({
   const openRequestRef = useRef(0);
   // 평가 화면의 이전·다음 이동 순서(지원서 id). 화면을 연 목록의 필터·정렬 순서를 따른다.
   const [reviewQueue, setReviewQueue] = useState<number[]>([]);
+  // 내 평가를 저장할 때마다 올린다. 운영진 평가 현황이 다시 읽어 집계·행을 맞춘다.
+  const [statusRefreshKey, setStatusRefreshKey] = useState(0);
 
   // Promotions Tab Selection State (UserAdminController: PATCH /api/v1/admin/users/promote)
   const [selectedPromoteUserIds, setSelectedPromoteUserIds] = useState<number[]>([]);
@@ -230,6 +232,19 @@ export function EvaluationManagePage({
     if (nextApp && canDiscardDraft()) void handleOpenModal(nextApp, modalTab, reviewQueue);
   }
 
+  /** 저장하지 않은 입력을 버리고 저장값으로 되돌린다. */
+  function resetDraft() {
+    setDraft(savedDraft);
+    setShowDraftErrors(false);
+  }
+
+  // 개인 평가 ↔ 운영진 평가 현황 전환. 저장하지 않은 입력이 있으면 묻고, 옮기면 입력을 저장값으로 되돌린다.
+  function handleDetailTabChange(tab: ReviewDetailTab) {
+    if (tab === modalTab || !canDiscardDraft()) return;
+    resetDraft();
+    setModalTab(tab);
+  }
+
   // 평가 화면에서 목록으로 돌아간다. 저장하지 않은 평가가 있으면 먼저 묻는다.
   function handleBackToList() {
     if (canDiscardDraft()) setSelectedApplicant(null);
@@ -237,14 +252,15 @@ export function EvaluationManagePage({
 
   // 개인 평가 저장(MY-07). 검증 → 저장 → 결과 안내 순서이고, 실패해도 입력은 그대로 둔다(§4.5).
   // 데이터 변경은 Hook(saveMyEvaluation)이 맡고, 여기서는 화면 상태와 안내만 다룬다.
-  async function handleSaveMyEvaluation() {
+  // 성공하면 true. 운영진 평가 현황의 본인 행 저장도 이 함수를 쓴다.
+  async function handleSaveMyEvaluation(): Promise<boolean> {
     if (!selectedApplicant || isSaving) {
-      return;
+      return false;
     }
     const input = toSaveInput(draft);
     if (!input || Object.keys(validateMyEvaluation(draft)).length > 0) {
       setShowDraftErrors(true);
-      return;
+      return false;
     }
     const applicant = selectedApplicant;
     // 저장 중 메뉴를 옮기면 요청 번호가 바뀐다. 그때는 저장 결과로 닫힌 상세를 다시 열지 않는다.
@@ -252,15 +268,18 @@ export function EvaluationManagePage({
     setIsSaving(true);
     try {
       const updatedApplicant = await saveMyEvaluation(applicant, input);
-      if (requestId !== openRequestRef.current) return;
+      if (requestId !== openRequestRef.current) return false;
       setSelectedApplicant(updatedApplicant);
       setSavedDraft(draft);
       setShowDraftErrors(false);
       showToast('평가가 저장되었습니다.', 'success');
+      setStatusRefreshKey((key) => key + 1);
+      return true;
     } catch (error) {
       const notice = saveFailureNoticeOf(error, applicant.status);
       window.alert(notice.message);
       if (notice.leave && requestId === openRequestRef.current) setSelectedApplicant(null);
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -334,7 +353,7 @@ export function EvaluationManagePage({
           applicant={selectedApplicant}
           currentEvaluatorId={currentEvaluatorId}
           tab={modalTab}
-          onTabChange={setModalTab}
+          onTabChange={handleDetailTabChange}
           fetchAnswers={fetchAnswers}
           fetchEvaluations={fetchEvaluations}
           fetchInterviewQuestions={fetchInterviewQuestions}
@@ -349,13 +368,28 @@ export function EvaluationManagePage({
           errors={draftErrors}
           saving={isSaving}
           isDirty={isDraftDirty}
+          statusRefreshKey={statusRefreshKey}
+          ownRowEditing={{
+            draft,
+            errors: draftErrors,
+            saving: isSaving,
+            locked: isMyEvaluationLoading || myEvaluationError !== null,
+            onChange: (patch) => setDraft((current) => ({ ...current, ...patch })),
+            onStart: () => {
+              if (!canDiscardDraft()) return false;
+              resetDraft();
+              return true;
+            },
+            onCancel: resetDraft,
+            onSave: handleSaveMyEvaluation,
+          }}
           onDecision={(decision) => setDraft((current) => ({ ...current, decision }))}
           onScore={(score) => setDraft((current) => ({ ...current, score }))}
           onMemo={(memo) => setDraft((current) => ({ ...current, memo }))}
           onInterview={(interview_question) =>
             setDraft((current) => ({ ...current, interview_question }))
           }
-          onSave={handleSaveMyEvaluation}
+          onSave={() => void handleSaveMyEvaluation()}
           onBack={handleBackToList}
           onNavigate={handleNavigateModal}
           position={reviewQueue.indexOf(selectedApplicant.id) + 1}

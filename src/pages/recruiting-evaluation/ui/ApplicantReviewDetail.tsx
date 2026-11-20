@@ -14,7 +14,7 @@ import {
   TRACK_LABELS,
 } from '../model/types';
 import { ApplicantAnswersSection } from './ApplicantAnswersSection';
-import { EvaluatorResultsTab } from './EvaluatorResultsTab';
+import { EvaluatorResultsTab, type OwnRowEditing } from './EvaluatorResultsTab';
 import { type SegmentedTabItem, SegmentedTabs } from './SegmentedTabs';
 
 /** 지원자 상세 오른쪽 영역의 탭. 평가 현황은 조회 전용이고, 입력은 개인 평가 탭에만 있다. */
@@ -22,7 +22,7 @@ export type ReviewDetailTab = 'review' | 'status';
 
 const DETAIL_TABS: SegmentedTabItem<ReviewDetailTab>[] = [
   { id: 'review', label: '개인 평가' },
-  { id: 'status', label: '평가 현황' },
+  { id: 'status', label: '운영진 평가 현황' },
 ];
 
 interface ApplicantReviewDetailProps {
@@ -49,6 +49,10 @@ interface ApplicantReviewDetailProps {
   memo: string;
   interview: string;
   saving: boolean;
+  /** 운영진 평가 현황의 본인 행 편집. 개인 평가와 같은 초안·저장을 쓴다. */
+  ownRowEditing: OwnRowEditing;
+  /** 바뀌면 운영진 평가 현황을 다시 읽는다. */
+  statusRefreshKey: number;
   /** 저장한 값과 다른 입력이 있는지. 내 평가 제목 옆에 표시한다. */
   isDirty: boolean;
   onDecision: (value: EvaluationDecision) => void;
@@ -63,8 +67,8 @@ interface ApplicantReviewDetailProps {
 }
 
 /**
- * 지원자 상세 전체 화면. 위에 인적사항 카드, 아래 왼쪽은 지원서 답변, 오른쪽은 탭(개인 평가 / 평가 현황)에 따라 바뀐다.
- * 탭은 오른쪽 영역만 바꾸고, 입력값은 페이지가 가지므로 탭을 바꿔도 남는다.
+ * 지원자 상세 전체 화면. 위에 인적사항 카드가 있고, 아래는 탭에 따라 바뀐다.
+ * 개인 평가: 왼쪽 지원서 답변, 오른쪽 내 평가. 운영진 평가 현황: 전체 너비의 평가자별 표.
  */
 export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
   const a = p.applicant;
@@ -113,7 +117,20 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
             ))}
         </dl>
       </section>
-      <div className="review-layout">
+      {/* 운영진 평가 현황은 아래 영역 전체 너비를 쓴다. 개인 평가 영역은 입력값이 남도록 숨기기만 한다. */}
+      {p.tab === 'status' && (
+        <EvaluatorResultsTab
+          key={a.id}
+          applicantId={a.id}
+          currentEvaluatorId={p.currentEvaluatorId}
+          fetchEvaluations={p.fetchEvaluations}
+          fetchInterviewQuestions={p.fetchInterviewQuestions}
+          refreshKey={p.statusRefreshKey}
+          editing={p.ownRowEditing}
+          onNotify={p.onNotify}
+        />
+      )}
+      <div className="review-layout" hidden={p.tab !== 'review'}>
         {/* 답변과 내 평가는 제목을 남긴 채 각자 스크롤한다. tabIndex로 키보드로도 스크롤 영역에 들어간다. */}
         <article
           className="review-paper review-scroll-panel"
@@ -131,19 +148,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
             />
           </div>
         </article>
-        {p.tab === 'status' && (
-          <aside className="review-aside">
-            <EvaluatorResultsTab
-              key={a.id}
-              applicantId={a.id}
-              currentEvaluatorId={p.currentEvaluatorId}
-              fetchEvaluations={p.fetchEvaluations}
-              fetchInterviewQuestions={p.fetchInterviewQuestions}
-              onNotify={p.onNotify}
-            />
-          </aside>
-        )}
-        <aside className="review-aside" hidden={p.tab !== 'review'}>
+        <aside className="review-aside">
           <form
             className="review-panel review-scroll-panel"
             onSubmit={(e) => {
