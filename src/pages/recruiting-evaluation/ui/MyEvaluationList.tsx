@@ -36,7 +36,7 @@ interface MyEvaluationListProps {
   onQueryChange: (query: ReviewListQuery) => void;
   /** 지원자의 상세 화면을 연다. 이전·다음 이동은 지금 목록 순서(orderedIds)를 따른다. */
   onOpen: (applicantId: number, orderedIds: number[]) => void;
-  /** FINAL_DECISION_WRITE가 있으면 최종 판정을 고르고 저장할 수 있다. 없으면 조회만 한다. */
+  /** FINAL_DECISION_WRITE가 있으면 최종 평가를 골라 바로 저장한다. 없으면 조회만 한다. */
   canWriteFinalDecision: boolean;
   /** 최종 판정 저장(REC-ADMIN-18). 결과 안내는 페이지가 하고, 성공 여부만 돌려준다. */
   onSaveFinalDecision: (
@@ -82,7 +82,7 @@ const FINAL_DECISION_SELECT_OPTIONS = FINAL_DECISION_OPTIONS.map((decision) => (
 /**
  * 서류 평가 목록. 개인 평가 목록(EVL-MY)과 전체 평가 목록(EVL-GROUP)을 합쳤다.
  * 제출 완료 지원자만 보여 주고, 개인 평가 집계와 최종 판정을 나눠 표시한다.
- * 최종 판정은 권한이 있으면 행에서 골라 저장 버튼으로 바꾼다(명세 §5.6). 기수 전체 확정은 없다.
+ * 최종 평가는 권한이 있으면 행에서 고르는 즉시 저장한다(명세 §5.6, 저장 버튼 없음). 기수 전체 확정은 없다.
  */
 export function MyEvaluationList({
   fetchApplicants,
@@ -94,10 +94,10 @@ export function MyEvaluationList({
   onSaveFinalDecision,
 }: MyEvaluationListProps) {
   const list = useLoaded('applicants', fetchApplicants);
-  // 행마다 고른 최종 판정(아직 저장 전). 없으면 서버 값을 보여 준다.
+  // 행마다 고른 최종 평가. 저장하는 동안과 다시 읽기 전까지 보여 주고, 없으면 서버 값을 보여 준다.
   const [finalDrafts, setFinalDrafts] = useState<Record<number, EvaluationDecision>>({});
-  // 저장 중인 지원서 id. 저장이 끝날 때까지 모든 행의 저장을 막아 요청이 겹치지 않게 한다.
-  const [savingFinalId, setSavingFinalId] = useState<number | null>(null);
+  // 최종 평가를 저장 중인 지원서 id. 그 행만 잠그고 다른 행은 바로 바꿀 수 있다.
+  const [savingFinalIds, setSavingFinalIds] = useState<number[]>([]);
 
   const applicants = list.data ?? [];
   const submitted = applicants.filter(
@@ -118,11 +118,17 @@ export function MyEvaluationList({
   const finalDraftOf = (applicant: ApplicantEvaluationDto) =>
     finalDrafts[applicant.id] ?? applicant.final_decision;
 
-  const handleSaveFinal = async (applicant: ApplicantEvaluationDto) => {
-    if (savingFinalId !== null) return;
-    setSavingFinalId(applicant.id);
-    const saved = await onSaveFinalDecision(applicant, finalDraftOf(applicant));
-    // 실패하면 고른 값을 버려 서버 값으로 되돌린다. 성공하면 고른 값이 곧 서버 값이라 다시 읽는 동안 깜빡이지 않게 둔다.
+  // 최종 평가는 고르는 즉시 저장한다(저장 버튼 없음). 같은 값이면 요청하지 않는다.
+  // 저장하는 동안 그 행 선택을 잠가 연속 변경과 늦은 응답이 값을 덮어쓰지 않게 한다. 실패하면 이전 값으로 되돌린다.
+  const handleChangeFinal = async (
+    applicant: ApplicantEvaluationDto,
+    decision: EvaluationDecision,
+  ) => {
+    if (savingFinalIds.includes(applicant.id) || decision === finalDraftOf(applicant)) return;
+    setFinalDrafts((current) => ({ ...current, [applicant.id]: decision }));
+    setSavingFinalIds((current) => [...current, applicant.id]);
+    const saved = await onSaveFinalDecision(applicant, decision);
+    // 성공하면 고른 값이 곧 서버 값이라 다시 읽는 동안 깜빡이지 않게 둔다.
     if (!saved) {
       setFinalDrafts((current) => {
         const next = { ...current };
@@ -130,7 +136,7 @@ export function MyEvaluationList({
         return next;
       });
     }
-    setSavingFinalId(null);
+    setSavingFinalIds((current) => current.filter((id) => id !== applicant.id));
     list.reload();
   };
 
@@ -238,26 +244,15 @@ export function MyEvaluationList({
                             ariaLabel={`${displayValue(applicant.name)} 최종 평가`}
                             value={finalDraftOf(applicant)}
                             options={FINAL_DECISION_SELECT_OPTIONS}
-                            onChange={(decision) =>
-                              setFinalDrafts((current) => ({
-                                ...current,
-                                [applicant.id]: decision,
-                              }))
-                            }
+                            disabled={savingFinalIds.includes(applicant.id)}
+                            onChange={(decision) => void handleChangeFinal(applicant, decision)}
                             buttonClassName="h-[30px] w-20"
                           />
-                          <button
-                            type="button"
-                            aria-label={`${displayValue(applicant.name)} 최종 판정 저장`}
-                            disabled={
-                              savingFinalId !== null ||
-                              finalDraftOf(applicant) === applicant.final_decision
-                            }
-                            onClick={() => void handleSaveFinal(applicant)}
-                            className="px-3"
-                          >
-                            {savingFinalId === applicant.id ? '저장 중…' : '저장'}
-                          </button>
+                          {savingFinalIds.includes(applicant.id) && (
+                            <span role="status" className="text-[11px]">
+                              저장 중…
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <span className="review-tag">
