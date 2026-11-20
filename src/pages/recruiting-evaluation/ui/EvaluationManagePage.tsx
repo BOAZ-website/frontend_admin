@@ -148,6 +148,7 @@ export function EvaluationManagePage({
   const unpromotedPassedCandidates = useMemo(() => {
     return passedCandidates.filter((a) => !a.is_promoted_to_member);
   }, [passedCandidates]);
+  const promotedCount = passedCandidates.length - unpromotedPassedCandidates.length;
 
   // 평가 화면을 열고 내 평가(REC-ADMIN-16)를 읽어 폼을 채운다. 없으면(null) 빈 폼으로 둔다.
   async function handleOpenModal(
@@ -366,24 +367,50 @@ export function EvaluationManagePage({
         />
       )}
 
+      {/* 요약 영역: 지표 세 칸(같은 너비·같은 글자 모양)과 오른쪽 등록 진행률. 좁으면 세로로 쌓는다. */}
       {mainTab === 'promotions' && (
-        <div className="p-5 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.03]">
-          {/* 지표 칸은 같은 고정 너비로 왼쪽에 나란히 두고, 좁으면 다음 줄로 넘긴다. 세 칸은 제목·숫자 모양이 같다. */}
-          <dl className="flex flex-wrap gap-3 text-xs">
+        <section
+          aria-label="부원 등록 요약"
+          className="mb-12 grid grid-cols-1 gap-y-4 rounded-md border border-slate-200 bg-white px-8 py-7 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(160px,220px)] lg:items-center"
+        >
+          <dl className="contents">
             {(
               [
                 ['최종 합격자', passedCandidates.length],
                 ['등록 대기 인원', unpromotedPassedCandidates.length],
-                ['부원 등록 완료', passedCandidates.filter((c) => c.is_promoted_to_member).length],
+                ['부원 등록 완료', promotedCount],
               ] as const
-            ).map(([label, count]) => (
-              <div key={label} className="w-40 p-3 rounded-md bg-slate-50 border border-slate-100">
-                <dt className="text-muted-foreground text-[11px] leading-4">{label}</dt>
-                <dd className="mt-1 text-foreground font-bold text-base leading-6">{count}명</dd>
+            ).map(([label, count], index) => (
+              <div
+                key={label}
+                className={index > 0 ? 'lg:border-l lg:border-slate-200 lg:pl-8' : 'lg:pr-8'}
+              >
+                <dt className="text-sm leading-5 text-slate-500">{label}</dt>
+                <dd className="mt-2 text-3xl leading-9 font-bold text-slate-900">{count}명</dd>
               </div>
             ))}
           </dl>
-        </div>
+          <div className="lg:pl-8">
+            <p className="text-right text-sm leading-5 text-slate-500">
+              {promotedCount} / {passedCandidates.length}명 완료
+            </p>
+            <div
+              role="progressbar"
+              aria-label="부원 등록 진행률"
+              aria-valuemin={0}
+              aria-valuemax={passedCandidates.length}
+              aria-valuenow={promotedCount}
+              className="review-progress mt-2 h-1 overflow-hidden rounded-full"
+            >
+              <div
+                className="h-full rounded-full transition-[width]"
+                style={{
+                  width: `${passedCandidates.length ? (promotedCount / passedCandidates.length) * 100 : 0}%`,
+                }}
+              />
+            </div>
+          </div>
+        </section>
       )}
 
       {mainTab === 'promotions' && (

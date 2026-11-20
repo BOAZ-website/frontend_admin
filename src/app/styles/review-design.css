@@ -148,6 +148,17 @@
 .evaluation-page table:has(> thead) tbody tr:hover {
   background: #f8fafcb3;
 }
+/* 글자 값 열(이름·학교·전공·이메일 등)은 머리·본문 모두 왼쪽 정렬한다. 나머지 열은 위 규칙대로 가운데다. */
+.evaluation-page table:has(> thead) :is(th, td).review-cell-left {
+  text-align: left;
+}
+/* 부원 등록 진행 막대. 위의 bg-* 일괄 흰색 규칙보다 뒤에 두어 바탕·채움 색을 살린다. */
+.evaluation-page .review-progress {
+  background: #e2e8f0 !important;
+}
+.evaluation-page .review-progress > div {
+  background: #334155 !important;
+}
 .evaluation-page table:has(> thead) td .flex {
   justify-content: center;
 }

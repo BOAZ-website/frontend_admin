@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useLoaded } from '@/shared/lib/useLoaded';
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
@@ -32,7 +32,21 @@ interface MemberRegistrationListProps {
   promoteUsers: (request: PromoteUsersRequest) => Promise<PromoteUsersResponse>;
 }
 
-const COLUMNS = ['이름', '부문', '학교', '전공', '이메일', '연락처', '총점수', '상태'];
+// 짧은 열은 내용에 맞춘 고정 너비, 이메일은 남는 너비를 모두 쓴다(가장 넓음).
+// 글자 값(이름·학교·전공·이메일)은 왼쪽, 짧은 값(부문·연락처·총점수·상태)은 가운데 정렬이다.
+const CHECKBOX_WIDTH = '40px';
+const STATUS_WIDTH = '112px';
+const COLUMNS: { label: string; width?: string; isLeft?: boolean }[] = [
+  { label: '이름', width: '88px', isLeft: true },
+  { label: '부문', width: '96px' },
+  { label: '학교', width: '128px', isLeft: true },
+  { label: '전공', width: '128px', isLeft: true },
+  { label: '이메일', isLeft: true },
+  { label: '연락처', width: '124px' },
+  { label: '총점수', width: '64px' },
+  { label: '상태', width: STATUS_WIDTH },
+];
+const cellClass = (isLeft?: boolean) => (isLeft ? 'review-cell-left px-2' : 'px-2');
 
 const WAITING: RegistrationResult = { status: 'WAITING' };
 
@@ -55,23 +69,12 @@ export function MemberRegistrationList({
   // 상태 반영 전에 버튼을 두 번 눌러도 요청이 한 번만 가게 한다.
   const registeringRef = useRef(false);
   const [detail, setDetail] = useState<ApplicantEvaluationDto | null>(null);
-  // 등록 버튼을 '상태' 열 가운데 아래에 두려고 그 열 너비를 잰다. 표 너비가 바뀌면 다시 잰다.
-  const statusHeaderRef = useRef<HTMLTableCellElement>(null);
-  const [statusWidth, setStatusWidth] = useState<number>();
 
   const candidates = registrationRows(list.data ?? [], { track: 'ALL', search: '' });
   const rows = registrationRows(list.data ?? [], { track, search });
   const visibleSelectedCount = rows.filter((row) => selectedIds.includes(row.user_id)).length;
   const isAllVisibleSelected = rows.length > 0 && visibleSelectedCount === rows.length;
   const isFirstLoad = list.isLoading && !list.data;
-
-  useEffect(() => {
-    const header = statusHeaderRef.current;
-    if (!header) return;
-    const observer = new ResizeObserver(() => setStatusWidth(header.offsetWidth));
-    observer.observe(header);
-    return () => observer.disconnect();
-  }, [isFirstLoad]);
 
   const toggle = (userId: number) =>
     setSelectedIds((current) =>
@@ -140,8 +143,10 @@ export function MemberRegistrationList({
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
+    <section aria-label="합격자 목록" className="rounded-md border border-slate-200 bg-white">
+      {/* 툴바: 왼쪽 인원, 오른쪽 부문 필터·검색 */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+        <span className="text-xs font-bold">총 {rows.length}명</span>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <FilterDropdown
             ariaLabel="부문 필터"
@@ -165,11 +170,17 @@ export function MemberRegistrationList({
         </p>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-2xs">
-            <table className="w-full min-w-[900px] text-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] table-fixed text-xs">
+              <colgroup>
+                <col style={{ width: CHECKBOX_WIDTH }} />
+                {COLUMNS.map((column) => (
+                  <col key={column.label} style={{ width: column.width }} />
+                ))}
+              </colgroup>
               <thead>
                 <tr>
-                  <th scope="col" className="w-10 px-4 py-3 text-left">
+                  <th scope="col" className="px-2">
                     <input
                       type="checkbox"
                       aria-label="보이는 합격자 모두 선택"
@@ -181,17 +192,12 @@ export function MemberRegistrationList({
                         }
                       }}
                       onChange={toggleAllVisible}
-                      className="size-4 cursor-pointer"
+                      className="size-4 cursor-pointer align-middle"
                     />
                   </th>
-                  {COLUMNS.map((label) => (
-                    <th
-                      key={label}
-                      ref={label === '상태' ? statusHeaderRef : undefined}
-                      scope="col"
-                      className="px-4 py-3 text-left"
-                    >
-                      {label}
+                  {COLUMNS.map((column) => (
+                    <th key={column.label} scope="col" className={cellClass(column.isLeft)}>
+                      {column.label}
                     </th>
                   ))}
                 </tr>
@@ -209,7 +215,7 @@ export function MemberRegistrationList({
                     >
                       {/* 체크박스 클릭·키 입력은 행으로 올려 보내지 않는다(상세가 열리지 않게). */}
                       <td
-                        className="px-4"
+                        className="px-2"
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
@@ -218,17 +224,22 @@ export function MemberRegistrationList({
                           aria-label={`${displayValue(row.name)} 선택`}
                           checked={selectedIds.includes(row.user_id)}
                           onChange={() => toggle(row.user_id)}
-                          className="size-4 cursor-pointer"
+                          className="size-4 cursor-pointer align-middle"
                         />
                       </td>
-                      <td className="px-4 font-semibold">{displayValue(row.name)}</td>
-                      <td className="px-4">{TRACK_LABELS[row.track]}</td>
-                      <td className="px-4">{displayValue(row.university)}</td>
-                      <td className="px-4">{displayValue(row.major)}</td>
-                      <td className="px-4">{displayValue(row.email)}</td>
-                      <td className="px-4 whitespace-nowrap">{displayValue(row.phone)}</td>
-                      <td className="px-4">{row.total_score}</td>
-                      <td className="px-4 whitespace-nowrap">
+                      <td className={`${cellClass(true)} font-semibold`}>
+                        {displayValue(row.name)}
+                      </td>
+                      <td className="px-2">{TRACK_LABELS[row.track]}</td>
+                      <td className={cellClass(true)}>{displayValue(row.university)}</td>
+                      <td className={cellClass(true)}>{displayValue(row.major)}</td>
+                      {/* 긴 이메일은 줄임표로 자른다. 다른 열을 밀어내지 않고, 전체는 title과 상세에서 본다. */}
+                      <td className={`${cellClass(true)} truncate`} title={row.email ?? undefined}>
+                        {displayValue(row.email)}
+                      </td>
+                      <td className="px-2 whitespace-nowrap">{displayValue(row.phone)}</td>
+                      <td className="px-2">{row.total_score}</td>
+                      <td className="px-2">
                         {REGISTRATION_STATUS_LABELS[result.status]}
                         {result.reason && <p className="text-[11px]">{result.reason}</p>}
                       </td>
@@ -238,13 +249,22 @@ export function MemberRegistrationList({
               </tbody>
             </table>
           </div>
-          {/* 등록 버튼은 가로 스크롤 밖, 표 바로 아래 '상태' 열 가운데에 둔다. 고른 사람이 있을 때만 보인다. */}
+
+          {rows.length === 0 && (
+            <p role="status" className="border-t border-slate-200 p-8 text-center text-sm">
+              {candidates.length === 0
+                ? '등록할 최종 합격자가 없습니다.'
+                : '조건에 맞는 합격자가 없습니다.'}
+            </p>
+          )}
+
+          {/* 하단 선택·등록 영역. 가로 스크롤 밖에 두고, 버튼은 '상태' 열(고정 너비) 가운데에 맞춘다. */}
           {selectedIds.length > 0 && (
-            <div className="mt-3 flex items-center justify-end text-xs whitespace-nowrap">
+            <div className="flex items-center justify-end border-t border-slate-200 py-3 text-xs whitespace-nowrap">
               <span className="font-bold" role="status">
                 {selectedIds.length}명 선택됨
               </span>
-              <div className="flex justify-center" style={{ width: statusWidth }}>
+              <div className="flex justify-center" style={{ width: STATUS_WIDTH }}>
                 <button
                   type="button"
                   disabled={isRegistering}
@@ -259,14 +279,6 @@ export function MemberRegistrationList({
         </>
       )}
 
-      {!isFirstLoad && rows.length === 0 && (
-        <p role="status" className="p-8 text-center text-sm">
-          {candidates.length === 0
-            ? '등록할 최종 합격자가 없습니다.'
-            : '조건에 맞는 합격자가 없습니다.'}
-        </p>
-      )}
-
       {detail && (
         <ApplicantDetailModal
           applicant={detail}
@@ -275,6 +287,6 @@ export function MemberRegistrationList({
           onMissing={handleMissing}
         />
       )}
-    </div>
+    </section>
   );
 }
