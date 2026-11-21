@@ -54,11 +54,11 @@ export function ApplicantDetailModal({
         className="evaluation-detail flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-slate-200 bg-white"
       >
         <div className="evaluation-detail-header flex items-center justify-between border-b border-slate-200">
-          <h2 id={titleId} className="text-base font-bold">
+          <h2 id={titleId} className="relative top-1.5 text-xl font-bold">
             {displayValue(applicant.name)}
           </h2>
           <button type="button" aria-label="지원서 상세 닫기" onClick={onClose} className="px-2">
-            <X size={18} aria-hidden="true" />
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
 
