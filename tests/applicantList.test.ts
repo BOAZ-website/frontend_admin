@@ -8,6 +8,7 @@ import {
   filterByMyEvaluation,
   isFilteredQuery,
   summarizeApplicants,
+  visibleTracksOf,
 } from '../src/pages/recruiting-evaluation/model/applicantList';
 import { INITIAL_DATA } from '../src/pages/recruiting-evaluation/model/evaluationMock';
 import { dateTimeTextOf } from '../src/shared/lib/date';
@@ -90,4 +91,20 @@ test('평가 상태 필터는 my_decision이 null이면 미평가, PENDING을 �
   assert.deepEqual(filterByMyEvaluation(list, 'SAVED'), [pending]);
   assert.deepEqual(filterByMyEvaluation(list, 'UNEVALUATED'), [none]);
   assert.equal(filterByMyEvaluation(list, 'ALL').length, 2);
+});
+
+test('부문 지표는 대표진·차기대표진·다른 부문 평가 권한이면 세 부문, 그 밖에는 자기 부문만 보여 준다', () => {
+  const account = (teamName: string, track: string, effectivePermissions: string[] = []) => ({
+    teamName,
+    track,
+    effectivePermissions,
+  });
+  const all = ['ANALYSIS', 'VISUALIZATION', 'ENGINEERING'];
+  assert.deepEqual(visibleTracksOf(account('대표진', '분석')), all);
+  assert.deepEqual(visibleTracksOf(account('차기대표진', '시각화')), all);
+  assert.deepEqual(visibleTracksOf(account('기획팀', '분석', ['EVALUATION_ALL_TRACK_WRITE'])), all);
+  assert.deepEqual(visibleTracksOf(account('기획팀', '분석')), ['ANALYSIS']);
+  assert.deepEqual(visibleTracksOf(account('기획팀', '엔지니어링')), ['ENGINEERING']);
+  assert.deepEqual(visibleTracksOf(account('기획팀', '')), []);
+  assert.deepEqual(visibleTracksOf(null), []);
 });

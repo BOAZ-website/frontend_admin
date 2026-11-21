@@ -11,6 +11,7 @@ import {
   displayValue,
   filterApplicants,
   isFilteredQuery,
+  summarizeApplicants,
   TRACK_FILTER_OPTIONS,
 } from '../model/applicantList';
 import {
@@ -19,6 +20,7 @@ import {
   APPLICATION_STATUS_LABELS,
   TRACK_LABELS,
 } from '../model/types';
+import { useVisibleTracks } from '../model/useVisibleTracks';
 import { ApplicantDetailModal } from './ApplicantDetailModal';
 import { ListLoadError } from './ListLoadError';
 
@@ -50,6 +52,18 @@ export function ApplicantsOverview({
   const applicants = list.data ?? [];
   const rows = filterApplicants(applicants, query);
   const isFirstLoad = list.isLoading && !list.data;
+  const visibleTracks = useVisibleTracks();
+  const summary = summarizeApplicants(applicants);
+  // 부원 등록 요약과 같은 모양. 부문 칸은 계정이 볼 수 있는 부문만 둔다(부문은 임시저장 포함 전체 지원자를 센다).
+  const stats: [string, number][] = [
+    ['지원자 수', summary.total],
+    ['제출 완료', summary.submitted],
+    ['임시저장', summary.draft],
+    ...visibleTracks.map((track): [string, number] => [
+      TRACK_LABELS[track],
+      applicants.filter((applicant) => applicant.track === track).length,
+    ]),
+  ];
 
   const updateQuery = (patch: Partial<ApplicantListQuery>) =>
     setQuery((current) => ({ ...current, ...patch }));
@@ -70,6 +84,23 @@ export function ApplicantsOverview({
           지원자 목록을 불러오는 중입니다.
         </p>
       )}
+
+      <section
+        aria-label="지원 현황 요약"
+        className="mb-12 grid grid-cols-1 gap-y-4 rounded-md border border-slate-200 bg-white px-8 py-7 lg:grid-flow-col lg:grid-cols-none lg:auto-cols-[minmax(0,1fr)] lg:items-center"
+      >
+        <dl className="contents">
+          {stats.map(([label, count], index) => (
+            <div
+              key={label}
+              className={index > 0 ? 'lg:border-l lg:border-slate-200 lg:pl-8' : 'lg:pr-8'}
+            >
+              <dt className="text-sm leading-5 text-slate-500">{label}</dt>
+              <dd className="mt-2 text-3xl leading-9 font-bold text-slate-900">{count}명</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
 
       <div>
         <div className="flex flex-wrap items-center justify-end gap-3 pb-3">

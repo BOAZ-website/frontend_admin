@@ -1,6 +1,9 @@
 /**
  * 전체 지원 현황(EVL-APP) 목록의 필터·검색·정렬·통계 계산. 서버는 목록 전체를 주고 화면이 거른다(REC-ADMIN-13).
  */
+import { can } from '@/entities/admin-account/model/can';
+import { NEXT_PRESIDENT_TEAM, PRESIDENT_TEAM } from '@/entities/admin-account/model/teams';
+import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { dateTimeTextOf } from '@/shared/lib/date';
 
 import {
@@ -114,6 +117,24 @@ export function summarizeApplicants(
     finalFail: countFinal('FAIL'),
     finalPending: countFinal('PENDING'),
   };
+}
+
+/**
+ * 전체 지원 현황 지표에서 부문별 인원을 보여 줄 부문. 대표진·차기대표진과 다른 부문 평가 권한이 있는 계정은 세 부문 모두,
+ * 그 밖의 운영진은 회원 부문(users.track)과 같은 부문 하나만 본다. 계정을 못 읽었으면 보여 주지 않는다.
+ */
+export function visibleTracksOf(
+  account: Pick<AdminAccount, 'teamName' | 'track' | 'effectivePermissions'> | null,
+): TrackType[] {
+  if (!account) return [];
+  if (
+    account.teamName === PRESIDENT_TEAM ||
+    account.teamName === NEXT_PRESIDENT_TEAM ||
+    can(account, 'EVALUATION_ALL_TRACK_WRITE')
+  ) {
+    return [...TRACK_ORDER];
+  }
+  return TRACK_ORDER.filter((track) => TRACK_LABELS[track] === account.track);
 }
 
 /** 비어 있는 값(null·빈 문자열·빈 목록)은 '-'로 보여 준다. DRAFT는 입력하지 않은 개인정보가 null이다. */
