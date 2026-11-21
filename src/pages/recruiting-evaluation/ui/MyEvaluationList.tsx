@@ -51,12 +51,14 @@ const COLUMNS: { label: string; width?: string }[] = [
   { label: '이름', width: '96px' },
   { label: '학교' },
   { label: '전공' },
+  { label: '학기', width: '64px' },
+  { label: '졸업 예정', width: '88px' },
   { label: '합격', width: '64px' },
   { label: '보류', width: '64px' },
   { label: '불합', width: '64px' },
   { label: '총점수', width: '72px' },
-  { label: '최종 평가', width: '168px' },
   { label: '개인 평가', width: '96px' },
+  { label: '최종 평가', width: '168px' },
 ];
 
 const MY_FILTER_OPTIONS: readonly FilterDropdownOption<MyEvaluationFilter>[] = (
@@ -187,7 +189,7 @@ export function MyEvaluationList({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] table-fixed text-xs">
+          <table className="w-full min-w-[1040px] table-fixed text-xs">
             <colgroup>
               {COLUMNS.map((column) => (
                 <col key={column.label} style={{ width: column.width }} />
@@ -220,10 +222,19 @@ export function MyEvaluationList({
                     <td className="px-4 truncate" title={applicant.major ?? undefined}>
                       {displayValue(applicant.major)}
                     </td>
+                    <td className="px-4">{displayValue(applicant.last_semester)}</td>
+                    <td className="px-4 whitespace-nowrap">
+                      {displayValue(applicant.graduation_date)}
+                    </td>
                     <td className="px-4">{applicant.pass_count}</td>
                     <td className="px-4">{applicant.hold_count}</td>
                     <td className="px-4">{applicant.fail_count}</td>
                     <td className="px-4">{applicant.total_score}</td>
+                    <td className="px-4 whitespace-nowrap">
+                      {applicant.my_decision === null
+                        ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED
+                        : DECISION_LABELS[applicant.my_decision]}
+                    </td>
                     <td className="px-4 whitespace-nowrap">
                       {canWriteFinalDecision ? (
                         // 행을 누르거나 Enter를 치면 상세가 열리므로 판정 고르기·저장 클릭과 키 입력은 행으로 올려 보내지 않는다.
@@ -250,11 +261,6 @@ export function MyEvaluationList({
                           {DECISION_LABELS[applicant.final_decision]}
                         </span>
                       )}
-                    </td>
-                    <td className="px-4 whitespace-nowrap">
-                      {applicant.my_decision === null
-                        ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED
-                        : DECISION_LABELS[applicant.my_decision]}
                     </td>
                   </tr>
                 );

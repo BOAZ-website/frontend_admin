@@ -1,5 +1,6 @@
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
+import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import type { ToastMessage } from '@/shared/ui/Toast';
 
 import { applicantInfoFields } from '../model/applicantList';
@@ -20,6 +21,11 @@ import { type SegmentedTabItem, SegmentedTabs } from './SegmentedTabs';
 
 /** 지원자 상세 오른쪽 영역의 탭. 평가 현황은 조회 전용이고, 입력은 개인 평가 탭에만 있다. */
 export type ReviewDetailTab = 'review' | 'status';
+
+const SCORE_SELECT_OPTIONS = SCORE_OPTIONS.map((score) => ({
+  value: String(score),
+  label: `${score}점`,
+}));
 
 const DETAIL_TABS: SegmentedTabItem<ReviewDetailTab>[] = [
   { id: 'review', label: '개인 평가' },
@@ -171,23 +177,16 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
                 </div>
               )}
               <fieldset disabled={isFormLocked} className="contents">
-                <label className="review-label" htmlFor="review-score">
-                  점수
-                </label>
+                <span className="review-label">점수</span>
                 <div className="review-score">
-                  <select
-                    id="review-score"
-                    value={p.score ?? DEFAULT_SCORE}
-                    aria-invalid={p.errors.score ? true : undefined}
-                    aria-describedby={p.errors.score ? 'review-score-error' : undefined}
-                    onChange={(e) => p.onScore(Number(e.target.value))}
-                  >
-                    {SCORE_OPTIONS.map((score) => (
-                      <option key={score} value={score}>
-                        {score}점
-                      </option>
-                    ))}
-                  </select>
+                  <SelectDropdown
+                    ariaLabel="점수"
+                    value={String(p.score ?? DEFAULT_SCORE)}
+                    options={SCORE_SELECT_OPTIONS}
+                    disabled={isFormLocked}
+                    onChange={(score) => p.onScore(Number(score))}
+                    buttonClassName="h-9 w-24 text-left"
+                  />
                   <span>/ 10</span>
                 </div>
                 {p.errors.score && (
