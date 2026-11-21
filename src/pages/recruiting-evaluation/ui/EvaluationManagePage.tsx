@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { Toast, type ToastMessage } from '@/shared/ui/Toast';
@@ -32,6 +32,7 @@ import { ApplicantReviewDetail, type ReviewDetailTab } from './ApplicantReviewDe
 import { ApplicantsOverview } from './ApplicantsOverview';
 import { MemberRegistrationList } from './MemberRegistrationList';
 import { MyEvaluationList } from './MyEvaluationList';
+import { TRACK_IMAGE } from './trackImages';
 
 /** 제목은 사이드바 메뉴 이름(PAGE_LABELS)과 같다. */
 const MAIN_TAB_TITLES: Record<EvaluationTab, string> = {
@@ -158,16 +159,6 @@ export function EvaluationManagePage({
 
   const showToast = (message: string, tone: ToastMessage['tone']) =>
     setToast({ id: Date.now(), message, tone });
-
-  // 상단 지표(최종 합격자·승격 대기 인원·정회원 승격 완료). 표의 행 상태와 따로 센다.
-  const passedCandidates = useMemo(() => {
-    return applicants.filter((a) => a.final_decision === 'PASS');
-  }, [applicants]);
-
-  const unpromotedPassedCandidates = useMemo(() => {
-    return passedCandidates.filter((a) => !a.is_promoted_to_member);
-  }, [passedCandidates]);
-  const promotedCount = passedCandidates.length - unpromotedPassedCandidates.length;
 
   // 평가 화면을 열고 내 평가(REC-ADMIN-16)를 읽어 폼을 채운다. 없으면(null) 빈 폼으로 둔다.
   async function handleOpenModal(
@@ -347,9 +338,19 @@ export function EvaluationManagePage({
       {/* 출결 화면과 같은 제목 줄. 화면 전환은 사이드바 메뉴 3개가 맡는다. */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
         <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900">
-          {MAIN_TAB_TITLES[mainTab]}
-          {mainTab === 'my' && (
-            <span className="evaluation-title-track">{TRACK_LABELS[track]}</span>
+          {mainTab === 'my' ? (
+            <>
+              <img
+                src={TRACK_IMAGE[track]}
+                alt=""
+                width={28}
+                height={28}
+                className="size-7 object-contain"
+              />
+              {`${TRACK_LABELS[track]} ${MAIN_TAB_TITLES.my}`}
+            </>
+          ) : (
+            MAIN_TAB_TITLES[mainTab]
           )}
         </h1>
       </div>
@@ -372,52 +373,6 @@ export function EvaluationManagePage({
           canWriteFinalDecision={canWriteFinalDecision}
           onSaveFinalDecision={handleSaveFinalDecision}
         />
-      )}
-
-      {/* 요약 영역: 지표 세 칸(같은 너비·같은 글자 모양)과 오른쪽 등록 진행률. 좁으면 세로로 쌓는다. */}
-      {mainTab === 'promotions' && (
-        <section
-          aria-label="부원 등록 요약"
-          className="mb-12 grid grid-cols-1 gap-y-4 rounded-md border border-slate-200 bg-white px-8 py-7 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(160px,220px)] lg:items-center"
-        >
-          <dl className="contents">
-            {(
-              [
-                ['최종 합격자', passedCandidates.length],
-                ['등록 대기 인원', unpromotedPassedCandidates.length],
-                ['부원 등록 완료', promotedCount],
-              ] as const
-            ).map(([label, count], index) => (
-              <div
-                key={label}
-                className={index > 0 ? 'lg:border-l lg:border-slate-200 lg:pl-8' : 'lg:pr-8'}
-              >
-                <dt className="text-sm leading-5 text-slate-500">{label}</dt>
-                <dd className="mt-2 text-3xl leading-9 font-bold text-slate-900">{count}명</dd>
-              </div>
-            ))}
-          </dl>
-          <div className="lg:pl-8">
-            <p className="text-right text-sm leading-5 text-slate-500">
-              {promotedCount} / {passedCandidates.length}명 완료
-            </p>
-            <div
-              role="progressbar"
-              aria-label="부원 등록 진행률"
-              aria-valuemin={0}
-              aria-valuemax={passedCandidates.length}
-              aria-valuenow={promotedCount}
-              className="review-progress mt-2 h-1 overflow-hidden rounded-full"
-            >
-              <div
-                className="h-full rounded-full transition-[width]"
-                style={{
-                  width: `${passedCandidates.length ? (promotedCount / passedCandidates.length) * 100 : 0}%`,
-                }}
-              />
-            </div>
-          </div>
-        </section>
       )}
 
       {mainTab === 'promotions' && (

@@ -119,16 +119,6 @@
 .evaluation-page h1.text-slate-900 {
   color: #0f172a !important;
 }
-/* 서류 평가 제목 옆 부문 표시. 표 머리글 행과 같은 배경·글자색을 쓴다. */
-.evaluation-page .evaluation-title-track {
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: #f1f5f9e6;
-  color: #334155;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0;
-}
 /* 목록 표는 출결 화면 표(EventAttendanceManagePage)와 같은 모양: 회색 머리글, 세로 구분선, 가운데 정렬, 50px 행. */
 .evaluation-page table:has(> thead) {
   font-size: 12px;
@@ -166,13 +156,6 @@
 /* 글자 값 열(이름·학교·전공·이메일 등)은 머리·본문 모두 왼쪽 정렬한다. 나머지 열은 위 규칙대로 가운데다. */
 .evaluation-page table:has(> thead) :is(th, td).review-cell-left {
   text-align: left;
-}
-/* 부원 등록 진행 막대. 위의 bg-* 일괄 흰색 규칙보다 뒤에 두어 바탕·채움 색을 살린다. */
-.evaluation-page .review-progress {
-  background: #e2e8f0 !important;
-}
-.evaluation-page .review-progress > div {
-  background: #334155 !important;
 }
 .evaluation-page table:has(> thead) td .flex {
   justify-content: center;

@@ -13,8 +13,6 @@ import {
   TRACK_FILTER_OPTIONS,
 } from '../model/applicantList';
 import {
-  isRetryable,
-  REGISTRATION_STATUS_LABELS,
   type RegistrationResult,
   registrationRequestFailureOf,
   registrationResultsOf,
@@ -39,30 +37,31 @@ interface MemberRegistrationListProps {
   promoteUsers: (request: PromoteUsersRequest) => Promise<PromoteUsersResponse>;
 }
 
-// 짧은 열은 내용에 맞춘 고정 너비, 이메일은 남는 너비를 모두 쓴다(가장 넓음).
-// 글자 값(이름·학교·전공·이메일)은 왼쪽, 짧은 값(부문·연락처·평가 수·총점수·상태)은 가운데 정렬이다.
-const CHECKBOX_WIDTH = '40px';
-const STATUS_WIDTH = '112px';
-const COLUMNS: { label: string; width?: string; isLeft?: boolean }[] = [
-  { label: '이름', width: '88px', isLeft: true },
-  { label: '부문', width: '96px' },
-  { label: '학교', width: '128px', isLeft: true },
-  { label: '전공', width: '128px', isLeft: true },
-  { label: '연락처', width: '124px' },
-  { label: '이메일', isLeft: true },
-  { label: '합격', width: '48px' },
-  { label: '보류', width: '48px' },
-  { label: '불합', width: '48px' },
-  { label: '총점수', width: '64px' },
-  { label: '상태', width: STATUS_WIDTH },
+// 서류 평가 목록 표(MyEvaluationList)와 같은 방식: 짧은 열은 고정 너비, 이메일·대학교·전공은 남는 너비를 나눠 쓴다.
+// 긴 글자는 '…'로 줄이고 마우스를 올리면 전체가 보인다.
+const COLUMNS: {
+  label: string;
+  width?: string;
+  value: (row: ApplicantEvaluationDto) => string;
+}[] = [
+  { label: '이름', width: '96px', value: (row) => displayValue(row.name) },
+  { label: '부문', width: '96px', value: (row) => TRACK_LABELS[row.track] },
+  { label: '이메일', value: (row) => displayValue(row.email) },
+  { label: '연락처', width: '128px', value: (row) => displayValue(row.phone) },
+  { label: '생년월일', width: '104px', value: (row) => displayValue(row.birth_date) },
+  { label: '대학교', value: (row) => displayValue(row.university) },
+  { label: '전공', value: (row) => displayValue(row.major) },
 ];
-const cellClass = (isLeft?: boolean) => (isLeft ? 'review-cell-left px-2' : 'px-2');
 
 const WAITING: RegistrationResult = { status: 'WAITING' };
 
+/** 이 화면에서 등록을 마친 결과. 다음 등록 대상에서 뺀다. */
+const isDone = (result?: RegistrationResult) =>
+  result?.status === 'REGISTERED' || result?.status === 'ALREADY_MEMBER';
+
 /**
- * 합격자 부원 등록. 최종 합격자를 골라 한 번에 부원으로 등록한다(행별 등록 없음).
- * 상태는 이 화면에서 보낸 요청의 결과다. 회원 상태 조회 API가 없어 처음에는 모두 '등록 대기'로 보인다.
+ * 합격자 부원 등록. 등록하기 버튼은 아직 등록하지 않은 최종 합격자 전체를 한 번에 등록한다(행별·선택 등록 없음).
+ * 부문 필터·검색은 표 보기에만 쓰고 등록 대상은 바꾸지 않는다. 등록 결과는 누른 뒤 뜨는 알림으로 알린다.
  */
 export function MemberRegistrationList({
   fetchApplicants,
@@ -73,8 +72,6 @@ export function MemberRegistrationList({
   const [track, setTrack] = useState<'ALL' | TrackType>('ALL');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<ReviewSort>('SUBMITTED_DESC');
-  // 선택은 user_id로 가진다. 필터를 바꿔도 남고, 등록 요청은 선택한 사람 전체에 보낸다.
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [results, setResults] = useState<Record<number, RegistrationResult>>({});
   const [isRegistering, setIsRegistering] = useState(false);
   // 상태 반영 전에 버튼을 두 번 눌러도 요청이 한 번만 가게 한다.
@@ -83,34 +80,25 @@ export function MemberRegistrationList({
 
   const candidates = registrationRows(list.data ?? [], { track: 'ALL', search: '', sort });
   const rows = registrationRows(list.data ?? [], { track, search, sort });
-  const visibleSelectedCount = rows.filter((row) => selectedIds.includes(row.user_id)).length;
-  const isAllVisibleSelected = rows.length > 0 && visibleSelectedCount === rows.length;
   const isFirstLoad = list.isLoading && !list.data;
-
-  const toggle = (userId: number) =>
-    setSelectedIds((current) =>
-      current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId],
-    );
-
-  // 헤더 체크박스는 지금 보이는 행만 고르거나 푼다. 숨은 행의 선택은 그대로 둔다.
-  const toggleAllVisible = () => {
-    const visibleIds = rows.map((row) => row.user_id);
-    setSelectedIds((current) =>
-      isAllVisibleSelected
-        ? current.filter((id) => !visibleIds.includes(id))
-        : [...new Set([...current, ...visibleIds])],
-    );
-  };
+  // 등록 대상: 아직 부원이 아니고 이 화면에서도 등록을 마치지 않은 최종 합격자 전체.
+  const targetIds = [
+    ...new Set(
+      candidates
+        .filter((row) => !row.is_promoted_to_member && !isDone(results[row.user_id]))
+        .map((row) => row.user_id),
+    ),
+  ];
 
   const handleRegister = async () => {
-    const targets = [...new Set(selectedIds)];
+    const targets = targetIds;
     if (registeringRef.current || targets.length === 0) return;
     const names = targets
       .map((id) => displayValue(candidates.find((row) => row.user_id === id)?.name))
       .join(', ');
     if (
       !window.confirm(
-        `선택한 ${targets.length}명을 부원으로 등록합니다.\n${names}\n\n등록하면 되돌릴 수 없습니다. 진행할까요?`,
+        `아직 등록하지 않은 최종 합격자 ${targets.length}명을 부원으로 등록합니다.\n${names}\n\n등록하면 되돌릴 수 없습니다. 진행할까요?`,
       )
     ) {
       return;
@@ -124,11 +112,8 @@ export function MemberRegistrationList({
     try {
       const next = registrationResultsOf(targets, await promoteUsers({ user_ids: targets }));
       setResults((current) => ({ ...current, ...next }));
-      // 다시 시도할 수 있는 행(등록 실패·확인 필요)만 선택을 남긴다.
-      setSelectedIds((current) =>
-        current.filter((id) => !next[id] || isRetryable(next[id].status)),
-      );
       window.alert(registrationSummaryOf(next));
+      list.reload();
     } catch (error) {
       const failure = registrationRequestFailureOf(error);
       setResults((current) => ({
@@ -189,32 +174,16 @@ export function MemberRegistrationList({
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] table-fixed text-xs">
+            <table className="w-full min-w-[900px] table-fixed text-xs">
               <colgroup>
-                <col style={{ width: CHECKBOX_WIDTH }} />
                 {COLUMNS.map((column) => (
                   <col key={column.label} style={{ width: column.width }} />
                 ))}
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col" className="px-2">
-                    <input
-                      type="checkbox"
-                      aria-label="보이는 합격자 모두 선택"
-                      checked={isAllVisibleSelected}
-                      disabled={rows.length === 0}
-                      ref={(element) => {
-                        if (element) {
-                          element.indeterminate = visibleSelectedCount > 0 && !isAllVisibleSelected;
-                        }
-                      }}
-                      onChange={toggleAllVisible}
-                      className="size-4 cursor-pointer align-middle"
-                    />
-                  </th>
                   {COLUMNS.map((column) => (
-                    <th key={column.label} scope="col" className={cellClass(column.isLeft)}>
+                    <th key={column.label} scope="col" className="px-4 py-3 text-left">
                       {column.label}
                     </th>
                   ))}
@@ -222,7 +191,6 @@ export function MemberRegistrationList({
               </thead>
               <tbody>
                 {rows.map((row) => {
-                  const result = results[row.user_id] ?? WAITING;
                   return (
                     <tr
                       key={row.id}
@@ -231,39 +199,15 @@ export function MemberRegistrationList({
                       onKeyDown={(event) => event.key === 'Enter' && setDetail(row)}
                       className="cursor-pointer"
                     >
-                      {/* 체크박스 클릭·키 입력은 행으로 올려 보내지 않는다(상세가 열리지 않게). */}
-                      <td
-                        className="px-2"
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => event.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          aria-label={`${displayValue(row.name)} 선택`}
-                          checked={selectedIds.includes(row.user_id)}
-                          onChange={() => toggle(row.user_id)}
-                          className="size-4 cursor-pointer align-middle"
-                        />
-                      </td>
-                      <td className={`${cellClass(true)} font-semibold`}>
-                        {displayValue(row.name)}
-                      </td>
-                      <td className="px-2">{TRACK_LABELS[row.track]}</td>
-                      <td className={cellClass(true)}>{displayValue(row.university)}</td>
-                      <td className={cellClass(true)}>{displayValue(row.major)}</td>
-                      <td className="px-2 whitespace-nowrap">{displayValue(row.phone)}</td>
-                      {/* 긴 이메일은 줄임표로 자른다. 다른 열을 밀어내지 않고, 전체는 title과 상세에서 본다. */}
-                      <td className={`${cellClass(true)} truncate`} title={row.email ?? undefined}>
-                        {displayValue(row.email)}
-                      </td>
-                      <td className="px-2">{row.pass_count}</td>
-                      <td className="px-2">{row.hold_count}</td>
-                      <td className="px-2">{row.fail_count}</td>
-                      <td className="px-2">{row.total_score}</td>
-                      <td className="px-2">
-                        {REGISTRATION_STATUS_LABELS[result.status]}
-                        {result.reason && <p className="text-[11px]">{result.reason}</p>}
-                      </td>
+                      {COLUMNS.map((column, index) => (
+                        <td
+                          key={column.label}
+                          title={column.value(row)}
+                          className={`px-4 truncate ${index === 0 ? 'font-semibold' : ''}`}
+                        >
+                          {column.value(row)}
+                        </td>
+                      ))}
                     </tr>
                   );
                 })}
@@ -279,24 +223,17 @@ export function MemberRegistrationList({
             </p>
           )}
 
-          {/* 하단 선택·등록 영역. 가로 스크롤 밖에 두고, 버튼은 '상태' 열(고정 너비) 가운데에 맞춘다. */}
-          {selectedIds.length > 0 && (
-            <div className="flex items-center justify-end border-t border-slate-200 py-3 text-xs whitespace-nowrap">
-              <span className="font-bold" role="status">
-                {selectedIds.length}명 선택됨
-              </span>
-              <div className="flex justify-center" style={{ width: STATUS_WIDTH }}>
-                <button
-                  type="button"
-                  disabled={isRegistering}
-                  onClick={() => void handleRegister()}
-                  className="px-4"
-                >
-                  {isRegistering ? '등록 중…' : '등록하기'}
-                </button>
-              </div>
-            </div>
-          )}
+          {/* 하단 등록 영역. 가로 스크롤 밖에 두고 늘 보인다. 등록할 사람이 없으면 누를 수 없다. */}
+          <div className="flex items-center justify-end border-t border-slate-200 px-4 py-3 text-xs whitespace-nowrap">
+            <button
+              type="button"
+              disabled={isRegistering || targetIds.length === 0}
+              onClick={() => void handleRegister()}
+              className="px-4"
+            >
+              {isRegistering ? '등록 중…' : '등록하기'}
+            </button>
+          </div>
         </>
       )}
 

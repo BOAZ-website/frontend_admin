@@ -11,15 +11,6 @@ import type { ApplicantEvaluationDto, PromoteUsersResponse, TrackType } from './
 export type RegistrationStatus =
   'WAITING' | 'REGISTERING' | 'REGISTERED' | 'ALREADY_MEMBER' | 'FAILED' | 'UNKNOWN';
 
-export const REGISTRATION_STATUS_LABELS: Record<RegistrationStatus, string> = {
-  WAITING: '등록 대기',
-  REGISTERING: '등록 중',
-  REGISTERED: '등록 완료',
-  ALREADY_MEMBER: '이미 등록',
-  FAILED: '등록 실패',
-  UNKNOWN: '확인 필요',
-};
-
 export interface RegistrationResult {
   status: RegistrationStatus;
   /** 등록 실패 사유. FAILED일 때만 있다. */

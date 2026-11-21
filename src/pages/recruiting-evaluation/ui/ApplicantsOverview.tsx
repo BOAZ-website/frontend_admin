@@ -1,8 +1,5 @@
 import { useState } from 'react';
 
-import trackAnalysis from '@/shared/assets/tracks/track-analysis.png';
-import trackEngineering from '@/shared/assets/tracks/track-engineering.png';
-import trackVisualization from '@/shared/assets/tracks/track-visualization.png';
 import { dateTimeTextOf } from '@/shared/lib/date';
 import { useLoaded } from '@/shared/lib/useLoaded';
 import { FilterDropdown, type FilterDropdownOption } from '@/shared/ui/FilterDropdown';
@@ -22,11 +19,11 @@ import {
   type ApplicantEvaluationDto,
   APPLICATION_STATUS_LABELS,
   TRACK_LABELS,
-  type TrackType,
 } from '../model/types';
 import { useVisibleTracks } from '../model/useVisibleTracks';
 import { ApplicantDetailModal } from './ApplicantDetailModal';
 import { ListLoadError } from './ListLoadError';
+import { TRACK_IMAGE } from './trackImages';
 
 interface ApplicantsOverviewProps {
   fetchApplicants: () => Promise<ApplicantEvaluationDto[]>;
@@ -34,13 +31,6 @@ interface ApplicantsOverviewProps {
   /** 제출 완료 지원자를 개인 평가 화면에서 연다. */
   onEvaluate: (applicantId: number) => void;
 }
-
-/** 부문 지표 옆 캐릭터. 학기 일정 달력(SemesterCalendar)과 같은 이미지다. */
-const TRACK_IMAGE: Record<TrackType, string> = {
-  ANALYSIS: trackAnalysis,
-  VISUALIZATION: trackVisualization,
-  ENGINEERING: trackEngineering,
-};
 
 const STATUS_FILTER_OPTIONS: readonly FilterDropdownOption<ApplicantListQuery['status']>[] = [
   { value: 'ALL', label: '전체' },
