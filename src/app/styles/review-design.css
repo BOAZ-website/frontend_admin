@@ -129,10 +129,6 @@
   font-weight: 600;
   letter-spacing: 0;
 }
-.evaluation-page .evaluation-header-tabs {
-  flex-wrap: wrap;
-  gap: 4px;
-}
 /* 목록 표는 출결 화면 표(EventAttendanceManagePage)와 같은 모양: 회색 머리글, 세로 구분선, 가운데 정렬, 50px 행. */
 .evaluation-page table:has(> thead) {
   font-size: 12px;
@@ -298,38 +294,6 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-/* 상세 탭은 상단 페이지 탭(SegmentedTabs)과 같은 모양이어야 해서, 상세 화면의 일반 버튼 테두리·여백을 덮지 않게 되돌린다. */
-/* 상세 탭 토글은 BASE 출결 관리의 방학/학기 토글과 같은 모양이다(위의 버튼·색 일괄 규칙을 덮는다). */
-/* 높이는 옆의 목록 버튼(34px)과 같다. */
-.applicant-review .evaluation-header-tabs {
-  box-sizing: border-box;
-  height: 34px;
-  gap: 0;
-  padding: 2px;
-  border: 1px solid rgb(226 232 240 / 0.8) !important;
-  border-radius: 6px;
-  background: rgb(241 245 249 / 0.9) !important;
-  font-size: 12px;
-}
-.applicant-review .evaluation-header-tabs button {
-  height: 100%;
-  min-height: 0;
-  padding: 0 13px;
-  border: 0 !important;
-  border-radius: 4px;
-  background: transparent !important;
-  color: #64748b !important;
-  font-weight: 700;
-}
-.applicant-review .evaluation-header-tabs button:hover:not(:disabled) {
-  background: transparent !important;
-  color: #1e293b !important;
-}
-.applicant-review .evaluation-header-tabs button[aria-pressed='true'] {
-  background: #fff !important;
-  color: #0f172a !important;
-  box-shadow: 0 1px rgb(0 0 0 / 0.05) !important;
 }
 /* 점수 드롭다운(SelectDropdown)은 오른쪽 화살표 자리를 남긴다(위의 상세 화면 버튼 여백을 덮는다). */
 .applicant-review button[aria-haspopup='listbox'] {
@@ -712,4 +676,30 @@
   .evaluation-detail .review-meta {
     grid-template-columns: 1fr;
   }
+}
+
+/* 지원자 상세 탭(개인 평가·운영진 평가 현황)은 콘텐츠 관리 아카이브의 밑줄 탭과 같은 모양이다.
+   서류 평가 화면의 버튼·색 일괄 규칙이 인라인 색까지 덮어서, 색은 여기서 !important로 정한다. */
+.applicant-review .evaluation-underline-tabs {
+  margin-bottom: 12px;
+  border-color: #e2e8f0 !important;
+}
+.applicant-review .evaluation-underline-tabs button {
+  min-height: 0;
+  padding: 0 0 12px;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  color: #64748b !important;
+  font-size: 14px;
+  font-weight: 600;
+}
+.applicant-review .evaluation-underline-tabs button[aria-pressed='true'] {
+  color: #0f172a !important;
+}
+.applicant-review .evaluation-underline-tabs-bar {
+  background: #2563eb !important;
+}
+.applicant-review .evaluation-underline-tabs button:hover:not(:disabled) {
+  background: transparent !important;
 }

@@ -88,12 +88,6 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
           <ArrowLeft size={14} aria-hidden="true" />
           목록
         </button>
-        <SegmentedTabs
-          label="오른쪽 영역"
-          items={DETAIL_TABS}
-          value={p.tab}
-          onChange={p.onTabChange}
-        />
         <span className="review-spacer" />
         <span>
           {p.position} / {p.total}
@@ -124,6 +118,13 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
             ))}
         </dl>
       </section>
+      {/* 탭은 인적사항 아래, 탭에 따라 바뀌는 영역 바로 위에 둔다. */}
+      <SegmentedTabs
+        label="지원자 상세 영역"
+        items={DETAIL_TABS}
+        value={p.tab}
+        onChange={p.onTabChange}
+      />
       {/* 운영진 평가 현황은 아래 영역 전체 너비를 쓴다. 개인 평가 영역은 입력값이 남도록 숨기기만 한다. */}
       {p.tab === 'status' && (
         <EvaluatorResultsTab
