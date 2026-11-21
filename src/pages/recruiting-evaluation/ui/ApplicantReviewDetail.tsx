@@ -82,7 +82,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
   // 내 평가를 읽는 중·실패했거나 저장 중이면 입력을 잠근다(저장 중 값이 바뀌어 다른 값이 저장되지 않게).
   const isFormLocked = p.isMyEvaluationLoading || p.myEvaluationError !== null || p.saving;
   return (
-    <div className="evaluation-page applicant-review">
+    <div className="evaluation-page evaluation-scale applicant-review">
       <div className="review-toolbar">
         <button type="button" disabled={p.saving} onClick={p.onBack}>
           <ArrowLeft size={14} aria-hidden="true" />

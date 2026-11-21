@@ -123,7 +123,7 @@ export function ApplicantsOverview({
       </section>
 
       <section aria-label="지원자 목록">
-        <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
+        <div className="review-list-toolbar flex flex-wrap items-center justify-end gap-3 pb-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <FilterDropdown
               ariaLabel="제출 상태 필터"
@@ -146,19 +146,21 @@ export function ApplicantsOverview({
               options={SORT_OPTIONS}
               onChange={(sort) => updateQuery({ sort })}
             />
-            <SearchInput
-              ariaLabel="지원자 검색"
-              placeholder="이름·이메일·학교·전공"
-              value={query.search}
-              onChange={(search) => updateQuery({ search })}
-            />
-            <RefreshButton isLoading={list.isLoading} onClick={list.reload} />
+            <div className="review-search-group">
+              <SearchInput
+                ariaLabel="지원자 검색"
+                placeholder="이름·이메일·학교·전공"
+                value={query.search}
+                onChange={(search) => updateQuery({ search })}
+              />
+              <RefreshButton isLoading={list.isLoading} onClick={list.reload} />
+            </div>
           </div>
         </div>
 
         <div className="rounded-md border border-slate-200 bg-white">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-xs">
+            <table className="review-list-table w-full min-w-[880px] text-xs">
               <thead>
                 <tr>
                   {COLUMNS.map((label) => (

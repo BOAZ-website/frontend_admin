@@ -280,7 +280,6 @@ export function EvaluationManagePage({
   }
 
   const toastNode = <Toast toast={toast} onClose={() => setToast(null)} />;
-
   if (selectedApplicant)
     return (
       <>
@@ -333,7 +332,8 @@ export function EvaluationManagePage({
       </>
     );
   return (
-    <div className="evaluation-page space-y-6">
+    // evaluation-scale: 서류 평가 관리 화면 공통 크기·여백 규칙(review-design.css 맨 아래, docs/screens/03-evaluation-layout.md)
+    <div className="evaluation-page evaluation-scale space-y-6">
       {toastNode}
       {/* 출결 화면과 같은 제목 줄. 화면 전환은 사이드바 메뉴 3개가 맡는다. */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">

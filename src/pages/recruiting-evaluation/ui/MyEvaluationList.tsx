@@ -155,7 +155,7 @@ export function MyEvaluationList({
 
   return (
     <section aria-label="평가 대상 목록">
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+      <div className="review-list-toolbar flex flex-wrap items-center justify-between gap-3 pb-3">
         {/* 표 상자 모서리 곡선이 끝나는 6px(rounded-md)에 맞추고, 줄 아래쪽에 붙여 표와 12px(pb-3) 간격을 둔다. */}
         <span className="self-end pl-1.5 text-xs font-semibold text-slate-600">
           총 {submittedCount}명
@@ -182,13 +182,16 @@ export function MyEvaluationList({
             options={REVIEW_SORT_OPTIONS}
             onChange={(sort) => updateQuery({ sort })}
           />
-          <SearchInput
-            ariaLabel="지원자 검색"
-            placeholder="이름·이메일·학교·전공"
-            value={query.search}
-            onChange={(search) => updateQuery({ search })}
-          />
-          <RefreshButton isLoading={list.isLoading} onClick={list.reload} />
+          {/* 검색과 새로고침 묶음. 좁은 화면에서 한 덩어리로 함께 줄바꿈한다(review-design.css). */}
+          <div className="review-search-group">
+            <SearchInput
+              ariaLabel="지원자 검색"
+              placeholder="이름·이메일·학교·전공"
+              value={query.search}
+              onChange={(search) => updateQuery({ search })}
+            />
+            <RefreshButton isLoading={list.isLoading} onClick={list.reload} />
+          </div>
         </div>
       </div>
 
@@ -199,7 +202,7 @@ export function MyEvaluationList({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1040px] table-fixed text-xs">
+            <table className="review-list-table review-eval-table w-full min-w-[1040px] table-fixed text-xs">
               <colgroup>
                 {COLUMNS.map((column) => (
                   <col key={column.label} style={{ width: column.width }} />

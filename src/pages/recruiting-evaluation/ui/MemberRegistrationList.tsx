@@ -141,7 +141,7 @@ export function MemberRegistrationList({
   return (
     <section aria-label="합격자 목록">
       {/* 툴바: 오른쪽에 부문 필터·정렬·검색·새로고침 */}
-      <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
+      <div className="review-list-toolbar flex flex-wrap items-center justify-end gap-3 pb-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <FilterDropdown
             ariaLabel="부문 필터"
@@ -157,13 +157,15 @@ export function MemberRegistrationList({
             options={REVIEW_SORT_OPTIONS}
             onChange={setSort}
           />
-          <SearchInput
-            ariaLabel="합격자 검색"
-            placeholder="이름·이메일·학교·전공"
-            value={search}
-            onChange={setSearch}
-          />
-          <RefreshButton isLoading={list.isLoading} onClick={list.reload} />
+          <div className="review-search-group">
+            <SearchInput
+              ariaLabel="합격자 검색"
+              placeholder="이름·이메일·학교·전공"
+              value={search}
+              onChange={setSearch}
+            />
+            <RefreshButton isLoading={list.isLoading} onClick={list.reload} />
+          </div>
         </div>
       </div>
 
@@ -175,7 +177,7 @@ export function MemberRegistrationList({
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] table-fixed text-xs">
+              <table className="review-list-table review-register-table w-full min-w-[900px] table-fixed text-xs">
                 <colgroup>
                   {COLUMNS.map((column) => (
                     <col key={column.label} style={{ width: column.width }} />
@@ -238,7 +240,7 @@ export function MemberRegistrationList({
 
       {/* 등록 버튼은 표 상자 밖 오른쪽 아래에 늘 보인다. 등록할 사람이 없으면 누를 수 없다. */}
       {!isFirstLoad && (
-        <div className="flex justify-end pt-3 text-xs">
+        <div className="review-list-actions flex justify-end pt-3 text-xs">
           <button
             type="button"
             disabled={isRegistering || targetIds.length === 0}
