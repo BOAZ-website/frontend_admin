@@ -102,7 +102,7 @@ export function ApplicantsOverview({
           {stats.map(([label, count, image], index) => (
             <div
               key={label}
-              className={`text-center ${index > 0 ? 'lg:border-l lg:border-slate-200 lg:pl-8' : 'lg:pr-8'}`}
+              className={`px-2 text-center ${index > 0 ? 'lg:border-l lg:border-slate-200' : ''}`}
             >
               <dt className="flex items-center justify-center gap-1.5 text-sm leading-5 text-slate-500">
                 {image && (

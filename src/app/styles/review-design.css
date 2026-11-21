@@ -147,6 +147,10 @@
 .evaluation-page table:has(> thead) :is(th, td) + :is(th, td) {
   border-left: 1px solid #e2e8f0;
 }
+/* 행 끝 > 아이콘 칸은 앞 칸과 세로선으로 나누지 않는다. */
+.evaluation-page table:has(> thead) :is(th, td).review-cell-chevron {
+  border-left: 0;
+}
 .evaluation-page table:has(> thead) tbody tr + tr {
   border-top: 1px solid #e2e8f0;
 }

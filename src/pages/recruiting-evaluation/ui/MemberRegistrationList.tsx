@@ -223,18 +223,6 @@ export function MemberRegistrationList({
                   : '조건에 맞는 합격자가 없습니다.'}
               </p>
             )}
-
-            {/* 하단 등록 영역. 가로 스크롤 밖에 두고 늘 보인다. 등록할 사람이 없으면 누를 수 없다. */}
-            <div className="flex items-center justify-end border-t border-slate-200 px-4 py-3 text-xs whitespace-nowrap">
-              <button
-                type="button"
-                disabled={isRegistering || targetIds.length === 0}
-                onClick={() => void handleRegister()}
-                className="px-4"
-              >
-                {isRegistering ? '등록 중…' : '등록하기'}
-              </button>
-            </div>
           </>
         )}
 
@@ -247,6 +235,20 @@ export function MemberRegistrationList({
           />
         )}
       </div>
+
+      {/* 등록 버튼은 표 상자 밖 오른쪽 아래에 늘 보인다. 등록할 사람이 없으면 누를 수 없다. */}
+      {!isFirstLoad && (
+        <div className="flex justify-end pt-3 text-xs">
+          <button
+            type="button"
+            disabled={isRegistering || targetIds.length === 0}
+            onClick={() => void handleRegister()}
+            className="px-4"
+          >
+            {isRegistering ? '등록 중…' : '등록하기'}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

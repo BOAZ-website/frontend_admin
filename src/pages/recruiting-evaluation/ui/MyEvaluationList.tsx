@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 import { useLoaded } from '@/shared/lib/useLoaded';
@@ -109,6 +110,10 @@ export function MyEvaluationList({
   );
   // 부문은 메뉴가 정하므로 목록 조건의 부문 값 대신 메뉴의 부문으로 거른다.
   const rows = filterReviewList(applicants, { ...query, track });
+  // 필터 줄 왼쪽 인원: 이 부문의 제출 완료 지원자 수. 필터·검색과 관계없이 같다.
+  const submittedCount = applicants.filter(
+    (applicant) => applicant.track === track && applicant.status === 'SUBMITTED',
+  ).length;
   const isFirstLoad = list.isLoading && !list.data;
 
   const updateQuery = (patch: Partial<ReviewListQuery>) => onQueryChange({ ...query, ...patch });
@@ -150,7 +155,11 @@ export function MyEvaluationList({
 
   return (
     <section aria-label="평가 대상 목록">
-      <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+        {/* 표 상자 모서리 곡선이 끝나는 6px(rounded-md)에 맞추고, 줄 아래쪽에 붙여 표와 12px(pb-3) 간격을 둔다. */}
+        <span className="self-end pl-1.5 text-xs font-semibold text-slate-600">
+          총 {submittedCount}명
+        </span>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <FilterDropdown
             ariaLabel="개인 평가 필터"
@@ -195,6 +204,7 @@ export function MyEvaluationList({
                 {COLUMNS.map((column) => (
                   <col key={column.label} style={{ width: column.width }} />
                 ))}
+                <col style={{ width: '40px' }} />
               </colgroup>
               <thead>
                 <tr>
@@ -203,6 +213,9 @@ export function MyEvaluationList({
                       {column.label}
                     </th>
                   ))}
+                  <th scope="col" className="review-cell-chevron px-2">
+                    <span className="sr-only">열기</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -264,6 +277,14 @@ export function MyEvaluationList({
                             {DECISION_LABELS[applicant.final_decision]}
                           </span>
                         )}
+                      </td>
+                      {/* 행을 누르면 평가 화면이 열린다는 표시. 꾸밈이라 화면 읽기 프로그램은 건너뛴다. */}
+                      <td className="review-cell-chevron px-2">
+                        <ChevronRight
+                          size={16}
+                          aria-hidden="true"
+                          className="inline text-slate-400"
+                        />
                       </td>
                     </tr>
                   );
