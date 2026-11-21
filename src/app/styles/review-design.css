@@ -960,8 +960,10 @@
   display: block;
 }
 
-/* 평가 화면 탭(개인 평가·운영진 평가 현황)의 첫 글자는 바로 아래 카드의 모서리 곡선이 끝나는 지점에 맞춘다.
-   카드 둥글기는 .review-paper·.review-panel의 border-radius 12px이고, 탭 줄 자체는 카드와 같은 왼쪽 끝에서 시작한다. */
+/* 평가 화면 탭 줄(개인 평가·운영진 평가 현황)을 통째로 바로 아래 카드의 모서리 곡선이 끝나는 지점(12px)으로 옮긴다.
+   안쪽 여백(padding)으로 밀면 회색 밑줄만 카드 끝까지 남으므로, 바깥 여백(margin)으로 줄 전체를 옮기고 안쪽 여백은 0이다.
+   그래서 첫 글자·파란 밑줄·회색 밑줄이 모두 같은 지점에서 시작한다. 카드 둥글기: .review-paper·.review-panel 12px */
 .evaluation-scale .evaluation-underline-tabs {
-  padding-inline: 12px;
+  margin-inline: 12px;
+  padding-inline: 0;
 }
