@@ -182,7 +182,7 @@ export type MyEvaluationFilter = 'ALL' | 'UNEVALUATED' | 'SAVED';
 
 export const MY_EVALUATION_FILTER_LABELS: Record<MyEvaluationFilter, string> = {
   ALL: '전체',
-  UNEVALUATED: '미평가',
+  UNEVALUATED: '미정',
   SAVED: '저장됨',
 };
 

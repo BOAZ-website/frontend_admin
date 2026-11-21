@@ -208,7 +208,8 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
                       key={d}
                       type="button"
                       aria-pressed={p.decision === d}
-                      onClick={() => p.onDecision(d)}
+                      // 고른 버튼을 다시 누르면 해제한다. 평가를 지우는 API가 없어 미정(PENDING)으로 저장된다.
+                      onClick={() => p.onDecision(p.decision === d ? 'PENDING' : d)}
                     >
                       {DECISION_LABELS[d]}
                     </button>

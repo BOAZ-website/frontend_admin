@@ -198,7 +198,7 @@ export function EvaluatorResultsTab({
                                 value={draft.decision ?? ''}
                                 options={
                                   draft.decision === null
-                                    ? [{ value: '', label: '미평가' }, ...DECISION_OPTIONS]
+                                    ? [{ value: '', label: '미정' }, ...DECISION_OPTIONS]
                                     : DECISION_OPTIONS
                                 }
                                 onChange={(decision) => decision && editing.onChange({ decision })}
@@ -213,7 +213,7 @@ export function EvaluatorResultsTab({
                           ) : row.decision ? (
                             DECISION_LABELS[row.decision]
                           ) : (
-                            '미평가'
+                            '미정'
                           )}
                         </td>
                         <td className="px-3 whitespace-nowrap">
