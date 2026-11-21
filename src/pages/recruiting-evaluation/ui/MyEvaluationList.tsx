@@ -22,6 +22,7 @@ import {
   type ApplicantEvaluationDto,
   DECISION_LABELS,
   type EvaluationDecision,
+  SELECTABLE_DECISIONS,
   type TrackType,
 } from '../model/types';
 import { ListLoadError } from './ListLoadError';
@@ -45,7 +46,7 @@ interface MyEvaluationListProps {
 }
 
 // 부문은 메뉴가 정하므로 부문 열이 없다. 평가자별 상세는 상세 화면의 운영진 평가 현황에서 본다.
-// 열 너비를 고정해 평가하기↔수정 버튼, 판정 글자, '저장 중…'이 바뀌어도 표가 움직이지 않게 한다. 학교·전공은 남는 너비를 나눠 쓴다.
+// 열 너비를 고정해 판정 글자, '저장 중…'이 바뀌어도 표가 움직이지 않게 한다. 학교·전공은 남는 너비를 나눠 쓴다.
 const COLUMNS: { label: string; width?: string }[] = [
   { label: '이름', width: '96px' },
   { label: '학교' },
@@ -54,10 +55,9 @@ const COLUMNS: { label: string; width?: string }[] = [
   { label: '보류', width: '64px' },
   { label: '불합', width: '64px' },
   { label: '총점수', width: '72px' },
-  { label: '개인 평가', width: '96px' },
   { label: '최종 평가', width: '168px' },
+  { label: '개인 평가', width: '96px' },
 ];
-const ACTION_WIDTH = '112px';
 
 const MY_FILTER_OPTIONS: readonly FilterDropdownOption<MyEvaluationFilter>[] = (
   Object.keys(MY_EVALUATION_FILTER_LABELS) as MyEvaluationFilter[]
@@ -71,10 +71,15 @@ const FINAL_FILTER_OPTIONS: readonly FilterDropdownOption<ReviewListQuery['final
   })),
 ];
 
-const FINAL_DECISION_SELECT_OPTIONS = FINAL_DECISION_OPTIONS.map((decision) => ({
+const FINAL_DECISION_SELECT_OPTIONS = SELECTABLE_DECISIONS.map((decision) => ({
   value: decision,
   label: DECISION_LABELS[decision],
 }));
+// 미정(PENDING)은 고를 수 없고, 아직 미정인 행에서만 처음 값으로 보여 준다.
+const PENDING_SELECT_OPTIONS = [
+  { value: 'PENDING' as const, label: DECISION_LABELS.PENDING },
+  ...FINAL_DECISION_SELECT_OPTIONS,
+];
 
 /**
  * 서류 평가 목록. 개인 평가 목록(EVL-MY)과 전체 평가 목록(EVL-GROUP)을 합쳤다.
@@ -187,7 +192,6 @@ export function MyEvaluationList({
               {COLUMNS.map((column) => (
                 <col key={column.label} style={{ width: column.width }} />
               ))}
-              <col style={{ width: ACTION_WIDTH }} />
             </colgroup>
             <thead>
               <tr>
@@ -196,18 +200,17 @@ export function MyEvaluationList({
                     {column.label}
                   </th>
                 ))}
-                <th scope="col" className="px-4 py-3 text-right">
-                  <span className="sr-only">평가</span>
-                </th>
               </tr>
             </thead>
             <tbody>
               {rows.map((applicant) => {
-                const isSaved = applicant.my_decision !== null;
                 return (
                   <tr
                     key={applicant.id}
+                    tabIndex={0}
+                    aria-label={`${displayValue(applicant.name)} 평가 열기`}
                     onClick={() => handleOpen(applicant.id)}
+                    onKeyDown={(event) => event.key === 'Enter' && handleOpen(applicant.id)}
                     className="cursor-pointer"
                   >
                     <td className="px-4 font-semibold truncate">{displayValue(applicant.name)}</td>
@@ -222,30 +225,25 @@ export function MyEvaluationList({
                     <td className="px-4">{applicant.fail_count}</td>
                     <td className="px-4">{applicant.total_score}</td>
                     <td className="px-4 whitespace-nowrap">
-                      {applicant.my_decision === null
-                        ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED
-                        : DECISION_LABELS[applicant.my_decision]}
-                    </td>
-                    <td className="px-4 whitespace-nowrap">
                       {canWriteFinalDecision ? (
-                        // 행을 누르면 상세가 열리므로 판정 고르기·저장 클릭은 행으로 올려 보내지 않는다.
+                        // 행을 누르거나 Enter를 치면 상세가 열리므로 판정 고르기·저장 클릭과 키 입력은 행으로 올려 보내지 않는다.
                         <div
                           className="flex items-center gap-2"
                           onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
                         >
                           <SelectDropdown
                             ariaLabel={`${displayValue(applicant.name)} 최종 평가`}
                             value={finalDraftOf(applicant)}
-                            options={FINAL_DECISION_SELECT_OPTIONS}
+                            options={
+                              finalDraftOf(applicant) === 'PENDING'
+                                ? PENDING_SELECT_OPTIONS
+                                : FINAL_DECISION_SELECT_OPTIONS
+                            }
                             disabled={savingFinalIds.includes(applicant.id)}
                             onChange={(decision) => void handleChangeFinal(applicant, decision)}
                             buttonClassName="h-[30px] w-20"
                           />
-                          {savingFinalIds.includes(applicant.id) && (
-                            <span role="status" className="text-[11px]">
-                              저장 중…
-                            </span>
-                          )}
                         </div>
                       ) : (
                         <span className="review-tag">
@@ -253,18 +251,10 @@ export function MyEvaluationList({
                         </span>
                       )}
                     </td>
-                    <td className="px-4 text-right">
-                      <button
-                        type="button"
-                        aria-label={`${displayValue(applicant.name)} ${isSaved ? '평가 수정' : '평가하기'}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleOpen(applicant.id);
-                        }}
-                        className="w-20 px-3 whitespace-nowrap"
-                      >
-                        {isSaved ? '수정' : '평가하기'}
-                      </button>
+                    <td className="px-4 whitespace-nowrap">
+                      {applicant.my_decision === null
+                        ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED
+                        : DECISION_LABELS[applicant.my_decision]}
                     </td>
                   </tr>
                 );

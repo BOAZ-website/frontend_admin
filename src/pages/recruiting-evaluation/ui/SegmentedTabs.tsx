@@ -15,8 +15,9 @@ interface SegmentedTabsProps<T extends string> {
 }
 
 /**
- * 서류 평가 화면의 탭 버튼 묶음. 상단 페이지 전환(전체 지원 현황·서류 평가·합격자 부원 등록)과
- * 지원자 상세 탭(개인 평가·평가 현황·면접 질문)이 같은 모양을 쓴다. 고른 탭은 aria-pressed로 표시한다.
+ * 지원자 상세의 탭 토글(개인 평가·운영진 평가 현황). BASE 출결 관리의 방학/학기 토글과 같은 모양이고,
+ * 서류 평가 화면의 색 일괄 규칙을 덮어야 해서 색·여백은 review-design.css의 .evaluation-header-tabs에 둔다.
+ * 고른 탭은 aria-pressed로 표시한다.
  */
 export function SegmentedTabs<T extends string>({
   items,
@@ -28,7 +29,7 @@ export function SegmentedTabs<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="evaluation-header-tabs flex p-1 rounded-sm bg-slate-100 border border-slate-200"
+      className="evaluation-header-tabs flex items-center select-none"
     >
       {items.map(({ id, label: itemLabel, icon: Icon }) => (
         <button
@@ -36,7 +37,7 @@ export function SegmentedTabs<T extends string>({
           type="button"
           aria-pressed={value === id}
           onClick={() => onChange(id)}
-          className="px-3.5 py-1.5 rounded-sm text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+          className="flex cursor-pointer items-center gap-1.5 transition-all"
         >
           {Icon && <Icon size={13} />}
           <span>{itemLabel}</span>

@@ -6,7 +6,7 @@ import { ApiError } from '@/shared/api/apiError';
 
 import type { ApplicationStatus, EvaluationDecision } from './types';
 
-/** 최종 판정 선택지 순서. 명세의 PASS / HOLD / FAIL / PENDING을 모두 둔다. */
+/** 최종 평가 필터 순서(미정 / 합격 / 보류 / 불합격). 행에서 고르는 선택지는 SELECTABLE_DECISIONS다. */
 export const FINAL_DECISION_OPTIONS: readonly EvaluationDecision[] = [
   'PENDING',
   'PASS',
@@ -14,7 +14,7 @@ export const FINAL_DECISION_OPTIONS: readonly EvaluationDecision[] = [
   'FAIL',
 ];
 
-export const FINAL_DECISION_SAVED_MESSAGE = '최종 판정이 변경되었습니다.';
+export const FINAL_DECISION_SAVED_MESSAGE = '저장되었습니다.';
 
 /** 저장 실패 안내(명세 §5.7·§8). 어느 경우에도 선택값은 서버 값으로 되돌리고 목록을 다시 읽는다. */
 export interface FinalDecisionFailureNotice {

@@ -112,11 +112,14 @@ export interface PromoteUsersResponse {
   failed_user_ids: { user_id: number; error_code: string }[];
 }
 
+/** 고를 수 있는 판정(개인 평가 버튼, 최종 평가 드롭다운). PENDING(미정)은 처음 값이거나 저장된 기록을 보여 줄 때만 쓴다. */
+export const SELECTABLE_DECISIONS: readonly EvaluationDecision[] = ['PASS', 'HOLD', 'FAIL'];
+
 export const DECISION_LABELS: Record<EvaluationDecision, string> = {
   PASS: '합격',
   HOLD: '보류',
   FAIL: '불합격',
-  PENDING: '미결',
+  PENDING: '미정',
 };
 
 export const TRACK_LABELS: Record<TrackType, string> = {

@@ -14,15 +14,16 @@ import {
   orderForViewer,
 } from '../model/evaluationStatus';
 import {
+  DEFAULT_SCORE,
   type MyEvaluationDraft,
   type MyEvaluationErrors,
   SCORE_OPTIONS,
 } from '../model/myEvaluationForm';
 import {
   DECISION_LABELS,
-  type EvaluationDecision,
   type EvaluatorDetailItem,
   type InterviewQuestionItem,
+  SELECTABLE_DECISIONS,
 } from '../model/types';
 
 /** 본인 행 편집. 개인 평가 탭과 같은 초안·검증·저장을 페이지가 맡고, 이 표는 그리기와 편집 여부만 가진다. */
@@ -55,14 +56,15 @@ interface EvaluatorResultsTabProps {
 
 const COLUMNS = ['평가자', '판정', '점수', '메모', '면접 추천 질문'];
 
-const DECISION_OPTIONS = (Object.keys(DECISION_LABELS) as EvaluationDecision[]).map((decision) => ({
+// 고를 수 있는 판정은 합격·보류·불합격이다. 미평가(null)는 처음 값으로만 보여 준다.
+const DECISION_OPTIONS = SELECTABLE_DECISIONS.map((decision) => ({
   value: decision,
   label: DECISION_LABELS[decision],
 }));
-const SCORE_SELECT_OPTIONS = [
-  { value: '', label: '점수 없음' },
-  ...SCORE_OPTIONS.map((score) => ({ value: String(score), label: `${score}점` })),
-];
+const SCORE_SELECT_OPTIONS = SCORE_OPTIONS.map((score) => ({
+  value: String(score),
+  label: `${score}점`,
+}));
 
 /**
  * 운영진 평가 현황(GROUP-05·07, REC-ADMIN-15·19). 위에 판정 수·총점, 아래 표에 운영진별 판정·점수·메모·면접 추천 질문을 둔다.
@@ -88,7 +90,7 @@ export function EvaluatorResultsTab({
     mergeEvaluatorRecords(evaluations.data ?? [], questions.data ?? []),
     currentEvaluatorId,
   );
-  // 판정 수는 PASS·HOLD·FAIL을 저장한 평가자 수다. 미평가(null)와 미결은 세지 않고, 총점은 null 점수를 뺀 합이다.
+  // 판정 수는 PASS·HOLD·FAIL을 저장한 평가자 수다. 미평가(null)와 미정은 세지 않고, 총점은 null 점수를 뺀 합이다.
   const aggregate = aggregateEvaluations(rows);
 
   const reload = () => {
@@ -196,7 +198,7 @@ export function EvaluatorResultsTab({
                                 value={draft.decision ?? ''}
                                 options={
                                   draft.decision === null
-                                    ? [{ value: '', label: '선택' }, ...DECISION_OPTIONS]
+                                    ? [{ value: '', label: '미평가' }, ...DECISION_OPTIONS]
                                     : DECISION_OPTIONS
                                 }
                                 onChange={(decision) => decision && editing.onChange({ decision })}
@@ -219,11 +221,9 @@ export function EvaluatorResultsTab({
                             <>
                               <SelectDropdown
                                 ariaLabel="내 점수"
-                                value={draft.score === null ? '' : String(draft.score)}
+                                value={String(draft.score ?? DEFAULT_SCORE)}
                                 options={SCORE_SELECT_OPTIONS}
-                                onChange={(score) =>
-                                  editing.onChange({ score: score === '' ? null : Number(score) })
-                                }
+                                onChange={(score) => editing.onChange({ score: Number(score) })}
                                 buttonClassName="h-[30px] w-24"
                               />
                               {errors.score && (

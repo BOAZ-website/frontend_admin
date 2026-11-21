@@ -16,7 +16,7 @@ test('점수 선택지는 명세 범위 1~10을 1점 단위로 둔다', () => {
   assert.deepEqual(SCORE_OPTIONS, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 });
 
-test('내 평가가 없으면 빈 폼이고, 있으면 저장 값으로 채우며 빈 메모는 빈 문자열이다', () => {
+test('내 평가가 없으면 빈 폼(처음 점수 8점)이고, 있으면 저장 값으로 채우며 빈 점수는 8점, 빈 메모는 빈 문자열이다', () => {
   assert.deepEqual(draftFromMyEvaluation(null), EMPTY_DRAFT);
   assert.deepEqual(
     draftFromMyEvaluation({
@@ -27,7 +27,7 @@ test('내 평가가 없으면 빈 폼이고, 있으면 저장 값으로 채우�
       memo: null,
       interview_question: '역할은?',
     }),
-    { decision: 'PENDING', score: null, memo: '', interview_question: '역할은?' },
+    { decision: 'PENDING', score: 8, memo: '', interview_question: '역할은?' },
   );
 });
 
@@ -52,7 +52,7 @@ test('저장 요청은 네 필드를 모두 보내고, 판정이 없으면 만�
   assert.equal(toSaveInput(EMPTY_DRAFT), null);
   assert.deepEqual(toSaveInput({ ...EMPTY_DRAFT, decision: 'FAIL' }), {
     decision: 'FAIL',
-    score: null,
+    score: 8,
     memo: '',
     interview_question: '',
   });

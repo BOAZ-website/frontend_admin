@@ -3,7 +3,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ToastMessage } from '@/shared/ui/Toast';
 
 import { applicantInfoFields } from '../model/applicantList';
-import { type MyEvaluationErrors, SCORE_OPTIONS } from '../model/myEvaluationForm';
+import { DEFAULT_SCORE, type MyEvaluationErrors, SCORE_OPTIONS } from '../model/myEvaluationForm';
 import {
   type ApplicantAnswerDto,
   type ApplicantEvaluationDto,
@@ -11,6 +11,7 @@ import {
   type EvaluationDecision,
   type EvaluatorDetailItem,
   type InterviewQuestionItem,
+  SELECTABLE_DECISIONS,
   TRACK_LABELS,
 } from '../model/types';
 import { ApplicantAnswersSection } from './ApplicantAnswersSection';
@@ -53,7 +54,7 @@ interface ApplicantReviewDetailProps {
   ownRowEditing: OwnRowEditing;
   /** 바뀌면 운영진 평가 현황을 다시 읽는다. */
   statusRefreshKey: number;
-  /** 저장한 값과 다른 입력이 있는지. 내 평가 제목 옆에 표시한다. */
+  /** 저장한 값과 다른 입력이 있는지. 다르면 저장하기 버튼을 강조한다. */
   isDirty: boolean;
   onDecision: (value: EvaluationDecision) => void;
   onScore: (value: number | null) => void;
@@ -157,20 +158,13 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
             }}
           >
             <div className="review-heading">
-              <h2 id="review-my-title">내 평가</h2>
-              <span>
-                {p.isDirty
-                  ? '저장하지 않은 수정 있음'
-                  : a.my_decision === null
-                    ? '미평가'
-                    : '저장됨'}
-              </span>
+              <h2 id="review-my-title">평가</h2>
             </div>
             <div className="review-scroll" tabIndex={0} aria-labelledby="review-my-title">
-              {p.isMyEvaluationLoading && <p role="status">내 평가를 불러오는 중입니다.</p>}
+              {p.isMyEvaluationLoading && <p role="status">평가를 불러오는 중입니다.</p>}
               {p.myEvaluationError && (
                 <div role="alert">
-                  <p>내 평가를 불러오지 못했습니다.</p>
+                  <p>평가를 불러오지 못했습니다.</p>
                   <button type="button" onClick={p.onRetryMyEvaluation}>
                     다시 시도
                   </button>
@@ -178,19 +172,16 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
               )}
               <fieldset disabled={isFormLocked} className="contents">
                 <label className="review-label" htmlFor="review-score">
-                  점수 (선택)
+                  점수
                 </label>
                 <div className="review-score">
                   <select
                     id="review-score"
-                    value={p.score ?? ''}
+                    value={p.score ?? DEFAULT_SCORE}
                     aria-invalid={p.errors.score ? true : undefined}
                     aria-describedby={p.errors.score ? 'review-score-error' : undefined}
-                    onChange={(e) =>
-                      p.onScore(e.target.value === '' ? null : Number(e.target.value))
-                    }
+                    onChange={(e) => p.onScore(Number(e.target.value))}
                   >
-                    <option value="">점수 없음</option>
                     {SCORE_OPTIONS.map((score) => (
                       <option key={score} value={score}>
                         {score}점
@@ -205,7 +196,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
                   </p>
                 )}
                 <span className="review-label" id="review-decision-label">
-                  개인 결정 (필수)
+                  평가
                 </span>
                 <div
                   className="review-choices"
@@ -213,7 +204,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
                   aria-labelledby="review-decision-label"
                   aria-describedby={p.errors.decision ? 'review-decision-error' : undefined}
                 >
-                  {(Object.keys(DECISION_LABELS) as EvaluationDecision[]).map((d) => (
+                  {SELECTABLE_DECISIONS.map((d) => (
                     <button
                       key={d}
                       type="button"
@@ -245,11 +236,16 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
                   id="review-interview"
                   value={p.interview}
                   onChange={(e) => p.onInterview(e.target.value)}
+                  placeholder="면접에서 확인하고 싶은 내용을 질문으로 남겨주세요."
                 />
               </fieldset>
             </div>
-            <button className="review-submit" type="submit" disabled={p.saving || isFormLocked}>
-              {p.saving ? '저장 중…' : '평가 저장'}
+            <button
+              className={`review-submit ${p.isDirty ? 'is-dirty' : ''}`}
+              type="submit"
+              disabled={p.saving || isFormLocked}
+            >
+              {p.saving ? '저장 중…' : '저장하기'}
             </button>
           </form>
         </aside>

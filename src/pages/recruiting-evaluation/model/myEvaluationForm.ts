@@ -11,8 +11,11 @@ import type {
   MyEvaluationInput,
 } from './types';
 
-/** 점수 선택지. FE·BE 명세의 score 범위(1~10 정수)를 1점 단위로 둔다. 고르지 않으면 null이다. */
+/** 점수 선택지. FE·BE 명세의 score 범위(1~10 정수)를 1점 단위로 둔다. */
 export const SCORE_OPTIONS: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+/** 새 평가의 처음 점수. 화면에 '점수 없음' 선택지가 없어, 점수 없이 저장된 기록도 이 값으로 보여 준다. */
+export const DEFAULT_SCORE = 8;
 
 /** 입력 중인 내 평가. 판정을 아직 고르지 않았으면 decision이 null이다. */
 export interface MyEvaluationDraft {
@@ -24,17 +27,17 @@ export interface MyEvaluationDraft {
 
 export const EMPTY_DRAFT: MyEvaluationDraft = {
   decision: null,
-  score: null,
+  score: DEFAULT_SCORE,
   memo: '',
   interview_question: '',
 };
 
-/** 저장된 내 평가로 폼을 채운다. 평가가 없으면(null) 빈 폼이다. */
+/** 저장된 내 평가로 폼을 채운다. 평가가 없으면(null) 빈 폼이고, 점수가 없으면 처음 점수로 채운다. */
 export function draftFromMyEvaluation(mine: MyEvaluationDto | null): MyEvaluationDraft {
   if (!mine) return EMPTY_DRAFT;
   return {
     decision: mine.decision,
-    score: mine.score,
+    score: mine.score ?? DEFAULT_SCORE,
     memo: mine.memo ?? '',
     interview_question: mine.interview_question ?? '',
   };
@@ -109,5 +112,5 @@ export function saveFailureNoticeOf(
   };
 }
 
-/** 저장하지 않은 평가가 있을 때 다른 지원자·메뉴로 옮기기 전 확인 문구(§4.6). */
-export const UNSAVED_EVALUATION_MESSAGE = '저장하지 않은 평가 내용이 있습니다. 이동하시겠습니까?';
+/** 저장하지 않은 평가가 있을 때 다른 지원자·메뉴로 옮기기 전 확인 문구. 확인이면 저장하고 옮기고, 취소면 머문다. */
+export const UNSAVED_EVALUATION_MESSAGE = '저장하지 않은 평가 내용이 있습니다. 저장하시겠습니까?';

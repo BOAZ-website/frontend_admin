@@ -126,16 +126,35 @@ export function EvaluationManagePage({
   }, [listRequest]);
 
   // 저장하지 않은 평가가 있으면 사이드바로 다른 메뉴에 갈 때도 묻는다(§4.5).
+  // 사이드바 확인은 기다릴 수 없어, 저장할 수 있는 입력이면 저장을 보내고 바로 옮긴다. 실패하면 저장 함수가 알린다.
+  const saveRef = useRef<() => Promise<boolean>>(async () => false);
+  useEffect(() => {
+    saveRef.current = handleSaveMyEvaluation;
+  });
   useEffect(
     () =>
       isDraftDirty
-        ? registerLeaveGuard(() => window.confirm(UNSAVED_EVALUATION_MESSAGE))
+        ? registerLeaveGuard(() => {
+            if (!window.confirm(UNSAVED_EVALUATION_MESSAGE)) return false;
+            if (Object.keys(validateMyEvaluation(draft)).length > 0) {
+              setShowDraftErrors(true);
+              return false;
+            }
+            void saveRef.current();
+            return true;
+          })
         : undefined,
-    [isDraftDirty],
+    [isDraftDirty, draft],
   );
 
-  /** 저장하지 않은 평가가 없거나, 있어도 버리고 옮기기로 했는지. 취소하면 입력은 그대로 남는다. */
-  const canDiscardDraft = () => !isDraftDirty || window.confirm(UNSAVED_EVALUATION_MESSAGE);
+  /**
+   * 저장하지 않은 평가가 없으면 바로 옮긴다. 있으면 저장할지 묻고, 확인이면 저장에 성공한 뒤 옮긴다.
+   * 취소하거나 저장에 실패하면 그 자리에 머문다.
+   */
+  const leaveAfterSave = async (proceed: () => void) => {
+    if (!isDraftDirty) return proceed();
+    if (window.confirm(UNSAVED_EVALUATION_MESSAGE) && (await handleSaveMyEvaluation())) proceed();
+  };
 
   const showToast = (message: string, tone: ToastMessage['tone']) =>
     setToast({ id: Date.now(), message, tone });
@@ -209,30 +228,17 @@ export function EvaluationManagePage({
     const step = direction === 'PREV' ? -1 : 1;
     const nextId = reviewQueue[(curIdx + step + reviewQueue.length) % reviewQueue.length];
     const nextApp = applicants.find((item) => item.id === nextId);
-    if (nextApp && canDiscardDraft()) void handleOpenModal(nextApp, modalTab, reviewQueue);
+    if (nextApp) void leaveAfterSave(() => void handleOpenModal(nextApp, modalTab, reviewQueue));
   }
 
-  /** 저장하지 않은 입력을 버리고 저장값으로 되돌린다. */
-  function resetDraft() {
-    setDraft(savedDraft);
-    setShowDraftErrors(false);
-  }
-
-  // 개인 평가 ↔ 운영진 평가 현황 전환. 저장하지 않은 입력이 있으면 묻고, 옮기면 입력을 저장값으로 되돌린다.
-  function handleDetailTabChange(tab: ReviewDetailTab) {
-    if (tab === modalTab || !canDiscardDraft()) return;
-    resetDraft();
-    setModalTab(tab);
-  }
-
-  // 평가 화면에서 목록으로 돌아간다. 저장하지 않은 평가가 있으면 먼저 묻는다.
+  // 평가 화면에서 목록으로 돌아간다. 저장하지 않은 평가가 있으면 먼저 저장할지 묻는다.
   function handleBackToList() {
-    if (canDiscardDraft()) setSelectedApplicant(null);
+    void leaveAfterSave(() => setSelectedApplicant(null));
   }
 
   // 개인 평가 저장(MY-07). 검증 → 저장 → 결과 안내 순서이고, 실패해도 입력은 그대로 둔다(§4.5).
   // 데이터 변경은 Hook(saveMyEvaluation)이 맡고, 여기서는 화면 상태와 안내만 다룬다.
-  // 성공하면 true. 운영진 평가 현황의 본인 행 저장도 이 함수를 쓴다.
+  // 성공하면 true. 저장하지 않고 옮기려 할 때(leaveAfterSave·사이드바)도 이 함수로 저장한다.
   async function handleSaveMyEvaluation(): Promise<boolean> {
     if (!selectedApplicant || isSaving) {
       return false;
@@ -290,7 +296,7 @@ export function EvaluationManagePage({
           applicant={selectedApplicant}
           currentEvaluatorId={currentEvaluatorId}
           tab={modalTab}
-          onTabChange={handleDetailTabChange}
+          onTabChange={setModalTab}
           fetchAnswers={fetchAnswers}
           fetchEvaluations={fetchEvaluations}
           fetchInterviewQuestions={fetchInterviewQuestions}
@@ -305,21 +311,21 @@ export function EvaluationManagePage({
           errors={draftErrors}
           saving={isSaving}
           isDirty={isDraftDirty}
-          statusRefreshKey={statusRefreshKey}
+          // 본인 행 편집은 개인 평가 탭과 같은 초안을 쓴다. 탭을 오가도 입력이 남으므로 편집을 시작할 때 묻지 않는다.
           ownRowEditing={{
             draft,
             errors: draftErrors,
             saving: isSaving,
             locked: isMyEvaluationLoading || myEvaluationError !== null,
             onChange: (patch) => setDraft((current) => ({ ...current, ...patch })),
-            onStart: () => {
-              if (!canDiscardDraft()) return false;
-              resetDraft();
-              return true;
+            onStart: () => true,
+            onCancel: () => {
+              setDraft(savedDraft);
+              setShowDraftErrors(false);
             },
-            onCancel: resetDraft,
             onSave: handleSaveMyEvaluation,
           }}
+          statusRefreshKey={statusRefreshKey}
           onDecision={(decision) => setDraft((current) => ({ ...current, decision }))}
           onScore={(score) => setDraft((current) => ({ ...current, score }))}
           onMemo={(memo) => setDraft((current) => ({ ...current, memo }))}
