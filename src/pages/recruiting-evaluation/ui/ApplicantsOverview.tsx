@@ -1,5 +1,8 @@
 import { useState } from 'react';
 
+import trackAnalysis from '@/shared/assets/tracks/track-analysis.png';
+import trackEngineering from '@/shared/assets/tracks/track-engineering.png';
+import trackVisualization from '@/shared/assets/tracks/track-visualization.png';
 import { dateTimeTextOf } from '@/shared/lib/date';
 import { useLoaded } from '@/shared/lib/useLoaded';
 import { FilterDropdown, type FilterDropdownOption } from '@/shared/ui/FilterDropdown';
@@ -19,6 +22,7 @@ import {
   type ApplicantEvaluationDto,
   APPLICATION_STATUS_LABELS,
   TRACK_LABELS,
+  type TrackType,
 } from '../model/types';
 import { useVisibleTracks } from '../model/useVisibleTracks';
 import { ApplicantDetailModal } from './ApplicantDetailModal';
@@ -30,6 +34,13 @@ interface ApplicantsOverviewProps {
   /** 제출 완료 지원자를 개인 평가 화면에서 연다. */
   onEvaluate: (applicantId: number) => void;
 }
+
+/** 부문 지표 옆 캐릭터. 학기 일정 달력(SemesterCalendar)과 같은 이미지다. */
+const TRACK_IMAGE: Record<TrackType, string> = {
+  ANALYSIS: trackAnalysis,
+  VISUALIZATION: trackVisualization,
+  ENGINEERING: trackEngineering,
+};
 
 const STATUS_FILTER_OPTIONS: readonly FilterDropdownOption<ApplicantListQuery['status']>[] = [
   { value: 'ALL', label: '전체' },
@@ -55,13 +66,14 @@ export function ApplicantsOverview({
   const visibleTracks = useVisibleTracks();
   const summary = summarizeApplicants(applicants);
   // 부원 등록 요약과 같은 모양. 부문 칸은 계정이 볼 수 있는 부문만 둔다(부문은 임시저장 포함 전체 지원자를 센다).
-  const stats: [string, number][] = [
+  const stats: [string, number, string?][] = [
     ['지원자 수', summary.total],
     ['제출 완료', summary.submitted],
     ['임시저장', summary.draft],
-    ...visibleTracks.map((track): [string, number] => [
+    ...visibleTracks.map((track): [string, number, string] => [
       TRACK_LABELS[track],
       applicants.filter((applicant) => applicant.track === track).length,
+      TRACK_IMAGE[track],
     ]),
   ];
 
@@ -90,12 +102,23 @@ export function ApplicantsOverview({
         className="mb-12 grid grid-cols-1 gap-y-4 rounded-md border border-slate-200 bg-white px-8 py-7 lg:grid-flow-col lg:grid-cols-none lg:auto-cols-[minmax(0,1fr)] lg:items-center"
       >
         <dl className="contents">
-          {stats.map(([label, count], index) => (
+          {stats.map(([label, count, image], index) => (
             <div
               key={label}
-              className={index > 0 ? 'lg:border-l lg:border-slate-200 lg:pl-8' : 'lg:pr-8'}
+              className={`text-center ${index > 0 ? 'lg:border-l lg:border-slate-200 lg:pl-8' : 'lg:pr-8'}`}
             >
-              <dt className="text-sm leading-5 text-slate-500">{label}</dt>
+              <dt className="flex items-center justify-center gap-1.5 text-sm leading-5 text-slate-500">
+                {image && (
+                  <img
+                    src={image}
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="size-5 object-contain"
+                  />
+                )}
+                {label}
+              </dt>
               <dd className="mt-2 text-3xl leading-9 font-bold text-slate-900">{count}명</dd>
             </div>
           ))}
