@@ -155,9 +155,8 @@ export function MemberRegistrationList({
 
   return (
     <section aria-label="합격자 목록" className="rounded-md border border-slate-200 bg-white">
-      {/* 툴바: 왼쪽 인원, 오른쪽 부문 필터·검색 */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-        <span className="text-xs font-bold">총 {rows.length}명</span>
+      {/* 툴바: 오른쪽에 부문 필터·정렬·검색·새로고침 */}
+      <div className="flex flex-wrap items-center justify-end gap-3 border-b border-slate-200 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <FilterDropdown
             ariaLabel="부문 필터"

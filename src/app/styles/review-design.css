@@ -105,6 +105,15 @@
   border: 0 !important;
   border-bottom: 1px solid #f1f5f9 !important;
   background: #f1f5f9 !important;
+  color: #020617 !important;
+}
+/* 필터 드롭다운 목록은 화면 밖(document.body)에 뜨는 SelectDropdown 목록과 같은 모양으로 둔다(그림자·각진 선택지). */
+.evaluation-page [role='listbox'] {
+  box-shadow: 0 12px 32px -14px rgba(15, 23, 42, 0.28) !important;
+}
+.evaluation-page [role='option'] {
+  min-height: 0;
+  border-radius: 0;
 }
 /* 제목은 출결 화면 제목과 같은 색을 쓴다(위의 글자색 일괄 규칙에서 뺀다). */
 .evaluation-page h1.text-slate-900 {

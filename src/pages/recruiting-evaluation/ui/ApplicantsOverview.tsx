@@ -102,8 +102,8 @@ export function ApplicantsOverview({
         </dl>
       </section>
 
-      <div>
-        <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
+      <section aria-label="지원자 목록" className="rounded-md border border-slate-200 bg-white">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-b border-slate-200 px-4 py-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <FilterDropdown
               ariaLabel="제출 상태 필터"
@@ -121,13 +121,14 @@ export function ApplicantsOverview({
             />
             <SearchInput
               ariaLabel="지원자 검색"
+              placeholder="이름·이메일·학교·전공"
               value={query.search}
               onChange={(search) => updateQuery({ search })}
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-2xs">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[880px] text-xs">
             <thead>
               <tr>
@@ -197,7 +198,7 @@ export function ApplicantsOverview({
             )}
           </div>
         )}
-      </div>
+      </section>
 
       {detail && (
         <ApplicantDetailModal

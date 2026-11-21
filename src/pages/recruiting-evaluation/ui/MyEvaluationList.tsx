@@ -140,9 +140,8 @@ export function MyEvaluationList({
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
-        <span className="text-xs font-bold">평가 대상 총 {rows.length}명</span>
+    <section aria-label="평가 대상 목록" className="rounded-md border border-slate-200 bg-white">
+      <div className="flex flex-wrap items-center justify-end gap-3 border-b border-slate-200 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <FilterDropdown
             ariaLabel="평가 상태 필터"
@@ -180,7 +179,7 @@ export function MyEvaluationList({
           지원자 목록을 불러오는 중입니다.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-2xs">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-xs">
             <thead>
               <tr>
@@ -283,6 +282,6 @@ export function MyEvaluationList({
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
