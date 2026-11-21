@@ -69,15 +69,35 @@ export interface InterviewQuestionItem {
   interview_question: string | null;
 }
 
-/** 지원서 답변 한 줄(REC-ADMIN-20 answers[]). TEXT는 문자열, TABLE은 항목별 문자열 객체다. */
+/** 지원서 문항 카테고리(백엔드 ApplicationQuestion.Category). */
+export type QuestionCategory = 'COMMON' | 'ANALYSIS' | 'VISUALIZATION' | 'ENGINEERING';
+
+/**
+ * 지원서 답변 한 줄(REC-ADMIN-20 answers[]). TEXT는 문자열, TABLE은 항목별 문자열 객체다.
+ * 저장된 TABLE 답을 서버가 읽지 못하면 answer가 null이다.
+ */
 export interface ApplicantAnswerDto {
   question_id: number;
-  label: string;
-  category: string;
+  /** 파일 내보내기용 열 이름. 없을 수 있다. */
+  label: string | null;
+  category: QuestionCategory;
   type: 'TEXT' | 'TABLE';
+  /** 질문 내용. 서버가 {Track}을 지원서 부문 이름으로 바꿔 준다. */
   content: string;
   order_num: number;
   answer: string | Record<string, string> | null;
+}
+
+/** REC-ADMIN-20 응답의 data. 답변은 order_num 오름차순이고, 답하지 않은 문항은 없다. */
+export interface ApplicantAnswersResponse {
+  applicant_id: number;
+  answers: ApplicantAnswerDto[];
+}
+
+/** 백엔드 성공 응답 형식({ status, data }). */
+export interface ApiResponse<T> {
+  status: number;
+  data: T;
 }
 
 /** 개인 평가 저장 요청(REC-ADMIN-17 body). */

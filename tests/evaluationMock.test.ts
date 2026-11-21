@@ -136,7 +136,9 @@ test('목록 조회 시나리오는 실패·빈 목록·정상 목록을 구분�
 test('답변 조회는 없는 지원서를 404 APPLICATION_NOT_FOUND로 거절한다', () => {
   const id = INITIAL_DATA.applicants[0].id;
 
-  assert.deepEqual(listAnswersMock(INITIAL_DATA, id, null), INITIAL_DATA.answersMap[id] ?? []);
+  const response = listAnswersMock(INITIAL_DATA, id, null);
+  assert.equal(response.status, 200);
+  assert.equal(response.data.applicant_id, id);
   assert.throws(
     () => listAnswersMock(INITIAL_DATA, 999999, null),
     (error) => error instanceof ApiError && error.status === 404,
@@ -215,4 +217,25 @@ test('저장 검사는 정상 입력을 통과시키고 DRAFT·점수 범위 위
     () => checkMyEvaluationSaveMock(INITIAL_DATA, submitted.id, INPUT, 'save-not-found'),
     code('APPLICATION_NOT_FOUND'),
   );
+});
+
+test('답변은 지원자마다 다르고, 공통·자기 부문 문항만 order_num 순으로 주며 {Track}을 부문 이름으로 바꾼다', () => {
+  const answersOf = (id: number) => listAnswersMock(INITIAL_DATA, id, null).data.answers;
+  const engineering = answersOf(101);
+  const analysis = answersOf(104);
+
+  assert.notDeepEqual(engineering, analysis);
+  assert.ok(engineering.every((a) => a.category === 'COMMON' || a.category === 'ENGINEERING'));
+  assert.ok(analysis.every((a) => a.category === 'COMMON' || a.category === 'ANALYSIS'));
+  const orders = engineering.map((a) => a.order_num);
+  assert.deepEqual(
+    orders,
+    [...orders].sort((x, y) => x - y),
+  );
+  const trackQuestion = engineering.find((a) => a.question_id === 3);
+  assert.ok(trackQuestion?.content.includes('BOAZ 엔지니어링 부문'));
+  assert.ok(engineering.some((a) => a.type === 'TABLE' && typeof a.answer === 'object'));
+  // 답하지 않은 문항은 빠지고, 답변이 없으면 빈 배열이다.
+  assert.equal(answersOf(102).length, 2);
+  assert.deepEqual(answersOf(103), []);
 });

@@ -88,7 +88,9 @@ export function useEvaluationData(): EvaluationDataState {
   const fetchAnswers = useCallback(
     async (applicantIdKey: string): Promise<ApplicantAnswerDto[]> => {
       await wait(LOAD_DELAY_MS);
-      return listAnswersMock(dataRef.current, Number(applicantIdKey), mockScenario());
+      // 실제 API 연동 때 이 줄만 REC-ADMIN-20 호출로 바꾼다. 응답 래퍼에서 답변 배열만 꺼내 화면에 준다.
+      const response = listAnswersMock(dataRef.current, Number(applicantIdKey), mockScenario());
+      return response.data.answers;
     },
     [],
   );

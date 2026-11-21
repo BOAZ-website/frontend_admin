@@ -383,15 +383,16 @@
 .review-question {
   padding-top: 27px;
 }
+/* 문항 라벨은 질문 위 한 줄의 보조 글씨다. 옆에 붙이면 긴 라벨이 좁은 칸에서 두 줄로 쪼개진다. */
 .review-question-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 .review-question-title > span {
+  display: block;
+  margin-bottom: 4px;
   color: #96989d;
   font-size: 12px;
+  white-space: nowrap;
 }
 .review-question-title h2 {
   font-size: 15px;
@@ -405,6 +406,33 @@
   white-space: pre-wrap;
   word-break: keep-all;
   overflow-wrap: anywhere;
+}
+/* TABLE 답변: 왼쪽 항목명, 오른쪽 답변. 칸마다 여백과 구분선을 두어 글자가 붙어 보이지 않게 한다. */
+.review-answer-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e6e6e9;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.review-answer-table th,
+.review-answer-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e6e6e9;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.review-answer-table th {
+  width: 32%;
+  background: #f8fafc !important;
+  color: #334155;
+  font-weight: 600;
+  word-break: keep-all;
+}
+.review-answer-table td {
+  color: #55585e;
+  white-space: pre-wrap;
 }
 .review-aside {
   display: flex;

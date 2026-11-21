@@ -5,10 +5,12 @@
  */
 import { ApiError } from '@/shared/api/apiError';
 
+import { answersOf } from './answerMock';
 import { aggregateEvaluations } from './evaluationStatus';
 
 import type {
-  ApplicantAnswerDto,
+  ApiResponse,
+  ApplicantAnswersResponse,
   ApplicantEvaluationDto,
   EvaluationDecision,
   EvaluatorDetailItem,
@@ -23,7 +25,6 @@ import type {
 /** 화면이 들고 있는 서류 평가 데이터 전체. 실제 API에서는 응답별로 따로 받는다. */
 export interface EvaluationData {
   applicants: ApplicantEvaluationDto[];
-  answersMap: Record<number, ApplicantAnswerDto[]>;
   evaluatorsMap: Record<number, EvaluatorDetailItem[]>;
   interviewQuestionsMap: Record<number, InterviewQuestionItem[]>;
 }
@@ -212,94 +213,6 @@ export const INITIAL_DATA: EvaluationData = {
       my_interview_question: null,
     },
   ],
-  answersMap: {
-    101: [
-      {
-        question_id: 1,
-        label: '공통0',
-        category: 'COMMON',
-        type: 'TEXT',
-        content: '면접 가능 일정을 선택해 주세요.',
-        order_num: 0,
-        answer: '7월 4일(토) 13:00~15:00, 11:00~13:00 / 7월 5일(일) 13:00~15:00',
-      },
-      {
-        question_id: 2,
-        label: '공통1',
-        category: 'COMMON',
-        type: 'TEXT',
-        content: '자기소개와 BOAZ에 지원한 동기를 서술해주세요.',
-        order_num: 1,
-        answer:
-          '저는 시스템 인프라를 직접 구성하고 운영하며 동작 원리를 파고드는 것을 즐깁니다. AIOps 플랫폼을 개발하며 실시간 분산 파이프라인의 안정성이 서비스의 생명임을 배웠고, BOAZ에서 대규모 트래픽을 다루는 엔지니어들과 함께 성장하고 싶습니다.',
-      },
-      {
-        question_id: 3,
-        label: '엔지니어링1',
-        category: 'ENGINEERING',
-        type: 'TABLE',
-        content: '엔지니어링 관련 주요 기술 스택 및 프로젝트 활용 경험',
-        order_num: 2,
-        answer: {
-          Kafka: '3노드 클러스터 구축, 파티셔닝 최적화 (숙련도: 상)',
-          'Spark / PySpark': '대규모 배치 데이터 집계 파이프라인 구축 (숙련도: 중)',
-          'Docker / K8s': '컨테이너 오케스트레이션 및 모니터링 (숙련도: 중)',
-        },
-      },
-      {
-        question_id: 4,
-        label: '엔지니어링2',
-        category: 'ENGINEERING',
-        type: 'TEXT',
-        content:
-          '[엔지니어링] RDBMS/NoSQL 모델링 또는 분산 데이터 파이프라인(Kafka, Spark 등) 구축 및 인프라 운용 경험을 작성해 주세요.',
-        order_num: 3,
-        answer:
-          'Kafka 3노드 클러스터를 기반으로 분당 5만 건의 로그를 Elasticsearch로 색인하는 실시간 파이프라인을 구축했습니다. 지연율이 급증하던 병목을 Kafka Consumer 그룹 파티션 재분배 및 Batch Size 튜닝으로 해결했습니다.',
-      },
-    ],
-    102: [
-      {
-        question_id: 2,
-        label: '공통1',
-        category: 'COMMON',
-        type: 'TEXT',
-        content: '자기소개와 BOAZ 지원 동기',
-        order_num: 1,
-        answer: '분산 스토리지 시스템 최적화 연구에 깊은 관심이 있습니다.',
-      },
-      {
-        question_id: 4,
-        label: '엔지니어링2',
-        category: 'ENGINEERING',
-        type: 'TEXT',
-        content: '파이프라인 구축 경험',
-        order_num: 2,
-        answer: 'Spark 배치 집계 파이프라인 최적화 프로젝트를 완수했습니다.',
-      },
-    ],
-    104: [
-      {
-        question_id: 2,
-        label: '공통1',
-        category: 'COMMON',
-        type: 'TEXT',
-        content: '자기소개와 BOAZ 지원 동기',
-        order_num: 1,
-        answer: '데이터 기반의 그로스 실험과 비즈니스 인사이트 도출을 전공했습니다.',
-      },
-      {
-        question_id: 5,
-        label: '분석1',
-        category: 'ANALYSIS',
-        type: 'TEXT',
-        content: '[데이터 분석] 가설 검정 및 모델링 경험',
-        order_num: 2,
-        answer:
-          '이커머스 결제 전환율 개선을 위한 A/B 테스트 및 LightGBM 고객 이탈 예측 모델링을 수행했습니다.',
-      },
-    ],
-  },
   evaluatorsMap: {
     101: [
       {
@@ -617,17 +530,24 @@ export function listApplicantsMock(
   return data.applicants;
 }
 
-/** [REC-ADMIN-20 대체] 지원서 답변을 돌려준다. 없는 지원서는 404 APPLICATION_NOT_FOUND다. */
+/**
+ * [REC-ADMIN-20 대체] 지원서 답변 응답을 명세와 같은 { status, data } 형식으로 돌려준다.
+ * 없는 지원서는 404 APPLICATION_NOT_FOUND다. 답변 내용은 answerMock.ts에 있다.
+ */
 export function listAnswersMock(
   data: EvaluationData,
   applicantId: number,
   scenario: MockScenario | null,
-): ApplicantAnswerDto[] {
+): ApiResponse<ApplicantAnswersResponse> {
   if (scenario === 'answers-error') throw networkError();
-  if (scenario === 'answers-not-found' || !data.applicants.some((a) => a.id === applicantId)) {
+  const applicant = data.applicants.find((a) => a.id === applicantId);
+  if (scenario === 'answers-not-found' || !applicant) {
     throw new ApiError(404, 'APPLICATION_NOT_FOUND', '지원서를 찾을 수 없습니다.');
   }
-  return data.answersMap[applicantId] ?? [];
+  return {
+    status: 200,
+    data: { applicant_id: applicantId, answers: answersOf(applicantId, applicant.track) },
+  };
 }
 
 const applicationNotFound = () =>
