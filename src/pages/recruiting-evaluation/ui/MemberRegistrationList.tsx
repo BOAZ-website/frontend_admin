@@ -2,9 +2,16 @@ import { useRef, useState } from 'react';
 
 import { useLoaded } from '@/shared/lib/useLoaded';
 import { FilterDropdown } from '@/shared/ui/FilterDropdown';
+import { RefreshButton } from '@/shared/ui/RefreshButton';
 import { SearchInput } from '@/shared/ui/SearchInput';
 
-import { displayValue, TRACK_FILTER_OPTIONS } from '../model/applicantList';
+import {
+  displayValue,
+  REVIEW_SORT_LABELS,
+  REVIEW_SORT_OPTIONS,
+  type ReviewSort,
+  TRACK_FILTER_OPTIONS,
+} from '../model/applicantList';
 import {
   isRetryable,
   REGISTRATION_STATUS_LABELS,
@@ -33,7 +40,7 @@ interface MemberRegistrationListProps {
 }
 
 // 짧은 열은 내용에 맞춘 고정 너비, 이메일은 남는 너비를 모두 쓴다(가장 넓음).
-// 글자 값(이름·학교·전공·이메일)은 왼쪽, 짧은 값(부문·연락처·총점수·상태)은 가운데 정렬이다.
+// 글자 값(이름·학교·전공·이메일)은 왼쪽, 짧은 값(부문·연락처·평가 수·총점수·상태)은 가운데 정렬이다.
 const CHECKBOX_WIDTH = '40px';
 const STATUS_WIDTH = '112px';
 const COLUMNS: { label: string; width?: string; isLeft?: boolean }[] = [
@@ -41,8 +48,11 @@ const COLUMNS: { label: string; width?: string; isLeft?: boolean }[] = [
   { label: '부문', width: '96px' },
   { label: '학교', width: '128px', isLeft: true },
   { label: '전공', width: '128px', isLeft: true },
-  { label: '이메일', isLeft: true },
   { label: '연락처', width: '124px' },
+  { label: '이메일', isLeft: true },
+  { label: '합격', width: '48px' },
+  { label: '보류', width: '48px' },
+  { label: '불합', width: '48px' },
   { label: '총점수', width: '64px' },
   { label: '상태', width: STATUS_WIDTH },
 ];
@@ -62,6 +72,7 @@ export function MemberRegistrationList({
   const list = useLoaded('applicants', fetchApplicants);
   const [track, setTrack] = useState<'ALL' | TrackType>('ALL');
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<ReviewSort>('SUBMITTED_DESC');
   // 선택은 user_id로 가진다. 필터를 바꿔도 남고, 등록 요청은 선택한 사람 전체에 보낸다.
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [results, setResults] = useState<Record<number, RegistrationResult>>({});
@@ -70,8 +81,8 @@ export function MemberRegistrationList({
   const registeringRef = useRef(false);
   const [detail, setDetail] = useState<ApplicantEvaluationDto | null>(null);
 
-  const candidates = registrationRows(list.data ?? [], { track: 'ALL', search: '' });
-  const rows = registrationRows(list.data ?? [], { track, search });
+  const candidates = registrationRows(list.data ?? [], { track: 'ALL', search: '', sort });
+  const rows = registrationRows(list.data ?? [], { track, search, sort });
   const visibleSelectedCount = rows.filter((row) => selectedIds.includes(row.user_id)).length;
   const isAllVisibleSelected = rows.length > 0 && visibleSelectedCount === rows.length;
   const isFirstLoad = list.isLoading && !list.data;
@@ -155,12 +166,20 @@ export function MemberRegistrationList({
             options={TRACK_FILTER_OPTIONS}
             onChange={setTrack}
           />
+          <FilterDropdown
+            ariaLabel="정렬"
+            title={REVIEW_SORT_LABELS.SUBMITTED_DESC}
+            value={sort}
+            options={REVIEW_SORT_OPTIONS}
+            onChange={setSort}
+          />
           <SearchInput
             ariaLabel="합격자 검색"
             placeholder="이름·이메일·학교·전공"
             value={search}
             onChange={setSearch}
           />
+          <RefreshButton isLoading={list.isLoading} onClick={list.reload} />
         </div>
       </div>
 
@@ -171,7 +190,7 @@ export function MemberRegistrationList({
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] table-fixed text-xs">
+            <table className="w-full min-w-[1100px] table-fixed text-xs">
               <colgroup>
                 <col style={{ width: CHECKBOX_WIDTH }} />
                 {COLUMNS.map((column) => (
@@ -233,11 +252,14 @@ export function MemberRegistrationList({
                       <td className="px-2">{TRACK_LABELS[row.track]}</td>
                       <td className={cellClass(true)}>{displayValue(row.university)}</td>
                       <td className={cellClass(true)}>{displayValue(row.major)}</td>
+                      <td className="px-2 whitespace-nowrap">{displayValue(row.phone)}</td>
                       {/* 긴 이메일은 줄임표로 자른다. 다른 열을 밀어내지 않고, 전체는 title과 상세에서 본다. */}
                       <td className={`${cellClass(true)} truncate`} title={row.email ?? undefined}>
                         {displayValue(row.email)}
                       </td>
-                      <td className="px-2 whitespace-nowrap">{displayValue(row.phone)}</td>
+                      <td className="px-2">{row.pass_count}</td>
+                      <td className="px-2">{row.hold_count}</td>
+                      <td className="px-2">{row.fail_count}</td>
                       <td className="px-2">{row.total_score}</td>
                       <td className="px-2">
                         {REGISTRATION_STATUS_LABELS[result.status]}

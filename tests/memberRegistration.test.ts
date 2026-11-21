@@ -20,7 +20,7 @@ const applicant = (patch: Partial<ApplicantEvaluationDto>): ApplicantEvaluationD
   ...patch,
 });
 
-test('등록 대상은 제출 완료 최종 합격자이고 분석 → 시각화 → 엔지니어링, 같은 부문은 이름순이다', () => {
+test('등록 대상은 제출 완료 최종 합격자이고 고른 정렬·부문 조건을 따른다', () => {
   const rows = registrationRows(
     [
       applicant({ id: 1, name: '하늘', track: 'ENGINEERING' }),
@@ -30,14 +30,14 @@ test('등록 대상은 제출 완료 최종 합격자이고 분석 → 시각화
       applicant({ id: 5, name: '라온', track: 'ANALYSIS', final_decision: 'HOLD' }),
       applicant({ id: 6, name: '마루', track: 'ANALYSIS', status: 'DRAFT' }),
     ],
-    { track: 'ALL', search: '' },
+    { track: 'ALL', search: '', sort: 'NAME' },
   );
   assert.deepEqual(
     rows.map((row) => row.id),
-    [2, 4, 3, 1],
+    [3, 2, 4, 1],
   );
   assert.deepEqual(
-    registrationRows(rows, { track: 'ENGINEERING', search: '' }).map((row) => row.id),
+    registrationRows(rows, { track: 'ENGINEERING', search: '', sort: 'NAME' }).map((row) => row.id),
     [3, 1],
   );
 });

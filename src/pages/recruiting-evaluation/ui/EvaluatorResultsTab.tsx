@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pencil, RefreshCw } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 
 import { ApiError } from '@/shared/api/apiError';
 import { useLoaded } from '@/shared/lib/useLoaded';
+import { RefreshButton } from '@/shared/ui/RefreshButton';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
 import { ICON_BTN } from '@/shared/ui/systemStyles';
 import type { ToastMessage } from '@/shared/ui/Toast';
@@ -131,14 +132,11 @@ export function EvaluatorResultsTab({
     <section className="review-paper review-status" aria-labelledby="review-status-title">
       <div className="review-heading">
         <h2 id="review-status-title">운영진 평가 현황</h2>
-        <button type="button" disabled={isLoading} onClick={reload}>
-          <RefreshCw
-            size={14}
-            aria-hidden="true"
-            className={isLoading && isLoaded ? 'animate-spin' : ''}
-          />
-          새로고침
-        </button>
+        <RefreshButton
+          ariaLabel="운영진 평가 현황 새로고침"
+          isLoading={isLoading}
+          onClick={reload}
+        />
       </div>
       {error ? (
         <div role="alert" className="flex flex-col items-start gap-3 py-6">

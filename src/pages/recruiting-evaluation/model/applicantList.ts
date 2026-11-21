@@ -205,6 +205,11 @@ export const REVIEW_SORT_LABELS: Record<ReviewSort, string> = {
   TOTAL_SCORE_DESC: '총점수 높은순',
 };
 
+/** 정렬 드롭다운 선택지. 서류 평가와 합격자 부원 등록이 쓴다. */
+export const REVIEW_SORT_OPTIONS: readonly { value: ReviewSort; label: string }[] = (
+  Object.keys(REVIEW_SORT_LABELS) as ReviewSort[]
+).map((sort) => ({ value: sort, label: REVIEW_SORT_LABELS[sort] }));
+
 /** 서류 평가 목록(개인 평가 + 전체 평가)의 조회 조건. 상세에서 목록으로 돌아와도 유지한다. */
 export interface ReviewListQuery {
   track: 'ALL' | TrackType;

@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
 
 import { useLoaded } from '@/shared/lib/useLoaded';
 import { FilterDropdown, type FilterDropdownOption } from '@/shared/ui/FilterDropdown';
+import { RefreshButton } from '@/shared/ui/RefreshButton';
 import { SearchInput } from '@/shared/ui/SearchInput';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
-import { ICON_BTN } from '@/shared/ui/systemStyles';
 
 import {
   DEFAULT_REVIEW_QUERY,
@@ -15,8 +14,8 @@ import {
   MY_EVALUATION_FILTER_LABELS,
   type MyEvaluationFilter,
   REVIEW_SORT_LABELS,
+  REVIEW_SORT_OPTIONS,
   type ReviewListQuery,
-  type ReviewSort,
 } from '../model/applicantList';
 import { FINAL_DECISION_OPTIONS } from '../model/finalDecision';
 import {
@@ -69,10 +68,6 @@ const FINAL_FILTER_OPTIONS: readonly FilterDropdownOption<ReviewListQuery['final
     label: DECISION_LABELS[decision],
   })),
 ];
-
-const SORT_OPTIONS: readonly FilterDropdownOption<ReviewSort>[] = (
-  Object.keys(REVIEW_SORT_LABELS) as ReviewSort[]
-).map((sort) => ({ value: sort, label: REVIEW_SORT_LABELS[sort] }));
 
 const FINAL_DECISION_SELECT_OPTIONS = FINAL_DECISION_OPTIONS.map((decision) => ({
   value: decision,
@@ -167,7 +162,7 @@ export function MyEvaluationList({
             ariaLabel="정렬"
             title={REVIEW_SORT_LABELS.SUBMITTED_DESC}
             value={query.sort}
-            options={SORT_OPTIONS}
+            options={REVIEW_SORT_OPTIONS}
             onChange={(sort) => updateQuery({ sort })}
           />
           <SearchInput
@@ -176,20 +171,7 @@ export function MyEvaluationList({
             value={query.search}
             onChange={(search) => updateQuery({ search })}
           />
-          <button
-            type="button"
-            aria-label="목록 새로고침"
-            title="새로고침"
-            disabled={list.isLoading}
-            onClick={list.reload}
-            className={ICON_BTN}
-          >
-            <RefreshCw
-              size={14}
-              aria-hidden="true"
-              className={list.isLoading ? 'animate-spin' : ''}
-            />
-          </button>
+          <RefreshButton isLoading={list.isLoading} onClick={list.reload} />
         </div>
       </div>
 

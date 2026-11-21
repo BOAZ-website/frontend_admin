@@ -274,8 +274,8 @@
   min-height: 0;
   border: 0;
 }
-/* 아이콘과 글자가 함께 있는 버튼(목록·이전·다음·새로고침)은 한 줄로 가운데 맞춘다. */
-:is(.review-toolbar, .review-heading) button {
+/* 아이콘과 글자가 함께 있는 버튼(목록·이전·다음)은 한 줄로 가운데 맞춘다. */
+.review-toolbar button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -437,7 +437,6 @@
   font-size: 11px;
   color: #888;
 }
-.review-heading button,
 .review-evaluator button {
   font-size: 12px;
   padding: 6px 9px;

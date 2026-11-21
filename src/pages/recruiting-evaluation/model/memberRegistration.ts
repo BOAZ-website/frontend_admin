@@ -4,7 +4,7 @@
  */
 import { ApiError } from '@/shared/api/apiError';
 
-import { filterApplicants, TRACK_ORDER } from './applicantList';
+import { DEFAULT_REVIEW_QUERY, filterReviewList, type ReviewSort } from './applicantList';
 import type { ApplicantEvaluationDto, PromoteUsersResponse, TrackType } from './types';
 
 /** 행 상태. WAITING은 화면의 초기 표시값이고 서버에서 확인한 회원 상태가 아니다. */
@@ -36,14 +36,12 @@ const FAILURE_REASONS: Record<string, string> = {
 export const isRetryable = (status: RegistrationStatus): boolean =>
   status === 'FAILED' || status === 'UNKNOWN';
 
-/** 부원 등록 대상: 제출 완료 + 최종 합격. 부문 → 이름 순으로 정렬한다. */
+/** 부원 등록 대상: 제출 완료 + 최종 합격. 정렬은 서류 평가 목록과 같다(filterReviewList). */
 export function registrationRows(
   applicants: readonly ApplicantEvaluationDto[],
-  query: { track: 'ALL' | TrackType; search: string },
+  query: { track: 'ALL' | TrackType; search: string; sort: ReviewSort },
 ): ApplicantEvaluationDto[] {
-  return filterApplicants(applicants, { status: 'SUBMITTED', ...query, sort: 'NAME' })
-    .filter((applicant) => applicant.final_decision === 'PASS')
-    .sort((a, b) => TRACK_ORDER.indexOf(a.track) - TRACK_ORDER.indexOf(b.track));
+  return filterReviewList(applicants, { ...DEFAULT_REVIEW_QUERY, ...query, finalDecision: 'PASS' });
 }
 
 /** 200 응답을 요청 대상별 결과로 바꾼다. 실패 목록에 없는 요청 대상은 성공이다. */
