@@ -31,7 +31,10 @@ export function ApplicantDetailModal({
   useDialogKeyboard(panelRef, onClose);
   const titleId = `applicant-detail-${applicant.id}`;
 
+  // 제출일은 개인정보 칸 아래 구분선 밑에 한 줄로 따로 둔다.
   const fields = applicantInfoFields(applicant);
+  const infoFields = fields.filter(([label]) => label !== '제출일');
+  const submittedText = fields.find(([label]) => label === '제출일')?.[1];
 
   return (
     <div
@@ -60,14 +63,20 @@ export function ApplicantDetailModal({
         </div>
 
         <div className="overflow-y-auto px-6 py-4">
-          <div className="review-meta">
-            {fields.map(([label, value]) => (
+          <dl className="review-meta">
+            {infoFields.map(([label, value]) => (
               <div key={label}>
-                <span>{label}</span>
-                {value}
+                <dt>{label}</dt>
+                <dd>{value}</dd>
               </div>
             ))}
-          </div>
+          </dl>
+          <p className="applicant-detail-submitted">
+            <span>제출일</span>
+            {submittedText}
+          </p>
+
+          <h3 className="applicant-detail-answers-title">지원서 답변</h3>
 
           <ApplicantAnswersSection
             applicantId={applicant.id}

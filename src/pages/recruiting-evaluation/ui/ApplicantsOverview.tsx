@@ -137,16 +137,16 @@ export function ApplicantsOverview({
                     {label}
                   </th>
                 ))}
-                <th scope="col" className="px-4 py-3 text-right">
-                  <span className="sr-only">상세</span>
-                </th>
               </tr>
             </thead>
             <tbody>
               {rows.map((applicant) => (
                 <tr
                   key={applicant.id}
+                  tabIndex={0}
+                  aria-label={`${displayValue(applicant.name)} 지원서 상세`}
                   onClick={() => setDetail(applicant)}
+                  onKeyDown={(event) => event.key === 'Enter' && setDetail(applicant)}
                   className="cursor-pointer"
                 >
                   <td className="px-4 font-semibold">{displayValue(applicant.name)}</td>
@@ -159,19 +159,6 @@ export function ApplicantsOverview({
                     {applicant.submitted_at ? dateTimeTextOf(applicant.submitted_at) : '-'}
                   </td>
                   <td className="px-4">{APPLICATION_STATUS_LABELS[applicant.status]}</td>
-                  <td className="px-4 text-right">
-                    <button
-                      type="button"
-                      aria-label={`${displayValue(applicant.name)} 지원서 상세`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setDetail(applicant);
-                      }}
-                      className="px-3 whitespace-nowrap"
-                    >
-                      상세
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>

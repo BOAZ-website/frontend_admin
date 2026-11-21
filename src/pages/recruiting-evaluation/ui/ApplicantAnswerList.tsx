@@ -30,7 +30,9 @@ export function ApplicantAnswerList({ answers }: ApplicantAnswerListProps) {
           )}
         </section>
       ))}
-      {!answers.length && <p className="review-answer">제출된 답변이 없습니다.</p>}
+      {!answers.length && (
+        <p className="review-answer review-answers-empty">제출된 답변이 없습니다.</p>
+      )}
     </>
   );
 }
