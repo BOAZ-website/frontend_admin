@@ -177,23 +177,27 @@ export const hasNoEvaluations = (applicant: ApplicantEvaluationDto): boolean =>
   applicant.pass_count + applicant.hold_count + applicant.fail_count === 0 &&
   applicant.total_score === 0;
 
-/** 개인 평가 목록의 평가 상태 필터(MY-02). PENDING을 저장한 것도 저장됨이다(명세 §2.2). */
-export type MyEvaluationFilter = 'ALL' | 'UNEVALUATED' | 'SAVED';
+/**
+ * 서류 평가 목록의 개인 평가 필터(MY-02). 화면에서 아직 평가하지 않은 것(null)과 미정(PENDING)으로 저장한 것을
+ * 모두 '미정'으로 보여 주므로, 미정은 둘을 함께 거른다. 명세 §2.2의 미평가/저장됨 구분과 다르다.
+ */
+export type MyEvaluationFilter = 'ALL' | EvaluationDecision;
 
 export const MY_EVALUATION_FILTER_LABELS: Record<MyEvaluationFilter, string> = {
   ALL: '전체',
-  UNEVALUATED: '미정',
-  SAVED: '저장됨',
+  PENDING: '미정',
+  PASS: '합격',
+  HOLD: '보류',
+  FAIL: '불합격',
 };
 
-/** 내 평가 저장 여부로 거른다. my_decision이 null이면 미평가다. */
+/** 내 평가 판정으로 거른다. my_decision이 null이면 미정으로 본다. */
 export function filterByMyEvaluation(
   applicants: readonly ApplicantEvaluationDto[],
   filter: MyEvaluationFilter,
 ): ApplicantEvaluationDto[] {
   if (filter === 'ALL') return [...applicants];
-  const isSaved = filter === 'SAVED';
-  return applicants.filter((applicant) => (applicant.my_decision !== null) === isSaved);
+  return applicants.filter((applicant) => (applicant.my_decision ?? 'PENDING') === filter);
 }
 
 /** 서류 평가 목록의 정렬. 전체 지원 현황 정렬에 전체 평가의 집계 정렬(GROUP-04)을 더했다. */

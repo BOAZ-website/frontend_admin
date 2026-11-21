@@ -420,7 +420,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 22px;
+  margin-bottom: 8px;
 }
 .review-heading h2 {
   font-size: 16px;
@@ -455,14 +455,14 @@
   border-color: #334155 !important;
   color: #fff;
 }
-/* 점수 상자는 저장하기 버튼에 마우스를 올렸을 때와 같은 회색(#f5f5f6)이다. */
+/* 점수는 배경 없이 드롭다운과 '/ 10'만 둔다. 드롭다운 글자는 14px로 키우고 상자는 글자에 맞게 작게 둔다. */
 .review-score {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #f5f5f6;
-  border-radius: 10px;
-  padding: 12px 15px;
+}
+.review-score button[aria-haspopup='listbox'] {
+  font-size: 14px;
 }
 /* 평가 의견·면접 추천 질문은 두 줄 높이에서 시작해 쓰는 만큼 늘어난다(field-sizing을 모르는 브라우저는 손으로 늘린다). */
 .applicant-review textarea {
@@ -481,9 +481,14 @@
 }
 .applicant-review .review-submit {
   width: 100%;
-  background: #e9e9ec;
+  background: #f5f5f6;
   font-weight: 650;
   margin-top: 18px;
+}
+/* 바꾼 내용이 없으면 누를 수 없다. 흐리게 겹치지 않고 연한 회색 한 가지로 보인다. */
+.applicant-review .review-submit:disabled {
+  opacity: 1;
+  color: #a1a1aa;
 }
 /* 저장하지 않은 수정이 있으면 저장하기 버튼을 고른 평가와 같은 색(slate-700)으로 강조한다. */
 .applicant-review .review-submit.is-dirty {
@@ -590,6 +595,15 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   min-width: 180px;
+}
+/* 운영진 평가 현황에서 내 행을 고칠 때 칸이 늘어나지 않게 입력칸을 한 줄 높이로 고정한다(넘치면 칸 안에서 스크롤). */
+.applicant-review .review-status-text textarea {
+  height: 32px;
+  min-height: 32px;
+  field-sizing: fixed;
+  resize: none;
+  padding: 6px 8px;
+  line-height: 1.4;
 }
 @media (max-width: 900px) {
   .review-layout {

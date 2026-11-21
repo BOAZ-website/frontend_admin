@@ -165,7 +165,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
             }}
           >
             <div className="review-heading">
-              <h2 id="review-my-title">평가</h2>
+              <h2 id="review-my-title">개인 평가</h2>
             </div>
             <div className="review-scroll" tabIndex={0} aria-labelledby="review-my-title">
               {p.isMyEvaluationLoading && <p role="status">평가를 불러오는 중입니다.</p>}
@@ -186,7 +186,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
                     options={SCORE_SELECT_OPTIONS}
                     disabled={isFormLocked}
                     onChange={(score) => p.onScore(Number(score))}
-                    buttonClassName="h-9 w-24 text-left"
+                    buttonClassName="h-8 w-20 text-left"
                   />
                   <span>/ 10</span>
                 </div>
@@ -244,7 +244,7 @@ export function ApplicantReviewDetail(p: ApplicantReviewDetailProps) {
             <button
               className={`review-submit ${p.isDirty ? 'is-dirty' : ''}`}
               type="submit"
-              disabled={p.saving || isFormLocked}
+              disabled={!p.isDirty || p.saving || isFormLocked}
             >
               {p.saving ? '저장 중…' : '저장하기'}
             </button>

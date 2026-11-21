@@ -16,8 +16,8 @@ import {
 import {
   DEFAULT_SCORE,
   type MyEvaluationDraft,
-  type MyEvaluationErrors,
   SCORE_OPTIONS,
+  validateMyEvaluation,
 } from '../model/myEvaluationForm';
 import {
   DECISION_LABELS,
@@ -29,7 +29,6 @@ import {
 /** 본인 행 편집. 개인 평가 탭과 같은 초안·검증·저장을 페이지가 맡고, 이 표는 그리기와 편집 여부만 가진다. */
 export interface OwnRowEditing {
   draft: MyEvaluationDraft;
-  errors: MyEvaluationErrors;
   saving: boolean;
   /** 내 평가를 읽는 중이거나 읽지 못했으면 편집을 막는다. */
   locked: boolean;
@@ -54,7 +53,15 @@ interface EvaluatorResultsTabProps {
   onNotify: (message: string, tone: ToastMessage['tone']) => void;
 }
 
-const COLUMNS = ['평가자', '판정', '점수', '메모', '면접 추천 질문'];
+// 서류 평가 목록 표(MyEvaluationList)와 같은 방식: 짧은 열은 고정 너비, 메모·면접 추천 질문은 남는 너비를 나눠 쓴다.
+const COLUMNS: { label: string; width?: string }[] = [
+  { label: '평가자', width: '112px' },
+  { label: '평가', width: '112px' },
+  { label: '점수', width: '120px' },
+  { label: '메모' },
+  { label: '면접 추천 질문' },
+];
+const EDIT_WIDTH = '120px';
 
 // 고를 수 있는 판정은 합격·보류·불합격이다. 미평가(null)는 처음 값으로만 보여 준다.
 const DECISION_OPTIONS = SELECTABLE_DECISIONS.map((decision) => ({
@@ -119,7 +126,13 @@ export function EvaluatorResultsTab({
     }
   };
 
+  // 입력 오류는 행 안에 쓰지 않고 브라우저 알림 창으로 알린다(행 높이가 바뀌지 않게).
   const handleSave = async () => {
+    const message = Object.values(validateMyEvaluation(editing.draft))[0];
+    if (message) {
+      window.alert(message);
+      return;
+    }
     if (await editing.onSave()) setIsEditing(false);
   };
 
@@ -131,9 +144,9 @@ export function EvaluatorResultsTab({
   ];
 
   return (
-    <section className="review-paper review-status" aria-labelledby="review-status-title">
-      <div className="review-heading">
-        <h2 id="review-status-title">운영진 평가 현황</h2>
+    <section className="review-paper review-status" aria-label="운영진 평가 현황">
+      {/* 제목은 위의 탭 이름과 겹쳐 두지 않고 새로고침만 오른쪽에 둔다. */}
+      <div className="flex justify-end">
         <RefreshButton
           ariaLabel="운영진 평가 현황 새로고침"
           isLoading={isLoading}
@@ -166,16 +179,25 @@ export function EvaluatorResultsTab({
           {rows.length === 0 ? (
             <p role="status">아직 등록된 평가가 없습니다.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px]" aria-label="운영진별 평가 기록">
+            <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+              <table
+                className="w-full min-w-[760px] table-fixed text-xs"
+                aria-label="운영진별 평가 기록"
+              >
+                <colgroup>
+                  {COLUMNS.map((column) => (
+                    <col key={column.label} style={{ width: column.width }} />
+                  ))}
+                  <col style={{ width: EDIT_WIDTH }} />
+                </colgroup>
                 <thead>
                   <tr>
-                    {COLUMNS.map((label) => (
-                      <th key={label} scope="col" className="px-3">
-                        {label}
+                    {COLUMNS.map((column) => (
+                      <th key={column.label} scope="col" className="px-4 py-3 text-left">
+                        {column.label}
                       </th>
                     ))}
-                    <th scope="col" className="px-3">
+                    <th scope="col" className="px-4 py-3">
                       <span className="sr-only">수정</span>
                     </th>
                   </tr>
@@ -183,62 +205,43 @@ export function EvaluatorResultsTab({
                 <tbody>
                   {rows.map((row) => {
                     const isRowEditing = row.isMe && isEditing;
-                    const { draft, errors } = editing;
+                    const { draft } = editing;
                     return (
                       <tr key={row.admin_id}>
-                        <td className="px-3 whitespace-nowrap">
-                          {row.displayName}
-                          {row.isMe && ' (나)'}
-                        </td>
-                        <td className="px-3 whitespace-nowrap">
+                        <td className="px-4 whitespace-nowrap">{row.displayName}</td>
+                        <td className="px-4 whitespace-nowrap">
                           {isRowEditing ? (
-                            <>
-                              <SelectDropdown
-                                ariaLabel="내 판정"
-                                value={draft.decision ?? ''}
-                                options={
-                                  draft.decision === null
-                                    ? [{ value: '', label: '미정' }, ...DECISION_OPTIONS]
-                                    : DECISION_OPTIONS
-                                }
-                                onChange={(decision) => decision && editing.onChange({ decision })}
-                                buttonClassName="h-[30px] w-20"
-                              />
-                              {errors.decision && (
-                                <p role="alert" className="review-field-error">
-                                  {errors.decision}
-                                </p>
-                              )}
-                            </>
+                            <SelectDropdown
+                              ariaLabel="내 판정"
+                              value={draft.decision ?? ''}
+                              options={
+                                draft.decision === null
+                                  ? [{ value: '', label: '미정' }, ...DECISION_OPTIONS]
+                                  : DECISION_OPTIONS
+                              }
+                              onChange={(decision) => decision && editing.onChange({ decision })}
+                              buttonClassName="h-[30px] w-20"
+                            />
                           ) : row.decision ? (
                             DECISION_LABELS[row.decision]
                           ) : (
                             '미정'
                           )}
                         </td>
-                        <td className="px-3 whitespace-nowrap">
+                        <td className="px-4 whitespace-nowrap">
                           {isRowEditing ? (
-                            <>
-                              <SelectDropdown
-                                ariaLabel="내 점수"
-                                value={String(draft.score ?? DEFAULT_SCORE)}
-                                options={SCORE_SELECT_OPTIONS}
-                                onChange={(score) => editing.onChange({ score: Number(score) })}
-                                buttonClassName="h-[30px] w-24"
-                              />
-                              {errors.score && (
-                                <p role="alert" className="review-field-error">
-                                  {errors.score}
-                                </p>
-                              )}
-                            </>
-                          ) : row.score === null ? (
-                            '-'
+                            <SelectDropdown
+                              ariaLabel="내 점수"
+                              value={String(draft.score ?? DEFAULT_SCORE)}
+                              options={SCORE_SELECT_OPTIONS}
+                              onChange={(score) => editing.onChange({ score: Number(score) })}
+                              buttonClassName="h-[30px] w-24"
+                            />
                           ) : (
                             row.score
                           )}
                         </td>
-                        <td className="review-status-text px-3">
+                        <td className="review-status-text px-4">
                           {isRowEditing ? (
                             <textarea
                               aria-label="내 평가 메모"
@@ -246,10 +249,10 @@ export function EvaluatorResultsTab({
                               onChange={(e) => editing.onChange({ memo: e.target.value })}
                             />
                           ) : (
-                            row.memo || '-'
+                            row.memo
                           )}
                         </td>
-                        <td className="review-status-text px-3">
+                        <td className="review-status-text px-4">
                           {isRowEditing ? (
                             <textarea
                               aria-label="내 면접 추천 질문"
@@ -269,11 +272,9 @@ export function EvaluatorResultsTab({
                                 복사
                               </button>
                             </div>
-                          ) : (
-                            '-'
-                          )}
+                          ) : null}
                         </td>
-                        <td className="px-3 whitespace-nowrap">
+                        <td className="px-4 whitespace-nowrap">
                           {isRowEditing ? (
                             <div className="flex items-center gap-1">
                               <button

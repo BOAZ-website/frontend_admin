@@ -83,14 +83,16 @@ test('서버 일시는 분까지 공백으로 이어 보여 준다', () => {
   assert.equal(dateTimeTextOf('2026-08-15T19:20:00'), '2026-08-15 19:20');
 });
 
-test('평가 상태 필터는 my_decision이 null이면 미평가, PENDING을 포함해 값이 있으면 저장됨으로 나눈다', () => {
+test('개인 평가 필터는 판정으로 거르고, 미정은 평가하지 않은 것(null)과 PENDING을 함께 거른다', () => {
   const pending = { ...applicants[0], my_decision: 'PENDING' as const };
   const none = { ...applicants[0], id: -1, my_decision: null };
-  const list = [pending, none];
+  const pass = { ...applicants[0], id: -2, my_decision: 'PASS' as const };
+  const list = [pending, none, pass];
 
-  assert.deepEqual(filterByMyEvaluation(list, 'SAVED'), [pending]);
-  assert.deepEqual(filterByMyEvaluation(list, 'UNEVALUATED'), [none]);
-  assert.equal(filterByMyEvaluation(list, 'ALL').length, 2);
+  assert.deepEqual(filterByMyEvaluation(list, 'PENDING'), [pending, none]);
+  assert.deepEqual(filterByMyEvaluation(list, 'PASS'), [pass]);
+  assert.deepEqual(filterByMyEvaluation(list, 'FAIL'), []);
+  assert.equal(filterByMyEvaluation(list, 'ALL').length, 3);
 });
 
 test('부문 지표는 대표진·차기대표진·다른 부문 평가 권한이면 세 부문, 그 밖에는 자기 부문만 보여 준다', () => {

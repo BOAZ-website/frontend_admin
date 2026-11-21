@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import boazLogo from '@/shared/assets/boaz-logo.png';
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { Toast, type ToastMessage } from '@/shared/ui/Toast';
 
@@ -305,7 +306,6 @@ export function EvaluationManagePage({
           // 본인 행 편집은 개인 평가 탭과 같은 초안을 쓴다. 탭을 오가도 입력이 남으므로 편집을 시작할 때 묻지 않는다.
           ownRowEditing={{
             draft,
-            errors: draftErrors,
             saving: isSaving,
             locked: isMyEvaluationLoading || myEvaluationError !== null,
             onChange: (patch) => setDraft((current) => ({ ...current, ...patch })),
@@ -338,20 +338,17 @@ export function EvaluationManagePage({
       {/* 출결 화면과 같은 제목 줄. 화면 전환은 사이드바 메뉴 3개가 맡는다. */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
         <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900">
-          {mainTab === 'my' ? (
-            <>
-              <img
-                src={TRACK_IMAGE[track]}
-                alt=""
-                width={28}
-                height={28}
-                className="size-7 object-contain"
-              />
-              {`${TRACK_LABELS[track]} ${MAIN_TAB_TITLES.my}`}
-            </>
-          ) : (
-            MAIN_TAB_TITLES[mainTab]
-          )}
+          {/* 서류 평가는 부문 캐릭터, 전체 지원 현황·합격자 부원 등록은 BOAZ 로고를 제목 앞에 둔다. */}
+          <img
+            src={mainTab === 'my' ? TRACK_IMAGE[track] : boazLogo}
+            alt=""
+            width={28}
+            height={28}
+            className="size-7 object-contain"
+          />
+          {mainTab === 'my'
+            ? `${TRACK_LABELS[track]} ${MAIN_TAB_TITLES.my}`
+            : MAIN_TAB_TITLES[mainTab]}
         </h1>
       </div>
 

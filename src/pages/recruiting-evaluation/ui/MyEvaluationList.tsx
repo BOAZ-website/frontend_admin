@@ -153,8 +153,8 @@ export function MyEvaluationList({
       <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <FilterDropdown
-            ariaLabel="평가 상태 필터"
-            title="평가 상태"
+            ariaLabel="개인 평가 필터"
+            title="개인 평가"
             value={query.myFilter}
             options={MY_FILTER_OPTIONS}
             onChange={(myFilter) => updateQuery({ myFilter })}
@@ -235,7 +235,7 @@ export function MyEvaluationList({
                       <td className="px-4">{applicant.total_score}</td>
                       <td className="px-4 whitespace-nowrap">
                         {applicant.my_decision === null
-                          ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED
+                          ? DECISION_LABELS.PENDING
                           : DECISION_LABELS[applicant.my_decision]}
                       </td>
                       <td className="px-4 whitespace-nowrap">
