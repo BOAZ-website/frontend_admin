@@ -3,10 +3,13 @@ import { useState } from 'react';
 import { dateTimeTextOf } from '@/shared/lib/date';
 import { useLoaded } from '@/shared/lib/useLoaded';
 import { FilterDropdown, type FilterDropdownOption } from '@/shared/ui/FilterDropdown';
+import { RefreshButton } from '@/shared/ui/RefreshButton';
 import { SearchInput } from '@/shared/ui/SearchInput';
 
 import {
+  APPLICANT_SORT_LABELS,
   type ApplicantListQuery,
+  type ApplicantSort,
   DEFAULT_APPLICANT_QUERY,
   displayValue,
   filterApplicants,
@@ -37,6 +40,10 @@ const STATUS_FILTER_OPTIONS: readonly FilterDropdownOption<ApplicantListQuery['s
   { value: 'SUBMITTED', label: APPLICATION_STATUS_LABELS.SUBMITTED },
   { value: 'DRAFT', label: APPLICATION_STATUS_LABELS.DRAFT },
 ];
+
+const SORT_OPTIONS: readonly FilterDropdownOption<ApplicantSort>[] = (
+  Object.keys(APPLICANT_SORT_LABELS) as ApplicantSort[]
+).map((sort) => ({ value: sort, label: APPLICANT_SORT_LABELS[sort] }));
 
 const COLUMNS = ['이름', '부문', '학교', '전공', '학기', '졸업 예정', '제출일', '상태'];
 
@@ -115,8 +122,8 @@ export function ApplicantsOverview({
         </dl>
       </section>
 
-      <section aria-label="지원자 목록" className="rounded-md border border-slate-200 bg-white">
-        <div className="flex flex-wrap items-center justify-end gap-3 border-b border-slate-200 px-4 py-3">
+      <section aria-label="지원자 목록">
+        <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <FilterDropdown
               ariaLabel="제출 상태 필터"
@@ -132,72 +139,84 @@ export function ApplicantsOverview({
               options={TRACK_FILTER_OPTIONS}
               onChange={(track) => updateQuery({ track })}
             />
+            <FilterDropdown
+              ariaLabel="정렬"
+              title={APPLICANT_SORT_LABELS.SUBMITTED_DESC}
+              value={query.sort}
+              options={SORT_OPTIONS}
+              onChange={(sort) => updateQuery({ sort })}
+            />
             <SearchInput
               ariaLabel="지원자 검색"
               placeholder="이름·이메일·학교·전공"
               value={query.search}
               onChange={(search) => updateQuery({ search })}
             />
+            <RefreshButton isLoading={list.isLoading} onClick={list.reload} />
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px] text-xs">
-            <thead>
-              <tr>
-                {COLUMNS.map((label) => (
-                  <th key={label} scope="col" className="px-4 py-3 text-left">
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((applicant) => (
-                <tr
-                  key={applicant.id}
-                  tabIndex={0}
-                  aria-label={`${displayValue(applicant.name)} 지원서 상세`}
-                  onClick={() => setDetail(applicant)}
-                  onKeyDown={(event) => event.key === 'Enter' && setDetail(applicant)}
-                  className="cursor-pointer"
-                >
-                  <td className="px-4 font-semibold">{displayValue(applicant.name)}</td>
-                  <td className="px-4">{applicant.track ? TRACK_LABELS[applicant.track] : '-'}</td>
-                  <td className="px-4">{displayValue(applicant.university)}</td>
-                  <td className="px-4">{displayValue(applicant.major)}</td>
-                  <td className="px-4 text-right">{displayValue(applicant.last_semester)}</td>
-                  <td className="px-4">{displayValue(applicant.graduation_date)}</td>
-                  <td className="px-4 whitespace-nowrap">
-                    {applicant.submitted_at ? dateTimeTextOf(applicant.submitted_at) : '-'}
-                  </td>
-                  <td className="px-4">{APPLICATION_STATUS_LABELS[applicant.status]}</td>
+        <div className="rounded-md border border-slate-200 bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[880px] text-xs">
+              <thead>
+                <tr>
+                  {COLUMNS.map((label) => (
+                    <th key={label} scope="col" className="px-4 py-3 text-left">
+                      {label}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {!isFirstLoad && rows.length === 0 && (
-          <div role="status" className="flex flex-col items-center gap-3 p-8 text-sm">
-            {applicants.length === 0 ? (
-              <p>등록된 지원자가 없습니다.</p>
-            ) : (
-              <>
-                <p>조건에 맞는 지원자가 없습니다.</p>
-                {isFilteredQuery(query) && (
-                  <button
-                    type="button"
-                    onClick={() => setQuery({ ...DEFAULT_APPLICANT_QUERY, sort: query.sort })}
-                    className="px-4"
+              </thead>
+              <tbody>
+                {rows.map((applicant) => (
+                  <tr
+                    key={applicant.id}
+                    tabIndex={0}
+                    aria-label={`${displayValue(applicant.name)} 지원서 상세`}
+                    onClick={() => setDetail(applicant)}
+                    onKeyDown={(event) => event.key === 'Enter' && setDetail(applicant)}
+                    className="cursor-pointer"
                   >
-                    필터 초기화
-                  </button>
-                )}
-              </>
-            )}
+                    <td className="px-4 font-semibold">{displayValue(applicant.name)}</td>
+                    <td className="px-4">
+                      {applicant.track ? TRACK_LABELS[applicant.track] : '-'}
+                    </td>
+                    <td className="px-4">{displayValue(applicant.university)}</td>
+                    <td className="px-4">{displayValue(applicant.major)}</td>
+                    <td className="px-4 text-right">{displayValue(applicant.last_semester)}</td>
+                    <td className="px-4">{displayValue(applicant.graduation_date)}</td>
+                    <td className="px-4 whitespace-nowrap">
+                      {applicant.submitted_at ? dateTimeTextOf(applicant.submitted_at) : '-'}
+                    </td>
+                    <td className="px-4">{APPLICATION_STATUS_LABELS[applicant.status]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
+
+          {!isFirstLoad && rows.length === 0 && (
+            <div role="status" className="flex flex-col items-center gap-3 p-8 text-sm">
+              {applicants.length === 0 ? (
+                <p>등록된 지원자가 없습니다.</p>
+              ) : (
+                <>
+                  <p>조건에 맞는 지원자가 없습니다.</p>
+                  {isFilteredQuery(query) && (
+                    <button
+                      type="button"
+                      onClick={() => setQuery({ ...DEFAULT_APPLICANT_QUERY, sort: query.sort })}
+                      className="px-4"
+                    >
+                      필터 초기화
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       {detail && (

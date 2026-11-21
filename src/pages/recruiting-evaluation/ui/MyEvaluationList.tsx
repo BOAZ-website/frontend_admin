@@ -149,8 +149,8 @@ export function MyEvaluationList({
   }
 
   return (
-    <section aria-label="평가 대상 목록" className="rounded-md border border-slate-200 bg-white">
-      <div className="flex flex-wrap items-center justify-end gap-3 border-b border-slate-200 px-4 py-3">
+    <section aria-label="평가 대상 목록">
+      <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <FilterDropdown
             ariaLabel="평가 상태 필터"
@@ -183,113 +183,117 @@ export function MyEvaluationList({
         </div>
       </div>
 
-      {isFirstLoad ? (
-        <p role="status" className="p-6 text-sm">
-          지원자 목록을 불러오는 중입니다.
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] table-fixed text-xs">
-            <colgroup>
-              {COLUMNS.map((column) => (
-                <col key={column.label} style={{ width: column.width }} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr>
+      <div className="rounded-md border border-slate-200 bg-white">
+        {isFirstLoad ? (
+          <p role="status" className="p-6 text-sm">
+            지원자 목록을 불러오는 중입니다.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1040px] table-fixed text-xs">
+              <colgroup>
                 {COLUMNS.map((column) => (
-                  <th key={column.label} scope="col" className="px-4 py-3 text-left">
-                    {column.label}
-                  </th>
+                  <col key={column.label} style={{ width: column.width }} />
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((applicant) => {
-                return (
-                  <tr
-                    key={applicant.id}
-                    tabIndex={0}
-                    aria-label={`${displayValue(applicant.name)} 평가 열기`}
-                    onClick={() => handleOpen(applicant.id)}
-                    onKeyDown={(event) => event.key === 'Enter' && handleOpen(applicant.id)}
-                    className="cursor-pointer"
-                  >
-                    <td className="px-4 font-semibold truncate">{displayValue(applicant.name)}</td>
-                    <td className="px-4 truncate" title={applicant.university ?? undefined}>
-                      {displayValue(applicant.university)}
-                    </td>
-                    <td className="px-4 truncate" title={applicant.major ?? undefined}>
-                      {displayValue(applicant.major)}
-                    </td>
-                    <td className="px-4">{displayValue(applicant.last_semester)}</td>
-                    <td className="px-4 whitespace-nowrap">
-                      {displayValue(applicant.graduation_date)}
-                    </td>
-                    <td className="px-4">{applicant.pass_count}</td>
-                    <td className="px-4">{applicant.hold_count}</td>
-                    <td className="px-4">{applicant.fail_count}</td>
-                    <td className="px-4">{applicant.total_score}</td>
-                    <td className="px-4 whitespace-nowrap">
-                      {applicant.my_decision === null
-                        ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED
-                        : DECISION_LABELS[applicant.my_decision]}
-                    </td>
-                    <td className="px-4 whitespace-nowrap">
-                      {canWriteFinalDecision ? (
-                        // 행을 누르거나 Enter를 치면 상세가 열리므로 판정 고르기·저장 클릭과 키 입력은 행으로 올려 보내지 않는다.
-                        <div
-                          className="flex items-center gap-2"
-                          onClick={(event) => event.stopPropagation()}
-                          onKeyDown={(event) => event.stopPropagation()}
-                        >
-                          <SelectDropdown
-                            ariaLabel={`${displayValue(applicant.name)} 최종 평가`}
-                            value={finalDraftOf(applicant)}
-                            options={
-                              finalDraftOf(applicant) === 'PENDING'
-                                ? PENDING_SELECT_OPTIONS
-                                : FINAL_DECISION_SELECT_OPTIONS
-                            }
-                            disabled={savingFinalIds.includes(applicant.id)}
-                            onChange={(decision) => void handleChangeFinal(applicant, decision)}
-                            buttonClassName="h-[30px] w-20"
-                          />
-                        </div>
-                      ) : (
-                        <span className="review-tag">
-                          {DECISION_LABELS[applicant.final_decision]}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </colgroup>
+              <thead>
+                <tr>
+                  {COLUMNS.map((column) => (
+                    <th key={column.label} scope="col" className="px-4 py-3 text-left">
+                      {column.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((applicant) => {
+                  return (
+                    <tr
+                      key={applicant.id}
+                      tabIndex={0}
+                      aria-label={`${displayValue(applicant.name)} 평가 열기`}
+                      onClick={() => handleOpen(applicant.id)}
+                      onKeyDown={(event) => event.key === 'Enter' && handleOpen(applicant.id)}
+                      className="cursor-pointer"
+                    >
+                      <td className="px-4 font-semibold truncate">
+                        {displayValue(applicant.name)}
+                      </td>
+                      <td className="px-4 truncate" title={applicant.university ?? undefined}>
+                        {displayValue(applicant.university)}
+                      </td>
+                      <td className="px-4 truncate" title={applicant.major ?? undefined}>
+                        {displayValue(applicant.major)}
+                      </td>
+                      <td className="px-4">{displayValue(applicant.last_semester)}</td>
+                      <td className="px-4 whitespace-nowrap">
+                        {displayValue(applicant.graduation_date)}
+                      </td>
+                      <td className="px-4">{applicant.pass_count}</td>
+                      <td className="px-4">{applicant.hold_count}</td>
+                      <td className="px-4">{applicant.fail_count}</td>
+                      <td className="px-4">{applicant.total_score}</td>
+                      <td className="px-4 whitespace-nowrap">
+                        {applicant.my_decision === null
+                          ? MY_EVALUATION_FILTER_LABELS.UNEVALUATED
+                          : DECISION_LABELS[applicant.my_decision]}
+                      </td>
+                      <td className="px-4 whitespace-nowrap">
+                        {canWriteFinalDecision ? (
+                          // 행을 누르거나 Enter를 치면 상세가 열리므로 판정 고르기·저장 클릭과 키 입력은 행으로 올려 보내지 않는다.
+                          <div
+                            className="flex items-center gap-2"
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            <SelectDropdown
+                              ariaLabel={`${displayValue(applicant.name)} 최종 평가`}
+                              value={finalDraftOf(applicant)}
+                              options={
+                                finalDraftOf(applicant) === 'PENDING'
+                                  ? PENDING_SELECT_OPTIONS
+                                  : FINAL_DECISION_SELECT_OPTIONS
+                              }
+                              disabled={savingFinalIds.includes(applicant.id)}
+                              onChange={(decision) => void handleChangeFinal(applicant, decision)}
+                              buttonClassName="h-[30px] w-20"
+                            />
+                          </div>
+                        ) : (
+                          <span className="review-tag">
+                            {DECISION_LABELS[applicant.final_decision]}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {!isFirstLoad && rows.length === 0 && (
-        <div role="status" className="flex flex-col items-center gap-3 p-8 text-sm">
-          {submitted.length === 0 ? (
-            <p>평가할 제출 완료 지원서가 없습니다.</p>
-          ) : (
-            <>
-              <p>조건에 맞는 지원자가 없습니다.</p>
-              {isFilteredReviewQuery(query) && (
-                <button
-                  type="button"
-                  onClick={() => onQueryChange({ ...DEFAULT_REVIEW_QUERY, sort: query.sort })}
-                  className="px-4"
-                >
-                  필터 초기화
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
+        {!isFirstLoad && rows.length === 0 && (
+          <div role="status" className="flex flex-col items-center gap-3 p-8 text-sm">
+            {submitted.length === 0 ? (
+              <p>평가할 제출 완료 지원서가 없습니다.</p>
+            ) : (
+              <>
+                <p>조건에 맞는 지원자가 없습니다.</p>
+                {isFilteredReviewQuery(query) && (
+                  <button
+                    type="button"
+                    onClick={() => onQueryChange({ ...DEFAULT_REVIEW_QUERY, sort: query.sort })}
+                    className="px-4"
+                  >
+                    필터 초기화
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

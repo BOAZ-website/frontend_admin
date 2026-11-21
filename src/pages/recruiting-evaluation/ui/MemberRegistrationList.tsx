@@ -139,9 +139,9 @@ export function MemberRegistrationList({
   }
 
   return (
-    <section aria-label="합격자 목록" className="rounded-md border border-slate-200 bg-white">
+    <section aria-label="합격자 목록">
       {/* 툴바: 오른쪽에 부문 필터·정렬·검색·새로고침 */}
-      <div className="flex flex-wrap items-center justify-end gap-3 border-b border-slate-200 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-end gap-3 pb-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <FilterDropdown
             ariaLabel="부문 필터"
@@ -167,84 +167,86 @@ export function MemberRegistrationList({
         </div>
       </div>
 
-      {isFirstLoad ? (
-        <p role="status" className="p-6 text-sm">
-          합격자 목록을 불러오는 중입니다.
-        </p>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] table-fixed text-xs">
-              <colgroup>
-                {COLUMNS.map((column) => (
-                  <col key={column.label} style={{ width: column.width }} />
-                ))}
-              </colgroup>
-              <thead>
-                <tr>
+      <div className="rounded-md border border-slate-200 bg-white">
+        {isFirstLoad ? (
+          <p role="status" className="p-6 text-sm">
+            합격자 목록을 불러오는 중입니다.
+          </p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] table-fixed text-xs">
+                <colgroup>
                   {COLUMNS.map((column) => (
-                    <th key={column.label} scope="col" className="px-4 py-3 text-left">
-                      {column.label}
-                    </th>
+                    <col key={column.label} style={{ width: column.width }} />
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  return (
-                    <tr
-                      key={row.id}
-                      tabIndex={0}
-                      onClick={() => setDetail(row)}
-                      onKeyDown={(event) => event.key === 'Enter' && setDetail(row)}
-                      className="cursor-pointer"
-                    >
-                      {COLUMNS.map((column, index) => (
-                        <td
-                          key={column.label}
-                          title={column.value(row)}
-                          className={`px-4 truncate ${index === 0 ? 'font-semibold' : ''}`}
-                        >
-                          {column.value(row)}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                </colgroup>
+                <thead>
+                  <tr>
+                    {COLUMNS.map((column) => (
+                      <th key={column.label} scope="col" className="px-4 py-3 text-left">
+                        {column.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => {
+                    return (
+                      <tr
+                        key={row.id}
+                        tabIndex={0}
+                        onClick={() => setDetail(row)}
+                        onKeyDown={(event) => event.key === 'Enter' && setDetail(row)}
+                        className="cursor-pointer"
+                      >
+                        {COLUMNS.map((column, index) => (
+                          <td
+                            key={column.label}
+                            title={column.value(row)}
+                            className={`px-4 truncate ${index === 0 ? 'font-semibold' : ''}`}
+                          >
+                            {column.value(row)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-          {rows.length === 0 && (
-            <p role="status" className="border-t border-slate-200 p-8 text-center text-sm">
-              {candidates.length === 0
-                ? '등록할 최종 합격자가 없습니다.'
-                : '조건에 맞는 합격자가 없습니다.'}
-            </p>
-          )}
+            {rows.length === 0 && (
+              <p role="status" className="border-t border-slate-200 p-8 text-center text-sm">
+                {candidates.length === 0
+                  ? '등록할 최종 합격자가 없습니다.'
+                  : '조건에 맞는 합격자가 없습니다.'}
+              </p>
+            )}
 
-          {/* 하단 등록 영역. 가로 스크롤 밖에 두고 늘 보인다. 등록할 사람이 없으면 누를 수 없다. */}
-          <div className="flex items-center justify-end border-t border-slate-200 px-4 py-3 text-xs whitespace-nowrap">
-            <button
-              type="button"
-              disabled={isRegistering || targetIds.length === 0}
-              onClick={() => void handleRegister()}
-              className="px-4"
-            >
-              {isRegistering ? '등록 중…' : '등록하기'}
-            </button>
-          </div>
-        </>
-      )}
+            {/* 하단 등록 영역. 가로 스크롤 밖에 두고 늘 보인다. 등록할 사람이 없으면 누를 수 없다. */}
+            <div className="flex items-center justify-end border-t border-slate-200 px-4 py-3 text-xs whitespace-nowrap">
+              <button
+                type="button"
+                disabled={isRegistering || targetIds.length === 0}
+                onClick={() => void handleRegister()}
+                className="px-4"
+              >
+                {isRegistering ? '등록 중…' : '등록하기'}
+              </button>
+            </div>
+          </>
+        )}
 
-      {detail && (
-        <ApplicantDetailModal
-          applicant={detail}
-          fetchAnswers={fetchAnswers}
-          onClose={() => setDetail(null)}
-          onMissing={handleMissing}
-        />
-      )}
+        {detail && (
+          <ApplicantDetailModal
+            applicant={detail}
+            fetchAnswers={fetchAnswers}
+            onClose={() => setDetail(null)}
+            onMissing={handleMissing}
+          />
+        )}
+      </div>
     </section>
   );
 }
