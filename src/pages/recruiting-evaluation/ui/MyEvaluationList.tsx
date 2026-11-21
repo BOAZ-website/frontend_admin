@@ -45,17 +45,19 @@ interface MyEvaluationListProps {
 }
 
 // 부문은 메뉴가 정하므로 부문 열이 없다. 평가자별 상세는 상세 화면의 운영진 평가 현황에서 본다.
-const COLUMNS = [
-  '이름',
-  '학교',
-  '전공',
-  '합격',
-  '보류',
-  '불합',
-  '총점수',
-  '개인 평가',
-  '최종 평가',
+// 열 너비를 고정해 평가하기↔수정 버튼, 판정 글자, '저장 중…'이 바뀌어도 표가 움직이지 않게 한다. 학교·전공은 남는 너비를 나눠 쓴다.
+const COLUMNS: { label: string; width?: string }[] = [
+  { label: '이름', width: '96px' },
+  { label: '학교' },
+  { label: '전공' },
+  { label: '합격', width: '64px' },
+  { label: '보류', width: '64px' },
+  { label: '불합', width: '64px' },
+  { label: '총점수', width: '72px' },
+  { label: '개인 평가', width: '96px' },
+  { label: '최종 평가', width: '168px' },
 ];
+const ACTION_WIDTH = '112px';
 
 const MY_FILTER_OPTIONS: readonly FilterDropdownOption<MyEvaluationFilter>[] = (
   Object.keys(MY_EVALUATION_FILTER_LABELS) as MyEvaluationFilter[]
@@ -180,12 +182,18 @@ export function MyEvaluationList({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-xs">
+          <table className="w-full min-w-[900px] table-fixed text-xs">
+            <colgroup>
+              {COLUMNS.map((column) => (
+                <col key={column.label} style={{ width: column.width }} />
+              ))}
+              <col style={{ width: ACTION_WIDTH }} />
+            </colgroup>
             <thead>
               <tr>
-                {COLUMNS.map((label) => (
-                  <th key={label} scope="col" className="px-4 py-3 text-left">
-                    {label}
+                {COLUMNS.map((column) => (
+                  <th key={column.label} scope="col" className="px-4 py-3 text-left">
+                    {column.label}
                   </th>
                 ))}
                 <th scope="col" className="px-4 py-3 text-right">
@@ -202,9 +210,13 @@ export function MyEvaluationList({
                     onClick={() => handleOpen(applicant.id)}
                     className="cursor-pointer"
                   >
-                    <td className="px-4 font-semibold">{displayValue(applicant.name)}</td>
-                    <td className="px-4">{displayValue(applicant.university)}</td>
-                    <td className="px-4">{displayValue(applicant.major)}</td>
+                    <td className="px-4 font-semibold truncate">{displayValue(applicant.name)}</td>
+                    <td className="px-4 truncate" title={applicant.university ?? undefined}>
+                      {displayValue(applicant.university)}
+                    </td>
+                    <td className="px-4 truncate" title={applicant.major ?? undefined}>
+                      {displayValue(applicant.major)}
+                    </td>
                     <td className="px-4">{applicant.pass_count}</td>
                     <td className="px-4">{applicant.hold_count}</td>
                     <td className="px-4">{applicant.fail_count}</td>
@@ -249,7 +261,7 @@ export function MyEvaluationList({
                           event.stopPropagation();
                           handleOpen(applicant.id);
                         }}
-                        className="px-3 whitespace-nowrap"
+                        className="w-20 px-3 whitespace-nowrap"
                       >
                         {isSaved ? '수정' : '평가하기'}
                       </button>

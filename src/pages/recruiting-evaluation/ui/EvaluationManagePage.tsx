@@ -340,10 +340,11 @@ export function EvaluationManagePage({
       {toastNode}
       {/* 출결 화면과 같은 제목 줄. 화면 전환은 사이드바 메뉴 3개가 맡는다. */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200/80">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
-          {mainTab === 'my'
-            ? `${MAIN_TAB_TITLES.my} · ${TRACK_LABELS[track]}`
-            : MAIN_TAB_TITLES[mainTab]}
+        <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900">
+          {MAIN_TAB_TITLES[mainTab]}
+          {mainTab === 'my' && (
+            <span className="evaluation-title-track">{TRACK_LABELS[track]}</span>
+          )}
         </h1>
       </div>
 
