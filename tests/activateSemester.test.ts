@@ -79,6 +79,8 @@ test('종료 점검에서 막히면 이유를 알리고 종료·활성화를 부
   assert.deepEqual(calls, ['check:26-2']);
   assert.match(alerts[0], /마지막 27주차가 아직 끝나지 않았습니다/);
   assert.match(alerts[0], /ADV 1팀 15주차: 승인 대기/);
+  // 막힌 것은 종료하려던 진행 반기(26-2)이고, 활성화하지 않은 것은 새 반기(27-1)다.
+  assert.match(alerts[0], /^26-2 반기를 종료할 수 없어 27-1 반기를 활성화하지 않았습니다\./);
 });
 
 test('진행 반기가 없으면 점검·종료 없이 활성화만 한다', async () => {
@@ -111,10 +113,10 @@ test('종료한 뒤 활성화만 실패하면 다시 누르라고 알리고, 반
   assert.equal(isChanged, true);
   assert.deepEqual(alerts, [
     '명단이 비었습니다.',
-    '26-2은 종료되었습니다. 활성화 버튼을 다시 눌러 27-1을 활성화해 주세요.',
+    '26-2 반기는 종료되었습니다. 활성화 버튼을 다시 눌러 27-1 반기를 활성화해 주세요.',
   ]);
 });
 
 test('종료할 수 있으면 막힘 문구가 없다', () => {
-  assert.equal(archiveBlockMessage('26-2', READY), null);
+  assert.equal(archiveBlockMessage('26-2', '27-1', READY), null);
 });

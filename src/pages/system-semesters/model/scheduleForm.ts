@@ -250,7 +250,7 @@ export function semesterHalfError(half: SemesterHalf | '', name: string): string
   if (!half) return '상반기·하반기를 고르세요';
   const expected = halfOfSemesterName(name);
   if (expected && expected !== half) {
-    return `반기 이름 ${name}은 ${expected === 'H1' ? '상반기' : '하반기'}입니다`;
+    return `${name} 반기는 ${expected === 'H1' ? '상반기' : '하반기'}입니다`;
   }
   return undefined;
 }

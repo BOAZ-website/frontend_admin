@@ -11,7 +11,7 @@ export async function confirmAndRemovePreparing(
 ): Promise<boolean> {
   const { name } = season;
   if (
-    !window.confirm(`진행 예정 반기 ${name}을 삭제할까요?
+    !window.confirm(`진행 예정인 ${name} 반기를 삭제할까요?
 입력한 일정과 명단이 목록에서 빠집니다.`)
   ) {
     return false;

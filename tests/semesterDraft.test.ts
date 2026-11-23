@@ -37,8 +37,8 @@ test('상반기·하반기는 골라야 하고 반기 이름의 N과 맞아야 �
   assert.equal(semesterHalfError('', '27-1'), '상반기·하반기를 고르세요');
   assert.equal(semesterHalfError('H1', '27-1'), undefined);
   assert.equal(semesterHalfError('H2', '27-2'), undefined);
-  assert.equal(semesterHalfError('H2', '27-1'), '반기 이름 27-1은 상반기입니다');
-  assert.equal(semesterHalfError('H1', '27-2'), '반기 이름 27-2은 하반기입니다');
+  assert.equal(semesterHalfError('H2', '27-1'), '27-1 반기는 상반기입니다');
+  assert.equal(semesterHalfError('H1', '27-2'), '27-2 반기는 하반기입니다');
   // 이름 형식이 틀리면 이름 칸이 오류를 보이므로 여기서는 맞춰 보지 않는다.
   assert.equal(semesterHalfError('H1', '27'), undefined);
 });
