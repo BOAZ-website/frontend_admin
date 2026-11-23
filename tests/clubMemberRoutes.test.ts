@@ -145,9 +145,9 @@ test('같은 기수에 같은 이름이 있으면 409, 형식이 틀리면 400, 
 test('기수 목록 API는 users 테이블의 기수를 큰 기수부터 돌려주고, 기수 변경을 반영한다', async () => {
   const { call } = await setup();
 
-  assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [27, 26, 25]);
+  assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [27, 26, 25, 24]);
   call('PATCH', '/api/v1/club-members/u_25_01', { term: 28 });
-  assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [28, 27, 26, 25]);
+  assert.deepEqual(call<number[]>('GET', '/api/v1/users/terms'), [28, 27, 26, 25, 24]);
 });
 
 test('운영진 역할은 정보 수정으로 달거나 뗄 수 없고, 대표 역할과 지금과 같은 역할만 받는다', async () => {
@@ -222,7 +222,7 @@ function expectApiErrorCode(work: () => unknown, status: number, code: string) {
 function linkedRowCounts(db: Awaited<ReturnType<typeof setup>>['db'], id: string) {
   const count = (sql: string) => queryAll<{ n: number }>(db, sql, [id])[0].n;
   return {
-    semesterMembers: count('SELECT COUNT(*) AS n FROM semester_members WHERE user_id = ?'),
+    semesterMembers: count('SELECT COUNT(*) AS n FROM member_enrollment WHERE member_id = ?'),
     teamMembers: count('SELECT COUNT(*) AS n FROM team_members WHERE user_id = ?'),
     leaderOf: count('SELECT COUNT(*) AS n FROM teams WHERE leader_id = ?'),
     attendance: count(
@@ -689,7 +689,7 @@ test('기수별 명단(track): status와 track을 함께 보내면 두 조건을
     `${BY_TERM}?status=COMPLETED&${trackQuery('엔지니어링')}`,
   );
   assert.equal(alumni.term, 25);
-  assert.deepEqual(alumni.terms, [25]);
+  assert.deepEqual(alumni.terms, [25, 24]);
   assert.ok(alumni.members.length > 0);
   assert.ok(alumni.members.every((m) => m.status === 'COMPLETED' && m.track === '엔지니어링'));
 });
@@ -764,7 +764,7 @@ test('삭제(DELETE)는 잘못 등록한 회원을 목록에서 지우고, 다�
   const mistaken = addMistakenMember(call);
   // 활동 회원을 추가하면 현재 반기 명단에 자동으로 들어간다. 팀 활동이 없으니 그래도 지울 수 있다.
   const rosterRows = () =>
-    queryAll(db, 'SELECT 1 FROM semester_members WHERE user_id = ?', [mistaken.id]).length;
+    queryAll(db, 'SELECT 1 FROM member_enrollment WHERE member_id = ?', [mistaken.id]).length;
   assert.equal(rosterRows(), 1);
 
   call('DELETE', `/api/v1/club-members/${mistaken.id}`);

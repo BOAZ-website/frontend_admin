@@ -54,7 +54,7 @@ test('탈동·수료 회원은 회원 선택 목록에 나오지 않지만 반�
   assert.equal(
     queryAll(
       db,
-      "SELECT 1 FROM semester_members WHERE user_id = 'u_27_07' AND cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)",
+      "SELECT 1 FROM member_enrollment WHERE member_id = 'u_27_07' AND deleted_at IS NULL AND activity_season_id = (SELECT cohort FROM cohorts WHERE is_current = 1)",
     ).length,
     1,
   );
@@ -79,7 +79,7 @@ test('수료 회원을 활동으로 되돌리면 회원 선택 목록에 나온�
     "SELECT id FROM users WHERE club_status = 'COMPLETED' LIMIT 1",
   )[0];
   // 반기 명단에 없는 수료 회원으로 만든다(수료 기수는 명단에 등록하지 않는다).
-  execute(db, 'DELETE FROM semester_members WHERE user_id = ?', [alumni.id]);
+  execute(db, 'DELETE FROM member_enrollment WHERE member_id = ?', [alumni.id]);
   assert.ok(!pickable().some((user) => user.id === alumni.id));
 
   call('PATCH', `/api/v1/club-members/${alumni.id}`, { status: 'ACTIVE' });
@@ -94,7 +94,7 @@ test('탈동·수료 회원은 API를 직접 불러도 팀원으로 추가할 �
   const { db, call } = await setup();
   const alumniId = queryAll<{ id: string }>(
     db,
-    "SELECT id FROM users WHERE club_status = 'COMPLETED' AND id IN (SELECT user_id FROM semester_members) LIMIT 1",
+    "SELECT id FROM users WHERE club_status = 'COMPLETED' AND id IN (SELECT member_id FROM member_enrollment WHERE deleted_at IS NULL) LIMIT 1",
   )[0].id;
 
   assert.throws(
@@ -108,8 +108,8 @@ const freeVisMembers = (db: Awaited<ReturnType<typeof setup>>['db']) =>
   queryAll<{ id: string }>(
     db,
     `SELECT u.id FROM users u
-       JOIN semester_members sm ON sm.user_id = u.id
-        AND sm.cohort = (SELECT cohort FROM cohorts WHERE is_current = 1)
+       JOIN member_enrollment sm ON sm.member_id = u.id AND sm.deleted_at IS NULL
+        AND sm.activity_season_id = (SELECT cohort FROM cohorts WHERE is_current = 1)
       WHERE u.club_status = 'ACTIVE' AND u.track = '시각화'
         AND u.id NOT IN (SELECT user_id FROM team_members WHERE team_id = 'base_27_vis')
       LIMIT 2`,

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
 import type { RosterKind } from '@/entities/cohort/model/dto';
+import type { SeasonInput } from '@/entities/cohort/model/season';
 import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
 import {
   FIELD_TEXT_BTN,
@@ -10,30 +11,32 @@ import {
   MODAL_CONFIRM_BTN,
 } from '@/shared/ui/systemStyles';
 
-import { useRosterConfirm } from '../model/useRosterConfirm';
+import { useSeasonPreview } from '../model/useSeasonPreview';
 import { RosterSection } from './RosterSection';
 
 interface RosterConfirmDialogProps {
-  semesterName: string;
-  /** 미리 넣을 기수(1주차 시작일을 정한 BASE·ADV 기수). */
-  terms: readonly number[];
+  /** 적용할 반기 입력. 이 값으로 서버가 자동 명단을 계산한다(ATT-82). */
+  input: SeasonInput;
   kindOf: (term: number) => RosterKind;
   isSaving: boolean;
   onCancel: () => void;
-  /** 확인한 명단으로 진행 예정 반기를 만든다(적용). */
-  onConfirm: (userIds: string[]) => void;
+  /** 진행 예정 반기를 만든다(적용). */
+  onConfirm: () => void;
 }
 
-/** 새 반기 명단 확인 창. 미리 넣은 BASE·ADV 명단을 보고, 빼거나 다른 사람을 찾아 더한 뒤 적용한다. */
+/**
+ * 새 반기 명단 확인 창. BASE·ADV 기수의 활동 중 회원으로 만들어질 명단을 보여 주고 적용한다.
+ * 빼거나 더하는 일은 반기를 만든 뒤 반기 화면의 「명단」에서 한다(백엔드 ATT-03은 명단을 받지 않는다).
+ */
 export function RosterConfirmDialog({
-  semesterName,
-  terms,
+  input,
   kindOf,
   isSaving,
   onCancel,
   onConfirm,
 }: RosterConfirmDialogProps) {
-  const roster = useRosterConfirm(terms, kindOf);
+  const preview = useSeasonPreview(input);
+  const semesterName = input.name;
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   // 적용 요청 중에는 닫지 않는다(고른 명단을 잃는 일을 막는다).
@@ -80,28 +83,30 @@ export function RosterConfirmDialog({
           </button>
         </div>
         <div className="space-y-4 overflow-y-auto px-6 py-4">
-          {roster.membersError && (
+          {preview.error && (
             <p role="status" className="text-xs text-red-600">
-              동아리원 목록을 불러오지 못했습니다.{' '}
-              <button type="button" className={FIELD_TEXT_BTN} onClick={roster.reloadMembers}>
+              명단을 불러오지 못했습니다.{' '}
+              <button type="button" className={FIELD_TEXT_BTN} onClick={preview.reload}>
                 다시 불러오기
               </button>
             </p>
           )}
-          {roster.autoMembers ? (
+          {preview.conflict && (
+            <p role="status" className="text-xs text-red-600">
+              {preview.conflict}
+            </p>
+          )}
+          {preview.members ? (
             <RosterSection
-              saved={roster.autoMembers}
-              excludedIds={roster.excludedIds}
-              added={roster.added}
+              saved={preview.members}
+              excludedIds={new Set()}
+              added={[]}
               kindOf={kindOf}
-              isReadOnly={false}
+              isReadOnly
               isSaving={isSaving}
-              onToggleExcluded={roster.handleToggleExcluded}
-              onAdd={roster.handleAddMembers}
-              onRemoveAdded={roster.handleRemoveAdded}
             />
           ) : (
-            !roster.membersError && (
+            !preview.error && (
               <p role="status" className="text-xs text-slate-500">
                 명단을 불러오는 중입니다.
               </p>
@@ -111,7 +116,7 @@ export function RosterConfirmDialog({
         <div className="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
           <span className="mr-auto text-xs text-slate-500">
             <span className="font-semibold tabular-nums text-slate-900">
-              {roster.userIds.length}
+              {preview.members?.length ?? 0}
             </span>
             명으로 적용
           </span>
@@ -126,8 +131,8 @@ export function RosterConfirmDialog({
           <button
             type="button"
             className={MODAL_CONFIRM_BTN}
-            disabled={isSaving || roster.userIds.length === 0}
-            onClick={() => onConfirm(roster.userIds)}
+            disabled={isSaving || !preview.members || preview.conflict !== null}
+            onClick={onConfirm}
           >
             {isSaving ? '적용하는 중' : '적용'}
           </button>

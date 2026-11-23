@@ -13,8 +13,7 @@ import { loadEventState } from '@/entities/event/api/eventRepository';
 import { TEAM_API_PATHS } from '@/entities/study-team/model/dto';
 import { queryAll } from '@/shared/db/createDatabase';
 
-import type { HttpMethod, MockRequest, MockRoute } from './router';
-import { semesterRecordCounts } from './semesterOps';
+import type { HttpMethod, MockRequest, MockRoute, RouteAudit } from './router';
 import { currentSession } from './session';
 
 /** 임시 API는 요청한 곳의 IP를 알 수 없어 이 컴퓨터 주소로 남긴다. */
@@ -446,57 +445,12 @@ export const AUDIT_RULES: readonly AuditRule[] = [
     targets: semesterOf,
   },
   {
-    method: 'POST',
-    pattern: '/api/v1/semesters/prepare',
-    action: 'SEMESTER_CREATE',
-    targetType: 'SEMESTER',
-    targets: semesterOf,
-  },
-  {
-    method: 'POST',
-    pattern: '/api/v1/semesters/:semester/activate',
-    action: 'SEMESTER_ACTIVATE',
-    targetType: 'SEMESTER',
-    targets: semesterOf,
-  },
-  {
-    method: 'DELETE',
-    pattern: '/api/v1/semesters/:semester',
-    action: 'SEMESTER_DELETE',
-    targetType: 'SEMESTER',
-    targets: semesterOf,
-    // 반기를 지워도 남는 팀·출결·행사 기록 건수를 함께 남긴다(지우기 전에 센다).
-    before: (r, ids) => {
-      const cohort = queryAll<{ cohort: number }>(
-        r.db,
-        'SELECT cohort FROM cohorts WHERE semester_label = ? AND deleted_at IS NULL',
-        [ids[0] ?? ''],
-      )[0]?.cohort;
-      return cohort === undefined ? {} : { ...semesterRecordCounts(r.db, cohort) };
-    },
-    detail: (_r, { before }) => before,
-  },
-  {
-    method: 'PUT',
-    pattern: '/api/v1/semesters/:semester/schedule',
-    action: 'SEMESTER_SCHEDULE_SET',
-    targetType: 'SEMESTER',
-    targets: semesterOf,
-  },
-  {
     method: 'PATCH',
     pattern: '/api/v1/semesters/:semester',
     action: 'SEMESTER_UPDATE',
     targetType: 'SEMESTER',
     targets: semesterOf,
     detail: changedFields,
-  },
-  {
-    method: 'PUT',
-    pattern: '/api/v1/semesters/:semester/members',
-    action: 'SEMESTER_MEMBERS_SET',
-    targetType: 'SEMESTER',
-    targets: semesterOf,
   },
   {
     method: 'PATCH',
@@ -528,8 +482,13 @@ export const IGNORED_WRITES: readonly { method: HttpMethod; pattern: string }[] 
   { method: 'PUT', pattern: '/api/v1/mock/admin-session' },
 ];
 
-const ruleOf = (route: MockRoute): AuditRule | undefined =>
-  AUDIT_RULES.find((rule) => rule.method === route.method && rule.pattern === route.pattern);
+/** 탭이 경로 옆에 적은 감사 기록(route.audit)을 먼저 쓰고, 없으면 이 파일의 규칙을 찾는다. */
+const ruleOf = (route: MockRoute): (AuditRule & RouteAudit) | undefined =>
+  route.audit === null
+    ? undefined
+    : route.audit
+      ? { method: route.method, pattern: route.pattern, ...route.audit }
+      : AUDIT_RULES.find((rule) => rule.method === route.method && rule.pattern === route.pattern);
 
 /** 사람이 아닌 대상의 이름. 지워진 뒤에도 알아볼 수 있게 기록에 남긴다. */
 function nonPersonLabel(db: Database, type: AuditTargetType, id: string): string | undefined {
@@ -583,7 +542,9 @@ function now(): string {
  */
 export function recordWrite(request: MockRequest, route: MockRoute, run: () => unknown): unknown {
   const rule = ruleOf(route);
-  if (!rule) return run();
+  // 미리 계산(dryRun=true)은 아무것도 바꾸지 않으므로 남기지 않는다.
+  // 미리 계산처럼 저장하지 않는 요청은 경로의 audit.isSkipped가 정한다.
+  if (!rule || rule.isSkipped?.(request)) return run();
   const { db } = request;
   const beforeIds = rule.targets(request, undefined);
   const before = rule.before?.(request, beforeIds) ?? {};

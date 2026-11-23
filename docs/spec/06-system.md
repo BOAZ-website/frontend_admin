@@ -284,47 +284,58 @@
 
 ### 4.6 반기 관리 `SYS-SEM` *(2026-11-05 추가 — 임시 API 단계)*
 
-**화면 목적**: 반기 하나의 이름·기수·기간·주차·명단을 한 화면에서 정한다. 상태는 진행 예정·진행·종료 세 가지다. 반기는 "새 반기 시작"으로만 만든다. "새 반기 시작"을 누르면 목록에 "진행 예정" 묶음이 생기고, 입력한 뒤 "적용"을 눌러 명단을 고르면 진행 예정 반기로 등록된다(진행 반기는 그대로). 진행 예정 반기를 열어 "활성화"를 누르면 그 반기가 진행 반기가 되고 이전 진행 반기는 종료되며, "진행 예정" 묶음은 사라진다. 종료 버튼은 따로 없다. 화면에 들어오면 진행 반기가 열려 있다(2026-11-07 결정: 2026-11-06에 없앤 준비·활성화 단계를 다시 둠).
+**화면 목적**: 반기 하나의 이름·기수·기간·주차·명단을 한 화면에서 정한다. 상태는 진행 예정·진행·종료 세 가지다. 반기는 "새 반기 시작"으로만 만든다. "새 반기 시작"을 누르면 목록에 "진행 예정" 묶음이 생기고, 입력한 뒤 "적용"을 눌러 명단을 고르면 진행 예정 반기로 등록된다(진행 반기는 그대로). 진행 예정 반기를 열어 "활성화"를 누르면 진행 반기의 종료 점검 → 종료 → 활성화를 차례로 하고, "진행 예정" 묶음은 사라진다. 종료 버튼은 따로 없다. 화면에 들어오면 진행 반기가 열려 있다(2026-11-07 결정: 2026-11-06에 없앤 준비·활성화 단계를 다시 둠. 2026-11-13: 활성화가 진행 반기를 자동으로 종료하지 않는 백엔드 ATT-05·10·11 반영).
 
 | ID | 기능 | 입력 방식 | 설명 |
 | --- | --- | --- | --- |
-| SEM-01 | 기본 | 직접 입력 · 버튼 | 반기 이름(예: `26-2`). 상태(진행 예정·진행·종료). 목록의 삭제 버튼은 진행 예정 반기에만 있다 |
-| SEM-02 | 기수 지정 | 직접 선택 | 이번 반기의 BASE 기수와 ADV 기수(예: 28기 BASE, 27기 ADV). 반기 번호는 BASE 기수와 같다. 저장한 뒤에는 바꿀 수 없다. ADV 팀장 입력 시작 주차(1~16, 기본 4주차)도 여기서 정하고, 비우면 적용할 수 없다. 그 앞 주차는 운영지원팀이 ADV 출결 관리에서 입력한다(ATT-LDR) |
-| SEM-03 | 기간 | 직접 입력 | 방학·학기 각각의 시작일·종료일. 방학 종료일은 학기 시작일보다 앞이어야 한다 |
-| SEM-04 | 1주차 시작일 | 직접 입력 + 확인 | BASE · ADV · 방학 스터디 · 학기 스터디별 1주차 시작일. 이후 주차(1~8주차) 날짜는 7일씩 더해 자동으로 보여 준다 |
-| SEM-05 | 무효 주차 | 체크 | 활동별로 휴강 등 출결에서 뺄 주차를 체크한다 |
-| SEM-06 | 명단 | 사람을 골라 추가 | 명단은 빈 상태에서 시작하고 자동으로 채우지 않는다. 기수·이름으로 거른 동아리원(탈동 제외)을 체크해 한 번에 더한다(줄 클릭, Shift 범위 선택, 보이는 사람 모두 고르기). 구분은 사람의 기수로 정한다(BASE 기수 BASE, ADV 기수 ADV, 그 밖 수료 기수). 진행 반기 화면에서도 사람을 더하거나 빼고 저장할 수 있다 |
-| SEM-07 | 적용 · 활성화 | 버튼 | 적용: 명단에 한 명 이상 있어야 누를 수 있고, 진행 예정 반기로 등록한다. 활성화: 진행 예정 반기 화면에 있고, 확인 창을 거쳐 진행 반기가 되며 이전 진행 반기는 종료된다. 저장하지 않은 일정·명단이 있으면 누를 수 없다. |
+| SEM-01 | 기본 | 직접 입력 · 버튼 | 반기 이름(예: `26-2`)과 상반기(H1)·하반기(H2) 드롭다운(반기 이름의 N과 맞아야 함, 2026-11-20 추가). 상태(진행 예정·진행·종료). 목록의 삭제 버튼은 진행 예정 반기에만 있다 |
+| SEM-02 | 기수 지정 | 직접 선택 | 이번 반기의 BASE 기수와 ADV 기수(예: 28기 BASE, 27기 ADV). 반기 번호는 BASE 기수와 같다. 저장한 뒤에는 바꿀 수 없다. |
+| SEM-03 | 기간 | 직접 입력 | 방학·학기 각각의 시작일·종료일. 방학 종료일은 학기 시작일보다 앞이어야 한다. 방학은 7주 이상, 학기는 10주 이상이어야 한다(2026-11-08 결정, 서버 400 `INVALID_DATE_RANGE`) |
+| SEM-04 | 1주차 시작일 | 직접 입력 + 확인 | BASE · ADV · 방학 스터디 · 학기 스터디별 1주차 시작일. BASE·ADV는 시작일 하나로 방학·학기를 이어 1~16주차, 스터디는 1~8주차 날짜를 7일씩 더해 자동으로 보여 준다(2026-11-08 결정). 방학·학기 사이 쉬는 주는 휴강 주차로 뺀다 |
+| SEM-05 | 휴강 주차 | 드롭다운(여러 주 체크) | 방학·학기 드롭다운에서 공통 주차(방학·학기 기간을 월~일 주로 나눠 이어 센 번호)를 체크한다. 휴강은 모든 활동(BASE·ADV·스터디)에 적용된다(백엔드 ATT-09). 새 반기는 2주까지(ATT-82·03), 확정된 반기는 한도 없이 주차마다 영향 건수를 확인한 뒤 바로 저장한다(2026-11-13) |
+| SEM-06 | 명단 | 자동 명단 + 수료 기수 추가 | 반기를 만들 때 서버가 이번 반기의 BASE·ADV 기수 활동 중 회원을 기수 단위로 명단에 넣는다(ATT-03). 스터디는 수료 기수 회원도 참여할 수 있어, BASE·ADV 기수가 아닌 동아리원(탈동 제외)을 기수·이름으로 걸러 체크해 수료 기수로 더한다(ATT-19, 줄 클릭, Shift 범위 선택, 보이는 사람 모두 고르기). 명단 표에는 기수·부문·이름·병행 여부(병행 부문, 없으면 `-`)·구분을 보이고, 고치는 동안 BASE·ADV 줄의 병행 부문을 바꿀 수 있다(ATT-21). 진행 반기 화면에서도 더하거나 빼고 저장할 수 있다(2026-11-20 변경) |
+| SEM-07 | 적용 · 활성화 | 버튼 | 적용: 명단에 한 명 이상 있어야 누를 수 있고, 진행 예정 반기로 등록한다. 활성화: 진행 예정 반기 화면에 있다. 확인 창을 거친 뒤 진행 반기가 있으면 ① 종료 점검(막는 항목이 있으면 이유를 알리고 멈춤) ② 진행 반기 종료 ③ 활성화를 차례로 한다. 종료 뒤 활성화만 실패하면 진행 반기가 없는 채로 남고, 다시 누르면 활성화만 한다. 저장하지 않은 일정·명단이 있으면 누를 수 없다. |
 
 **상태 규칙**
 
 | 상태 | 뜻 | 할 수 있는 것 |
 | --- | --- | --- |
-| 진행 예정 (`PREPARING`) | 새 반기 작성에서 적용한 반기. 한 번에 하나. 반기 관리에만 보이고 출결 화면에는 보이지 않는다 | 일정·휴강·명단 수정, 삭제, 활성화. 활성화하면 진행 반기가 된다. 수정·삭제는 이 상태에서만 한다 |
-| 진행 (`ACTIVE`) | 출결 화면이 기준으로 쓰는 반기. 한 번에 하나 | 조회만. 진행 예정 반기를 활성화하면 종료된다 |
-| 종료 (`ENDED`) | 지난 반기 | 조회만 |
+| 진행 예정 (`DRAFT`) | 새 반기 작성에서 적용한 반기. 한 번에 하나. 반기 관리에만 보이고 출결 화면에는 보이지 않는다 | 모든 설정 수정, 삭제, 활성화. 활성화하면 진행 반기가 된다 |
+| 진행 (`ACTIVE`) | 출결 화면이 기준으로 쓰는 반기. 한 번에 하나 | 명단(병행 정보 추가, 스터디에 참여하는 수료 기수 추가)과 휴강 주차만 수정. 나머지 설정은 조회만. 종료 점검을 통과해야 종료된다 |
+| 종료 (`ARCHIVED`) | 지난 반기 | 조회만 |
 
-- 일정·휴강·명단 수정과 삭제는 진행 예정 반기만 한다. 진행 중·종료 반기는 서비스운영팀장(MASTER)을 포함해 모든 계정이 조회만 하고, 서버도 409 `SEMESTER_LOCKED`로 막는다(2026-11-07 결정).
+- 진행 예정 반기만 모든 설정을 고치고 지울 수 있다. 진행 반기는 명단(병행 정보 추가, 스터디에 참여하는 수료 기수 추가)과 휴강 주차만 고치고, 나머지 설정(반기 이름·상반기·하반기, 기수, 기간, 1주차 시작일, ADV 팀장 입력 시작 주차, 점수 규칙 버전)은 고칠 수 없다. 진행 예정이 아닌 반기를 고치면 서버가 409 `SEASON_NOT_DRAFT`로 막는다(2026-11-20 정리, 백엔드 ATT-04). 종료 반기는 서비스운영팀장(MASTER)을 포함해 모든 계정이 조회만 하고, 서버도 409 `SEMESTER_LOCKED`로 막는다(2026-11-13 변경. 이전에는 진행 반기도 조회만 했다).
 - 반기 삭제는 행을 지우지 않는다(soft delete, `cohorts.deleted_at`). 지운 반기는 목록·조회·중복 검사에서 빠진다.
-- 진행 예정 반기를 활성화하면 그 전 진행 반기의 팀을 HOST 계정에서 떼고, 맡은 팀이 남지 않은 HOST 계정은 지운다. 팀·출결 기록은 남는다.
-- 이전 진행 반기에 진행 중(`OPEN`)인 주차가 남아 있어도 활성화는 막지 않는다. 반기 관리 화면에는 주차 마감 버튼이 없다(2026-11-07 결정). 주차 상태는 기존 주차 상태 변경 API(`PATCH /api/v1/semesters/:semester/weeks/:weekNum`)로 바꾼다.
+- 활성화는 진행 반기를 자동으로 종료하지 않는다. 진행 반기가 있으면 409 `ACTIVE_SEMESTER_EXISTS`이고, 종료 점검(백엔드 ATT-10) → 종료(ATT-11)를 먼저 한다. 화면은 활성화 버튼 하나로 세 API를 차례로 부른다(백엔드 ATT-05, 2026-11-13).
+- 종료 점검은 진행 반기의 마지막 주차가 마감됐는지와 막는 항목(승인 대기·미해결 반려·필수 제출 누락)을 본다. 임시 API는 제출 승인 상태가 없어 마지막 주차(16주차) 마감만 본다. 반기 관리 화면에는 주차 마감 버튼이 없고, 주차 상태는 기존 주차 상태 변경 API(`PATCH /api/v1/semesters/:semester/weeks/:weekNum`)로 바꾼다.
+- 진행 반기를 종료하면 맡은 그룹 연결을 비우고, 시작 전·진행 중인 그룹을 맡지 않은 HOST 계정을 지운다(진행 예정 반기 팀장으로 미리 지정된 계정은 남는다). 팀·출결 기록은 남는다.
 - 반기 관리와 모든 출결 화면의 반기 선택은 같은 반기 목록(`GET /api/v1/semesters`, 진행·종료 반기 전체)을 쓴다. 반기 관리만 `includePreparing=true`로 진행 예정 반기도 받는다. 출결 기록이 없는 반기도 보인다.
 - 출결 화면(BASE·ADV·스터디 출결 관리)의 주차는 반기 관리의 1주차 시작일·휴강과 따로 관리한다. 출결 화면은 주차 API(`GET /api/v1/semesters/:semester/weeks`)의 값만 쓰고, 반기 일정을 저장해도 그 값은 바뀌지 않는다(2026-11-06 결정). 실제 주차 목록은 백엔드 API로 받는다.
 
-**임시 API 계약 (초안 — 백엔드와 확정 전, `SYS-API-4`)**
+**임시 API 계약 (백엔드 명세 ATT-01~05·08~12·18·19·21·22·82·83 그대로, 2026-11-20)**
+
+경로 앞의 `...`는 `/api/v1/admin/attendance`다. 성공 응답은 `{ status, data }`로 감싸고, 필드는 snake_case다. 출결 화면은 아직 옛 반기 API(`GET /api/v1/semesters`, `GET /api/v1/semesters/:semester/weeks`)를 쓴다.
 
 | 메서드 · 경로 | 요청 | 응답 | 오류 |
 | --- | --- | --- | --- |
-| `GET /api/v1/semesters?includePreparing=true` | — (`includePreparing`는 반기 관리 화면만) | `SemesterDto[]`(진행·종료 반기, 큰 기수부터, `status` 포함. `includePreparing=true`면 진행 예정 반기도) | — |
-| `POST /api/v1/semesters/prepare` | `{ semester, baseTerm, advTerm, advLeaderEntryFromWeek, schedule, userIds }`(`advLeaderEntryFromWeek`는 ADV 팀장 입력 시작 주차 1~16. `schedule`은 아래 일정 저장 본문과 같다. `userIds`는 명단에 넣을 회원 id) | 만든 `SemesterDto`(`status: PREPARING`). 진행 반기는 바뀌지 않는다. 명단은 `userIds` 그대로이며 자동으로 채우지 않는다 | 400 `BAD_REQUEST` · `INVALID_TERM`(ADV ≥ BASE, BASE가 등록된 반기 이하) · `ADV_LEADER_ENTRY_WEEK_REQUIRED`(시작 주차가 비었거나 1~16 밖) · `INVALID_DATE_RANGE` · `USER_NOT_FOUND`(없는 회원 id) · `USER_WITHDRAWN`(탈동 회원). 409 `SEMESTER_DUPLICATE` · `SEMESTER_PREPARING_EXISTS`(진행 예정 반기가 이미 있음) · `ROSTER_EMPTY`(빈 명단). 실패하면 아무것도 바뀌지 않는다 |
-| `POST /api/v1/semesters/:semester/activate` | — | 진행 반기가 된 `SemesterDto`(`status: ACTIVE`). 이전 진행 반기는 종료된다 | 409 `SEMESTER_NOT_PREPARING`(진행 예정 반기가 아님) · `ROSTER_EMPTY` |
-| `GET /api/v1/semesters/:semester/roster` | — | `{ members: { userId, name, term, track, kind: BASE · ADV · EXTRA }[] }` | 404 `NOT_FOUND` |
-| `PUT /api/v1/semesters/:semester/members` | `{ userIds: string[] }`(명단 전체) | 저장된 회원 목록 | 400 `USER_NOT_FOUND`, 409 `SEMESTER_LOCKED`(진행 중·종료 반기) |
-| `GET /api/v1/semesters/:semester/schedule` | — | `{ vacation, term, activityStarts, invalidWeeks, weeks }` | 404 `NOT_FOUND` |
-| `PUT /api/v1/semesters/:semester/schedule` | `{ vacation: { startDate, endDate }, term, activityStarts: { BASE?, ADV?, STUDY_VACATION?, STUDY_TERM? }, invalidWeeks: { activity, weekNum, reason? }[] }` | 저장 뒤 다시 읽은 일정 | 400 `BAD_REQUEST` · `INVALID_DATE_RANGE`, 409 `SEMESTER_LOCKED`(진행 중·종료 반기) |
-| `DELETE /api/v1/semesters/:semester` | — | 지운 `SemesterDto`(soft delete) | 409 `SEMESTER_LOCKED`(진행 중·종료 반기) |
+| `GET /api/v1/admin/attendance/seasons` (ATT-01) | — | `{ status, data: [{ id, name, year, half, status(DRAFT·ACTIVE·ARCHIVED), base_term, adv_term, start_date, end_date, is_editable }] }`. 진행 예정 → 진행 → 종료, 최근 반기부터 | — |
+| `GET .../seasons/:seasonId` (ATT-02) | — | 반기 상세: 기본값, 활동별 1주차 시작일(`*_start_on`), `first_weeks`, `adv_leader_entry_from_week`, `score_rule_set`, `periods`, `void_weeks`, `roster_summary` | 404 `SEASON_NOT_FOUND` |
+| `GET .../seasons/:seasonId/weeks` (ATT-08) | — | 공통 주차 `[{ week_id, week_no, period_type, period_week_no, start_date, end_date, is_void, is_current, is_closed, activity_week_nos, ... }]` | 404 |
+| `POST .../seasons/preview` (ATT-82) | ATT-03 본문에서 `score_rule_set_id`를 뺀 것 | 저장하지 않은 주차·자동 명단(`roster_members`)·중복 여부(`conflicts`) | 400 `INVALID_INPUT_VALUE` · `SEASON_PERIOD_OVERLAP` · `SEASON_VOID_WEEK_LIMIT_EXCEEDED` |
+| `POST .../seasons` (ATT-03) | `{ name, half, base_term, adv_term, score_rule_set_id, periods[2](월요일 시작·일요일 끝), base_start_on, adv_start_on, vacation_study_start_on, semester_study_start_on, void_week_nos(최대 2) }` | 201. DRAFT 반기. 명단은 BASE·ADV 기수의 활동 중 회원으로 서버가 만든다. ADV 팀장 입력 시작 주차는 ADV 4주차 | 400 위와 같음, 409 `DUPLICATE_ACTIVITY_SEASON` · `DUPLICATE_BASE_TERM`, 404 `SCORE_RULE_SET_NOT_FOUND` |
+| `PATCH .../seasons/:seasonId` (ATT-04) | 보낸 칸만 바꿈: `name`, `half`, `*_start_on`, `adv_leader_entry_from_week_id`(null이면 닫음), `score_rule_set_id`, `periods`. 기수는 받지 않음 | ATT-02 모양에서 `void_weeks`를 뺀 것. 기간을 바꾸면 같은 달력 주의 주차 id·휴강을 그대로 둔다 | 409 `SEASON_NOT_DRAFT` · `SEASON_ADV_ENTRY_WEEK_CHANGED` · `SEASON_WEEK_IN_USE`, 400 `INVALID_INPUT_VALUE` |
+| `DELETE .../seasons/:seasonId` (ATT-83) | — | `{ status: 200, data: null }`. 기간·주차·명단·그룹을 함께 지운다 | 409 `SEASON_NOT_DELETABLE`(진행 예정이 아니거나 출결 기록이 있음) |
+| `PATCH .../seasons/:seasonId/activate` (ATT-05) | 본문 없음 | `{ id, name, year, half, status: ACTIVE, is_editable: false }` | 409 `ACTIVE_SEASON_EXISTS` · `SEASON_NOT_DRAFT` |
+| `GET .../seasons/:seasonId/archive-readiness` (ATT-10) | `period_id`(선택) | `{ season_id, season_status, season_block_reason, can_archive, last_week, blocking_items, warnings, ... }`. 임시 API는 마지막 주차가 끝났는지만 본다 | 404 |
+| `PATCH .../seasons/:seasonId/archive` (ATT-11) | `{ confirm: true }` | `{ id, name, status: ARCHIVED, ... }`. 맡은 그룹이 없어진 HOST 계정을 지운다 | 409 `SEASON_NOT_FINISHED` · `SEASON_ARCHIVED` · `SEASON_NOT_ACTIVE` |
+| `PATCH .../weeks/:weekId/void?dry_run=` (ATT-09) | `{ is_void }` | `{ week_id, is_void, changed, dry_run, impact }`. 반기 전체 2주까지 | 400 `SEASON_VOID_WEEK_LIMIT_EXCEEDED`, 409 `SEASON_ARCHIVED` |
+| `GET .../score-rule-sets` (ATT-12, 협의 중) | — | `{ rule_sets: [{ id, name, ... }] }` | — |
+| `GET .../seasons/:seasonId/enrollments` (ATT-18, 협의 중) | `term`, `season_role`, `track`, `keyword`, `include_cancelled` | `{ summary, total_count, enrollments: [{ enrollment_id, member_id, ..., parallel_track, version }] }` | 400 `INVALID_PARAMETER_TYPE` |
+| `POST .../seasons/:seasonId/enrollments` (ATT-19, 협의 중) | `{ member_id, season_role, ... }` | 201. 등록 취소한 회원이면 다시 살린다(`is_rejoined`) | 409 `DUPLICATE_ENROLLMENT` · `MEMBER_WITHDRAWN` · `SEASON_ARCHIVED`, 404 `MEMBER_NOT_FOUND` |
+| `PATCH .../enrollments/:enrollmentId` (ATT-21, 협의 중) | `{ version, season_role?, parallel_track?, menmen_joined?, chinba_joined?, note? }` | 바꾼 명단 줄(`version` + 1) | 409 `OPTIMISTIC_LOCK_CONFLICT` · `ENROLLMENT_IN_USE` |
+| `DELETE .../enrollments/:enrollmentId?version=` (ATT-22, 협의 중) | — | `{ status: 200, data: null }` | 409 `ENROLLMENT_IN_USE`(출결 기록 있음) · `OPTIMISTIC_LOCK_CONFLICT`, 400 `MISSING_PARAMETER` |
 
-> 날짜는 모두 `YYYY-MM-DD`다. 쓰기 API는 감사 로그에 `SEMESTER_CREATE`(적용) · `SEMESTER_ACTIVATE`(활성화) · `SEMESTER_SCHEDULE_SET` · `SEMESTER_MEMBERS_SET` · `SEMESTER_DELETE`로 남는다.
+> 날짜는 모두 `YYYY-MM-DD`다. 쓰기 API는 감사 로그에 `SEMESTER_CREATE`(적용) · `SEMESTER_ARCHIVE`(종료) · `SEMESTER_ACTIVATE`(활성화) · `SEMESTER_SCHEDULE_SET` · `SEMESTER_MEMBERS_SET` · `SEMESTER_DELETE`로 남는다.
 > 무효 주차의 변경 이력 표시(WBS SYS-SEM RULE-02)는 2026-11-05 기준 화면에 없다.
 
 ---

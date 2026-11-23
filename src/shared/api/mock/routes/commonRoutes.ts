@@ -8,7 +8,6 @@ import type { Database } from 'sql.js';
 import type { WeekStatus } from '@/entities/attendance/model/week';
 import type { AttendanceMetaResponse } from '@/entities/attendance/model/dto';
 import type { SemesterDto } from '@/entities/cohort/model/dto';
-import { listSemesterUsers } from '@/entities/user/api/usersRepository';
 import type { UserTrack } from '@/entities/user/model/types';
 import { execute, queryAll } from '@/shared/db/createDatabase';
 
@@ -27,7 +26,7 @@ import {
   weekIdOf,
 } from '../queries';
 import { ApiError, type MockRoute } from '../router';
-import { assertPreparing, makeSemesterCurrent, replaceSemesterMemberIds } from '../semesterOps';
+import { assertPreparing, makeSemesterCurrent } from '../semesterOps';
 import {
   type Body,
   oneOf,
@@ -37,7 +36,6 @@ import {
   parsePositiveInt,
   readBody,
   requiredString,
-  stringArray,
   weekDatesOf,
 } from '../validate';
 
@@ -154,10 +152,14 @@ export const commonRoutes: MockRoute[] = [
     method: 'PATCH',
     pattern: '/api/v1/semesters/:semester',
     summary:
-      '반기 수정(기간·ADV 기수·점수 집계 대상 기수). 다른 반기를 isCurrent: true로 바꾸면 시작 전·진행 중인 그룹을 맡지 않은 HOST 계정을 삭제하고 팀·출결은 보존한다(준비 반기는 409, 활성화 API로)',
+      '반기 수정(기간·ADV 기수·점수 집계 대상 기수). 기간·기수는 진행 예정 반기만 고친다(진행·종료 반기는 409 SEMESTER_LOCKED). 다른 반기를 isCurrent: true로 바꾸면 시작 전·진행 중인 그룹을 맡지 않은 HOST 계정을 삭제하고 팀·출결은 보존한다(준비 반기는 409, 활성화 API로)',
     handler: ({ db, params, body }) => {
       const semester = resolveSemester(db, params.semester);
       const input = readBody(body);
+      // 진행 반기는 명단·휴강만 고치고, 기간·기수 같은 나머지 설정은 진행 예정 반기만 고친다(반기 정책).
+      if (['startDate', 'endDate', 'advTerm', 'memberTerms'].some((key) => key in input)) {
+        assertPreparing(semester, '진행 중이거나 종료된 반기의 기간·기수는 고칠 수 없습니다.');
+      }
       if (optionalBoolean(input, 'isCurrent') === false) {
         throw new ApiError(
           400,
@@ -190,20 +192,6 @@ export const commonRoutes: MockRoute[] = [
       const memberTerms = termsOf(input, 'memberTerms');
       if (memberTerms) writeMemberTerms(db, semester.cohort, memberTerms);
       return semesterOrThrow(db, semester.cohort);
-    },
-  },
-  {
-    method: 'PUT',
-    pattern: '/api/v1/semesters/:semester/members',
-    summary:
-      '반기별 출결 회원 명단 전체 등록. 본문에 없는 기존 명단은 빠지고 전역 사용자 정보는 유지된다',
-    handler: ({ db, params, body }) => {
-      const semester = resolveSemester(db, params.semester);
-      const { cohort } = semester;
-      assertPreparing(semester, '진행 중이거나 종료된 반기의 명단은 고칠 수 없습니다.');
-      const userIds = stringArray(readBody(body), 'userIds', { required: true });
-      replaceSemesterMemberIds(db, cohort, userIds);
-      return listSemesterUsers(db, cohort);
     },
   },
   {

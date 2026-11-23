@@ -195,7 +195,7 @@ export function updateClubMember(db: Database, member: ClubMember): void {
 
 /**
  * 활동 기록이 있는 회원인지: 팀원(팀 명단)이었거나 팀장이었으면 true. 출결 기록은 팀원 행에 붙어 있어 함께 잡힌다.
- * 반기 명단(semester_members)만 있는 것은 활동 기록으로 보지 않는다(추가하면 현재 반기 명단에 자동으로 들어가기 때문).
+ * 반기 등록(member_enrollment)만 있는 것은 활동 기록으로 보지 않는다(추가하면 현재 반기 명단에 자동으로 들어가기 때문).
  */
 export function hasActivityRecords(db: Database, userId: string): boolean {
   return (
@@ -214,6 +214,6 @@ export function hasActivityRecords(db: Database, userId: string): boolean {
 /** 잘못 등록한 회원을 지운다. 회원 행은 남기고 deleted_at만 적는다(목록·조회에서 빠진다). */
 export function deleteClubMember(db: Database, userId: string): void {
   execute(db, "UPDATE users SET deleted_at = datetime('now') WHERE id = ?", [userId]);
-  // 활동 기록이 없을 때만 지우므로, 남은 반기 명단 행(추가할 때 자동으로 들어간 것)도 함께 뺀다.
-  execute(db, 'DELETE FROM semester_members WHERE user_id = ?', [userId]);
+  // 활동 기록이 없을 때만 지우므로, 남은 반기 등록(추가할 때 자동으로 들어간 것)도 함께 뺀다.
+  execute(db, 'DELETE FROM member_enrollment WHERE member_id = ?', [userId]);
 }

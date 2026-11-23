@@ -33,7 +33,7 @@ async function setup() {
   const SQL = await initSqlJs();
   const db = createDatabase(SQL, schema, seed);
   // 오늘 날짜와 상관없이 현재 반기의 방학·학기 스터디가 모두 진행 중이게 한다.
-  execute(db, 'UPDATE semester_periods SET end_date = ?', [FAR_FUTURE]);
+  execute(db, 'UPDATE season_period SET end_date = ?', [FAR_FUTURE]);
   const router = createRouter(MOCK_ROUTES);
   const call = <T>(method: Method, path: string, body?: unknown) =>
     router.dispatch(db, method, path, body) as T;
@@ -91,7 +91,7 @@ test('표: 기간이 끝난 스터디와 팀장이 없는 팀은 나오지 않�
   // 방학 기간을 이미 끝난 날짜로 바꾼다(시작일 다음 날).
   execute(
     db,
-    "UPDATE semester_periods SET end_date = date(start_date, '+1 day') WHERE period = '방학'",
+    "UPDATE season_period SET end_date = date(start_date, '+1 day') WHERE period_type = 'VACATION'",
   );
   execute(db, "UPDATE teams SET leader_id = NULL WHERE id = 'adv_t3'");
 
@@ -153,7 +153,7 @@ test('발급: 진행 중이 아닌 그룹은 409 GROUP_NOT_IN_PROGRESS, 탈퇴�
   const { db, call } = await setup();
   execute(
     db,
-    "UPDATE semester_periods SET end_date = date(start_date, '+1 day') WHERE period = '방학'",
+    "UPDATE season_period SET end_date = date(start_date, '+1 day') WHERE period_type = 'VACATION'",
   );
   execute(db, "UPDATE teams SET leader_id = 'u_28_05' WHERE id = 'study_b'");
   expectApiError(

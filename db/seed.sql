@@ -24,24 +24,50 @@ SELECT cohort, cohort - 1 FROM cohorts
 UNION ALL
 SELECT cohort, cohort FROM cohorts;
 
--- 반기별 방학·학기 기간과 활동별 1주차 시작일. 반기마다 네 활동의 시작일을 모두 둔다. 27(26-2)의 BASE 1~8주차 날짜는 아래 cohort_week_dates와 같다.
+-- 반기별 방학·학기 기간과 활동별 1주차 시작일. 27(26-2)의 BASE 1~8주차 날짜는 아래 cohort_week_dates와 같다.
 -- 26(26-1)은 지난 반기 화면을 보여 주기 위한 예시 일정이다(2026-11-07 추가).
-INSERT INTO semester_periods (cohort, period, start_date, end_date) VALUES
-  (26, '방학', '2026-01-01', '2026-02-28'),
-  (26, '학기', '2026-03-02', '2026-06-30'),
-  (27, '방학', '2026-07-01', '2026-08-31'),
-  (27, '학기', '2026-09-01', '2026-12-31');
-INSERT INTO semester_activity_starts (cohort, activity, start_date) VALUES
-  (26, 'BASE', '2026-01-06'),
-  (26, 'ADV', '2026-01-07'),
-  (26, 'STUDY_VACATION', '2026-01-08'),
-  (26, 'STUDY_TERM', '2026-03-04'),
-  (27, 'BASE', '2026-07-07'),
-  (27, 'ADV', '2026-07-08'),
-  (27, 'STUDY_VACATION', '2026-07-07'),
-  (27, 'STUDY_TERM', '2026-09-02');
-INSERT INTO semester_invalid_weeks (cohort, activity, week_num, reason) VALUES
-  (26, 'BASE', 7, '설 연휴');
+-- 기간은 월요일에 시작해 일요일에 끝난다(백엔드 ATT-03).
+INSERT INTO season_period (activity_season_id, period_type, start_date, end_date) VALUES
+  (26, 'VACATION', '2025-12-29', '2026-03-01'),
+  (26, 'SEMESTER', '2026-03-02', '2026-06-28'),
+  (27, 'VACATION', '2026-06-29', '2026-08-30'),
+  (27, 'SEMESTER', '2026-08-31', '2026-12-27');
+UPDATE cohorts SET half = CASE WHEN semester_label GLOB '*-1' THEN 'H1' ELSE 'H2' END;
+UPDATE cohorts SET base_start_on = '2026-01-06', adv_start_on = '2026-01-07',
+                   vacation_study_start_on = '2026-01-08', semester_study_start_on = '2026-03-04'
+ WHERE cohort = 26;
+UPDATE cohorts SET base_start_on = '2026-07-06', adv_start_on = '2026-07-06',
+                   vacation_study_start_on = '2026-07-06', semester_study_start_on = '2026-09-02'
+ WHERE cohort = 27;
+
+-- 공통 주차: 기간마다 시작일이 든 주의 월요일부터 종료일이 든 주까지 월~일 주를 만들고 반기 안에서 이어 번호를 매긴다.
+-- 앞 기간과 같은 주는 다시 만들지 않는다. 화면·임시 API가 기간을 저장할 때 쓰는 commonWeeksOf와 같은 규칙이다.
+WITH RECURSIVE weeks_of(activity_season_id, period_id, period_type, monday, last_day) AS (
+  SELECT activity_season_id, id, period_type,
+         date(start_date, '-6 days', 'weekday 1'), end_date
+    FROM season_period
+  UNION ALL
+  SELECT activity_season_id, period_id, period_type, date(monday, '+7 days'), last_day
+    FROM weeks_of WHERE date(monday, '+7 days') <= last_day
+),
+first_of_monday AS (
+  SELECT activity_season_id, monday, MIN(period_id) AS period_id
+    FROM weeks_of GROUP BY activity_season_id, monday
+)
+INSERT INTO season_week (activity_season_id, period_id, week_no, start_date, end_date)
+SELECT activity_season_id, period_id,
+       ROW_NUMBER() OVER (PARTITION BY activity_season_id ORDER BY monday),
+       monday, date(monday, '+6 days')
+  FROM first_of_monday;
+-- 26-1 방학(2025-12-29~)의 공통 8주차(2026-02-16~02-22, 설 연휴).
+UPDATE season_week SET is_void = 1 WHERE activity_season_id = 26 AND week_no = 8;
+-- ADV 팀장 입력 시작 주차: ADV 1주차가 든 공통 주차부터 센 4주차(백엔드 ATT-03 기본값).
+UPDATE cohorts SET adv_leader_entry_from_week_id = (
+  SELECT w.id FROM season_week w
+   WHERE w.activity_season_id = cohorts.cohort
+     AND w.week_no = (SELECT a.week_no + 3 FROM season_week a
+                       WHERE a.activity_season_id = cohorts.cohort
+                         AND cohorts.adv_start_on BETWEEN a.start_date AND a.end_date));
 
 -- ── users ──────────────────────────────────────────────
 INSERT INTO users (id, name, term, track) VALUES
@@ -177,6 +203,8 @@ INSERT INTO score_rules (id, version, term, name, start_date, end_date, status, 
    '27기 하계 방학 세션 및 2학기 정규활동/스터디 출결 배점 규정', 0, -3, -4, -1, -1, -4, -5, 3, 1, 1),
   ('rule-26', 2, 26, 'Version 2', '2026-01-01', '2026-06-30', 'INACTIVE', '2026-01-01', '26기 대표진',
    '26기 동계 방학 및 1학기 출결 배점 규정 (과거 이력 보존)', 0, -3, -4, -1, -1, -4, -5, 3, 1, 1);
+-- 반기마다 그 기수의 점수 규칙을 점수 규칙 버전으로 둔다(백엔드 activity_season.score_rule_set_id).
+UPDATE cohorts SET score_rule_set_id = (SELECT rowid FROM score_rules WHERE term = cohorts.cohort);
 
 -- members: 로그인 계정과 분리된 기수별 동아리원 명단
 INSERT INTO members (id, user_id, term, track, name)
@@ -1536,14 +1564,14 @@ INSERT INTO attendance_records (team_id, week_id, member_id, sub_type, status, m
 
 -- ── 기수별 주차 날짜 매핑(방학 1~8주차) ─────────────────────
 INSERT INTO cohort_week_dates (cohort, week_num, date) VALUES
-  (27, 1, '2026-07-07'),
-  (27, 2, '2026-07-14'),
-  (27, 3, '2026-07-21'),
-  (27, 4, '2026-07-28'),
-  (27, 5, '2026-08-04'),
-  (27, 6, '2026-08-11'),
-  (27, 7, '2026-08-18'),
-  (27, 8, '2026-08-25'),
+  (27, 1, '2026-07-06'),
+  (27, 2, '2026-07-13'),
+  (27, 3, '2026-07-20'),
+  (27, 4, '2026-07-27'),
+  (27, 5, '2026-08-03'),
+  (27, 6, '2026-08-10'),
+  (27, 7, '2026-08-17'),
+  (27, 8, '2026-08-24'),
   (26, 1, '2025-07-08'),
   (26, 2, '2025-07-15'),
   (26, 3, '2025-07-22'),
@@ -1573,16 +1601,25 @@ UPDATE teams
      ELSE cohort
    END;
 
--- 과거 반기는 실제 팀 소속 이력으로 복원하고, 현재 반기는 초기 화면에서 쓰던 전체 회원을 등록한다.
+-- 과거 반기는 실제 팀 소속 이력으로 복원하고, 현재 반기는 그 반기의 BASE·ADV 기수 회원(활동 기수)만 등록한다.
+-- 수료 기수 회원은 반기 관리 「명단」에서 스터디 참여자로 더해 보도록 현재 반기에 넣지 않는다.
 -- 이후 생성되는 반기는 이 INSERT 대상이 아니므로 빈 명단으로 시작한다.
-INSERT OR IGNORE INTO semester_members (cohort, user_id, name, term, track)
-SELECT ts.semester_cohort, tm.user_id, u.name, u.term, u.track
+-- 구분은 회원 기수로 정한다(반기의 BASE 기수 BASE, ADV 기수 ADV, 그 밖 COMPLETED). 병행 부문은 동아리원 명단 값을 복사한다.
+INSERT OR IGNORE INTO member_enrollment (member_id, activity_season_id, season_role, parallel_track)
+SELECT tm.user_id, ts.semester_cohort,
+       CASE WHEN u.term = c.cohort THEN 'BASE' WHEN u.term = c.adv_term THEN 'ADV' ELSE 'COMPLETED' END,
+       u.parallel_track
   FROM team_members tm
   JOIN team_semesters ts ON ts.team_id = tm.team_id
   JOIN users u ON u.id = tm.user_id
+  JOIN cohorts c ON c.cohort = ts.semester_cohort
  WHERE ts.semester_cohort IS NOT NULL;
-INSERT OR IGNORE INTO semester_members (cohort, user_id, name, term, track)
-SELECT (SELECT cohort FROM cohorts WHERE is_current = 1), id, name, term, track FROM users;
+INSERT OR IGNORE INTO member_enrollment (member_id, activity_season_id, season_role, parallel_track)
+SELECT u.id, c.cohort,
+       CASE WHEN u.term = c.cohort THEN 'BASE' WHEN u.term = c.adv_term THEN 'ADV' ELSE 'COMPLETED' END,
+       u.parallel_track
+  FROM users u JOIN cohorts c ON c.is_current = 1
+ WHERE u.term IN (c.cohort, c.adv_term);
 
 -- ── 동아리원 관리 화면 예시 값 ─────────────────────────────
 -- 탈동 명단 쪽 넘김(한 쪽 7명)을 볼 수 있게 탈동 회원을 더 넣는다. 팀·반기 명단·출결에는 넣지 않는다.
@@ -1595,6 +1632,14 @@ INSERT INTO users (id, name, term, track) VALUES
   ('u_26_28', '홍지후', 26, '시각화'),
   ('u_26_29', '강서우', 26, '엔지니어링'),
   ('u_26_30', '문채원', 26, '분석');
+-- 반기 명단에 없는 수료 회원. 반기 관리 「명단」에서 스터디에 참여할 수료 기수로 더해 볼 수 있게 어느 반기에도 등록하지 않는다.
+-- 25기 이하는 아래에서 수료(COMPLETED)가 된다.
+INSERT INTO users (id, name, term, track) VALUES
+  ('u_24_01', '고은서', 24, '분석'),
+  ('u_24_02', '노태윤', 24, '시각화'),
+  ('u_24_03', '류시아', 24, '엔지니어링'),
+  ('u_24_04', '마준혁', 24, '분석'),
+  ('u_24_05', '변소율', 24, '엔지니어링');
 -- 연락처가 없는 예시 회원에는 형식만 맞춘 임시 이메일·전화번호를 채운다.
 UPDATE users SET email = 'boaz.' || substr(id, 3) || '@example.com' WHERE email = '';
 UPDATE users SET phone = printf('010-0%03d-%04d', term, rowid) WHERE phone = '';

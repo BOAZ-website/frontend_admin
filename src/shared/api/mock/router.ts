@@ -5,6 +5,8 @@
  */
 import type { Database } from 'sql.js';
 
+import type { AuditAction, AuditTargetType } from '@/entities/audit-log/model/types';
+
 import { inTransaction } from '@/shared/db/createDatabase';
 
 import { ApiError, type HttpMethod } from '../apiError';
@@ -20,6 +22,24 @@ export interface MockRequest {
   db: Database;
 }
 
+/**
+ * 쓰기 요청을 감사 기록에 남길 때의 액션과 대상. 기능을 가진 탭이 경로 옆에 적고, 감사 로그(audit.ts)는 이 값을 읽어 남기기만 한다.
+ */
+export interface RouteAudit {
+  action: AuditAction;
+  targetType: AuditTargetType;
+  /** 대상 ID 목록. 처리 전에 한 번 부르고, 비어 있으면 처리 뒤 응답(result)으로 다시 부른다. */
+  targets: (request: MockRequest, result: unknown) => string[];
+  /** 처리하기 전에 읽어 둘 값. detail에 before로 넘긴다. */
+  before?: (request: MockRequest, targetIds: readonly string[]) => Record<string, unknown>;
+  detail?: (
+    request: MockRequest,
+    context: { before: Record<string, unknown>; targetIds: readonly string[] },
+  ) => Record<string, unknown>;
+  /** true면 이번 요청은 남기지 않는다(저장하지 않는 미리 계산 등). */
+  isSkipped?: (request: MockRequest) => boolean;
+}
+
 export interface MockRoute {
   method: HttpMethod;
   /** 예: '/api/v1/study-teams/:teamId/members/:memberId' */
@@ -27,6 +47,8 @@ export interface MockRoute {
   /** 어떤 기능의 API인지 한 줄 설명. 엔드포인트 목록을 볼 때 쓴다. */
   summary: string;
   handler: (request: MockRequest) => unknown;
+  /** 쓰기 요청의 감사 기록. null이면 남기지 않는 쓰기다. 적지 않은 경로는 audit.ts의 규칙을 쓴다. */
+  audit?: RouteAudit | null;
 }
 
 interface CompiledRoute extends MockRoute {
