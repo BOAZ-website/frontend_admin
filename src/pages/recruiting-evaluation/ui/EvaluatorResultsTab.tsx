@@ -75,8 +75,8 @@ const SCORE_SELECT_OPTIONS = SCORE_OPTIONS.map((score) => ({
 
 /**
  * 운영진 평가 현황(GROUP-05·07, REC-ADMIN-15·19). 위에 판정 수·총점, 아래 표에 운영진별 판정·점수·메모·면접 추천 질문을 둔다.
- * 로그인한 평가자는 '(나)'로 맨 위에 두고 그 행만 고칠 수 있다. 다른 운영진 행은 조회만 한다.
- * shortcut: '(나)' 행이면 고칠 수 있게 둔다, 평가 API 연동 때 /accounts/me의 부문 권한(EVALUATION_*_TRACK_WRITE)도 확인한다
+ * 로그인한 평가자의 행은 맨 위에 두고 그 행만 고칠 수 있다. 다른 운영진 행은 조회만 한다.
+ * shortcut: 본인 행이면 고칠 수 있게 둔다, 평가 API 연동 때 /accounts/me의 부문 권한(EVALUATION_*_TRACK_WRITE)도 확인한다
  */
 export function EvaluatorResultsTab({
   applicantId,

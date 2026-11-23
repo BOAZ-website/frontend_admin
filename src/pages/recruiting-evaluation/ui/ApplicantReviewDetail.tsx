@@ -34,7 +34,7 @@ const DETAIL_TABS: SegmentedTabItem<ReviewDetailTab>[] = [
 
 interface ApplicantReviewDetailProps {
   applicant: ApplicantEvaluationDto;
-  /** 로그인한 평가자 id. 평가 현황에서 '(나)' 행을 맨 위에 둘 때 쓴다. */
+  /** 로그인한 평가자 id. 평가 현황에서 본인 행을 맨 위에 둘 때 쓴다. */
   currentEvaluatorId: number;
   /** 지금 보이는 탭. 지원자를 옮겨도 유지되도록 페이지가 가진다. */
   tab: ReviewDetailTab;

@@ -9,13 +9,13 @@ import type {
   InterviewQuestionItem,
 } from './types';
 
-/** 평가자 행에 '(나)' 표시 여부와 표시 이름을 더한 것. */
+/** 평가자 행에 본인 행 여부와 표시 이름을 더한 것. */
 export type ViewerRow<T> = T & { isMe: boolean; displayName: string };
 
 // shortcut: 목 데이터 이름에 '(나)'가 들어 있어 떼고 보여 준다, 실제 API 연동 때 이 치환을 지운다
 const stripMeSuffix = (name: string) => name.replace(/\s*\(나\)$/, '');
 
-/** 평가자 id가 currentAdminId인 행을 맨 위로 올리고 '(나)'로 표시한다. 이름으로는 비교하지 않는다. */
+/** 평가자 id가 currentAdminId인 행을 맨 위로 올린다. 이름에 '(나)'를 붙이지 않는다. 이름으로는 비교하지 않는다. */
 export function orderForViewer<T extends { admin_id: number; name: string }>(
   rows: readonly T[],
   currentAdminId: number,
