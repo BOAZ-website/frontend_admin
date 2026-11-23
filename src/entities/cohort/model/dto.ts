@@ -4,12 +4,16 @@
  * 회원의 기수(users.term)와는 별개이며, 둘의 관계(ADV 기수, 점수 집계 대상 기수)도 반기 데이터로 내려온다.
  */
 import type { WeekStatus } from '@/entities/attendance/model/week';
+import type { ClubMemberStatus } from '@/entities/club-member/model/types';
 
 /** 반기에 등록된 출결 구분. BASE·ADV·STUDY는 그 반기의 팀, EVENT는 그 반기의 행사가 있으면 등록된 것이다. */
 export type SemesterAttendanceKind = 'BASE' | 'ADV' | 'STUDY' | 'EVENT';
 
 /** 반기 상태: 진행 예정(적용만 함, 활성화 전)·진행(현재 반기)·종료. */
 export type SemesterStatus = 'PREPARING' | 'ACTIVE' | 'ENDED';
+
+/** 상반기(H1)·하반기(H2). 반기 이름 'YY-N'의 N과 맞아야 한다(1=H1, 2=H2, 백엔드 ATT-03·04). */
+export type SemesterHalf = 'H1' | 'H2';
 
 export interface SemesterDto {
   cohort: number;
@@ -65,14 +69,9 @@ export interface UpdateSemesterRequest {
   memberTerms?: number[];
 }
 
-/** 해당 반기의 출결·점수 회원 명단을 통째로 교체한다. */
-export interface ReplaceSemesterMembersRequest {
-  userIds: string[];
-}
-
 // ───────────────────────────── 반기 관리(새 반기 시작·일정) ─────────────────────────────
 
-/** 1주차 시작일을 따로 정하는 활동. */
+/** 1주차 시작일을 따로 정하는 활동. BASE·ADV는 시작일 하나로 방학·학기 1~16주차, 스터디는 기간마다 1~8주차. */
 export type SemesterActivity = 'BASE' | 'ADV' | 'STUDY_VACATION' | 'STUDY_TERM';
 
 /** YYYY-MM-DD 기간. */
@@ -81,20 +80,22 @@ export interface DateRange {
   endDate: string;
 }
 
-/** 무효 주차(휴강): 그 활동의 출결에서 제외되는 주차. */
-export interface InvalidWeekDto {
-  activity: SemesterActivity;
-  /** 활동 안에서의 주차(1~8). */
-  weekNum: number;
-  reason: string;
+/**
+ * 반기 공통 주차(백엔드 season_week). 방학·학기 기간을 월~일 주로 나눠 반기 전체에 이어 1주차부터 센다.
+ * 방학과 학기 사이의 빈 주는 주차가 아니다. 휴강은 공통 주차 단위로 정하고 모든 활동에 적용된다(ATT-09).
+ */
+export interface CommonWeek {
+  weekNo: number;
+  periodType: 'VACATION' | 'SEMESTER';
+  /** 그 주 월요일. */
+  startDate: string;
+  /** 그 주 일요일. */
+  endDate: string;
 }
 
-/** 활동 하나의 주차 날짜와 휴강 여부. */
-export interface SemesterActivityWeekDto {
-  weekNum: number;
-  /** 시작일에서 7일씩 더한 날짜. */
-  date: string;
-  isInvalid: boolean;
+export interface CommonWeekDto extends CommonWeek {
+  /** 휴강 주차. */
+  isVoid: boolean;
 }
 
 /** 반기 일정 조회 응답. */
@@ -103,17 +104,15 @@ export interface SemesterScheduleDto {
   vacation: DateRange | null;
   term: DateRange | null;
   activityStarts: Record<SemesterActivity, string | null>;
-  invalidWeeks: InvalidWeekDto[];
-  /** 시작일이 없는 활동은 빈 배열. */
-  weeks: Record<SemesterActivity, SemesterActivityWeekDto[]>;
+  /** 공통 주차와 휴강 여부. 기간이 없으면 빈 배열. */
+  weeks: CommonWeekDto[];
 }
 
-/** 반기 일정 통째 저장 요청(PUT /:semester/schedule). 준비 반기 만들기 요청의 schedule도 같다. */
+/** 반기 기간·시작일 저장 요청(PUT /:semester/schedule, 진행 예정 반기만). 휴강은 공통 주차 휴강 API로 따로 바꾼다. */
 export interface SaveSemesterScheduleRequest {
   vacation: DateRange;
   term: DateRange;
   activityStarts: Partial<Record<SemesterActivity, string | null>>;
-  invalidWeeks: { activity: SemesterActivity; weekNum: number; reason?: string }[];
 }
 
 /** BASE·ADV 기수가 아닌데 예외로 더한 사람은 EXTRA. */
@@ -121,31 +120,33 @@ export type RosterKind = 'BASE' | 'ADV' | 'EXTRA';
 
 /** 반기 명단의 한 사람. */
 export interface RosterEntryDto {
+  /** 명단 등록 id·버전(ATT-18). 화면에서 더했지만 아직 저장하지 않은 사람은 없다. */
+  enrollmentId?: number;
+  version?: number;
   userId: string;
   name: string;
   term: number;
   track: string;
+  /** 병행 부문(동아리원 명단의 값). 병행하지 않으면 null. */
+  parallelTrack: string | null;
   kind: RosterKind;
+  /** 동아리원 활동 상태(활동·수료·미수료·탈동). */
+  memberStatus: ClubMemberStatus;
+  /** 멘멘 스터디의 멘멘·친바에 참여하는지. 점수 계산이 이 명단을 기준으로 한다(백엔드 ATT-18). */
+  menmenJoined: boolean;
+  chinbaJoined: boolean;
+  /** 병행 수료 여부. 병행하지 않거나 아직 정하지 않았으면 null. */
+  isParallelCompleted: boolean | null;
+  note: string | null;
+  /** 이 반기에 속한 ADV 팀·스터디. */
+  groups: RosterGroupDto[];
 }
 
-/** 반기에 저장된 출결·점수 명단. 기수(큰 기수부터) → 부문 → 이름 순. */
-export interface SemesterRosterDto {
-  members: RosterEntryDto[];
-}
-
-/**
- * 진행 예정 반기 만들기: 반기·일정·무효 주차와 고른 명단을 저장한다. 명단은 자동으로 채우지 않는다.
- * 반기 번호(cohort)는 BASE 기수와 같다. 활성화(POST /:semester/activate)해야 진행 반기가 된다.
- */
-export interface PrepareSemesterRequest {
-  /** 'YY-1' 또는 'YY-2'. */
-  semester: string;
-  baseTerm: number;
-  /** BASE 기수보다 작아야 한다. */
-  advTerm: number;
-  /** ADV 팀장 입력 시작 주차(1~16). 비어 있으면 400 ADV_LEADER_ENTRY_WEEK_REQUIRED. */
-  advLeaderEntryFromWeek: number;
-  schedule: SaveSemesterScheduleRequest;
-  /** 명단에 넣을 회원 id. 비어 있으면 빈 명단이다(활성화 전에 채워야 한다). 탈동 회원은 넣을 수 없다. */
-  userIds: string[];
+/** 명단의 한 사람이 속한 그룹(백엔드 ATT-18 enrollments[].groups). */
+export interface RosterGroupDto {
+  groupId: string;
+  name: string;
+  groupType: 'ADV' | 'STUDY';
+  /** 스터디 종류. ADV 팀이면 null. */
+  studyKind: 'MENMEN' | 'GENERAL' | null;
 }

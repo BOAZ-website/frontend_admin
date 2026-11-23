@@ -59,10 +59,11 @@ function expectApiError(work: () => unknown, status: number) {
   assert.throws(work, (error: unknown) => error instanceof ApiError && error.status === status);
 }
 
-test('모든 쓰기 API는 감사 액션이 정해져 있다(기록하지 않는 것은 따로 적는다)', () => {
+test('모든 쓰기 API는 감사 액션이 정해져 있다(경로의 audit 또는 audit.ts 규칙, 기록하지 않는 것은 따로 적는다)', () => {
   const missing = MOCK_ROUTES.filter((route) => route.method !== 'GET')
     .filter(
       (route) =>
+        route.audit === undefined &&
         !AUDIT_RULES.some(
           (rule) => rule.method === route.method && rule.pattern === route.pattern,
         ) &&
@@ -499,7 +500,7 @@ test('DELETE 기록의 requestBody는 null이다', async () => {
     db,
     `SELECT id FROM users
       WHERE id NOT IN (SELECT user_id FROM admin WHERE user_id IS NOT NULL)
-        AND id NOT IN (SELECT user_id FROM semester_members) LIMIT 1`,
+        AND id NOT IN (SELECT member_id FROM member_enrollment) LIMIT 1`,
   )[0].id;
   call('DELETE', `/api/v1/club-members/${memberId}`);
   const entry = latest();

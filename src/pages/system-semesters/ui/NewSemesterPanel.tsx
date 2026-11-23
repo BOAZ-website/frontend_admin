@@ -1,9 +1,15 @@
-import { LAST_WEEK_NUM } from '@/entities/attendance/model/week';
-import type { PrepareSemesterRequest, SemesterDto } from '@/entities/cohort/model/dto';
+import type { SeasonInput } from '@/entities/cohort/model/season';
+import { MAX_VOID_WEEKS_BEFORE_CONFIRM } from '@/entities/cohort/model/schedule';
+import { useScoreRuleSets } from '@/entities/cohort/model/useScoreRuleSets';
 import { SelectDropdown } from '@/shared/ui/SelectDropdown';
-import { FIELD_INPUT, MODAL_CANCEL_BTN, MODAL_CONFIRM_BTN } from '@/shared/ui/systemStyles';
+import {
+  FIELD_INPUT,
+  FIELD_TEXT_BTN,
+  MODAL_CANCEL_BTN,
+  MODAL_CONFIRM_BTN,
+} from '@/shared/ui/systemStyles';
 
-import { errorIdOf, scheduleFieldId } from '../model/scheduleForm';
+import { errorIdOf, scheduleFieldId, SEMESTER_HALF_OPTIONS } from '../model/scheduleForm';
 import { useNewSemesterForm } from '../model/useNewSemesterForm';
 import type { SemesterDraft } from '../model/semesterDraft';
 import { RosterConfirmDialog } from './RosterConfirmDialog';
@@ -11,7 +17,8 @@ import { ScheduleSections } from './ScheduleSections';
 import { LabeledRow, SectionBox } from './SectionBox';
 
 const NAME_ID = scheduleFieldId('name');
-const ENTRY_WEEK_ID = scheduleFieldId('advLeaderEntryFromWeek');
+const HALF_ID = scheduleFieldId('half');
+const RULE_ID = scheduleFieldId('scoreRule');
 
 interface NewSemesterPanelProps {
   /** 임시 저장해 둔 입력. */
@@ -21,8 +28,8 @@ interface NewSemesterPanelProps {
   /** 임시 저장에 실패했다(저장소가 꽉 찼거나 쓸 수 없음). 화면을 떠나면 입력이 사라진다. */
   isDraftUnsaved: boolean;
   existingNames: readonly string[];
-  prepare: (request: PrepareSemesterRequest) => Promise<SemesterDto>;
-  onApplied: (semester: string) => void;
+  create: (input: SeasonInput & { scoreRuleSetId: number }) => Promise<{ id: number }>;
+  onApplied: (seasonId: number) => void;
   onCancel: () => void;
 }
 
@@ -31,8 +38,11 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
   const form = useNewSemesterForm(options);
   const nameError = form.shownErrors.name;
   const nameErrorId = nameError ? errorIdOf(NAME_ID) : undefined;
-  const entryWeekError = form.shownErrors.advLeaderEntryFromWeek;
-  const entryWeekErrorId = entryWeekError ? errorIdOf(ENTRY_WEEK_ID) : undefined;
+  const halfError = form.shownErrors.half;
+  const halfErrorId = halfError ? errorIdOf(HALF_ID) : undefined;
+  const ruleError = form.shownErrors.scoreRule;
+  const ruleErrorId = ruleError ? errorIdOf(RULE_ID) : undefined;
+  const ruleSets = useScoreRuleSets();
 
   return (
     <div className="space-y-6">
@@ -52,6 +62,55 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
               disabled={form.isSaving}
               className={`${FIELD_INPUT} ${nameError ? 'border-red-400' : ''}`}
             />
+          </LabeledRow>
+          <LabeledRow label="상·하반기" error={halfError} errorId={halfErrorId}>
+            {/* 드롭다운은 입력칸이 없어 감싼 칸에 id를 두고, 첫 오류 칸 포커스는 그 안의 버튼으로 간다. */}
+            <div id={HALF_ID} aria-describedby={halfErrorId}>
+              <SelectDropdown
+                ariaLabel="상반기·하반기"
+                value={form.draftHalf}
+                // 고르기 전에만 「선택」을 둔다. 한 번 고르면 다시 비울 수 없다.
+                options={
+                  form.draftHalf
+                    ? SEMESTER_HALF_OPTIONS
+                    : [{ value: '', label: '선택' }, ...SEMESTER_HALF_OPTIONS]
+                }
+                buttonClassName={`h-10 w-40 text-left ${halfError ? 'border-red-400' : ''}`}
+                onChange={(value) => {
+                  if (value) form.handleChangeHalf(value);
+                  form.handleBlurField('half');
+                }}
+              />
+            </div>
+          </LabeledRow>
+          <LabeledRow label="점수 규칙" error={ruleError} errorId={ruleErrorId}>
+            <div id={RULE_ID} aria-describedby={ruleErrorId}>
+              <SelectDropdown
+                ariaLabel="점수 규칙 버전"
+                value={String(form.draftScoreRuleSetId ?? '')}
+                // 고르기 전에만 「선택」을 둔다.
+                options={[
+                  ...(form.draftScoreRuleSetId === null ? [{ value: '', label: '선택' }] : []),
+                  ...(ruleSets.data ?? []).map((rule) => ({
+                    value: String(rule.id),
+                    label: rule.name,
+                  })),
+                ]}
+                buttonClassName={`h-10 w-40 text-left ${ruleError ? 'border-red-400' : ''}`}
+                onChange={(value) => {
+                  if (value) form.handleChangeScoreRuleSet(Number(value));
+                  form.handleBlurField('scoreRule');
+                }}
+              />
+            </div>
+            {ruleSets.error && (
+              <span role="status" className="text-xs text-red-600">
+                점수 규칙을 불러오지 못했습니다.{' '}
+                <button type="button" className={FIELD_TEXT_BTN} onClick={ruleSets.reload}>
+                  다시 불러오기
+                </button>
+              </span>
+            )}
           </LabeledRow>
         </div>
       </SectionBox>
@@ -76,26 +135,6 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
               onChange={(value) => form.handleChangeAdvTerm(Number(value))}
             />
           </LabeledRow>
-          <LabeledRow label="ADV 팀장 입력" error={entryWeekError} errorId={entryWeekErrorId}>
-            <input
-              id={ENTRY_WEEK_ID}
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={LAST_WEEK_NUM}
-              value={form.draftAdvLeaderEntryFromWeek}
-              onChange={(event) => form.handleChangeAdvLeaderEntryFromWeek(event.target.value)}
-              onBlur={() => form.handleBlurField('advLeaderEntryFromWeek')}
-              aria-label="ADV 팀장 입력 시작 주차"
-              aria-invalid={entryWeekError ? true : undefined}
-              aria-describedby={entryWeekErrorId}
-              disabled={form.isSaving}
-              className={`${FIELD_INPUT} w-24 ${entryWeekError ? 'border-red-400' : ''}`}
-            />
-            <span className="text-sm text-slate-600">
-              주차부터 (그 전 주차는 운영지원팀이 입력)
-            </span>
-          </LabeledRow>
         </div>
       </SectionBox>
 
@@ -103,6 +142,7 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
         form={form.draftForm}
         onChange={form.handleChangeSchedule}
         isReadOnly={form.isSaving}
+        voidWeekLimit={MAX_VOID_WEEKS_BEFORE_CONFIRM}
         errors={form.shownErrors}
         onBlurField={form.handleBlurField}
       />
@@ -127,10 +167,9 @@ export function NewSemesterPanel({ onCancel, isDraftUnsaved, ...options }: NewSe
         </button>
       </div>
 
-      {form.isRosterOpen && (
+      {form.seasonInput && (
         <RosterConfirmDialog
-          semesterName={form.draftName}
-          terms={form.rosterTerms}
+          input={form.seasonInput}
           kindOf={form.kindOf}
           isSaving={form.isSaving}
           onCancel={form.handleCloseRoster}

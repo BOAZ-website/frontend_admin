@@ -114,3 +114,9 @@ export const ROLE_LABELS: Record<ClubMemberRole, string> = {
   OPERATOR: '운영진',
   PRESIDENT: '대표진',
 };
+
+/** 회원 목록(MEM-01)에서 고를 때 쓰는 회원 정보. 동아리원 관리의 한 행(ClubMember)도 이 모양을 갖는다. */
+export type MemberSummary = Pick<
+  ClubMember,
+  'id' | 'name' | 'term' | 'track' | 'parallelTrack' | 'status'
+>;

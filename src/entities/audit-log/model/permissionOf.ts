@@ -110,10 +110,12 @@ function actionPermission(input: ActionPermissionInput): ActionPermission {
       return { key: null, operation: 'DELETE' };
     case 'SEMESTER_UPDATE':
     case 'SEMESTER_ACTIVATE':
+    case 'SEMESTER_ARCHIVE':
     case 'SEMESTER_MEMBERS_SET':
     case 'SEMESTER_WEEK_UPDATE':
     case 'SEMESTER_WEEK_DATES':
     case 'SEMESTER_SCHEDULE_SET':
+    case 'SEMESTER_WEEK_VOID':
       return { key: null, operation: 'UPDATE' };
 
     case 'TEAM_CREATE':

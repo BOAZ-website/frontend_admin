@@ -11,7 +11,7 @@ import { createRouter } from '../src/shared/api/mock/router';
 import { commonRoutes } from '../src/shared/api/mock/routes/commonRoutes';
 import { userRoutes } from '../src/shared/api/mock/routes/userRoutes';
 import { eventRoutes } from '../src/shared/api/mock/routes/eventRoutes';
-import { semesterRoutes } from '../src/shared/api/mock/routes/semesterRoutes';
+import { seasonRoutes } from '../src/shared/api/mock/routes/seasonRoutes';
 import { teamRoutes } from '../src/shared/api/mock/routes/teamRoutes';
 
 // 유저 DB + 행사 DB(앱과 같은 순서로 함께 올린다)
@@ -23,7 +23,7 @@ const router = createRouter([
   ...userRoutes,
   ...teamRoutes,
   ...eventRoutes,
-  ...semesterRoutes,
+  ...seasonRoutes,
 ]);
 
 async function freshDb() {
@@ -172,6 +172,14 @@ test('반기 전환은 HOST 계정과 맡은 그룹 외의 데이터는 변경�
   );
 });
 
+/** 반기 명단에 회원 한 명을 넣는다(ATT-19). 반기 id는 27-1의 BASE 기수 28이다. */
+function enroll(db: Parameters<typeof router.dispatch>[0], memberId: string, role: 'BASE' | 'ADV') {
+  router.dispatch(db, 'POST', '/api/v1/admin/attendance/seasons/28/enrollments', {
+    member_id: memberId,
+    season_role: role,
+  });
+}
+
 test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한 회원만 조회한다', async () => {
   const db = await freshDb();
   const currentUsers = router.dispatch(db, 'GET', '/api/v1/users?semester=26-2', undefined) as {
@@ -187,17 +195,13 @@ test('새 반기는 빈 회원 명단으로 시작하고 반기 API로 등록한
     advTerm: 27,
     memberTerms: [27, 28],
   });
-  // 명단은 진행 예정 반기만 고친다(진행 중·종료 반기는 409 SEMESTER_LOCKED). 이 경로로 만든 반기를 진행 예정으로 둔다.
+  // 종료 반기 명단은 고칠 수 없다(409 SEMESTER_LOCKED). 이 경로로 만든 반기는 종료 상태라 진행 예정으로 둔다.
   db.run('UPDATE cohorts SET is_preparing = 1 WHERE cohort = 28');
   assert.deepEqual(router.dispatch(db, 'GET', '/api/v1/users?semester=27-1', undefined), []);
 
-  const registered = router.dispatch(db, 'PUT', '/api/v1/semesters/27-1/members', {
-    userIds: ['u_27_01', 'u_28_01'],
-  }) as { id: string }[];
-  assert.deepEqual(
-    registered.map(({ id }) => id),
-    ['u_28_01', 'u_27_01'],
-  );
+  // 반기 명단 개별 등록(백엔드 ATT-19). 반기 id는 BASE 기수(28)다.
+  enroll(db, 'u_27_01', 'ADV');
+  enroll(db, 'u_28_01', 'BASE');
   assert.deepEqual(
     (router.dispatch(db, 'GET', '/api/v1/users?semester=27-1', undefined) as { id: string }[]).map(
       ({ id }) => id,
@@ -228,13 +232,16 @@ test('팀에는 해당 반기 명단에 등록된 회원만 추가할 수 있다
     advTerm: 27,
     memberTerms: [27, 28],
   });
-  // 명단은 진행 예정 반기만 고친다(진행 중·종료 반기는 409 SEMESTER_LOCKED). 이 경로로 만든 반기를 진행 예정으로 둔다.
+  // 종료 반기 명단은 고칠 수 없다(409 SEMESTER_LOCKED). 이 경로로 만든 반기는 종료 상태라 진행 예정으로 둔다.
   db.run('UPDATE cohorts SET is_preparing = 1 WHERE cohort = 28');
-  router.dispatch(db, 'PUT', '/api/v1/semesters/27-1/members', {
-    userIds: ['u_28_01'],
-  });
-  // 미래 반기에는 팀을 만들 수 없으므로 먼저 현재 반기로 바꾼다(진행 예정 반기는 활성화 API로).
-  router.dispatch(db, 'POST', '/api/v1/semesters/27-1/activate', undefined);
+  enroll(db, 'u_28_01', 'BASE');
+  // 미래 반기에는 팀을 만들 수 없으므로 먼저 현재 반기로 바꾼다. 활성화 전에 진행 반기(26-2)를 종료한다.
+  // 종료는 마지막 주차가 끝나야 해서(ATT-10) 26-2의 마지막 주차를 지난 날짜로 둔다.
+  db.run(
+    "UPDATE season_week SET end_date = '2026-01-04' WHERE activity_season_id = 27 AND week_no = (SELECT MAX(week_no) FROM season_week WHERE activity_season_id = 27)",
+  );
+  router.dispatch(db, 'PATCH', '/api/v1/admin/attendance/seasons/27/archive', { confirm: true });
+  router.dispatch(db, 'PATCH', '/api/v1/admin/attendance/seasons/28/activate', undefined);
 
   assert.throws(
     () =>

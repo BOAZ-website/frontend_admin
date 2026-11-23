@@ -41,7 +41,7 @@ export function PermissionMatrix({ catalog }: { catalog: PermissionCatalog }) {
                 <col key={column.key} style={{ width: `${baseSetPercent(index)}%` }} />
               ))}
             </colgroup>
-            <thead className="sticky top-0 z-10 select-none">
+            <thead className="sticky top-0 z-10 bg-white select-none">
               <tr className="h-11 divide-x divide-slate-200 border-b border-slate-200 text-xs">
                 <th className={`${TH_CLASS} text-slate-900`}>영역</th>
                 <th className={`${TH_CLASS} text-slate-900`}>권한</th>

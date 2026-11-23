@@ -2,16 +2,23 @@ import type { SemesterActivity } from '@/entities/cohort/model/dto';
 import type { UserTrack } from '@/entities/user/model/types';
 import { isoOfLocalDate, localDateOfIso } from '@/shared/lib/calendar';
 
-import { ACTIVITIES, invalidKey, type ScheduleForm, weekDatesByActivity } from './scheduleForm';
+import {
+  ACTIVITIES,
+  commonWeeksOfForm,
+  type ScheduleForm,
+  weekDatesByActivity,
+} from './scheduleForm';
 
 /** 달력 한 칸에 찍을 활동 표시 하나. */
 export interface CalendarMark {
   activity: SemesterActivity;
   weekNum: number;
-  /** 휴동으로 지정한 주차다. */
+  /** 세션 날짜가 휴강 공통 주차 안이다. */
   isInvalid: boolean;
   /** BASE·ADV의 트랙 세션이다. 스터디는 없다. */
   track?: UserTrack;
+  /** 휴강 주라 열리지 않는 BASE·ADV 세션 자리다. 그 주에 무엇을 쉬는지 흐리게 보이려고 둔다. 주차가 없어 weekNum은 0이다. */
+  isBreak?: true;
 }
 
 /**
@@ -45,21 +52,46 @@ const sessionsOfWeek = (
  * 활동별 1주차 시작일에서 7일씩 더한 주차를 날짜별로 모은다: 'YYYY-MM-DD' → 표시 목록.
  * 주차 시작일부터 7일 안에서 BASE·ADV는 트랙 세션 요일마다, 스터디는 월요일 하루에 찍는다.
  * 시작일을 정하지 않은 활동은 빠진다. 같은 날 여러 활동이면 ACTIVITIES 순서(BASE → ADV → 스터디)로 둔다.
+ * 휴강은 공통 주차 단위라, BASE·ADV 세션 날짜가 휴강 주(월~일) 안이면 휴강으로 표시한다.
+ * BASE·ADV 기간 안의 휴강 주에는 쉬는 세션 자리를 isBreak 표시로 함께 찍는다(요약 표 범위에는 넣지 않는다).
+ * 스터디는 휴강을 스터디장이 출결 입력 탭에서 따로 정하므로 여기서 휴강으로 표시하지 않는다.
  */
 export function calendarMarksOf(form: ScheduleForm): Record<string, CalendarMark[]> {
   const datesOf = weekDatesByActivity(form);
+  const voidWeeks = commonWeeksOfForm(form).filter((week) => week.isVoid);
+  const isVoidDate = (date: string) =>
+    voidWeeks.some((week) => week.startDate <= date && date <= week.endDate);
   const marks: Record<string, CalendarMark[]> = {};
   for (const { value: activity } of ACTIVITIES) {
     for (const [week, date] of Object.entries(datesOf[activity])) {
       const weekNum = Number(week);
-      const isInvalid = invalidKey(activity, weekNum) in form.invalid;
       const sessions = sessionsOfWeek(
         date,
         TRACK_ACTIVITIES.has(activity) ? TRACK_SESSION_DAYS : STUDY_SESSION_DAYS,
       );
       for (const { date: sessionDate, ...track } of sessions) {
-        const mark = { activity, weekNum, isInvalid, ...track };
+        const mark = {
+          activity,
+          weekNum,
+          isInvalid: TRACK_ACTIVITIES.has(activity) && isVoidDate(sessionDate),
+          ...track,
+        };
         marks[sessionDate] = [...(marks[sessionDate] ?? []), mark];
+      }
+    }
+    // BASE·ADV는 휴강 주를 건너뛰므로, 활동 기간 안의 휴강 주에는 쉬는 세션 자리를 흐리게 찍는다.
+    const dates = Object.values(datesOf[activity]);
+    if (!TRACK_ACTIVITIES.has(activity) || dates.length === 0) continue;
+    for (const week of voidWeeks.filter(
+      (week) => dates[0] <= week.startDate && week.endDate <= dates[dates.length - 1],
+    )) {
+      for (const { date, ...track } of sessionsOfWeek(week.startDate, TRACK_SESSION_DAYS)) {
+        const isMarked = (marks[date] ?? []).some(
+          (m) => m.activity === activity && m.track === track.track,
+        );
+        if (isMarked) continue;
+        const mark = { activity, weekNum: 0, isInvalid: true, ...track, isBreak: true as const };
+        marks[date] = [...(marks[date] ?? []), mark];
       }
     }
   }
@@ -77,41 +109,42 @@ export function initialCalendarMonth(
   return (isTodayInRange ? today : dates[0]).slice(0, 7);
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-/**
- * 월요일부터 시작하는 달력 한 줄의 반기 주차. 반기 시작일(방학 시작일)이 든 줄이 1주차다.
- * 반기 시작일이 없거나, 그 줄이 반기 시작 전이거나 반기 종료일 뒤에 시작하면 null.
- */
-export function semesterWeekOf(
-  rowMonday: string,
-  semesterStart: string,
-  semesterEnd: string,
-): number | null {
-  if (!semesterStart) return null;
-  const start = localDateOfIso(semesterStart);
-  const startMonday = new Date(
-    start.getFullYear(),
-    start.getMonth(),
-    start.getDate() - ((start.getDay() + 6) % 7),
-  );
-  const days = Math.round(
-    (localDateOfIso(rowMonday).getTime() - startMonday.getTime()) / MS_PER_DAY,
-  );
-  const week = Math.floor(days / DAYS_PER_WEEK) + 1;
-  if (week < 1 || (semesterEnd && rowMonday > semesterEnd)) return null;
-  return week;
+/** 요약 표 한 행: 활동의 주차 범위와 첫·마지막 세션 날짜(달력에 찍히는 날짜와 같다). */
+export interface ActivityRow {
+  activity: SemesterActivity;
+  firstWeek: number;
+  lastWeek: number;
+  first: string;
+  last: string;
 }
 
-/** 활동별 첫 세션·마지막 세션 날짜(달력에 찍히는 날짜와 같다). 시작일을 정하지 않은 활동은 빠진다. */
-export function activitySpansOf(
+/**
+ * 시작일을 정한 활동마다 한 행. 순서는 ACTIVITIES와 같고, 시작일이 없는 활동은 빠진다.
+ * range를 주면 그 기간(방학·학기) 안의 세션만 보고, 그 기간에 세션이 없는 활동은 빠진다.
+ */
+export function activityRowsOf(
   marks: Readonly<Record<string, CalendarMark[]>>,
-): Partial<Record<SemesterActivity, { first: string; last: string }>> {
-  const spans: Partial<Record<SemesterActivity, { first: string; last: string }>> = {};
-  for (const date of Object.keys(marks).sort()) {
-    for (const { activity } of marks[date]) {
-      spans[activity] = { first: spans[activity]?.first ?? date, last: date };
-    }
-  }
-  return spans;
+  range?: { startDate: string; endDate: string },
+): ActivityRow[] {
+  const dates = Object.keys(marks)
+    .filter((date) => !range || (range.startDate <= date && date <= range.endDate))
+    .sort();
+  return ACTIVITIES.flatMap(({ value: activity }) => {
+    const sessions = dates.flatMap((date) =>
+      marks[date]
+        .filter((mark) => mark.activity === activity && !mark.isBreak)
+        .map(({ weekNum }) => ({ date, weekNum })),
+    );
+    if (sessions.length === 0) return [];
+    const weeks = sessions.map(({ weekNum }) => weekNum);
+    return [
+      {
+        activity,
+        firstWeek: Math.min(...weeks),
+        lastWeek: Math.max(...weeks),
+        first: sessions[0].date,
+        last: sessions[sessions.length - 1].date,
+      },
+    ];
+  });
 }

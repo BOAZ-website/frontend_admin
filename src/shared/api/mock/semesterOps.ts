@@ -1,26 +1,14 @@
 /**
- * 반기 임시 API 공용 처리: 현재 반기 전환(HOST 팀 떼기 포함), 명단 교체, 일정 요청 검증.
- * 반기 수정(PATCH)과 반기 관리(준비 → 활성화)가 같은 규칙을 쓴다. DB 읽기·쓰기는 entities/cohort/api/semesterRepository.ts.
+ * 반기 임시 API 공용 처리: 현재 반기 전환(HOST 팀 떼기 포함), 상태 검사, 반기 기록 건수, 휴강 영향 건수.
+ * 옛 반기 API(commonRoutes.ts)와 반기 관리 API(seasonRoutes.ts)가 함께 쓴다.
  */
 import type { Database } from 'sql.js';
 
-import type { SemesterScheduleInput } from '@/entities/cohort/api/semesterRepository';
-import type { DateRange, SemesterActivity, SemesterDto } from '@/entities/cohort/model/dto';
-import { ACTIVITY_WEEK_COUNT } from '@/entities/cohort/model/schedule';
+import type { CommonWeek, SemesterDto } from '@/entities/cohort/model/dto';
 import { execute, queryAll } from '@/shared/db/createDatabase';
-import { isValidIsoDate } from '@/shared/lib/date';
 
 import { cleanupHostAccounts } from './hostCleanup';
 import { ApiError } from './router';
-import { readBody } from './validate';
-
-/** 1주차 시작일·무효 주차를 따로 정하는 활동. */
-export const SEMESTER_ACTIVITIES: readonly SemesterActivity[] = [
-  'BASE',
-  'ADV',
-  'STUDY_VACATION',
-  'STUDY_TERM',
-];
 
 const currentCohort = (db: Database): number | null =>
   queryAll<{ cohort: number }>(db, 'SELECT cohort FROM cohorts WHERE is_current = 1')[0]?.cohort ??
@@ -42,8 +30,8 @@ export function makeSemesterCurrent(db: Database, cohort: number): void {
 }
 
 /**
- * 일정·명단 수정과 삭제는 진행 예정 반기만 한다. 진행 중·종료 반기는 조회만 한다(409 SEMESTER_LOCKED).
- * message는 막을 때 보일 문구다. 예: '진행 중이거나 종료된 반기의 일정은 고칠 수 없습니다.'
+ * 삭제는 진행 예정 반기만 한다. 진행 중·종료 반기는 409 SEMESTER_LOCKED.
+ * message는 막을 때 보일 문구다. 예: '진행 중이거나 종료된 반기는 삭제할 수 없습니다.'
  */
 export function assertPreparing(semester: SemesterDto, message: string): void {
   if (semester.status !== 'PREPARING') throw new ApiError(409, 'SEMESTER_LOCKED', message);
@@ -68,100 +56,28 @@ export function semesterRecordCounts(db: Database, cohort: number): SemesterReco
   };
 }
 
-/** 등록되지 않은 사용자가 있으면 400 USER_NOT_FOUND. */
-export function assertUsersExist(db: Database, userIds: readonly string[]): void {
-  const existing = new Set(queryAll<{ id: string }>(db, 'SELECT id FROM users').map((u) => u.id));
-  const missing = userIds.filter((id) => !existing.has(id));
-  if (missing.length > 0) {
-    throw new ApiError(400, 'USER_NOT_FOUND', `등록되지 않은 사용자입니다: ${missing.join(', ')}`);
-  }
-}
-
-/** 반기 출결 회원 명단을 통째로 바꾼다. 없는 사용자가 있으면 아무것도 바꾸지 않고 400. */
-export function replaceSemesterMemberIds(
+/**
+ * 공통 주차 하나를 휴강으로 바꾸면 계산에서 빠지는 출결 세션·기록 수(백엔드 ATT-09 impact).
+ * 출결 주차 날짜(cohort_week_dates)가 그 주 안에 있는 세션을 센다. 기록은 입력된 것(unmarked 제외)만 센다.
+ * shortcut: 승인 대기 제출·스터디 회차 수는 임시 DB에 없어 세지 않는다. 백엔드 연동 때 서버 값으로 바뀐다.
+ */
+export function voidImpactOf(
   db: Database,
   cohort: number,
-  userIds: readonly string[],
-): void {
-  assertUsersExist(db, userIds);
-  execute(db, 'DELETE FROM semester_members WHERE cohort = ?', [cohort]);
-  [...new Set(userIds)].forEach((userId) =>
-    execute(
-      db,
-      `INSERT INTO semester_members (cohort, user_id, name, term, track)
-       SELECT ?, id, name, term, track FROM users WHERE id = ?`,
-      [cohort, userId],
-    ),
-  );
-}
-
-const badDate = (message: string) => new ApiError(400, 'INVALID_DATE_RANGE', message);
-
-function checkDate(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !isValidIsoDate(value)) {
-    throw new ApiError(400, 'BAD_REQUEST', `${label}은 YYYY-MM-DD 형식의 실제 날짜여야 합니다.`);
-  }
-  return value;
-}
-
-function checkRange(value: unknown, label: string): DateRange {
-  if (value === undefined || value === null) {
-    throw new ApiError(400, 'BAD_REQUEST', `${label} 기간이 필요합니다.`);
-  }
-  const range = readBody(value);
-  const startDate = checkDate(range.startDate, `${label} 시작일`);
-  const endDate = checkDate(range.endDate, `${label} 종료일`);
-  if (startDate > endDate) throw badDate(`${label} 시작일은 종료일보다 늦을 수 없습니다.`);
-  return { startDate, endDate };
-}
-
-const badInvalidWeek = () =>
-  new ApiError(
-    400,
-    'BAD_REQUEST',
-    `무효 주차는 활동(${SEMESTER_ACTIVITIES.join(', ')})과 1~${ACTIVITY_WEEK_COUNT}주차로 지정해야 합니다.`,
-  );
-
-/**
- * 일정 요청 본문(SaveSemesterScheduleRequest 모양)을 검증해 정리된 값으로 돌려준다.
- * 날짜 형식·순서, 시작일이 반기 안인지, 무효 주차 범위를 본다.
- */
-export function checkSchedule(body: unknown): SemesterScheduleInput {
-  const request = readBody(body);
-  const vacation = checkRange(request.vacation, '방학');
-  const term = checkRange(request.term, '학기');
-  if (vacation.endDate >= term.startDate) {
-    throw badDate('방학 종료일은 학기 시작일보다 앞이어야 합니다.');
-  }
-  const starts: SemesterScheduleInput['starts'] = {};
-  const activityStarts = readBody(request.activityStarts);
-  SEMESTER_ACTIVITIES.forEach((activity) => {
-    const value = activityStarts[activity];
-    if (value === undefined || value === null) return;
-    const date = checkDate(value, `${activity} 시작일`);
-    if (date < vacation.startDate || date > term.endDate) {
-      throw badDate(`${activity} 시작일은 방학 시작일과 학기 종료일 사이여야 합니다.`);
-    }
-    starts[activity] = date;
-  });
-  const invalid = new Map<string, SemesterScheduleInput['invalidWeeks'][number]>();
-  const weeks = request.invalidWeeks ?? [];
-  if (!Array.isArray(weeks)) throw badInvalidWeek();
-  weeks.forEach((item: unknown) => {
-    const week = readBody(item);
-    const activity = SEMESTER_ACTIVITIES.find((value) => value === week.activity);
-    const { weekNum, reason } = week;
-    if (
-      !activity ||
-      typeof weekNum !== 'number' ||
-      !Number.isInteger(weekNum) ||
-      weekNum < 1 ||
-      weekNum > ACTIVITY_WEEK_COUNT ||
-      (reason !== undefined && typeof reason !== 'string')
-    ) {
-      throw badInvalidWeek();
-    }
-    invalid.set(`${activity}:${weekNum}`, { activity, weekNum, reason: reason ?? '' });
-  });
-  return { vacation, term, starts, invalidWeeks: [...invalid.values()] };
+  week: CommonWeek,
+): { sessionCount: number; recordCount: number } {
+  const row = queryAll<{ sessions: number; records: number }>(
+    db,
+    `SELECT COUNT(DISTINCT s.team_id || '|' || s.week_id) AS sessions,
+            COUNT(r.member_id) AS records
+       FROM attendance_sessions s
+       JOIN teams t ON t.id = s.team_id
+       JOIN weeks w ON w.id = s.week_id
+       JOIN cohort_week_dates d ON d.cohort = t.semester_cohort AND d.week_num = w.week_num
+       LEFT JOIN attendance_records r
+         ON r.team_id = s.team_id AND r.week_id = s.week_id AND r.status <> 'unmarked'
+      WHERE t.semester_cohort = ? AND d.date BETWEEN ? AND ?`,
+    [cohort, week.startDate, week.endDate],
+  )[0];
+  return { sessionCount: row?.sessions ?? 0, recordCount: row?.records ?? 0 };
 }

@@ -27,9 +27,21 @@ CREATE TABLE cohorts (
   is_preparing   INTEGER NOT NULL DEFAULT 0 CHECK (is_preparing IN (0, 1)), -- 준비: 저장했지만 아직 활성화하지 않은 반기. 진행·종료는 is_current로 가른다
   adv_term       INTEGER CHECK (adv_term > 0),             -- 이 반기에 ADV를 진행하는 회원 기수(ADV 팀의 teams.cohort). 없으면 NULL
   -- ADV 팀장이 출결 입력 탭에서 입력을 시작하는 주차(백엔드 activity_season.adv_leader_entry_from_week_id).
-  -- 그 앞 주차는 운영지원팀이 ADV 출결 관리에서 직접 입력한다. 반기를 만들 때 반드시 정한다(비어 있으면 반기 생성을 막는다). 기본값 4주차는 v0.5 기본안
+  -- 그 앞 주차는 운영지원팀이 ADV 출결 관리에서 직접 입력한다. 비울 수 없고, 반기를 만들 때 값을 주지 않으면 4주차(v0.5 기본안)다
   adv_leader_entry_from_week INTEGER NOT NULL DEFAULT 4 CHECK (adv_leader_entry_from_week BETWEEN 1 AND 16),
   deleted_at     TEXT,                                     -- 반기를 지운 시각(soft delete). 지운 반기는 목록·조회·중복 검사에서 빠지고, 그 반기의 팀·출결·행사 기록은 남는다
+  -- 활동별 1주차 시작일(백엔드 activity_season.base_start_on 등). 정하지 않은 활동·옛 반기는 NULL.
+  -- 출결 주차 날짜(cohort_week_dates)와는 따로 관리한다.
+  base_start_on           TEXT CHECK (base_start_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  adv_start_on            TEXT CHECK (adv_start_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  vacation_study_start_on TEXT CHECK (vacation_study_start_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  semester_study_start_on TEXT CHECK (semester_study_start_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  -- 반기 관리 API(백엔드 ATT-01~05)의 activity_season 칸. 반기 관리 화면만 쓴다.
+  half                    TEXT CHECK (half IN ('H1', 'H2')),
+  score_rule_set_id       INTEGER,                        -- 점수 규칙 버전(score_rules.rowid)
+  -- ADV 팀장 입력 시작 주차(백엔드 adv_leader_entry_from_week_id). NULL이면 팀장 입력을 열지 않는다.
+  -- 출결 입력 화면은 아직 위의 adv_leader_entry_from_week(활동 주차 번호)를 읽는다.
+  adv_leader_entry_from_week_id INTEGER REFERENCES season_week (id) ON DELETE SET NULL,
   CHECK (start_date <= end_date),
   CHECK (is_current = 0 OR is_preparing = 0)
 );
@@ -46,33 +58,33 @@ CREATE TABLE semester_member_terms (
   PRIMARY KEY (cohort, term)
 );
 
--- 반기의 방학·학기 기간. cohorts.start_date·end_date는 방학 시작 ~ 학기 종료와 같게 맞춘다. 정하지 않은 옛 반기는 행이 없다.
--- 스터디는 자기 기간이 끝나면 종료된 그룹으로 본다(그룹 계정 관리 표·HOST 계정 정리). 백엔드의 season_period 자리다.
-CREATE TABLE semester_periods (
-  cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
-  period     TEXT    NOT NULL CHECK (period IN ('방학', '학기')),
-  start_date TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-  end_date   TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-  PRIMARY KEY (cohort, period),
+-- 반기의 방학·학기 기간(백엔드 season_period). cohorts.start_date·end_date는 방학 시작 ~ 학기 종료와 같게 맞춘다.
+-- 정하지 않은 옛 반기는 행이 없다. 스터디는 자기 기간이 끝나면 종료된 그룹으로 본다(그룹 계정 관리 표·HOST 계정 정리).
+-- activity_season_id는 백엔드 이름을 쓰고, 반기 테이블을 activity_season으로 바꾸기 전까지 cohorts.cohort를 가리킨다.
+CREATE TABLE season_period (
+  id                 INTEGER PRIMARY KEY,
+  activity_season_id INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  period_type        TEXT    NOT NULL CHECK (period_type IN ('VACATION', 'SEMESTER')),
+  start_date         TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  end_date           TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  UNIQUE (activity_season_id, period_type),
   CHECK (start_date <= end_date)
 );
 
--- 활동별 1주차 시작일. 이후 주차는 7일씩 더해 계산한다. 출결 주차 날짜(cohort_week_dates)와는 따로 관리한다.
-CREATE TABLE semester_activity_starts (
-  cohort     INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
-  activity   TEXT    NOT NULL CHECK (activity IN ('BASE', 'ADV', 'STUDY_VACATION', 'STUDY_TERM')),
-  start_date TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-  PRIMARY KEY (cohort, activity)
+-- 반기 공통 주차(백엔드 season_week): 방학·학기 기간을 월~일 주로 나눠 반기 전체에 이어 센다. 기간 사이 빈 주는 행이 없다.
+-- 기간을 저장할 때 다시 만들고(entities/cohort/model/schedule.ts commonWeeksOf), 같은 주차 번호의 휴강은 남긴다.
+-- 휴강(is_void)은 모든 활동에 적용된다(백엔드 ATT-09). 변경 이력은 감사 로그에 남는다.
+CREATE TABLE season_week (
+  id                 INTEGER PRIMARY KEY,
+  activity_season_id INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  period_id          INTEGER NOT NULL REFERENCES season_period (id) ON DELETE CASCADE,
+  week_no            INTEGER NOT NULL CHECK (week_no >= 1),
+  start_date         TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  end_date           TEXT    NOT NULL CHECK (end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  is_void            INTEGER NOT NULL DEFAULT 0 CHECK (is_void IN (0, 1)),
+  UNIQUE (activity_season_id, week_no)
 );
-
--- 무효 주차(휴강): 그 활동의 출결에서 제외되는 주차(RULE-02). 변경 이력은 감사 로그의 요청 본문에 남는다.
-CREATE TABLE semester_invalid_weeks (
-  cohort   INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
-  activity TEXT    NOT NULL CHECK (activity IN ('BASE', 'ADV', 'STUDY_VACATION', 'STUDY_TERM')),
-  week_num INTEGER NOT NULL CHECK (week_num BETWEEN 1 AND 8),
-  reason   TEXT    NOT NULL DEFAULT '',
-  PRIMARY KEY (cohort, activity, week_num)
-);
+CREATE INDEX idx_season_week_period ON season_week (period_id);
 
 -- 동아리원. 스터디원·ADV 팀원·스터디장 후보는 모두 이 테이블의 사람을 가리킨다.
 CREATE TABLE users (
@@ -107,18 +119,26 @@ CREATE TABLE users (
 -- 같은 기수에 같은 이름은 한 명. 잘못 등록해 지운 회원(deleted_at)은 빼고 본다.
 CREATE UNIQUE INDEX idx_users_name_term ON users (name, term) WHERE deleted_at IS NULL;
 
--- 출결·점수 시스템에서 사용하는 반기별 회원 명단. users는 전역 계정/프로필이고,
--- 이 테이블에 등록된 사람만 해당 반기의 팀원·팀장 후보로 조회된다. 새 반기는 빈 명단으로 시작한다.
-CREATE TABLE semester_members (
-  cohort    INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
-  user_id   TEXT    NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
-  name      TEXT    NOT NULL,
-  term      INTEGER NOT NULL CHECK (term > 0),
-  track     TEXT    NOT NULL REFERENCES tracks (name),
-  created_at TEXT   NOT NULL DEFAULT (datetime('now')),
-  PRIMARY KEY (cohort, user_id)
+-- 반기 등록(백엔드 member_enrollment): 출결·점수 시스템이 쓰는 반기별 명단. users는 전역 계정/프로필이고,
+-- 등록이 살아 있는(deleted_at IS NULL) 사람만 해당 반기의 팀원·팀장 후보로 조회된다. 새 반기는 빈 명단으로 시작한다.
+CREATE TABLE member_enrollment (
+  id                 INTEGER PRIMARY KEY,
+  -- 백엔드 member.id 자리. 임시 DB에서는 동아리원 명단(users)이다. 이름·기수·부문은 복사하지 않고 users에서 읽는다.
+  member_id          TEXT    NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+  activity_season_id INTEGER NOT NULL REFERENCES cohorts (cohort) ON DELETE CASCADE,
+  -- 이번 반기 구분. 등록할 때 회원 기수로 정한다(반기의 BASE 기수 BASE, ADV 기수 ADV, 그 밖 수료 기수 COMPLETED).
+  season_role        TEXT    NOT NULL CHECK (season_role IN ('BASE', 'ADV', 'COMPLETED')),
+  menmen_joined      INTEGER NOT NULL DEFAULT 1 CHECK (menmen_joined IN (0, 1)),
+  chinba_joined      INTEGER NOT NULL DEFAULT 1 CHECK (chinba_joined IN (0, 1)),
+  parallel_track     TEXT    REFERENCES tracks (name),     -- 이번 반기 병행 부문. 등록할 때 동아리원 명단의 병행 부문을 복사한다
+  note               TEXT,
+  version            INTEGER NOT NULL DEFAULT 0,
+  deleted_at         TEXT,                                 -- 등록 취소(명단에서 뺌). 다시 넣으면 비운다
+  created_at         TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (activity_season_id, member_id)
 );
-CREATE INDEX idx_semester_members_user ON semester_members (user_id);
+CREATE INDEX idx_member_enrollment_member ON member_enrollment (member_id);
+CREATE INDEX idx_member_enrollment_role ON member_enrollment (activity_season_id, season_role);
 
 -- 동아리 활동 명단. 로그인 계정(users)과 분리해 기수별·부문별 이력을 보존한다.
 CREATE TABLE members (
