@@ -178,7 +178,7 @@ export function nextSemester(db: Database): SemesterDto {
 
 /**
  * 반기를 등록한다. 주차는 모두 진행 예정으로 만든다.
- * ADV 팀장 입력 시작 주차를 주지 않으면 DB 기본값(4주차)이다. 반기 관리의 반기 만들기는 항상 값을 준다.
+ * ADV 팀장 입력 시작 주차를 주지 않으면 DB 기본값(4주차)이다.
  */
 export function insertSemester(
   db: Database,

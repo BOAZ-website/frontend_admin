@@ -19,8 +19,8 @@ async function freshDb() {
 test('시드: 27기·26기 방학 1~8주차 날짜가 DB에 있다', async () => {
   const dates = loadWeekDates(await freshDb());
   assert.equal(Object.keys(dates[27]).length, 8);
-  assert.equal(dates[27][1], '2026-07-07');
-  assert.equal(dates[27][8], '2026-08-25');
+  assert.equal(dates[27][1], '2026-07-06');
+  assert.equal(dates[27][8], '2026-08-24');
   assert.equal(dates[26][1], '2025-07-08');
   assert.equal(dates[25], undefined);
 });

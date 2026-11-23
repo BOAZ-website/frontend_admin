@@ -1,20 +1,21 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { ClubMember } from '../src/entities/club-member/model/types';
-import { autoRosterOf, rosterTermsOf } from '../src/pages/system-semesters/model/roster';
-import { emptyScheduleForm } from '../src/pages/system-semesters/model/scheduleForm';
+import {
+  emptyScheduleForm,
+  semesterHalfError,
+} from '../src/pages/system-semesters/model/scheduleForm';
 import {
   parseSemesterDraft,
   type SemesterDraft,
 } from '../src/pages/system-semesters/model/semesterDraft';
-import { advLeaderEntryWeekError } from '../src/pages/system-semesters/model/useNewSemesterForm';
 
 const DRAFT: SemesterDraft = {
   name: '27-1',
+  half: 'H1',
+  scoreRuleSetId: 1,
   baseTerm: 28,
   advTerm: 27,
-  advLeaderEntryFromWeek: '5',
   form: emptyScheduleForm(),
 };
 
@@ -22,18 +23,24 @@ test('임시 저장한 새 반기는 같은 값으로 다시 읽힌다', () => {
   assert.deepEqual(parseSemesterDraft(JSON.stringify(DRAFT)), DRAFT);
 });
 
-test('ADV 팀장 입력 시작 주차가 생기기 전에 임시 저장한 값은 기본 4주차로 읽는다', () => {
-  const oldDraft: Partial<SemesterDraft> = { ...DRAFT };
-  delete oldDraft.advLeaderEntryFromWeek;
-  assert.equal(parseSemesterDraft(JSON.stringify(oldDraft))?.advLeaderEntryFromWeek, '4');
+test('상반기·하반기를 넣기 전에 저장한 입력은 고르지 않은 상태로 읽힌다', () => {
+  const oldDraft = Object.fromEntries(Object.entries(DRAFT).filter(([key]) => key !== 'half'));
+
+  assert.deepEqual(parseSemesterDraft(JSON.stringify(oldDraft)), { ...DRAFT, half: '' });
+  assert.deepEqual(parseSemesterDraft(JSON.stringify({ ...DRAFT, half: 'H3' })), {
+    ...DRAFT,
+    half: '',
+  });
 });
 
-test('ADV 팀장 입력 시작 주차는 비우거나 1~16 밖이면 오류다', () => {
-  assert.equal(advLeaderEntryWeekError(''), 'ADV 팀장 입력 시작 주차를 입력하세요');
-  assert.equal(advLeaderEntryWeekError('0'), '1~16 사이의 주차를 입력하세요');
-  assert.equal(advLeaderEntryWeekError('17'), '1~16 사이의 주차를 입력하세요');
-  assert.equal(advLeaderEntryWeekError('2.5'), '1~16 사이의 주차를 입력하세요');
-  assert.equal(advLeaderEntryWeekError('4'), null);
+test('상반기·하반기는 골라야 하고 반기 이름의 N과 맞아야 한다(1=H1, 2=H2)', () => {
+  assert.equal(semesterHalfError('', '27-1'), '상반기·하반기를 고르세요');
+  assert.equal(semesterHalfError('H1', '27-1'), undefined);
+  assert.equal(semesterHalfError('H2', '27-2'), undefined);
+  assert.equal(semesterHalfError('H2', '27-1'), '반기 이름 27-1은 상반기입니다');
+  assert.equal(semesterHalfError('H1', '27-2'), '반기 이름 27-2은 하반기입니다');
+  // 이름 형식이 틀리면 이름 칸이 오류를 보이므로 여기서는 맞춰 보지 않는다.
+  assert.equal(semesterHalfError('H1', '27'), undefined);
 });
 
 test('임시 저장 값이 없거나 모양이 틀리면 null이다(깨진 값으로 화면을 열지 않는다)', () => {
@@ -41,44 +48,4 @@ test('임시 저장 값이 없거나 모양이 틀리면 null이다(깨진 값�
   assert.equal(parseSemesterDraft('not json'), null);
   assert.equal(parseSemesterDraft(JSON.stringify({ ...DRAFT, baseTerm: '28' })), null);
   assert.equal(parseSemesterDraft(JSON.stringify({ ...DRAFT, form: { starts: {} } })), null);
-});
-
-test('명단 확인에 미리 넣을 기수: 1주차 시작일을 정한 BASE·ADV 기수만이다', () => {
-  const form = emptyScheduleForm();
-
-  assert.deepEqual(rosterTermsOf(form, 28, 27), []);
-  assert.deepEqual(
-    rosterTermsOf({ ...form, starts: { ...form.starts, BASE: '2027-01-05' } }, 28, 27),
-    [28],
-  );
-  assert.deepEqual(
-    rosterTermsOf(
-      { ...form, starts: { ...form.starts, BASE: '2027-01-05', ADV: '2027-01-06' } },
-      28,
-      27,
-    ),
-    [28, 27],
-  );
-});
-
-const member = (id: string, term: number, status: ClubMember['status']): ClubMember =>
-  ({ id, name: id, term, track: '분석', status }) as ClubMember;
-
-test('미리 넣는 명단은 그 기수의 활동 중 회원이고 구분은 기수로 정한다', () => {
-  const members = [
-    member('a', 28, 'ACTIVE'),
-    member('b', 27, 'ACTIVE'),
-    member('c', 28, 'WITHDRAWN'),
-    member('d', 26, 'ACTIVE'),
-  ];
-  const kindOf = (term: number) => (term === 28 ? 'BASE' : term === 27 ? 'ADV' : 'EXTRA') as const;
-
-  assert.deepEqual(
-    autoRosterOf(members, [28, 27], kindOf).map((m) => [m.userId, m.kind]),
-    [
-      ['a', 'BASE'],
-      ['b', 'ADV'],
-    ],
-  );
-  assert.deepEqual(autoRosterOf(members, [], kindOf), []);
 });

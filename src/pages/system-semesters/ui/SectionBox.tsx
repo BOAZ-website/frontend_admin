@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 
 interface SectionBoxProps {
   title: string;
+  /** 제목 줄 오른쪽에 둘 버튼(예: 명단 「수정」). */
+  action?: ReactNode;
   children: ReactNode;
 }
 
@@ -9,10 +11,13 @@ interface SectionBoxProps {
  * 반기 관리 패널의 구역. 패널 안에 카드를 겹치지 않고 위쪽 구분선으로 나눈다.
  * 패널의 첫 구역은 패널 제목 아래 선과 겹치지 않게 선을 뺀다.
  */
-export function SectionBox({ title, children }: SectionBoxProps) {
+export function SectionBox({ title, action, children }: SectionBoxProps) {
   return (
     <section className="border-t border-slate-200 pt-4 first:border-t-0 first:pt-0">
-      <h4 className="mb-2 text-base font-semibold text-slate-900">{title}</h4>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h4 className="text-base font-semibold text-slate-900">{title}</h4>
+        {action}
+      </div>
       {children}
     </section>
   );
@@ -46,8 +51,3 @@ export function LabeledRow({ label, children, error, errorId }: LabeledRowProps)
     </div>
   );
 }
-
-/** 표 머리 줄. 출결 표처럼 칸마다 세로 줄을 긋는다. */
-export const GRID_HEAD_ROW = 'h-10 divide-x divide-slate-200 border-b border-slate-200 text-xs';
-/** 표 본문 줄. 출결 표와 같은 높이·세로 줄이다. */
-export const GRID_ROW = 'h-10 divide-x divide-slate-200 transition-colors hover:bg-slate-50/70';

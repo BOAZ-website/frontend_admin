@@ -1,15 +1,15 @@
 import { useCallback, useState } from 'react';
 import { Plus } from 'lucide-react';
 
-import type { SemesterDto } from '@/entities/cohort/model/dto';
-import { useSemesters } from '@/entities/cohort/model/useSemesters';
+import type { Season } from '@/entities/cohort/model/season';
+import { useSeasons } from '@/entities/cohort/model/useSeasons';
 import { PAGE_LABELS } from '@/shared/config/pageLabels';
-import { alertApiError } from '@/shared/lib/alertApiError';
 import { confirmLeave } from '@/shared/lib/leaveGuard';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { SplitListItem, SplitView } from '@/shared/ui/SplitView';
 import { PageLoadingState } from '@/widgets/page-loading/ui/PageLoadingState';
 
+import { confirmAndActivate } from '../model/activateSemester';
 import { confirmAndRemovePreparing } from '../model/removeSemester';
 import {
   clearSemesterDraft,
@@ -21,8 +21,8 @@ import { emptySemesterDraft } from '../model/useNewSemesterForm';
 import { ExistingSemesterPanel } from './ExistingSemesterPanel';
 import { NewSemesterPanel } from './NewSemesterPanel';
 
-/** 선택 상태: 예정(임시 저장한 새 반기), 이름이 있는 반기, 또는 없음. */
-type Selection = { kind: 'new' } | { kind: 'semester'; name: string } | null;
+/** 선택 상태: 예정(임시 저장한 새 반기), 저장된 반기(이름은 바뀔 수 있어 id로 고른다), 또는 없음. */
+type Selection = { kind: 'new' } | { kind: 'semester'; id: number } | null;
 
 const TITLE = (
   <h1 className="text-xl font-bold tracking-tight text-slate-900">
@@ -36,9 +36,9 @@ const TITLE_ROW_CLASS =
 const PREPARING_LABEL = '진행 예정';
 /** 목록 묶음 제목. 공용 LIST_SECTION_TITLE(11px)보다 크게 12px·slate-500으로 보인다(R12-7). */
 const GROUP_TITLE = 'px-1 text-xs font-semibold text-slate-500 select-none';
-const GROUPS: readonly { status: SemesterDto['status']; label: string; empty: string }[] = [
+const GROUPS: readonly { status: Season['status']; label: string; empty: string }[] = [
   { status: 'ACTIVE', label: '진행', empty: '진행 중인 반기가 없습니다.' },
-  { status: 'ENDED', label: '종료', empty: '종료된 반기가 없습니다.' },
+  { status: 'ARCHIVED', label: '종료', empty: '종료된 반기가 없습니다.' },
 ];
 
 interface SemesterManagementPageProps {
@@ -48,12 +48,12 @@ interface SemesterManagementPageProps {
 
 /**
  * 반기 관리 화면. "새 반기 시작"을 누르면 목록 맨 위 "진행 예정"에 새 반기가 생기고 입력은 이 브라우저에 임시 저장된다.
- * 적용 → 명단 확인을 마치면 진행 예정 반기로 등록된다(진행 반기는 그대로). 그 반기를 열어 활성화하면 진행 반기가 되고,
- * 이전 진행 반기는 종료되며 "진행 예정" 묶음은 사라진다. 화면에 들어오면 진행 반기를 열어 둔다.
+ * 적용 → 명단 확인을 마치면 진행 예정 반기로 등록된다(진행 반기는 그대로). 그 반기를 열어 활성화하면
+ * 진행 반기의 종료 점검 → 종료 → 활성화를 차례로 하고 "진행 예정" 묶음은 사라진다. 화면에 들어오면 진행 반기를 열어 둔다.
  */
 export function SemesterManagementPage({ onSemesterChanged }: SemesterManagementPageProps) {
-  const semestersState = useSemesters();
-  const { semesters, error, reload } = semestersState;
+  const seasonsState = useSeasons();
+  const { seasons: semesters, error, reload } = seasonsState;
   // undefined는 아직 아무것도 고르지 않은 처음 상태다. 이때는 진행 반기를 열어 둔다.
   const [chosen, setSelection] = useState<Selection | undefined>(undefined);
   // 저장하지 않은 입력이 있는 패널에서 다른 반기로 옮길 때도 확인한다(R12-14).
@@ -92,17 +92,17 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
   }
 
   const current = semesters.find((s) => s.status === 'ACTIVE') ?? null;
-  const preparing = semesters.filter((s) => s.status === 'PREPARING');
+  const preparing = semesters.filter((s) => s.status === 'DRAFT');
   const handleNew = () => {
-    // 진행 예정 반기는 한 번에 하나다(서버도 409 SEMESTER_PREPARING_EXISTS).
+    // 진행 예정 반기는 한 번에 하나만 둔다.
     if (preparing.length > 0) {
       window.alert(
-        `진행 예정 반기(${preparing[0].semester})가 이미 있습니다. 활성화하거나 삭제한 뒤 새 반기를 시작하세요.`,
+        `진행 예정 반기(${preparing[0].name})가 이미 있습니다. 활성화하거나 삭제한 뒤 새 반기를 시작하세요.`,
       );
       return;
     }
     if (!draft)
-      handleDraftChange(emptySemesterDraft(Math.max(0, ...semesters.map((s) => s.cohort))));
+      handleDraftChange(emptySemesterDraft(Math.max(0, ...semesters.map((s) => s.baseTerm))));
     handleSelect({ kind: 'new' });
   };
   const forgetDraft = () => {
@@ -117,35 +117,34 @@ export function SemesterManagementPage({ onSemesterChanged }: SemesterManagement
     forgetDraft();
     if (selection?.kind === 'new') setSelection(undefined);
   };
-  const handleActivate = async (name: string) => {
-    const message = current
-      ? `${name}을 활성화할까요?
-${current.semester}이 종료되고 ${name}이 진행 반기가 됩니다. ${current.semester}에 연결된 HOST 계정의 팀이 해제되고, 팀·출결 기록은 그대로 남습니다.`
-      : `${name}을 활성화할까요?
-${name}이 진행 반기가 됩니다.`;
-    if (isActivating || !window.confirm(message)) return;
+  const handleActivate = async (season: Season) => {
+    if (isActivating) return;
     setIsActivating(true);
     try {
-      await semestersState.activate(name);
-    } catch (error) {
-      alertApiError(error);
-      return;
+      // 종료만 되고 활성화가 실패해도 반기 상태가 바뀌었으므로 출결 공유 데이터를 다시 읽는다.
+      if (await confirmAndActivate(season, current, seasonsState)) {
+        onSemesterChanged();
+      }
     } finally {
       setIsActivating(false);
     }
-    onSemesterChanged();
   };
   // 지울 수 있는 반기는 진행 예정 반기뿐이다(진행 중·종료 반기는 조회만).
-  const handleRemove = async (name: string) => {
-    if (!(await confirmAndRemovePreparing(name, semestersState.remove))) return;
+  const handleRemove = async (season: Season) => {
+    // 활성화하는 중에 그 반기를 지우면 진행 반기만 종료되고 활성화가 실패한다.
+    if (isActivating) {
+      window.alert('활성화가 끝난 뒤 다시 시도하세요.');
+      return;
+    }
+    if (!(await confirmAndRemovePreparing(season, seasonsState.remove))) return;
     onSemesterChanged();
     // 지운 반기를 열어 두고 있었으면 닫는다(처음 상태로 돌아가 진행 반기가 열린다).
-    if (selection?.kind === 'semester' && selection.name === name) setSelection(undefined);
+    if (selection?.kind === 'semester' && selection.id === season.id) setSelection(undefined);
   };
   const selection: Selection =
-    chosen !== undefined ? chosen : current && { kind: 'semester', name: current.semester };
+    chosen !== undefined ? chosen : current && { kind: 'semester', id: current.id };
   const selected =
-    selection?.kind === 'semester' ? semesters.find((s) => s.semester === selection.name) : null;
+    selection?.kind === 'semester' ? semesters.find((s) => s.id === selection.id) : null;
   const isOpen = selection?.kind === 'new' || !!selected;
 
   const list = (
@@ -155,11 +154,11 @@ ${name}이 진행 반기가 됩니다.`;
           <p className={GROUP_TITLE}>{PREPARING_LABEL}</p>
           {preparing.map((s) => (
             <SplitListItem
-              key={s.semester}
-              label={s.semester}
-              isSelected={selected?.semester === s.semester}
-              onSelect={() => handleSelect({ kind: 'semester', name: s.semester })}
-              onDelete={() => void handleRemove(s.semester)}
+              key={s.id}
+              label={s.name}
+              isSelected={selected?.id === s.id}
+              onSelect={() => handleSelect({ kind: 'semester', id: s.id })}
+              onDelete={() => void handleRemove(s)}
             />
           ))}
           {draft && (
@@ -182,10 +181,10 @@ ${name}이 진행 반기가 됩니다.`;
             ) : (
               items.map((s) => (
                 <SplitListItem
-                  key={s.semester}
-                  label={s.semester}
-                  isSelected={selected?.semester === s.semester}
-                  onSelect={() => handleSelect({ kind: 'semester', name: s.semester })}
+                  key={s.id}
+                  label={s.name}
+                  isSelected={selected?.id === s.id}
+                  onSelect={() => handleSelect({ kind: 'semester', id: s.id })}
                 />
               ))
             )}
@@ -200,13 +199,13 @@ ${name}이 진행 반기가 됩니다.`;
     <div className="space-y-6">
       <div className={TITLE_ROW_CLASS}>
         {TITLE}
-        {/* 글자 없이 + 만 두고, 무엇을 하는 버튼인지는 말풍선과 화면 낭독기 이름으로 알린다. */}
-        <Tooltip label="새 반기 시작" align="end">
+        {/* 바탕·테두리 없이 연한 + 만 두고, 무엇을 하는 버튼인지는 말풍선과 화면 낭독기 이름으로 알린다. */}
+        <Tooltip label="반기 생성" align="end">
           <button
             type="button"
             onClick={handleNew}
-            aria-label="새 반기 시작"
-            className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-sm border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+            aria-label="반기 생성"
+            className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
           >
             <Plus size={16} strokeWidth={2.25} aria-hidden="true" />
           </button>
@@ -216,9 +215,7 @@ ${name}이 진행 반기가 됩니다.`;
         listLabel="반기 목록"
         list={list}
         isOpen={isOpen}
-        panelTitle={
-          selection?.kind === 'new' ? draft?.name || '새 반기' : (selected?.semester ?? '')
-        }
+        panelTitle={selection?.kind === 'new' ? draft?.name || '새 반기' : (selected?.name ?? '')}
         onClose={() => handleSelect(null)}
       >
         {selection?.kind === 'new' && draft && (
@@ -226,24 +223,25 @@ ${name}이 진행 반기가 됩니다.`;
             initialDraft={draft}
             onDraftChange={handleDraftChange}
             isDraftUnsaved={isDraftUnsaved}
-            existingNames={semesters.map((s) => s.semester)}
-            prepare={semestersState.prepare}
+            existingNames={semesters.map((s) => s.name)}
+            create={seasonsState.create}
             onCancel={() => handleSelect(null)}
-            onApplied={(name) => {
+            onApplied={(id: number) => {
               forgetDraft();
-              setSelection({ kind: 'semester', name });
+              setSelection({ kind: 'semester', id });
             }}
           />
         )}
         {selected && (
           <ExistingSemesterPanel
-            key={selected.semester}
-            semester={selected}
-            onChanged={onSemesterChanged}
+            key={selected.id}
+            season={selected}
+            onChanged={() => {
+              reload();
+              onSemesterChanged();
+            }}
             onActivate={
-              selected.status === 'PREPARING'
-                ? () => void handleActivate(selected.semester)
-                : undefined
+              selected.status === 'DRAFT' ? () => void handleActivate(selected) : undefined
             }
             isActivating={isActivating}
           />

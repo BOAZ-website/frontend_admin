@@ -1,12 +1,15 @@
 import { alertApiError } from '@/shared/lib/alertApiError';
 
-type RemoveAction = (semester: string) => Promise<unknown>;
+import type { Season } from '@/entities/cohort/model/season';
+
+type RemoveAction = (season: Season) => Promise<unknown>;
 
 /** 진행 예정 반기를 묻고 지운다. 지웠으면 true, 실패는 알리고 false. 진행 중·종료 반기는 지울 수 없다. */
 export async function confirmAndRemovePreparing(
-  name: string,
+  season: Season,
   remove: RemoveAction,
 ): Promise<boolean> {
+  const { name } = season;
   if (
     !window.confirm(`진행 예정 반기 ${name}을 삭제할까요?
 입력한 일정과 명단이 목록에서 빠집니다.`)
@@ -14,7 +17,7 @@ export async function confirmAndRemovePreparing(
     return false;
   }
   try {
-    await remove(name);
+    await remove(season);
     return true;
   } catch (error) {
     alertApiError(error);

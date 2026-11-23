@@ -33,7 +33,7 @@ async function setup() {
   const SQL = await initSqlJs();
   const db = createDatabase(SQL, schema, seed);
   // 오늘 날짜와 상관없이 현재 반기의 방학·학기 스터디가 모두 진행 중이게 한다.
-  execute(db, "UPDATE semester_periods SET end_date = '2999-12-31'");
+  execute(db, "UPDATE season_period SET end_date = '2999-12-31'");
   const router = createRouter(MOCK_ROUTES);
   const call = <T>(method: Method, path: string, body?: unknown) =>
     router.dispatch(db, method, path, body) as T;
@@ -105,7 +105,7 @@ test('기간이 끝난 스터디(종료된 그룹)에는 팀장이어도 입력�
   const { db, actAs, saveStudy } = await setup();
   execute(
     db,
-    "UPDATE semester_periods SET start_date = '2000-01-01', end_date = '2000-01-02' WHERE period = '학기'",
+    "UPDATE season_period SET start_date = '2000-01-01', end_date = '2000-01-02' WHERE period_type = 'SEMESTER'",
   );
   actAs(HOST_STUDY_C);
 
@@ -166,7 +166,7 @@ test('출결 입력 탭 목록: HOST에게는 본인이 팀장인 진행 중 그
 
   execute(
     db,
-    "UPDATE semester_periods SET start_date = '2000-01-01', end_date = '2000-01-02' WHERE period = '학기'",
+    "UPDATE season_period SET start_date = '2000-01-01', end_date = '2000-01-02' WHERE period_type = 'SEMESTER'",
   );
   assert.throws(() => entryTeamIds('/api/v1/study-teams'), /권한이 없습니다/);
 });

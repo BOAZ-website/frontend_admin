@@ -1,7 +1,7 @@
 /**
  * 그룹(ADV 팀·스터디)의 진행 상태. 백엔드 HOST 계정·그룹 리더 설계문서(2026-11-06판) 4.1의 판정을 임시 DB로 옮겼다.
  *  · 시작 전: 현재 반기보다 뒤 반기의 팀(백엔드: Season DRAFT)
- *  · 진행 중: 현재 반기의 팀. 스터디는 자기 기간(semester_periods의 방학·학기)의 종료일까지(당일 포함)
+ *  · 진행 중: 현재 반기의 팀. 스터디는 자기 기간(season_period의 방학·학기)의 종료일까지(당일 포함)
  *  · 종료: 지난 반기의 팀, 현재 반기여도 기간이 끝난 스터디
  * 그룹 계정 관리 표, HOST 계정 발급, HOST 계정 정리가 모두 이 판정을 쓴다.
  * 반기 상태(준비·진행·종료)가 생기면(반기 관리 SYS-SEM) 반기 비교를 그 상태로 바꾼다.
@@ -20,18 +20,24 @@ interface GroupRow extends Record<string, unknown> {
   id: string;
   group_type: 'ADV' | 'STUDY';
   semester_cohort: number;
+  /** 진행 반기. 진행 반기가 없으면(종료한 뒤 활성화 전) 가장 최근 종료 반기다. */
   current_cohort: number;
+  is_current: number;
   period_end: string | null;
 }
 
-/** 모든 ADV 팀·스터디의 진행 상태(팀 id → 상태). 현재 반기가 없으면 빈 목록이다. */
+/** 모든 ADV 팀·스터디의 진행 상태(팀 id → 상태). 진행 반기가 없으면 지난 반기 팀은 종료, 진행 예정 반기 팀은 시작 전이다. */
 export function groupStates(db: Database, today: string = todayOf()): Map<string, GroupState> {
   const rows = queryAll<GroupRow>(
     db,
-    `SELECT t.id, t.group_type, t.semester_cohort, c.cohort AS current_cohort, p.end_date AS period_end
+    `SELECT t.id, t.group_type, t.semester_cohort, c.cohort AS current_cohort, c.is_current,
+            p.end_date AS period_end
        FROM teams t
-       JOIN cohorts c ON c.is_current = 1
-       LEFT JOIN semester_periods p ON p.cohort = t.semester_cohort AND p.period = t.period
+       JOIN (SELECT cohort, is_current FROM cohorts WHERE deleted_at IS NULL AND is_preparing = 0
+              ORDER BY is_current DESC, cohort DESC LIMIT 1) c
+       LEFT JOIN season_period p
+         ON p.activity_season_id = t.semester_cohort
+        AND p.period_type = CASE t.period WHEN '방학' THEN 'VACATION' ELSE 'SEMESTER' END
       WHERE t.group_type IN ('ADV', 'STUDY')`,
   );
   return new Map(rows.map((row) => [row.id, stateOf(row, today)]));
@@ -39,7 +45,7 @@ export function groupStates(db: Database, today: string = todayOf()): Map<string
 
 function stateOf(row: GroupRow, today: string): GroupState {
   if (row.semester_cohort > row.current_cohort) return 'UPCOMING';
-  if (row.semester_cohort < row.current_cohort) return 'ENDED';
+  if (row.semester_cohort < row.current_cohort || row.is_current === 0) return 'ENDED';
   // ADV 팀은 기간이 없어 반기만 본다(설계 4.1). 기간이 정해지지 않은 스터디는 반기 끝까지 진행 중이다.
   const isPeriodOver =
     row.group_type === 'STUDY' && row.period_end !== null && row.period_end < today;

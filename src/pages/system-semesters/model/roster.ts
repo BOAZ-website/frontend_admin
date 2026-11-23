@@ -1,31 +1,5 @@
-import type { ClubMember } from '@/entities/club-member/model/types';
+import type { MemberSummary } from '@/entities/club-member/model/types';
 import type { RosterEntryDto, RosterKind } from '@/entities/cohort/model/dto';
-import type { ScheduleForm } from './scheduleForm';
-
-/** 명단 표를 거르는 구분. 뺀 사람은 원래 구분 대신 제외로 거른다. */
-export type RosterFilter = 'ALL' | RosterKind | 'EXCLUDED';
-
-/** 이 사람이 걸리는 필터: 뺀 사람이면 제외, 아니면 구분. */
-export function rosterFilterOf(
-  entry: RosterEntryDto,
-  excludedIds: ReadonlySet<string>,
-): Exclude<RosterFilter, 'ALL'> {
-  return excludedIds.has(entry.userId) ? 'EXCLUDED' : entry.kind;
-}
-
-/** 필터별 인원. 전체는 표의 모든 행(뺀 사람 포함)이고, 나머지 필터의 합과 같다. */
-export function rosterFilterCounts(
-  entries: readonly RosterEntryDto[],
-  excludedIds: ReadonlySet<string>,
-): Record<RosterFilter, number> {
-  const counts: Record<RosterFilter, number> = { ALL: 0, BASE: 0, ADV: 0, EXTRA: 0, EXCLUDED: 0 };
-  entries.forEach((entry) => {
-    const filter = rosterFilterOf(entry, excludedIds);
-    counts[filter] += 1;
-    counts.ALL += 1;
-  });
-  return counts;
-}
 
 /** 명단에 더할 후보를 거르는 조건. */
 export interface RosterCandidateFilter {
@@ -35,10 +9,10 @@ export interface RosterCandidateFilter {
 
 /** 명단에 더할 수 있는 동아리원: 탈동하지 않았고 명단에 없으며 기수·이름 조건에 맞는 사람. 큰 기수부터 이름순. */
 export function rosterCandidates(
-  members: readonly ClubMember[],
+  members: readonly MemberSummary[],
   inRosterIds: ReadonlySet<string>,
   { term, query }: RosterCandidateFilter,
-): ClubMember[] {
+): MemberSummary[] {
   const keyword = query.trim();
   return members
     .filter(
@@ -69,24 +43,27 @@ export function withCheckedRange(
   return next;
 }
 
-/** 명단 확인에 미리 넣을 기수: 1주차 시작일을 정한 활동의 기수(BASE·ADV). 스터디만 하는 사람은 직접 더한다. */
-export function rosterTermsOf(form: ScheduleForm, baseTerm: number, advTerm: number): number[] {
-  return [...(form.starts.BASE ? [baseTerm] : []), ...(form.starts.ADV ? [advTerm] : [])];
-}
-
-/** 미리 넣는 명단: 그 기수의 활동 중 회원. 구분은 기수로 정한다. */
-export function autoRosterOf(
-  members: readonly ClubMember[],
-  terms: readonly number[],
+/**
+ * 동아리원을 명단 줄로 바꾼다(저장 전에 더한 사람).
+ * 아직 반기에 저장되지 않아 그룹·멘멘·친바 참여·병행 수료·비고는 없다.
+ */
+export function rosterEntryOf(
+  member: MemberSummary,
   kindOf: (term: number) => RosterKind,
-): RosterEntryDto[] {
-  return members
-    .filter((m) => m.status === 'ACTIVE' && terms.includes(m.term))
-    .map((m) => ({
-      userId: m.id,
-      name: m.name,
-      term: m.term,
-      track: m.track,
-      kind: kindOf(m.term),
-    }));
+): RosterEntryDto {
+  return {
+    userId: member.id,
+    name: member.name,
+    term: member.term,
+    track: member.track,
+    parallelTrack: member.parallelTrack,
+    kind: kindOf(member.term),
+    memberStatus: member.status,
+    // 백엔드는 생략하면 참여(true)로 등록한다(ATT-19). 화면도 같은 기본값에서 시작한다.
+    menmenJoined: true,
+    chinbaJoined: true,
+    isParallelCompleted: null,
+    note: null,
+    groups: [],
+  };
 }

@@ -25,10 +25,16 @@ function apiBaseUrl(): string | undefined {
 async function toApiError(response: Response): Promise<ApiError> {
   const fallback = `요청을 처리하지 못했습니다. (${response.status})`;
   try {
-    const data = (await response.json()) as { code?: unknown; message?: unknown };
+    // 백엔드 공통 오류 응답은 error_code를 쓴다. 옛 임시 API 모양(code)도 읽는다.
+    const data = (await response.json()) as {
+      error_code?: unknown;
+      code?: unknown;
+      message?: unknown;
+    };
+    const code = data.error_code ?? data.code;
     return new ApiError(
       response.status,
-      typeof data.code === 'string' ? data.code : 'HTTP_ERROR',
+      typeof code === 'string' ? code : 'HTTP_ERROR',
       typeof data.message === 'string' ? data.message : fallback,
     );
   } catch {
