@@ -387,7 +387,8 @@ export function useAuditLogs(query: AuditLogQuery): AuditLogsState {
 ## 7. API 함수와 데이터 흐름
 
 ```
-컴포넌트(ui/) → Hook(model/) → API 함수(entities/*/api/*Api.ts) → client.ts → 서버 또는 임시 API
+컴포넌트(ui/) → Hook(model/) → API 함수(entities/*/api/*Api.ts) → client.ts → fetch → 서버
+                                                                                    └ 개발 모드에서 서버 주소가 없으면 MSW → 임시 API
 ```
 
 | ID | 규칙 | 검사 |
@@ -437,11 +438,18 @@ const handleSave = async () => {
 ```
 
 - 근거: 데이터를 가져오는 방법이 바뀌어도(임시 API → 실제 서버, 캐시 라이브러리 도입) Hook과 API 함수만 고치고 화면 파일은 그대로 둘 수 있음. `client.ts`가 시간 초과(10초), 오류 응답 읽기, 응답 없는 성공(204)을 한곳에서 처리함
-- 다시 볼 때: MSW 도입이 정해지면 `client.ts` 설명을 고침. 캐시 라이브러리를 들이면 R7-6을 "캐시 무효화"로 바꿈
+- 다시 볼 때: 캐시 라이브러리를 들이면 R7-6을 "캐시 무효화"로 바꿈
 
 ## 8. 임시 API와 임시 DB
 
 백엔드가 없는 동안 쓰는 코드임. 백엔드와 같은 경로·같은 응답 모양으로 동작해야 연결할 때 화면 코드를 바꾸지 않음.
+
+임시 API는 MSW(Mock Service Worker)를 거쳐 응답함.
+
+- `client.ts`는 서버 주소(`VITE_API_BASE_URL`)와 관계없이 항상 `fetch`로 요청함. 서버 주소가 없으면 같은 출처(`/api/v1/...`)로 보냄
+- 개발 모드(`npm run dev`)이고 서버 주소가 없을 때만 `src/app/main.tsx`가 MSW를 켬. MSW 핸들러(`shared/api/mock/browser.ts`)는 `/api/v1/*` 요청을 받아 기존 임시 API 라우터로 넘기기만 함
+- 운영 빌드(`npm run build`)에는 MSW, 임시 API, 임시 DB가 들어가지 않음. 서버 주소 없이 만든 빌드는 데이터를 불러오지 못함
+- MSW를 들인 목적: 서류 평가 화면을 별도 저장소로 옮겨 배포할 때 같은 세팅을 씀. 그 저장소는 임시 DB 없이 MSW 핸들러가 `backend-docs` 기능 명세의 응답 형식(`{status, data}`, `error_code`)대로 응답함
 
 | ID | 규칙 | 검사 |
 | --- | --- | --- |
@@ -454,6 +462,7 @@ const handleSave = async () => {
 | R8-7 | **반드시** 테이블을 바꾸면 `db/schema.sql`과 `db/seed.sql`을 같은 PR에서 고침 | 테스트 |
 | R8-8 | **반드시** 초기 데이터의 사람 이름·연락처·이메일은 가짜 값을 씀. **금지**: 실제 회원 정보를 넣는 것 | 리뷰 |
 | R8-9 | **반드시** 새 라우트에는 `tests/<데이터>Routes.test.ts`에 성공 1건과 거절 1건 이상의 테스트를 추가함 | 리뷰 |
+| R8-10 | **금지**: 이 저장소에서 API마다 MSW 핸들러를 따로 만드는 것. 새 API는 R8-1대로 `MockRoute`로 추가함 | 리뷰 |
 
 ```tsx
 // shared/api/mock/routes/faqRoutes.ts
