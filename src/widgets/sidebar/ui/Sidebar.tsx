@@ -1,5 +1,5 @@
 ﻿import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, ChevronsLeft } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 import type { UserRole } from '@/entities/user/model/types';
 import boazLogo from '@/shared/assets/boaz-logo.png';
@@ -144,12 +144,12 @@ export function Sidebar({
       style={{
         width: `${sidebarWidth}px`,
       }}
-      className={`admin-sidebar relative shrink-0 h-full flex flex-col bg-white border-r border-slate-200/40 shadow-[0_0_15px_rgba(0,0,0,0.02)] select-none z-20 transition-[width] ${
+      className={`relative shrink-0 h-full flex flex-col bg-white border-r border-slate-200/40 shadow-[0_0_15px_rgba(0,0,0,0.02)] select-none z-20 transition-[width] ${
         isResizing ? 'transition-none' : 'duration-75'
       }`}
     >
       {/* Brand Header */}
-      <div className="sidebar-brand h-14 shrink-0 px-4 flex items-center justify-between border-b border-slate-100 bg-white">
+      <div className="h-14 shrink-0 px-4 flex items-center justify-between border-b border-slate-100 bg-white">
         <div className="flex items-center gap-2.5">
           <img
             src={boazLogo}
@@ -160,14 +160,6 @@ export function Sidebar({
             bigdata BOAZ
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="사이드바 접기"
-          className="p-1.5 rounded-lg hover:bg-neutral-100"
-        >
-          <ChevronsLeft size={17} />
-        </button>
       </div>
 
       {/* Navigation List */}
@@ -202,7 +194,7 @@ export function Sidebar({
                     onChange('system-members');
                   }
                 }}
-                className={`sidebar-section flex items-center justify-between w-full px-3 py-2 rounded-xl text-left transition-all cursor-pointer group select-none ${
+                className={`flex items-center justify-between w-full px-3 py-2 rounded-xl text-left transition-all cursor-pointer group select-none ${
                   isSelected
                     ? 'bg-slate-100/90 text-slate-950 font-bold shadow-2xs'
                     : 'text-slate-700 hover:bg-slate-100/60 hover:text-slate-950 font-semibold'
@@ -253,7 +245,7 @@ export function Sidebar({
                               key={page.id}
                               aria-current={isActive ? 'page' : undefined}
                               onClick={() => onChange(page.id as ActivePage)}
-                              className={`sidebar-page flex items-center w-full px-2.5 py-1.5 rounded-lg text-left text-xs transition-all cursor-pointer ${
+                              className={`flex items-center w-full px-2.5 py-1.5 rounded-lg text-left text-xs transition-all cursor-pointer ${
                                 isActive
                                   ? 'bg-sky-50 text-sky-600 font-bold shadow-2xs'
                                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 font-medium'
