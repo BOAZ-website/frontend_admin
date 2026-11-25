@@ -75,6 +75,17 @@ test('최종 판정을 바꾸면 그 지원자의 최종 판정만 바뀌고 개
   assert.deepEqual({ ...after, final_decision: before.final_decision }, before);
 });
 
+test('최종 판정을 바꾼 뒤 옛 지원자 정보로 개인 평가를 저장해도 최종 판정은 그대로다', () => {
+  const stale = applicantOf(102);
+  const decided = applyFinalDecision(INITIAL_DATA, 102, 'HOLD');
+
+  const { data, applicant } = applyMyEvaluation(decided, stale, INPUT);
+
+  assert.equal(applicant.final_decision, 'HOLD');
+  assert.equal(data.applicants.find((a) => a.id === 102)?.final_decision, 'HOLD');
+  assert.equal(applicant.my_decision, 'FAIL');
+});
+
 test('부원 등록은 합격자만 등록하고, 이미 회원·미합격·지원서 없음은 실패 목록에 담는다', () => {
   const passed = applicantOf(101); // 최종 합격
   const pending = applicantOf(102); // 미결

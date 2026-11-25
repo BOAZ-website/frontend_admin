@@ -395,8 +395,10 @@ export function applyMyEvaluation(
     interviewQuestionsMap = { ...interviewQuestionsMap, [applicant.id]: updatedQuestions };
   }
 
+  // 화면이 든 지원자 정보는 그 사이 바뀐 최종 판정을 모를 수 있어, 목 데이터의 최신 값 위에 내 평가·집계만 덮는다.
+  const latest = data.applicants.find((a) => a.id === applicant.id) ?? applicant;
   const updatedApplicant: ApplicantEvaluationDto = {
-    ...applicant,
+    ...latest,
     my_decision: input.decision,
     my_score: input.score,
     my_memo: input.memo,
