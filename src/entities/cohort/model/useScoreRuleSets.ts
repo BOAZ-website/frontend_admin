@@ -1,6 +1,6 @@
 import { fetchScoreRuleSets } from '../api/seasonApi';
 import type { ScoreRuleSetOption } from './season';
-import { type LoadedState, useLoaded } from './useLoaded';
+import { type LoadedState, useLoaded } from '@/shared/lib/useLoaded';
 
 const loadAll = (): Promise<ScoreRuleSetOption[]> => fetchScoreRuleSets();
 

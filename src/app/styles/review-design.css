@@ -1,0 +1,929 @@
+/* 서류 평가 화면 전용 규칙. 다른 화면에는 영향이 없다. */
+.evaluation-page {
+  --foreground: #303236;
+  --muted-foreground: #73757b;
+  color: #303236;
+  font-size: 14px;
+}
+.evaluation-page [class*='text-'],
+.evaluation-page [style*='color:'] {
+  color: #4b4d52 !important;
+}
+.evaluation-page [class*='bg-'],
+.evaluation-page [style*='background:'] {
+  background: #fff !important;
+}
+.evaluation-page [class*='border-'],
+.evaluation-page [style*='border-color:'] {
+  border-color: #e6e6e9 !important;
+}
+.evaluation-page [class*='shadow'],
+.evaluation-page [style*='box-shadow:'] {
+  box-shadow: none !important;
+}
+.evaluation-page .font-mono {
+  font-family: inherit;
+}
+.evaluation-page button {
+  min-height: 34px;
+  border-radius: 8px;
+}
+.evaluation-page button:hover:not(:disabled) {
+  background: #f5f5f6 !important;
+}
+.evaluation-page button[aria-pressed='true'],
+.evaluation-page button[aria-selected='true'] {
+  background: #ededf0 !important;
+  border: 1px solid #ccc !important;
+  font-weight: 650;
+}
+.evaluation-page :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid #555;
+  outline-offset: 2px;
+}
+.evaluation-page :is(input, select, textarea) {
+  background: #fafafa !important;
+  border: 1px solid #e6e6e9;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.evaluation-page input[type='range'] {
+  accent-color: #777;
+  border: 0;
+}
+.evaluation-page input[type='checkbox'] {
+  accent-color: #777;
+}
+/* 공용 도구 줄 컴포넌트(FilterDropdown·SearchInput)는 출결 화면과 같은 모양을 유지한다(위의 버튼·입력칸 일괄 규칙에서 뺀다). */
+.evaluation-page :is(button, input).rounded-sm {
+  border-radius: 0.25rem;
+}
+.evaluation-page input.text-xs {
+  font-size: 0.75rem;
+}
+.evaluation-page [role='option'][aria-selected='true'] {
+  border: 0 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  background: #f1f5f9 !important;
+  color: #020617 !important;
+}
+/* 필터 드롭다운 목록은 화면 밖(document.body)에 뜨는 SelectDropdown 목록과 같은 모양으로 둔다(그림자·각진 선택지). */
+.evaluation-page [role='listbox'] {
+  box-shadow: 0 12px 32px -14px rgba(15, 23, 42, 0.28) !important;
+}
+.evaluation-page [role='option'] {
+  min-height: 0;
+  border-radius: 0;
+}
+/* 제목은 출결 화면 제목과 같은 색을 쓴다(위의 글자색 일괄 규칙에서 뺀다). */
+.evaluation-page h1.text-slate-900 {
+  color: #0f172a !important;
+}
+/* 목록 표는 출결 화면 표(EventAttendanceManagePage)와 같은 모양: 회색 머리글, 세로 구분선, 가운데 정렬, 50px 행. */
+.evaluation-page table:has(> thead) {
+  font-size: 12px;
+  border-collapse: collapse;
+}
+.evaluation-page table:has(> thead) thead tr {
+  height: 44px;
+  background: #f1f5f9e6 !important;
+  border-bottom: 1px solid #e2e8f0;
+}
+.evaluation-page table:has(> thead) th {
+  color: #334155 !important;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.evaluation-page table:has(> thead) td {
+  height: 50px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  text-align: center;
+}
+.evaluation-page table:has(> thead) :is(th, td) + :is(th, td) {
+  border-left: 1px solid #e2e8f0;
+}
+/* 행 끝 > 아이콘 칸은 앞 칸과 세로선으로 나누지 않는다. */
+.evaluation-page table:has(> thead) :is(th, td).review-cell-chevron {
+  border-left: 0;
+}
+.evaluation-page table:has(> thead) tbody tr + tr {
+  border-top: 1px solid #e2e8f0;
+}
+.evaluation-page table:has(> thead) tbody tr:hover {
+  background: #f8fafcb3;
+}
+/* 글자 값 열(이름·학교·전공·이메일 등)은 머리·본문 모두 왼쪽 정렬한다. 나머지 열은 위 규칙대로 가운데다. */
+.evaluation-page table:has(> thead) :is(th, td).review-cell-left {
+  text-align: left;
+}
+.evaluation-page table:has(> thead) td .flex {
+  justify-content: center;
+}
+.evaluation-page .evaluation-detail-overlay {
+  background: #00000030 !important;
+  backdrop-filter: blur(2px);
+}
+.evaluation-page .evaluation-detail {
+  border-radius: 16px;
+  box-shadow: 0 12px 60px #00000020 !important;
+}
+.evaluation-page .evaluation-detail-header {
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px 24px;
+}
+.evaluation-page .evaluation-detail-tabs {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.evaluation-page .evaluation-detail-tabs > div:first-child {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.evaluation-page .evaluation-detail-tabs button {
+  padding: 10px;
+}
+.evaluation-page .evaluation-detail-tabs button > .absolute {
+  display: none;
+}
+.evaluation-page .evaluation-answers {
+  background: #fff;
+  padding: 24px;
+  border: 1px solid #ededee;
+  border-radius: 12px;
+}
+.evaluation-page .evaluation-answer {
+  padding: 24px 0;
+  border: 0;
+  border-top: 1px solid #eee;
+  border-radius: 0;
+}
+.evaluation-page .evaluation-answer > p {
+  font-size: 15px;
+  line-height: 1.95;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.evaluation-page .evaluation-answer > div:first-child {
+  gap: 10px;
+  align-items: baseline;
+}
+.evaluation-page .evaluation-answer > div:first-child > span:last-child {
+  font-size: 15px;
+  line-height: 1.65;
+}
+.evaluation-page .evaluation-form {
+  padding: 22px;
+  border-radius: 12px;
+}
+.evaluation-page .evaluation-form h3 {
+  font-size: 17px;
+}
+.evaluation-page .evaluation-form label {
+  font-size: 13px;
+}
+.evaluation-page .evaluation-form textarea {
+  min-height: 140px;
+  resize: vertical;
+  line-height: 1.8;
+}
+.evaluation-page .evaluation-form > button:last-child {
+  background: #e9e9ec !important;
+  font-size: 14px;
+}
+@media (max-width: 640px) {
+  .evaluation-page .evaluation-answers {
+    padding: 16px;
+  }
+  /* 좌우 여백은 본문(px-6)과 같게 두어 이름과 개인정보의 왼쪽 끝을 맞춘다. */
+  .evaluation-page .evaluation-detail-header {
+    padding: 16px 24px;
+  }
+}
+.applicant-review {
+  border-radius: 12px;
+  padding: 0 22px 22px;
+}
+.applicant-review button {
+  background: #fff;
+  border: 1px solid #e9e9eb;
+  padding: 9px 13px;
+  cursor: pointer;
+}
+/* 저장 안 됨·저장 중처럼 누를 수 없는 버튼을 서류 평가 화면 전체에서 같은 모양으로 흐리게 보여 준다. */
+.evaluation-page button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.review-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  flex-wrap: wrap;
+}
+.review-spacer {
+  flex: 1;
+}
+/* 공통 아이콘 버튼(ICON_BTN, size-7)은 상세 화면 버튼 여백·테두리를 받지 않는다. 받으면 아이콘이 0px로 눌린다. */
+.applicant-review button.size-7 {
+  padding: 0;
+  min-height: 0;
+  border: 0;
+}
+/* 아이콘과 글자가 함께 있는 버튼(목록·이전·다음)은 한 줄로 가운데 맞춘다. */
+.review-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+/* 점수 드롭다운(SelectDropdown)은 오른쪽 화살표 자리를 남긴다(위의 상세 화면 버튼 여백을 덮는다). */
+.applicant-review button[aria-haspopup='listbox'] {
+  padding: 0 28px 0 10px;
+}
+/* 지원자 상세 위쪽 인적사항 카드. 탭과 관계없이 그대로이고, 아래 2열과 같은 간격으로 떨어진다. */
+.review-profile {
+  margin-bottom: 12px;
+}
+.review-profile .review-meta {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.review-section-title {
+  font-size: 16px;
+  font-weight: 650;
+}
+/* 평가 현황의 운영진 한 명. 판정·점수 아래에 메모와 면접 추천 질문을 평가자에 붙여 보여 준다. */
+.review-record-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.review-record-head strong {
+  flex: 1;
+}
+.review-record dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+.review-record dt {
+  color: #85878c;
+  font-size: 12px;
+  padding-top: 1px;
+}
+.review-record dd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.review-record-question {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.review-record-question button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+  align-items: start;
+  gap: 12px;
+}
+.review-paper,
+.review-panel {
+  background: #fff;
+  border: 1px solid #ededee;
+  border-radius: 12px;
+  min-width: 0;
+}
+.review-paper {
+  padding: 20px;
+}
+.review-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.review-person h1 {
+  font-size: 26px;
+  line-height: 1.3;
+  letter-spacing: -1px;
+  font-weight: 700;
+}
+.review-tag {
+  background: #f2f2f4;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.review-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px 20px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.review-meta dt {
+  color: #85878c;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+.review-meta dd {
+  color: #303236;
+}
+.review-question {
+  padding-top: 27px;
+}
+/* 문항 라벨은 질문 위 한 줄의 보조 글씨다. 옆에 붙이면 긴 라벨이 좁은 칸에서 두 줄로 쪼개진다. */
+.review-question-title {
+  margin-bottom: 12px;
+}
+.review-question-title > span {
+  display: block;
+  margin-bottom: 4px;
+  color: #96989d;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.review-question-title h2 {
+  font-size: 15px;
+  line-height: 1.65;
+  font-weight: 650;
+}
+.review-answer {
+  font-size: 14px;
+  line-height: 1.95;
+  color: #55585e;
+  white-space: pre-wrap;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+/* TABLE 답변: 왼쪽 항목명, 오른쪽 답변. 칸마다 여백과 구분선을 두어 글자가 붙어 보이지 않게 한다. */
+.review-answer-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e6e6e9;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.review-answer-table th,
+.review-answer-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e6e6e9;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.review-answer-table th {
+  width: 32%;
+  background: #f8fafc !important;
+  color: #334155;
+  font-weight: 600;
+  word-break: keep-all;
+}
+.review-answer-table td {
+  color: #55585e;
+  white-space: pre-wrap;
+}
+.review-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.review-panel {
+  padding: 20px;
+}
+.review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.review-heading h2 {
+  font-size: 16px;
+  font-weight: 650;
+}
+.review-heading span {
+  font-size: 11px;
+  color: #888;
+}
+.review-evaluator button {
+  font-size: 12px;
+  padding: 6px 9px;
+}
+.review-label {
+  display: block;
+  font-size: 13px;
+  margin: 18px 0 9px;
+  font-weight: 550;
+}
+.review-choices {
+  display: flex;
+  gap: 6px;
+}
+.review-choices button {
+  flex: 1;
+  padding: 9px 3px;
+  font-size: 12px;
+}
+/* 고른 평가는 BASE 출결 관리에서 고른 주차와 같은 색(BRAND_SELECTED, slate-700)이다. */
+.applicant-review .review-choices button[aria-pressed='true'] {
+  background: #334155 !important;
+  border-color: #334155 !important;
+  color: #fff;
+}
+/* 점수는 배경 없이 드롭다운과 '/ 10'만 둔다. 드롭다운 글자는 14px로 키우고 상자는 글자에 맞게 작게 둔다. */
+.review-score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.review-score button[aria-haspopup='listbox'] {
+  font-size: 14px;
+}
+/* 평가 의견·면접 추천 질문은 두 줄 높이에서 시작해 쓰는 만큼 늘어난다(field-sizing을 모르는 브라우저는 손으로 늘린다). */
+.applicant-review textarea {
+  resize: vertical;
+  field-sizing: content;
+  min-height: 70px;
+  width: 100%;
+  padding: 12px;
+  line-height: 1.7;
+}
+/* 개인 평가 폼의 필드 오류(필수 판정 누락 등). 오류 뜻이라 빨간색을 쓴다. */
+.applicant-review .review-field-error {
+  color: #b42318;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.applicant-review .review-submit {
+  width: 100%;
+  background: #f5f5f6;
+  font-weight: 650;
+  margin-top: 18px;
+}
+/* 바꾼 내용이 없으면 누를 수 없다. 흐리게 겹치지 않고 연한 회색 한 가지로 보인다. */
+.applicant-review .review-submit:disabled {
+  opacity: 1;
+  color: #a1a1aa;
+}
+/* 저장하지 않은 수정이 있으면 저장하기 버튼을 고른 평가와 같은 색(slate-700)으로 강조한다. */
+.applicant-review .review-submit.is-dirty {
+  background: #334155 !important;
+  border-color: #334155 !important;
+  color: #fff;
+}
+.applicant-review .review-submit.is-dirty:hover:not(:disabled) {
+  background: #1e293b !important;
+}
+.review-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 15px;
+  font-size: 12px;
+  color: #777;
+}
+.review-evaluator {
+  border-top: 1px solid #eee;
+  padding: 14px 0;
+  font-size: 13px;
+}
+.review-evaluator summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.review-evaluator summary strong {
+  flex: 1;
+}
+.review-evaluator p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+  margin-top: 12px;
+}
+.review-panel summary {
+  cursor: pointer;
+}
+/* 넓은 화면에서는 상세가 본문 높이를 채우고, 아래 답변·내 평가가 제목을 남긴 채 각자 스크롤한다.
+   인적사항은 스크롤하지 않는다. 좁은 화면은 세로로 쌓고 화면 전체가 스크롤한다. */
+.review-scroll-panel {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 901px) {
+  .applicant-review {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .applicant-review > .review-layout {
+    flex: 1;
+    min-height: 360px;
+    align-items: stretch;
+  }
+  .review-layout > * {
+    min-height: 0;
+  }
+  .review-aside {
+    overflow-y: auto;
+  }
+  .review-aside > .review-scroll-panel {
+    flex: 1;
+    min-height: 0;
+  }
+  .review-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .applicant-review > .review-status {
+    flex: 1;
+    min-height: 360px;
+    overflow-y: auto;
+  }
+}
+/* 운영진 평가 현황 위쪽 집계(합격·보류·불합·총점). 인적사항과 같은 라벨/값 모양이다. */
+.review-status-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.review-status-summary > div {
+  border: 1px solid #ededee;
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+.review-status-summary dt {
+  color: #85878c;
+  font-size: 12px;
+}
+.review-status-summary dd {
+  font-size: 18px;
+  font-weight: 650;
+  color: #303236;
+}
+/* 메모·면접 질문 칸은 줄바꿈을 살리고 왼쪽 정렬한다(표 기본은 가운데 정렬). */
+.evaluation-page table:has(> thead) td.review-status-text {
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 180px;
+}
+/* 운영진 평가 현황에서 내 행을 고칠 때 칸이 늘어나지 않게 입력칸을 한 줄 높이로 고정한다(넘치면 칸 안에서 스크롤). */
+.applicant-review .review-status-text textarea {
+  height: 32px;
+  min-height: 32px;
+  field-sizing: fixed;
+  resize: none;
+  padding: 6px 8px;
+  line-height: 1.4;
+}
+@media (max-width: 900px) {
+  .review-layout {
+    grid-template-columns: 1fr;
+  }
+  /* 좁은 화면에서도 답변·평가·운영진 평가 현황이 각자 스크롤한다. */
+  .review-scroll {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .applicant-review > .review-status {
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+}
+@media (max-width: 600px) {
+  .applicant-review {
+    padding: 0 12px 12px;
+  }
+  .review-meta {
+    grid-template-columns: 1fr;
+  }
+}
+/* 지원서 상세 창(ApplicantDetailModal)의 개인정보. 항목명 위·값 아래, 3열(좁으면 2열·1열). 평가 화면 인적사항에는 적용하지 않는다. */
+.evaluation-detail .review-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px 32px;
+  padding: 8px 0 24px;
+}
+.evaluation-detail .review-meta dt {
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #85878c;
+}
+.evaluation-detail .review-meta dd {
+  font-size: 14px;
+  color: #303236;
+  overflow-wrap: anywhere;
+}
+.evaluation-detail .applicant-detail-submitted {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  font-size: 12px;
+  color: #85878c;
+}
+.evaluation-detail .applicant-detail-answers-title {
+  margin-top: 32px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #303236;
+}
+.evaluation-detail .review-answers-empty {
+  margin-top: 12px;
+  padding: 32px 16px;
+  border-radius: 6px;
+  background: #f5f6f8;
+  text-align: center;
+  color: #73757b;
+}
+@media (max-width: 720px) {
+  .evaluation-detail .review-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .evaluation-detail .review-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 지원자 상세 탭(개인 평가·운영진 평가 현황)은 콘텐츠 관리 아카이브의 밑줄 탭과 같은 모양이다.
+   서류 평가 화면의 버튼·색 일괄 규칙이 인라인 색까지 덮어서, 색은 여기서 !important로 정한다. */
+.applicant-review .evaluation-underline-tabs {
+  margin-bottom: 12px;
+  border-color: #e2e8f0 !important;
+}
+.applicant-review .evaluation-underline-tabs button {
+  min-height: 0;
+  padding: 0 0 12px;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  color: #64748b !important;
+  font-size: 14px;
+  font-weight: 600;
+}
+.applicant-review .evaluation-underline-tabs button[aria-pressed='true'] {
+  color: #0f172a !important;
+}
+.applicant-review .evaluation-underline-tabs-bar {
+  background: #2563eb !important;
+}
+.applicant-review .evaluation-underline-tabs button:hover:not(:disabled) {
+  background: transparent !important;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   서류 평가 관리 화면 공통 크기·여백 규칙(.evaluation-scale). 서류 평가 화면 최상위(EvaluationManagePage,
+   ApplicantReviewDetail)에 늘 붙는다. 공통 컴포넌트(FilterDropdown·SearchInput·RefreshButton·SelectDropdown)와
+   서류 평가 밖 화면은 바꾸지 않는다. 적용 방법과 다른 화면에 옮기는 법: docs/screens/03-evaluation-layout.md
+   이 앱은 html 글자 크기가 14px(theme.css)라 1rem = 14px다. 수치는 16px 기준으로 정해서,
+   --u(16px에 해당하는 rem)의 배수로 쓴다. 예: calc(0.875 * var(--u)) = 14px.
+   글자: 제목 1.5, 영역 제목 1.125, 본문·표·컨트롤 0.875, 장문 답변 1, 부가 설명 0.8125(단위 --u).
+   간격: 0.5 / 0.75 / 1 / 1.5 / 2(단위 --u).
+   ─────────────────────────────────────────────────────────────────────────── */
+.evaluation-scale {
+  --u: calc(1rem * 16 / 14);
+}
+.evaluation-scale h1.text-slate-900 {
+  font-size: calc(1.5 * var(--u));
+  line-height: 1.3;
+}
+
+/* 목록 위 도구 줄: 지원자 수는 표 첫 열(이름) 칸 안쪽 시작선(칸 여백 0.75 + 테두리 1px)에 맞추고 컨트롤과 세로 가운데. */
+.evaluation-scale .review-list-toolbar {
+  padding-bottom: calc(0.75 * var(--u));
+}
+.evaluation-scale .review-list-toolbar > div {
+  gap: calc(0.5 * var(--u));
+}
+.evaluation-scale .review-list-toolbar > span {
+  align-self: center;
+  padding-left: calc(0.75 * var(--u) + 1px);
+  font-size: calc(0.875 * var(--u));
+}
+.evaluation-scale .review-list-toolbar button[aria-haspopup='listbox'] {
+  height: auto;
+  min-height: calc(2.5 * var(--u));
+  padding-left: var(--u);
+  padding-right: calc(2.5 * var(--u));
+  font-size: calc(0.875 * var(--u));
+}
+.evaluation-scale .review-list-toolbar input[type='search'] {
+  height: auto;
+  min-height: calc(2.5 * var(--u));
+  width: calc(15 * var(--u));
+  max-width: 100%;
+  padding-left: calc(2.25 * var(--u));
+  padding-right: calc(0.875 * var(--u));
+  font-size: calc(0.875 * var(--u));
+}
+.review-search-group {
+  display: contents;
+}
+/* 좁은 화면에서 검색창과 새로고침은 같은 줄에 묶고, 공간이 모자라면 묶음 전체가 다음 줄로 내려간다. */
+.evaluation-scale .review-search-group {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: calc(0.5 * var(--u));
+  max-width: 100%;
+}
+.evaluation-scale .review-search-group > .relative {
+  min-width: 0;
+}
+.evaluation-scale .review-list-toolbar button.size-7 {
+  width: calc(2.5 * var(--u));
+  height: calc(2.5 * var(--u));
+}
+
+/* 목록 표 공통(전체 지원 현황·서류 평가·합격자 부원 등록): 글자, 셀 여백, 행 안 드롭다운. */
+.evaluation-scale .review-list-table {
+  font-size: calc(0.875 * var(--u));
+}
+.evaluation-scale .review-list-table :is(th, td) {
+  height: auto;
+  padding: calc(0.875 * var(--u)) calc(0.75 * var(--u));
+}
+.evaluation-scale .review-list-table th {
+  font-size: calc(0.875 * var(--u));
+}
+.evaluation-scale .review-list-table :is(th, td).review-cell-chevron {
+  padding-inline: calc(0.5 * var(--u));
+}
+/* 서류 평가 표: 짧은 값 열은 좁게, 학교·전공이 남는 너비를 나눠 쓴다. 넓은 화면에서 가로 스크롤이 생기지 않는 최소 너비.
+   열: 이름·학교·전공·학기·졸업 예정·합격·보류·불합·총점수·개인 평가·최종 평가·열기(>) */
+.evaluation-scale .review-eval-table {
+  min-width: calc(66 * var(--u));
+}
+.evaluation-scale .review-eval-table col:nth-child(1) {
+  width: calc(5.5 * var(--u)) !important;
+}
+.evaluation-scale .review-eval-table col:nth-child(4) {
+  width: calc(4 * var(--u)) !important;
+}
+.evaluation-scale .review-eval-table col:nth-child(5) {
+  width: calc(6 * var(--u)) !important;
+}
+.evaluation-scale .review-eval-table col:is(:nth-child(6), :nth-child(7), :nth-child(8)) {
+  width: calc(3.75 * var(--u)) !important;
+}
+.evaluation-scale .review-eval-table col:nth-child(9) {
+  width: calc(4.5 * var(--u)) !important;
+}
+.evaluation-scale .review-eval-table col:nth-child(10) {
+  width: calc(6 * var(--u)) !important;
+}
+.evaluation-scale .review-eval-table col:nth-child(11) {
+  width: calc(8 * var(--u)) !important;
+}
+.evaluation-scale .review-eval-table col:nth-child(12) {
+  width: calc(2.5 * var(--u)) !important;
+}
+/* 합격자 부원 등록 표 열: 이름·부문·이메일·연락처·생년월일·대학교·전공. 이메일·대학교·전공이 남는 너비를 나눠 쓴다. */
+.evaluation-scale .review-register-table col:nth-child(1) {
+  width: calc(5.5 * var(--u)) !important;
+}
+.evaluation-scale .review-register-table col:nth-child(2) {
+  width: calc(6.5 * var(--u)) !important;
+}
+.evaluation-scale .review-register-table col:nth-child(4) {
+  width: calc(8.5 * var(--u)) !important;
+}
+.evaluation-scale .review-register-table col:nth-child(5) {
+  width: calc(7 * var(--u)) !important;
+}
+/* 표 밖 아래 버튼(합격자 부원 등록의 등록하기)은 도구 줄 컨트롤과 같은 높이·글자. */
+.evaluation-scale .review-list-actions {
+  padding-top: calc(0.75 * var(--u));
+}
+.evaluation-scale .review-list-actions button {
+  min-height: calc(2.5 * var(--u));
+  padding-inline: var(--u);
+  font-size: calc(0.875 * var(--u));
+}
+.evaluation-scale .review-list-table button[aria-haspopup='listbox'] {
+  height: auto;
+  min-height: calc(2.25 * var(--u));
+  width: calc(6 * var(--u));
+  padding-left: calc(0.75 * var(--u));
+  font-size: calc(0.875 * var(--u));
+}
+
+/* 평가 화면: 글자 크기와 지원서 답변 : 개인 평가 = 1.618 : 1 배치. */
+.evaluation-scale.applicant-review {
+  container-type: inline-size;
+}
+.evaluation-scale .review-person h1 {
+  font-size: calc(1.5 * var(--u));
+}
+.evaluation-scale :is(.review-section-title, .review-heading h2) {
+  font-size: calc(1.125 * var(--u));
+}
+.evaluation-scale .review-meta {
+  font-size: calc(0.875 * var(--u));
+}
+.evaluation-scale :is(.review-meta dt, .review-question-title > span, .review-tag) {
+  font-size: calc(0.8125 * var(--u));
+}
+.evaluation-scale .review-question {
+  padding-top: calc(1.5 * var(--u));
+}
+.evaluation-scale .review-question-title h2 {
+  font-size: var(--u);
+  line-height: 1.5;
+}
+.evaluation-scale .review-answer {
+  font-size: var(--u);
+  line-height: 1.6;
+}
+.evaluation-scale :is(.review-answer-table, .review-label, .review-choices button, textarea) {
+  font-size: calc(0.875 * var(--u));
+}
+.evaluation-scale .review-layout {
+  grid-template-columns: minmax(0, 1.618fr) minmax(0, 1fr);
+}
+/* 개인 평가 칸이 약 300px보다 좁아지면(화면 안 영역 61rem = 854px 이하) 세로로 쌓고, 답변·평가가 각자 스크롤하도록
+   높이를 제한한다. 300px은 점수 드롭다운과 평가 버튼 세 개가 한 줄에 잘리지 않고 들어가는 너비다. */
+@container (max-width: 61rem) {
+  .evaluation-scale .review-layout {
+    grid-template-columns: minmax(0, 1fr);
+    flex: none;
+  }
+  .evaluation-scale .review-scroll {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+}
+
+/* 평가 화면 카드 안 간격(엔지니어링만). 부모 gap 하나로 큰 덩어리를 띄우고, 같은 간격을 자식 margin으로
+   한 번 더 주지 않는다. 21px = 1.3125u, 8px = 0.5u, 13px = 0.8125u, 34px = 2.125u (u = 16px). */
+.evaluation-scale.applicant-review .review-layout > .review-scroll-panel,
+.evaluation-scale.applicant-review .review-aside > .review-scroll-panel {
+  padding: calc(1.3125 * var(--u));
+  /* 카드 제목 → 내용, 스크롤 영역 → 저장 버튼 */
+  gap: calc(1.3125 * var(--u));
+}
+.evaluation-scale.applicant-review
+  .review-scroll-panel
+  > :is(.review-section-title, .review-heading) {
+  margin: 0;
+}
+.evaluation-scale.applicant-review .review-submit {
+  margin-top: 0;
+}
+/* 질문 번호 → 질문 8px, 질문 → 답변 13px, 답변 끝 → 다음 질문 번호 34px(첫 질문은 카드 제목 간격만) */
+.evaluation-scale.applicant-review .review-question {
+  padding-top: calc(2.125 * var(--u));
+}
+.evaluation-scale.applicant-review .review-scroll > .review-question:first-child {
+  padding-top: 0;
+}
+.evaluation-scale.applicant-review .review-question-title {
+  margin-bottom: calc(0.8125 * var(--u));
+}
+.evaluation-scale.applicant-review .review-question-title > span {
+  margin-bottom: calc(0.5 * var(--u));
+}
+/* 평가 라벨 → 입력칸 8px, 입력칸 끝 → 다음 라벨 21px(첫 라벨은 카드 제목 간격만), 평가 버튼 사이 8px */
+.evaluation-scale.applicant-review .review-label {
+  margin: calc(1.3125 * var(--u)) 0 calc(0.5 * var(--u));
+}
+.evaluation-scale.applicant-review .review-scroll > fieldset > .review-label:first-child {
+  margin-top: 0;
+}
+.evaluation-scale.applicant-review .review-choices {
+  gap: calc(0.5 * var(--u));
+}
+/* 입력칸은 줄 안 글자처럼 놓이면(inline-block) 아래에 글자 기준선 여백이 붙어 다음 라벨 간격이 늘어난다. */
+.evaluation-scale.applicant-review textarea {
+  display: block;
+}
+
+/* 평가 화면 탭 줄(개인 평가·운영진 평가 현황)을 통째로 바로 아래 카드의 모서리 곡선이 끝나는 지점(12px)으로 옮긴다.
+   안쪽 여백(padding)으로 밀면 회색 밑줄만 카드 끝까지 남으므로, 바깥 여백(margin)으로 줄 전체를 옮기고 안쪽 여백은 0이다.
+   그래서 첫 글자·파란 밑줄·회색 밑줄이 모두 같은 지점에서 시작한다. 카드 둥글기: .review-paper·.review-panel 12px */
+.evaluation-scale .evaluation-underline-tabs {
+  margin-inline: 12px;
+  padding-inline: 0;
+}

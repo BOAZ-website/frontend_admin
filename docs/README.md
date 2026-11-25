@@ -41,6 +41,7 @@
 | 임시 API 경로와 그 API를 쓰는 화면을 찾는다 | [`frontend/01-mock-api.md`](frontend/01-mock-api.md) |
 | 임시 DB 테이블·열·관계를 확인한다 | [`frontend/02-mock-db.md`](frontend/02-mock-db.md) |
 | 일정·우선순위·담당 분야를 확인한다 | [`01-wbs.md`](01-wbs.md) — 화면 티켓은 EPIC 절, 결정 대기는 각 EPIC의 디자인 확정(`*-DSN`) 티켓과 API 확인 항목, 일정은 마일스톤 절 |
+| 서류 평가 화면의 글자 크기·여백 규칙을 다른 화면에 옮긴다 | [`screens/03-evaluation-layout.md`](screens/03-evaluation-layout.md) |
 | 코드를 쓰거나 리뷰한다 | [`04-code-style.md`](04-code-style.md) — 규칙 ID로 리뷰 코멘트를 단다. 기존 위반은 부록 A |
 
 ---
@@ -76,6 +77,7 @@ docs/
     ├── 01-content.md                  콘텐츠 관리
     ├── 02-recruiting.md               리크루팅 공고
     ├── 03-evaluation.md               서류 평가
+    ├── 03-evaluation-layout.md        서류 평가 화면 크기·여백 규칙 · 다른 화면에 옮기는 순서
     ├── 04-attendance.md               출결 & 점수 시스템
     ├── 05-system.md                   시스템·계정
     ├── 06-screen-inventory.md         사이드바 24 ↔ ActivePage 31 ↔ 컴포넌트

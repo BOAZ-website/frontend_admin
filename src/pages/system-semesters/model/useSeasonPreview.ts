@@ -1,7 +1,7 @@
 import { previewSeason } from '@/entities/cohort/api/seasonApi';
 import type { RosterEntryDto } from '@/entities/cohort/model/dto';
 import type { SeasonInput, SeasonPreviewResult } from '@/entities/cohort/model/season';
-import { useLoaded } from '@/entities/cohort/model/useLoaded';
+import { useLoaded } from '@/shared/lib/useLoaded';
 
 /** 새 반기 명단 확인 창의 상태: 서버가 계산한 자동 명단(ATT-82). 창에서는 고치지 않는다. */
 export interface SeasonPreviewState {

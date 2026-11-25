@@ -1,7 +1,7 @@
 import { fetchSeason, fetchSeasonWeeks, updateSeason } from '../api/seasonApi';
 import type { SemesterScheduleDto } from './dto';
 import type { SeasonInfo, SeasonPatch, SeasonWeek } from './season';
-import { useLoaded } from './useLoaded';
+import { useLoaded } from '@/shared/lib/useLoaded';
 
 /** 반기 상세(ATT-02)와 공통 주차(ATT-08)를 함께 읽어 일정 모양으로 합친 값. */
 export interface SeasonSchedule {

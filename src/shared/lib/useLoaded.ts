@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-/** 반기 Hook들이 함께 쓰는 읽기 상태. key가 바뀌거나 reload를 부르면 다시 읽는다. */
+/** 서버 데이터를 읽는 Hook들이 함께 쓰는 읽기 상태. key가 바뀌거나 reload를 부르면 다시 읽는다. */
 export interface LoadedState<T> {
   /** 아직 한 번도 읽지 못했으면 null. 다시 읽는 동안에는 이전 값을 그대로 둔다. */
   data: T | null;

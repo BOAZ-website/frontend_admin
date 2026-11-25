@@ -15,6 +15,8 @@ interface SelectDropdownProps<T extends string> {
   onChange: (value: T) => void;
   /** 버튼 크기·정렬(예: 'h-[30px] w-full text-center'). 모양(테두리·글씨·그림자)은 공용이다. */
   buttonClassName?: string;
+  /** 저장 중처럼 고를 수 없을 때 버튼을 잠근다. */
+  disabled?: boolean;
 }
 
 /** 목록 자리. 버튼 아래로 열면 top, 위로 열면 bottom(화면 아래에서의 거리)을 쓴다. */
@@ -44,6 +46,7 @@ export function SelectDropdown<T extends string>({
   options,
   onChange,
   buttonClassName = '',
+  disabled = false,
 }: SelectDropdownProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState<ListPosition | null>(null);
@@ -120,8 +123,9 @@ export function SelectDropdown<T extends string>({
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        disabled={disabled}
         onClick={() => setIsOpen((open) => !open)}
-        className={`relative cursor-pointer rounded-sm border border-slate-200 bg-white pl-2.5 pr-7 text-xs font-semibold text-slate-800 shadow-2xs outline-none transition-colors hover:border-slate-300 focus:border-slate-400 ${buttonClassName}`}
+        className={`relative cursor-pointer rounded-sm disabled:cursor-not-allowed disabled:opacity-50 border border-slate-200 bg-white pl-2.5 pr-7 text-xs font-semibold text-slate-800 shadow-2xs outline-none transition-colors hover:border-slate-300 focus:border-slate-400 ${buttonClassName}`}
       >
         {selectedLabel}
         <ChevronDown

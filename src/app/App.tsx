@@ -12,6 +12,7 @@ import { ArchivingSection } from '@/pages/content-archive/ui/ArchivingSection';
 import { CurriculumSection } from '@/pages/content-curriculum/ui/CurriculumSection';
 import { FaqSection } from '@/pages/content-faq/ui/FaqSection';
 import { ReviewsSection } from '@/pages/content-reviews/ui/ReviewsSection';
+import type { TrackType } from '@/pages/recruiting-evaluation/model/types';
 import { EvaluationManagePage } from '@/pages/recruiting-evaluation/ui/EvaluationManagePage';
 import { RecruitmentManagePage } from '@/pages/recruiting-manage/ui/RecruitmentManagePage';
 import { MemberManagementPage } from '@/pages/member-management/ui/MemberManagementPage';
@@ -45,6 +46,17 @@ const NO_SEMESTERS: SemesterDto[] = [];
 const NO_TRACKS: UserTrack[] = [];
 const NO_WEEKS: WeekInfo[] = [];
 
+/** 서류 평가 부문 메뉴의 화면 ID. 세 메뉴가 같은 평가 목록을 부문만 바꿔 보여 준다. */
+const EVALUATION_TRACK_PAGES: Record<TrackType, ActivePage> = {
+  ANALYSIS: 'evaluation-analysis',
+  VISUALIZATION: 'evaluation-visualization',
+  ENGINEERING: 'evaluation-engineering',
+};
+const trackOfEvaluationPage = (page: ActivePage): TrackType | undefined =>
+  (Object.keys(EVALUATION_TRACK_PAGES) as TrackType[]).find(
+    (track) => EVALUATION_TRACK_PAGES[track] === page,
+  );
+
 /**
  * 주소(#)의 화면 이름. '#system-accounts/u_26_08'처럼 '/' 뒤에 화면 안의 위치(고른 계정 등)를 붙일 수 있어,
  * '/' 앞부분만 화면 이름으로 읽는다.
@@ -65,6 +77,12 @@ function getInitialActivePage(): ActivePage {
     }
     if (isActivePage(hash)) return hash;
     const saved = localStorage.getItem('boaz_active_page');
+    // 부문 구분 없던 서류 평가 화면(evaluation-evals 등)은 부문별 메뉴로 나눴다. 예전 주소나 마지막으로 연 화면이면 첫 부문(분석)으로 연다.
+    const isOldEvaluationPage = (page: string | null) =>
+      page === 'evaluation-group' || page === 'evaluation-my' || page === 'evaluation-evals';
+    if (isOldEvaluationPage(hash) || isOldEvaluationPage(saved)) {
+      return 'evaluation-analysis';
+    }
     if (saved && isActivePage(saved)) return saved;
   } catch {
     // ignore
@@ -129,8 +147,8 @@ export default function App() {
   const { rules: scoreRules, reload: reloadScoreRules } = useScoreRules();
 
   const [activePage, setActivePage] = useState<ActivePage>(getInitialActivePage);
-  // 행사 출결 메뉴를 다시 누른 횟수. 바뀌면 행사 출결 화면이 행사 목록으로 돌아간다.
-  const [eventListRequest, setEventListRequest] = useState(0);
+  // 사이드바 메뉴를 누른 횟수. 바뀌면 행사 출결·서류 평가 화면이 상세를 닫고 목록으로 돌아간다.
+  const [listRequest, setListRequest] = useState(0);
 
   useEffect(() => {
     try {
@@ -426,21 +444,24 @@ export default function App() {
     );
   }
   const currentRole = userRoleOf(session);
+  const handlePageChange = (page: ActivePage) => {
+    // 이미 열려 있는 행사 출결·서류 평가 메뉴를 다시 누르면 목록으로 돌아가게 알린다.
+    const isListPage = page === 'att-events' || page.startsWith('evaluation');
+    if (page === activePage && !isListPage) return;
+    const goToPage = () => {
+      setListRequest((count) => count + 1);
+      setActivePage(page);
+    };
+    // 저장하지 않은 수정 내용이 있는 화면이면 옮기기 전에 묻는다(취소하면 머문다).
+    // 저장 결과를 기다리는 화면(서류 평가)은 저장에 성공한 뒤 goToPage를 부른다.
+    if (confirmLeave(goToPage)) goToPage();
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafc]">
       <Sidebar
         activePage={activePage}
-        onChange={(page) => {
-          // 이미 열려 있는 행사 출결 메뉴를 다시 누르면 행사 목록으로 돌아가게 알린다.
-          if (page === activePage && page === 'att-events') {
-            setEventListRequest((count) => count + 1);
-            return;
-          }
-          // 저장하지 않은 수정 내용이 있는 화면이면 옮기기 전에 묻는다(취소하면 머문다).
-          if (page !== activePage && !confirmLeave()) return;
-          setActivePage(page);
-        }}
+        onChange={handlePageChange}
         open={sidebarOpen}
         onClose={() => {
           setSidebarOpen(false);
@@ -574,13 +595,16 @@ export default function App() {
           {/* 2. Evaluation Management */}
           {isEvaluation && (
             <EvaluationManagePage
+              listRequest={listRequest}
               initialTab={
-                activePage === 'evaluation-applicants'
-                  ? 'applicants'
+                trackOfEvaluationPage(activePage)
+                  ? 'my'
                   : activePage === 'evaluation-promote'
                     ? 'promotions'
-                    : 'evaluations'
+                    : 'applicants'
               }
+              track={trackOfEvaluationPage(activePage) ?? 'ANALYSIS'}
+              onOpenTrack={(track) => setActivePage(EVALUATION_TRACK_PAGES[track])}
             />
           )}
 
@@ -644,7 +668,7 @@ export default function App() {
                 cohorts={semesterCohorts}
                 currentCohort={currentCohort}
                 cohortLabels={cohortLabels}
-                listRequest={eventListRequest}
+                listRequest={listRequest}
               />
             ))}
           {activePage === 'att-scores' && <ScoresPage />}
