@@ -29,7 +29,7 @@ import {
   type TrackType,
 } from '../model/types';
 import { useEvaluationData } from '../model/useEvaluationData';
-import { useFinalDecisionPermission } from '../model/useFinalDecisionPermission';
+import { useMyPermission } from '../model/useMyPermission';
 import { ApplicantReviewDetail, type ReviewDetailTab } from './ApplicantReviewDetail';
 import { ApplicantsOverview } from './ApplicantsOverview';
 import { MemberRegistrationList } from './MemberRegistrationList';
@@ -74,7 +74,8 @@ export function EvaluationManagePage({
     updateFinalDecision,
     promoteUsers,
   } = useEvaluationData();
-  const canWriteFinalDecision = useFinalDecisionPermission();
+  const canWriteFinalDecision = useMyPermission('FINAL_DECISION_WRITE');
+  const canRegisterMembers = useMyPermission('MEMBER_PROMOTION_WRITE');
 
   // 부문별 서류 평가 목록의 검색·필터·정렬. 상세에서 목록으로 돌아오거나 다른 부문에 다녀와도 남도록 여기서 가진다.
   const [reviewQueries, setReviewQueries] = useState<Record<TrackType, ReviewListQuery>>({
@@ -399,6 +400,7 @@ export function EvaluationManagePage({
           fetchApplicants={fetchApplicants}
           fetchAnswers={fetchAnswers}
           promoteUsers={promoteUsers}
+          canRegister={canRegisterMembers}
         />
       )}
     </div>

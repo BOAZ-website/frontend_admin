@@ -35,6 +35,8 @@ interface MemberRegistrationListProps {
   fetchAnswers: (applicantIdKey: string) => Promise<ApplicantAnswerDto[]>;
   /** 부원 등록 요청. 200이면 실패 목록을 돌려주고, 요청 자체가 실패하면 던진다. */
   promoteUsers: (request: PromoteUsersRequest) => Promise<PromoteUsersResponse>;
+  /** 부원 등록 권한(MEMBER_PROMOTION_WRITE)이 있는지. 없으면 등록 버튼을 막고 이유를 보여 준다(R11-2). */
+  canRegister: boolean;
 }
 
 // 서류 평가 목록 표(MyEvaluationList)와 같은 방식: 짧은 열은 고정 너비, 이메일·대학교·전공은 남는 너비를 나눠 쓴다.
@@ -67,6 +69,7 @@ export function MemberRegistrationList({
   fetchApplicants,
   fetchAnswers,
   promoteUsers,
+  canRegister,
 }: MemberRegistrationListProps) {
   const list = useLoaded('applicants', fetchApplicants);
   const [track, setTrack] = useState<'ALL' | TrackType>('ALL');
@@ -238,12 +241,18 @@ export function MemberRegistrationList({
         )}
       </div>
 
-      {/* 등록 버튼은 표 상자 밖 오른쪽 아래에 늘 보인다. 등록할 사람이 없으면 누를 수 없다. */}
+      {/* 등록 버튼은 표 상자 밖 오른쪽 아래에 늘 보인다. 권한이 없거나 등록할 사람이 없으면 누를 수 없다. */}
       {!isFirstLoad && (
-        <div className="review-list-actions flex justify-end pt-3 text-xs">
+        <div className="review-list-actions flex items-center justify-end gap-3 pt-3 text-xs">
+          {!canRegister && (
+            <span id="member-register-denied" className="text-slate-500">
+              부원 등록 권한이 없습니다.
+            </span>
+          )}
           <button
             type="button"
-            disabled={isRegistering || targetIds.length === 0}
+            disabled={!canRegister || isRegistering || targetIds.length === 0}
+            aria-describedby={canRegister ? undefined : 'member-register-denied'}
             onClick={() => void handleRegister()}
             className="px-4"
           >

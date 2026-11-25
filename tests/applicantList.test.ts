@@ -95,18 +95,26 @@ test('개인 평가 필터는 판정으로 거르고, 미정은 평가하지 않
   assert.equal(filterByMyEvaluation(list, 'ALL').length, 3);
 });
 
-test('부문 지표는 대표진·차기대표진·다른 부문 평가 권한이면 세 부문, 그 밖에는 자기 부문만 보여 준다', () => {
+test('부문 지표는 다른 부문 평가 권한이 있으면 세 부문, 없으면 팀과 관계없이 자기 부문만 보여 준다', () => {
   const account = (teamName: string, track: string, effectivePermissions: string[] = []) => ({
     teamName,
     track,
     effectivePermissions,
   });
   const all = ['ANALYSIS', 'VISUALIZATION', 'ENGINEERING'];
-  assert.deepEqual(visibleTracksOf(account('대표진', '분석')), all);
-  assert.deepEqual(visibleTracksOf(account('차기대표진', '시각화')), all);
+  assert.deepEqual(
+    visibleTracksOf(account('차기대표진', '시각화', ['EVALUATION_ALL_TRACK_WRITE'])),
+    all,
+  );
   assert.deepEqual(visibleTracksOf(account('기획팀', '분석', ['EVALUATION_ALL_TRACK_WRITE'])), all);
-  assert.deepEqual(visibleTracksOf(account('기획팀', '분석')), ['ANALYSIS']);
+  assert.deepEqual(visibleTracksOf(account('대표진', '분석')), ['ANALYSIS']);
   assert.deepEqual(visibleTracksOf(account('기획팀', '엔지니어링')), ['ENGINEERING']);
   assert.deepEqual(visibleTracksOf(account('기획팀', '')), []);
   assert.deepEqual(visibleTracksOf(null), []);
+});
+
+test('계정 부문은 백엔드의 영어 코드와 임시 API의 한글 이름을 모두 받는다', () => {
+  const account = (track: string) => ({ teamName: '기획팀', track, effectivePermissions: [] });
+  assert.deepEqual(visibleTracksOf(account('VISUALIZATION')), ['VISUALIZATION']);
+  assert.deepEqual(visibleTracksOf(account('시각화')), ['VISUALIZATION']);
 });
