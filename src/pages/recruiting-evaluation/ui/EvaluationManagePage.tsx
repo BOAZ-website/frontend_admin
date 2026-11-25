@@ -138,15 +138,25 @@ export function EvaluationManagePage({
 
   // 저장하지 않은 평가가 있으면 사이드바로 다른 메뉴에 갈 때도 목록 버튼과 같이 묻는다(§4.5).
   // 일단 머물고(false), 저장에 성공하면 App이 넘긴 proceed로 누른 메뉴에 옮긴다. 취소·실패면 입력을 둔 채 머문다.
+  // 저장을 기다리는 동안 다른 메뉴를 또 누르면 다시 묻지 않고, 저장에 성공했을 때 마지막에 누른 메뉴로 옮긴다.
   const leaveAfterSaveRef = useRef(leaveAfterSave);
   useEffect(() => {
     leaveAfterSaveRef.current = leaveAfterSave;
   });
+  const pendingLeaveRef = useRef<(() => void) | null>(null);
   useEffect(
     () =>
       isDraftDirty
         ? registerLeaveGuard((proceed) => {
-            void leaveAfterSaveRef.current(proceed);
+            const isWaiting = pendingLeaveRef.current !== null;
+            pendingLeaveRef.current = proceed;
+            if (!isWaiting) {
+              void leaveAfterSaveRef
+                .current(() => pendingLeaveRef.current?.())
+                .finally(() => {
+                  pendingLeaveRef.current = null;
+                });
+            }
             return false;
           })
         : undefined,
