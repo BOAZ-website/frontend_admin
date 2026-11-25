@@ -77,9 +77,9 @@ function getInitialActivePage(): ActivePage {
     }
     if (isActivePage(hash)) return hash;
     const saved = localStorage.getItem('boaz_active_page');
-    // 전체 평가·부문 구분 없던 서류 평가 화면은 부문별 메뉴로 나눴다. 예전 주소나 마지막으로 연 화면이면 첫 부문(분석)으로 연다.
+    // 부문 구분 없던 서류 평가 화면(evaluation-evals 등)은 부문별 메뉴로 나눴다. 예전 주소나 마지막으로 연 화면이면 첫 부문(분석)으로 연다.
     const isOldEvaluationPage = (page: string | null) =>
-      page === 'evaluation-group' || page === 'evaluation-my';
+      page === 'evaluation-group' || page === 'evaluation-my' || page === 'evaluation-evals';
     if (isOldEvaluationPage(hash) || isOldEvaluationPage(saved)) {
       return 'evaluation-analysis';
     }
