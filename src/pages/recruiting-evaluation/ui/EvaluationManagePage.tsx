@@ -24,6 +24,7 @@ import {
   type ApplicantEvaluationDto,
   type EvaluationDecision,
   type EvaluationTab,
+  type MyEvaluationInput,
   TRACK_LABELS,
   type TrackType,
 } from '../model/types';
@@ -93,6 +94,8 @@ export function EvaluationManagePage({
   // 저장을 한 번 눌러 검증에 걸린 뒤부터 필드 오류를 보여 준다(§7.4).
   const [showDraftErrors, setShowDraftErrors] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // 진행 중인 개인 평가 저장. 끝나면 null이다.
+  const savingRef = useRef<Promise<boolean> | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const isDraftDirty = selectedApplicant !== null && isDraftChanged(draft, savedDraft);
   const draftErrors = showDraftErrors ? validateMyEvaluation(draft) : {};
@@ -138,7 +141,7 @@ export function EvaluationManagePage({
 
   // 저장하지 않은 평가가 있으면 사이드바로 다른 메뉴에 갈 때도 목록 버튼과 같이 묻는다(§4.5).
   // 일단 머물고(false), 저장에 성공하면 App이 넘긴 proceed로 누른 메뉴에 옮긴다. 취소·실패면 입력을 둔 채 머문다.
-  // 저장을 기다리는 동안 다른 메뉴를 또 누르면 다시 묻지 않고, 저장에 성공했을 때 마지막에 누른 메뉴로 옮긴다.
+  // 저장이 진행 중이면(어디서 시작했든) 묻지 않고 누른 메뉴만 기억해, 그 저장이 성공하면 마지막에 누른 메뉴로 옮긴다.
   const leaveAfterSaveRef = useRef(leaveAfterSave);
   useEffect(() => {
     leaveAfterSaveRef.current = leaveAfterSave;
@@ -150,13 +153,17 @@ export function EvaluationManagePage({
         ? registerLeaveGuard((proceed) => {
             const isWaiting = pendingLeaveRef.current !== null;
             pendingLeaveRef.current = proceed;
-            if (!isWaiting) {
-              void leaveAfterSaveRef
-                .current(() => pendingLeaveRef.current?.())
-                .finally(() => {
-                  pendingLeaveRef.current = null;
-                });
-            }
+            if (isWaiting) return false;
+            const goToPendingMenu = () => pendingLeaveRef.current?.();
+            const saving = savingRef.current;
+            const leaving = saving
+              ? saving.then((saved) => {
+                  if (saved) goToPendingMenu();
+                })
+              : leaveAfterSaveRef.current(goToPendingMenu);
+            void leaving.finally(() => {
+              pendingLeaveRef.current = null;
+            });
             return false;
           })
         : undefined,
@@ -245,7 +252,16 @@ export function EvaluationManagePage({
       setShowDraftErrors(true);
       return false;
     }
-    const applicant = selectedApplicant;
+    // 진행 중인 저장을 남겨 둔다. 저장 중 사이드바를 누르면 새로 저장하지 않고 이 결과를 따른다.
+    const saving = submitMyEvaluation(selectedApplicant, input);
+    savingRef.current = saving;
+    return saving;
+  }
+
+  async function submitMyEvaluation(
+    applicant: ApplicantEvaluationDto,
+    input: MyEvaluationInput,
+  ): Promise<boolean> {
     // 저장 중 메뉴를 옮기면 요청 번호가 바뀐다. 그때는 저장 결과로 닫힌 상세를 다시 열지 않는다.
     const requestId = openRequestRef.current;
     setIsSaving(true);
@@ -265,6 +281,7 @@ export function EvaluationManagePage({
       return false;
     } finally {
       setIsSaving(false);
+      savingRef.current = null;
     }
   }
 
