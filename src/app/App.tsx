@@ -448,10 +448,13 @@ export default function App() {
     // 이미 열려 있는 행사 출결·서류 평가 메뉴를 다시 누르면 목록으로 돌아가게 알린다.
     const isListPage = page === 'att-events' || page.startsWith('evaluation');
     if (page === activePage && !isListPage) return;
+    const goToPage = () => {
+      setListRequest((count) => count + 1);
+      setActivePage(page);
+    };
     // 저장하지 않은 수정 내용이 있는 화면이면 옮기기 전에 묻는다(취소하면 머문다).
-    if (!confirmLeave()) return;
-    setListRequest((count) => count + 1);
-    setActivePage(page);
+    // 저장 결과를 기다리는 화면(서류 평가)은 저장에 성공한 뒤 goToPage를 부른다.
+    if (confirmLeave(goToPage)) goToPage();
   };
 
   return (

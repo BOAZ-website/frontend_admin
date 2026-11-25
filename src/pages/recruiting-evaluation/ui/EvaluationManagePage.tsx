@@ -127,28 +127,6 @@ export function EvaluationManagePage({
     setIsMyEvaluationLoading(false);
   }, [listRequest]);
 
-  // 저장하지 않은 평가가 있으면 사이드바로 다른 메뉴에 갈 때도 묻는다(§4.5).
-  // 사이드바 확인은 기다릴 수 없어, 저장할 수 있는 입력이면 저장을 보내고 바로 옮긴다. 실패하면 저장 함수가 알린다.
-  const saveRef = useRef<() => Promise<boolean>>(async () => false);
-  useEffect(() => {
-    saveRef.current = handleSaveMyEvaluation;
-  });
-  useEffect(
-    () =>
-      isDraftDirty
-        ? registerLeaveGuard(() => {
-            if (!window.confirm(UNSAVED_EVALUATION_MESSAGE)) return false;
-            if (Object.keys(validateMyEvaluation(draft)).length > 0) {
-              setShowDraftErrors(true);
-              return false;
-            }
-            void saveRef.current();
-            return true;
-          })
-        : undefined,
-    [isDraftDirty, draft],
-  );
-
   /**
    * 저장하지 않은 평가가 없으면 바로 옮긴다. 있으면 저장할지 묻고, 확인이면 저장에 성공한 뒤 옮긴다.
    * 취소하거나 저장에 실패하면 그 자리에 머문다.
@@ -157,6 +135,23 @@ export function EvaluationManagePage({
     if (!isDraftDirty) return proceed();
     if (window.confirm(UNSAVED_EVALUATION_MESSAGE) && (await handleSaveMyEvaluation())) proceed();
   };
+
+  // 저장하지 않은 평가가 있으면 사이드바로 다른 메뉴에 갈 때도 목록 버튼과 같이 묻는다(§4.5).
+  // 일단 머물고(false), 저장에 성공하면 App이 넘긴 proceed로 누른 메뉴에 옮긴다. 취소·실패면 입력을 둔 채 머문다.
+  const leaveAfterSaveRef = useRef(leaveAfterSave);
+  useEffect(() => {
+    leaveAfterSaveRef.current = leaveAfterSave;
+  });
+  useEffect(
+    () =>
+      isDraftDirty
+        ? registerLeaveGuard((proceed) => {
+            void leaveAfterSaveRef.current(proceed);
+            return false;
+          })
+        : undefined,
+    [isDraftDirty],
+  );
 
   const showToast = (message: string, tone: ToastMessage['tone']) =>
     setToast({ id: Date.now(), message, tone });

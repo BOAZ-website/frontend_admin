@@ -2,8 +2,9 @@
  * 화면을 떠나기 전 확인. 저장하지 않은 수정 내용이 있는 화면이 확인 함수를 등록해 두면,
  * 다른 메뉴로 옮겨 가는 쪽(App의 사이드바 등)이 옮기기 전에 confirmLeave()로 물어본다.
  * 한 번에 한 화면만 등록한다(라우터 없이 화면 하나만 보이는 구조).
+ * 저장 결과를 기다려야 하는 화면은 false를 돌려 일단 머물고, 저장에 성공한 뒤 받은 proceed를 불러 옮긴다.
  */
-type LeaveGuard = () => boolean;
+type LeaveGuard = (proceed: () => void) => boolean;
 
 let currentGuard: LeaveGuard | null = null;
 
@@ -15,7 +16,10 @@ export function registerLeaveGuard(guard: LeaveGuard): () => void {
   };
 }
 
-/** 지금 화면을 떠나도 되는지. 등록된 확인이 없으면 바로 true다. */
-export function confirmLeave(): boolean {
-  return currentGuard ? currentGuard() : true;
+/**
+ * 지금 화면을 떠나도 되는지. 등록된 확인이 없으면 바로 true다.
+ * proceed는 확인 함수가 나중에 옮길 때 부르는 이동 함수다. true를 받으면 부른 쪽이 직접 옮긴다.
+ */
+export function confirmLeave(proceed: () => void = () => {}): boolean {
+  return currentGuard ? currentGuard(proceed) : true;
 }
