@@ -88,21 +88,23 @@
                 └── [L3] 팀 생성 · 팀원 배정 (기수 + track 기준)
 
 [L1] ③ 서류 평가              (대표진 · 차기대표진 · 부문 운영진)
-      ├── [L2] 3.1 지원자 대시보드     GET  /admin/recruitment/{id}/applicants
-      │         ├── [L3] DRAFT 포함 전체 목록 · 정렬/필터/검색 (프론트 처리)
-      │         └── [L3] 지원서 상세 → 3.2 사이드패널로 연결
-      ├── [L2] 3.2 평가 대시보드       GET  /admin/recruitment/{id}/applicants/evaluations
-      │         ├── [L3] 집계 뷰 (합격/보류/불합 개수 · 총점 · 최종평가)
-      │         ├── [L3] 지원서 사이드패널
+      ├── [L2] 3.1 평가 현황
+      │         └── [L3] 전체 지원 현황   GET  /admin/recruitment/{id}/applicants
+      │                   ├── DRAFT 포함 전체 목록 · 정렬/필터/검색 (프론트 처리)
+      │                   └── 지원서 상세 → "평가하기"로 그 지원자 부문의 3.2 평가 화면 열기
+      ├── [L2] 3.2 서류 평가 (부문별 메뉴: 분석 · 시각화 · 엔지니어링)   GET  /admin/recruitment/{id}/applicants/evaluations
+      │         ├── [L3] 부문 평가 목록 (합격/보류/불합 개수 · 총점 · 최종평가)
+      │         ├── [L3] 지원자 평가 화면
       │         │         ├── 지원서 답변          GET  .../applicants/{id}/answers
       │         │         ├── 평가자별 평가        GET  .../applicants/{id}/evaluations
       │         │         └── 평가자별 면접 질문   GET  .../applicants/{id}/interview-questions
       │         ├── [L3] 내 평가 조회·저장(upsert) GET/PUT .../evaluations/me
-      │         └── [L3] 최종 평가 변경            PATCH .../final-decision   ※ role=SUPER 에만 노출
-      └── [L2] 3.3 결과 처리                              ※ 반드시 이 순서
-                ├── [L3] ① CSV 추출     POST   /admin/recruitment/applications/download  (S3 업로드, 파일 직반환 아님)
-                ├── [L3] ② 합격자 승격  PATCH  /admin/users/promote        (failed_user_ids 표 · 실패건만 재시도)
-                └── [L3] ③ 지원서 전체 삭제 DELETE .../{id}/applicants     (모집 비활성 + 승격완료 확인, 2단 경고 모달)
+      │         ├── [L3] 최종 평가 변경            PATCH .../final-decision   ※ role=SUPER 에만 노출
+      │         └── ※ 부문 메뉴를 권한에 따라 숨기는 것(부문 운영진은 본인 부문만)은 평가 API 연동 때 적용한다. 지금은 세 메뉴를 모두 보여 준다.
+      └── [L2] 3.3 부원 등록
+                ├── [L3] 합격자 부원 등록  PATCH  /admin/users/promote        (failed_user_ids 표 · 실패건만 재시도)
+                ├── ※ CSV 추출(POST /admin/recruitment/applications/download)은 리크루팅 메뉴의 "지원서 CSV 추출"로 옮겼다.
+                └── ※ 지원서 전체 삭제(DELETE .../{id}/applicants, 모집 비활성 + 부원 등록 완료 확인, 2단 경고 모달)는 아직 구현하지 않은 계획이다.
 
 [L1] ④ 리크루팅 시즌                    (서비스운영팀)
       ├── [L2] 4.1 공고 관리
@@ -167,6 +169,8 @@
 
 > **⚠️ 평가 권한 주의**: `차기대표진 = 전 부문`, **현재 대표진 포함 그 외는 본인 track만**.
 > 최근 문서 정정된 부분이라 화면 분기에서 가장 헷갈리는 지점이다. (`docs/회의/1차회의.md` 1-3 ③)
+>
+> **현재 화면과의 차이**: 부문 운영진에게 본인 track의 서류 평가 메뉴만 보여 주는 것은 평가 API 연동 때 적용한다. 지금은 분석·시각화·엔지니어링 세 메뉴를 모두 보여 준다.
 
 ---
 
@@ -181,10 +185,10 @@
 | `/attendance/scores` | 점수 집계 | 운영지원팀 |
 | `/attendance/hosts` | HOST 지정 | 운영지원팀 |
 | `/attendance/setup` | 활동·주차·팀 편성 | 운영지원팀 |
-| `/evaluation/applicants` | 지원자 대시보드 | 평가 권한 |
-| `/evaluation/board` | 평가 대시보드 | 평가 권한 |
-| `/evaluation/board/:applicantId` | 지원서 사이드패널 (딥링크) | 평가 권한 + track |
-| `/evaluation/results` | 결과 처리 (CSV·승격·삭제) | SUPER \| 서비스운영팀 |
+| `/evaluation/applicants` | 전체 지원 현황 (`evaluation-applicants`) | 평가 권한 |
+| `/evaluation/:track` | 부문별 서류 평가 (`analysis`\|`visualization`\|`engineering`, 화면 이름 `evaluation-analysis` 등) | 평가 권한 + track |
+| `/evaluation/:track/:applicantId` | 지원자 평가 화면 (딥링크) | 평가 권한 + track |
+| `/evaluation/promote` | 합격자 부원 등록 (`evaluation-promote`) | SUPER \| 서비스운영팀 |
 | `/recruitment` | 공고 관리 | 서비스운영팀 |
 | `/recruitment/questions` | 질문 관리 | 서비스운영팀 |
 | `/recruitment/subscriptions` | 사전 알림 구독자 | 서비스운영팀 |
