@@ -34,7 +34,7 @@
 | 공통 기반(라우터·인증·API·공용 컴포넌트)을 만든다 | [`spec/00-platform.md`](spec/00-platform.md) — 도메인 요구가 어느 `PLT-*` 티켓에 귀속되는지 §5 |
 | 기능명세서 표기 규칙을 확인한다 | [`spec/README.md`](spec/README.md) — 읽는 순서 · Epic↔티켓 키 대응 · Open Issue 접두사 · 미결 목록 위치 |
 | 메뉴 구조를 바꾸려 한다 | [`ia/01-ia-strategy.md`](ia/01-ia-strategy.md)를 **먼저** 읽는다. 판단 기준이 거기 있다 |
-| 권한을 구현한다 | [`spec/06-system.md`](spec/06-system.md) §3 (정본, Permission 41개) → [`spec/02-role-model.md`](spec/02-role-model.md) §1 역할 4종 |
+| 권한을 구현한다 | [`spec/06-system.md`](spec/06-system.md) §3 (정본, Permission 41개) → 계정 권한의 화면·API·백엔드 대조는 §3.5 → [`spec/02-role-model.md`](spec/02-role-model.md) §1 역할 4종 |
 | 백엔드를 연동한다 | [`screens/07-ia-gap.md`](screens/07-ia-gap.md) §4 (API 근거 없는 기능) → 담당 도메인 문서 |
 | 회의에서 정할 것을 찾는다 | [`02-open-items.md`](02-open-items.md) |
 | 특정 화면의 코드 위치를 찾는다 | [`screens/06-screen-inventory.md`](screens/06-screen-inventory.md) |

@@ -61,7 +61,7 @@
 
 | 키 (role, teamName) | 매트릭스 열 | 성격 |
 | --- | --- | --- |
-| `(MASTER, 서비스운영팀)` | 서운팀장 | 계정·권한 관리 포함 전 기능. **다른 부문 서류 평가·최종 합불 3행만 X** (의도, 본인 부문 서류 평가는 2026-11-06부터 O) |
+| `(MASTER, 서비스운영팀)` | 서운팀장 | 계정·권한 관리 포함 전 기능. **다른 부문 서류 평가·최종 합불 CUD 2행만 X** (의도, 본인 부문 서류 평가는 2026-11-06부터, 최종 합불 조회는 2026-11-23부터 O) |
 | `(SUPER, 대표진)` | 대표진 | 계정 목록·리크루팅·사전알림 조회, 출결은 조회만, 점수 규칙 쓰기, 본인 부문 평가, 최종 합불. 차기대표진과 `다른 부문 서류 평가` 1행만 다름 (§3.4) |
 | `(SUPER, 차기대표진)` | 차기대표진 | ↑ + 다른 부문 평가 (§3.4) |
 | `(TEAM, 서비스운영팀)` | 서비스운영팀 | 계정 조회·감사로그·콘텐츠·리크루팅. 출결 전부 X |
@@ -142,7 +142,7 @@
 | 본인 부문 서류 평가 CRUD | O | O | O | O | O | O | X | X |
 | 다른 부문 서류 평가 CRUD | X | X | O | X | X | X | X | X |
 | 최종 합불 CUD | X | O | O | X | X | X | X | X |
-| 최종 합불 조회 (R) | X | O | O | O | O | O | X | X |
+| 최종 합불 조회 (R) | O | O | O | O | O | O | X | X |
 | 전체 기수 목록 조회 (R) `CLUB_MEMBER_ALL_READ` | O | O | O | O | O | X | X | X |
 | 전체 기수 목록 CUD `CLUB_MEMBER_ALL_WRITE` | O | O | O | O | O | X | X | X |
 | 활동 기수 목록 조회 (R) `CLUB_MEMBER_ACTIVE_READ` | O | O | O | O | O | O | X | X |
@@ -156,6 +156,58 @@
 - **권한 재설계 문서와 행 구성이 한 군데 다르다(`SYS-A-6`).** 재설계 문서의 43행에는 `콘텐츠 조회` 행이 있고(`CONTENT_READ`) `본인 계정 정보 조회` 행은 없다("내 정보 보기"는 permission 없이 `/me`). 이 표는 반대다. 확인 전까지 프로토타입은 `CONTENT_READ`를 `CONTENT_WRITE`와 같은 값으로 두고, `/me`는 로그인한 계정 모두에게 연다.
 
 ---
+
+### 3.5 계정 권한: 화면·API·백엔드 대조 *(2026-11-23 확인)*
+
+계정 관련 권한(운영진 계정, HOST 계정, 권한 관리)이 어느 화면에서 무엇을 막고, 어느 API를 쓰며, 백엔드가 같은 기준으로 검사하는지 한곳에 모은다. 권한의 기본 보유는 3.4절 매트릭스와 `src/entities/admin-account/model/permissions.ts`의 `base`가 기준이다. 백엔드는 `backend` 저장소 `dev` 브랜치(`AdminController`의 `@PreAuthorize`, `DefaultPermissions`)를 2026-11-23에 확인했다.
+
+원칙
+
+- 권한은 등급(MASTER 등)이 아니라 아래 권한 이름으로 판단한다. 계정마다 권한을 바꿀 수 있어서다(3.1절)
+- 화면은 권한이 없으면 버튼을 흐리게 두고 이유를 보인다(`docs/04-code-style.md` R11-2). 최종 판정은 서버(지금은 임시 API)가 한다(R11-1)
+- 예외(권한과 상관없는 고정 규칙): 서비스운영팀장(MASTER) 계정의 비밀번호·아이디는 본인만 바꾼다. 본인 계정은 지울 수 없다
+
+#### 3.5.1 권한별 대조
+
+기본 보유 열의 순서: 서비스운영팀장 · 대표진 · 차기대표진 · 서비스운영팀 · 운영지원팀 · 기타 운영진 · 그룹리더(HOST).
+
+| 권한 | 이름 | 기본 보유 | 화면에서 막는 것 | 임시 API가 검사하는 경로 | 백엔드 |
+| --- | --- | --- | --- | --- | --- |
+| `ADMIN_ACCOUNT_READ` | 운영진 계정 목록 조회 | O O O O X X X | 권한 관리 화면의 운영진 표. 없으면 내 계정 카드만 보임(`useAdminConsole.ts`) | `GET /api/v1/admin/accounts`, `GET /api/v1/admin/account-holders` | `GET /accounts`에 같은 권한. 기본값 같음. `account-holders`는 없음 |
+| `ADMIN_ACCOUNT_SELF_READ` | 본인 계정 정보 조회 | O O O O O O X | 내 계정 창에서는 쓰지 않음. 이름 아래 직함(서비스운영팀장, 기획팀 팀장, 그룹 리더)은 로그인 세션의 등급·팀으로 만들어 누구에게나 보임(`roleTitle.ts`) | `GET /api/v1/admin/accounts/me`(임시 API는 HOST 세션에 403) | `GET /accounts/me`는 권한 검사 없이 모든 계정이 조회(ADMIN-07). `GET /accounts/{id}`에서 본인 조회에 씀. 기본값 같음 |
+| `ADMIN_ACCOUNT_SELF_WRITE` | 본인 계정 정보 수정 / 비밀번호 변경 | O O O O O O O | 내 계정 창의 비밀번호 칸 | `PATCH /api/v1/admin/accounts/:id/password`(본인), `PATCH /api/v1/admin/accounts/:id`(본인) | 두 경로에 같은 권한(ADMIN-06·04). 기본값 같음 |
+| `ADMIN_ACCOUNT_WRITE` | 타 계정 정보 수정 / 비밀번호 변경 | O X X X X X X | 권한 관리 표의 비밀번호 재설정, HOST 계정 화면의 운영진 계정 재설정. 마지막 보유자와 본인에게서는 회수할 수 없음 | 같은 두 경로(다른 계정) | 같음. 기본값 같음 |
+| `ADMIN_ACCOUNT_CREATE_DELETE` | 운영진 계정 생성 / 삭제 | O X X X X X X | 권한 관리 "+ 계정" 버튼, 삭제 버튼 | `POST /api/v1/admin/accounts`, `DELETE /api/v1/admin/accounts/:id`, `PUT /api/v1/admin/operators/:userId` | `POST /accounts`(ADMIN-02), `DELETE /accounts/{id}`(ADMIN-05)에 같은 권한. `PUT /operators/{userId}`는 없음 |
+| `ADMIN_PERMISSION_WRITE` | 운영진 계정 권한 부여(커스텀) | O X X X X X X | 권한 창의 저장. 마지막 보유자와 본인에게서는 회수할 수 없음 | `PUT /api/v1/admin/accounts/:id/permissions` | 권한 이름과 기본값은 있음. 권한 저장 API는 없음 |
+| `PERMISSION_MANAGE_READ` | 권한 관리 조회 | O O O O O X X | 아직 판단에 쓰지 않음(카탈로그에만 있음) | 없음 | 없음 |
+| `PERMISSION_MANAGE_WRITE` | 권한 관리 CUD | O X X O X X X | 아직 판단에 쓰지 않음(카탈로그에만 있음) | 없음 | 없음 |
+| `HOST_ACCOUNT_READ` | HOST 계정 발급 조회 | O O O X O X X | 그룹 계정 관리 화면 | `GET /api/v1/hosts` | 권한 이름과 기본값은 있음. HOST 계정 API는 없음 |
+| `HOST_ACCOUNT_WRITE` | HOST 계정 발급 CUD | O X X X O X X | 그룹 계정 관리 화면의 HOST 계정 비밀번호 재설정(`passwordResetBlock.ts`). 발급 버튼은 아직 막지 않음(SYS-GATE) | `POST /api/v1/hosts`, `PATCH /api/v1/admin/accounts/:id/password`(HOST 계정 대상) | 권한 이름과 기본값은 있음. 비밀번호 변경(ADMIN-06)은 이 권한을 받지 않음 |
+
+#### 3.5.2 비밀번호를 바꾸는 곳
+
+API는 하나다: `PATCH /api/v1/admin/accounts/{id}/password`(ADMIN-06). 경로의 `{id}`가 내 계정이면 본인 변경, 다른 계정이면 재설정이다.
+
+| 바꾸는 것 | 화면 | 필요한 권한 | 기본 보유 | 요청 본문 |
+| --- | --- | --- | --- | --- |
+| 본인 비밀번호 | 화면 위 프로필의 "내 계정" 창에서만. 현재 비밀번호를 먼저 입력한다. 바꾸면 다시 로그인한다 | `ADMIN_ACCOUNT_SELF_WRITE` 또는 `ADMIN_ACCOUNT_WRITE` | 전원(HOST 포함) | `{ current_password, new_password }`. 현재 비밀번호가 없으면 400 `INVALID_INPUT_VALUE`, 틀리면 401 `INVALID_CURRENT_PASSWORD` |
+| 다른 운영진 계정 | 권한 관리 화면 관리 칸의 비밀번호 재설정 | `ADMIN_ACCOUNT_WRITE` | 서비스운영팀장 | `{ new_password }` |
+| HOST 계정 | 그룹 계정 관리 화면의 비밀번호 재설정 | `HOST_ACCOUNT_WRITE` 또는 `ADMIN_ACCOUNT_WRITE` | 서비스운영팀장, 운영지원팀 | `{ new_password }` |
+
+- 권한 관리 화면에서는 본인 비밀번호를 바꾸지 않는다. 본인 줄의 버튼은 "본인 비밀번호는 화면 위 내 계정에서 바꿔 주세요"로 막는다(#92)
+- 서비스운영팀장(MASTER) 계정은 다른 사람이 재설정할 수 없다(임시 API 400 `CANNOT_MODIFY_MASTER_CREDENTIALS`)
+
+#### 3.5.3 백엔드에 없는 것 (백엔드에 요청 필요)
+
+| 없는 것 | 영향 | 이번 결정 |
+| --- | --- | --- |
+| ADMIN-06이 `HOST_ACCOUNT_WRITE`로 HOST 계정 비밀번호를 재설정하는 규칙 | 실제 백엔드에 연결하면 운영지원팀의 HOST 계정 재설정이 403이 됨 | 권한 표(운영지원팀 가능)대로 두고 백엔드에 추가 요청 |
+| HOST 계정 API(`GET`·`POST /api/v1/hosts`) | 그룹 계정 관리 화면은 임시 API로만 동작 | 백엔드 HOST 계정 작업 때 |
+| 권한 관리 API(권한 카탈로그 `GET /api/v1/admin/permissions`, 계정별 권한 저장 `PUT /api/v1/admin/accounts/{id}/permissions`, 계정 보유자 목록 `GET /api/v1/admin/account-holders`) | 권한 창은 임시 API로만 동작 | SYS-PERM 실제 API 연동 때 |
+| `PERMISSION_MANAGE_READ`·`PERMISSION_MANAGE_WRITE` 권한 | 권한 표의 "권한 관리 조회·CUD" 행을 서버가 검사하지 않음 | 프론트도 아직 판단에 쓰지 않음. 쓰는 기준을 백엔드와 정함 |
+| 운영진 지정 `PUT /api/v1/admin/operators/{userId}` | 백엔드는 생성(`POST /accounts`)과 수정(`PATCH /accounts/{id}`, 비밀번호 제외)으로 나뉨 | SYS-ACC 실제 API 연동 때 백엔드 경로에 맞춤 |
+| ADMIN-07(`/accounts/me`) 응답의 등급(`role`)·아이디(`username`) | 내 계정 창이 보여 주는 값이 응답에 없음 | 백엔드에 추가 요청 |
+| HOST의 본인 계정 조회 제한 | 권한 표는 HOST의 본인 계정 정보 조회를 X로 두지만 ADMIN-07은 권한 없이 누구나 조회 | 화면에서만 숨김. 백엔드와 맞출지 확인 |
 
 ## 4. 화면별 기능 명세
 
@@ -174,7 +226,7 @@
 | ACC-02 | 역할·권한 확인 | 계정에 부여된 역할과 접근 권한 확인 |
 | ACC-03 | 계정 발급 | `새 운영진 계정 발급`으로 신규 계정 생성 |
 | ACC-04 | 계정 수정 | 계정 정보·역할 변경 |
-| ACC-05 | 비밀번호 변경 | 계정별 비밀번호 재설정 |
+| ACC-05 | 비밀번호 변경 | 다른 운영진 계정의 비밀번호 재설정. 본인 비밀번호는 이 화면이 아니라 화면 위 프로필의 "내 계정" 창에서 바꾼다(3.5절 "비밀번호를 바꾸는 곳") |
 | ACC-06 | 계정 삭제 | 사용하지 않는 계정 삭제 |
 
 **상단 요약 지표**
@@ -198,6 +250,8 @@
 | 락아웃 방지 | `ADMIN_ACCOUNT_WRITE`·`ADMIN_PERMISSION_WRITE` 각각에 대해, 유효 보유자가 1명이면 회수·삭제·비활성화·강등 **네 경로 전부 차단**. 자기 자신의 회수는 카운트와 무관하게 차단. `ADMIN_PERMISSION_WRITE`를 넣은 이유: 마지막 보유자가 자기 권한을 빼면 빼앗긴 권한을 다시 줄 사람이 없어진다(2026-10-25 추가, 백엔드와 같은 규칙으로 맞출지 확인 필요) |
 | 겸임자 표시 | 소속은 리더십 행 기준으로 ADV·스터디 둘 다 표시 |
 | 조합 검증 | `(SUPER, 그룹리더)` 같은 무의미 조합은 권한 0으로 닫힘 → 생성·수정 시 유효 조합 검증 |
+
+**비밀번호를 바꾸는 곳과 권한**: 3.5절 "계정 권한: 화면·API·백엔드 대조"를 본다.
 
 > 계정 발급 시 초기 비밀번호를 담당자에게 어떻게 전달하는지 정의가 필요하다. (→ 6장)
 
