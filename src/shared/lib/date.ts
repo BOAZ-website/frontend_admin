@@ -56,3 +56,8 @@ export function isoDateOf(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+/** 서버 일시('YYYY-MM-DDTHH:MM:SS')를 화면용 'YYYY-MM-DD HH:MM'으로 쓴다. 한국 시간 그대로 받는다. */
+export function dateTimeTextOf(value: string): string {
+  return value.slice(0, 16).replace('T', ' ');
+}

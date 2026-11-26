@@ -24,9 +24,9 @@
 | 7 | 리크루팅 공고 | 공고 및 문항 | 지원자 화면 미리보기 | `recruiting-preview` | 지원자 화면 미리보기 | [02](02-recruiting.md) |
 | 8 | 리크루팅 공고 | 지원자 데이터 | 지원서 CSV 추출 | `recruiting-csv` | 지원서 CSV 추출 | [02](02-recruiting.md) |
 | 9 | 리크루팅 공고 | 지원자 데이터 | 사전 알림 명단 | `recruiting-leads` | 사전 알림 명단 | [02](02-recruiting.md) |
-| 10 | 서류 평가 | 서류 심사 | 서류 평가 대시보드 (SUBMITTED) | `evaluation-evals` | 서류 평가 대시보드 | [03](03-evaluation.md) |
-| 11 | 서류 평가 | 서류 심사 | 전체 지원자 현황 (DRAFT 포함) | `evaluation-applicants` | 전체 지원자 현황 | [03](03-evaluation.md) |
-| 12 | 서류 평가 | 합격 및 승격 | 최종 합불 & 정회원 승격 | `evaluation-promote` | 최종 합불 및 승격 | [03](03-evaluation.md) |
+| 10 | 서류 평가 관리 | — | 전체 지원 현황 | `evaluation-applicants` | 전체 지원 현황 | [03](03-evaluation.md) |
+| 11 | 서류 평가 관리 | 서류 평가 | 분석 · 시각화 · 엔지니어링 | `evaluation-analysis` · `evaluation-visualization` · `evaluation-engineering` | 서류 평가 · 부문 | [03](03-evaluation.md) |
+| 12 | 서류 평가 관리 | — | 합격자 부원 등록 | `evaluation-promote` | 합격자 부원 등록 | [03](03-evaluation.md) |
 | 13 | 출결 & 점수 | 출결 관리 | BASE Term 출결 관리 | `att-session` | BASE 출결 | [04](04-attendance.md) |
 | 14 | 출결 & 점수 | 출결 관리 | ADV Term 출결 관리 | `att-adv` | ADV 출결 | [04](04-attendance.md) |
 | 15 | 출결 & 점수 | 출결 관리 | 스터디 출결 관리 | `att-study` | 스터디 출결 | [04](04-attendance.md) |
@@ -49,7 +49,7 @@
 | --- | --- | --- | --- |
 | `content` | 콘텐츠 관리 | 사이드바 허브 클릭 시 경유 | 아카이빙 화면으로 대체 렌더 |
 | `recruiting` | 모집 공고 관리 | 허브 경유 | 모집 공고 탭으로 대체 렌더 |
-| `evaluation` | 서류 평가 대시보드 | 허브 경유 | 평가 대시보드 탭으로 대체 렌더 |
+| `evaluation` | 서류 평가 관리 | 허브 경유 | 전체 지원 현황 탭으로 대체 렌더 |
 | `system` | 시스템·계정 | 허브 경유 | 계정 관리 탭으로 대체 렌더 |
 | `att-dashboard` | 출결 대시보드 & 인증 검토 | 운영지원팀 계정 로그인·역할 전환 시 자동 진입 | 화면은 정상 동작. **사이드바 메뉴 없음** |
 | `att-input` | 출결 입력 및 증빙 등록 (팀장용) | HOST 계정 로그인·역할 전환 시 자동 진입 | 화면은 정상 동작. **사이드바 메뉴 없음** |
@@ -71,7 +71,7 @@
 | **ADV 입력 및 증빙 (팀장용)** | `att-input-adv` | **없음** | **두 메뉴가 완전히 같은 화면을 연다** |
 | **스터디 입력 및 증빙 (팀장용)** | `att-input-study` | **없음** | 〃 |
 | 모집 공고 관리 외 4개 | `recruiting-*` | 탭 id | 하나의 화면에서 탭만 전환된다 |
-| 서류 평가 3개 메뉴 | `evaluation-*` | 탭 id | 〃 |
+| 서류 평가 4개 메뉴 | `evaluation-*` | 탭 id | 〃 |
 | 시스템·계정 3개 메뉴 | `system-*` | 탭 id | 〃 |
 
 출결 3종은 구분값으로 화면이 실제로 달라지지만, **출결 입력 2종은 구분값이 전달되지 않아 ADV 메뉴에서도 스터디 입력 화면이 열린다.** → [`04-attendance.md`](04-attendance.md#확정이-필요한-사항)

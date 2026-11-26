@@ -7,7 +7,7 @@ import {
   fetchSeasons,
 } from '../api/seasonApi';
 import type { Season, SeasonArchiveReadiness, SeasonInput } from './season';
-import { useLoaded } from './useLoaded';
+import { useLoaded } from '@/shared/lib/useLoaded';
 
 /** 반기 관리 목록 Hook이 돌려주는 값. */
 export interface SeasonsState {

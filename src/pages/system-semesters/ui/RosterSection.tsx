@@ -6,7 +6,7 @@ import type { MemberSummary } from '@/entities/club-member/model/types';
 
 import { CLUB_MEMBER_STATUS_LABELS } from '@/entities/club-member/model/types';
 import type { RosterEntryDto, RosterKind } from '@/entities/cohort/model/dto';
-import { useLoaded } from '@/entities/cohort/model/useLoaded';
+import { useLoaded } from '@/shared/lib/useLoaded';
 import type { UserTrack } from '@/entities/user/model/types';
 import {
   FIELD_INPUT,
