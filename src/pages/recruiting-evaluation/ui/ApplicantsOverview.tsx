@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { TRACK_IMAGE_BY_CODE } from '@/entities/user/model/trackImage';
 import { dateTimeTextOf } from '@/shared/lib/date';
 import { useLoaded } from '@/shared/lib/useLoaded';
 import { FilterDropdown, type FilterDropdownOption } from '@/shared/ui/FilterDropdown';
@@ -26,7 +27,6 @@ import {
 import { useVisibleTracks } from '../model/useVisibleTracks';
 import { ApplicantDetailModal } from './ApplicantDetailModal';
 import { ListLoadError } from './ListLoadError';
-import { TRACK_IMAGE } from './trackImages';
 
 interface ApplicantsOverviewProps {
   fetchApplicants: () => Promise<ApplicantEvaluationDto[]>;
@@ -70,7 +70,7 @@ export function ApplicantsOverview({
     ...visibleTracks.map((track): [string, number, string] => [
       TRACK_LABELS[track],
       applicants.filter((applicant) => applicant.track === track).length,
-      TRACK_IMAGE[track],
+      TRACK_IMAGE_BY_CODE[track],
     ]),
   ];
 

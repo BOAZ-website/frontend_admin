@@ -12,6 +12,13 @@ export const TRACK_IMAGE: Record<UserTrack, string> = {
   엔지니어링: trackEngineering,
 };
 
+/** 같은 캐릭터를 백엔드 부문 코드로 찾는 표. 서류 평가 화면(지원 현황 지표·제목)이 쓴다. */
+export const TRACK_IMAGE_BY_CODE: Record<'ANALYSIS' | 'VISUALIZATION' | 'ENGINEERING', string> = {
+  ANALYSIS: TRACK_IMAGE.분석,
+  VISUALIZATION: TRACK_IMAGE.시각화,
+  ENGINEERING: TRACK_IMAGE.엔지니어링,
+};
+
 /** 부문 코드(ENGINEERING 등)나 이름으로 캐릭터 이미지를 찾는다. 세 부문이 아니면(전부문·빈 값 등) null. */
 export const trackImageOf = (track: string | null | undefined): string | null => {
   const label = trackLabelOf(track);
