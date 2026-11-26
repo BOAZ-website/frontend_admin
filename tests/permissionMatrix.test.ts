@@ -75,7 +75,7 @@ test('기타 운영진과 그룹리더의 기본 세트는 백엔드 설계와 �
   assert.deepEqual(baseSetOf('groupLeader'), ['ADMIN_ACCOUNT_SELF_WRITE']);
 });
 
-test('2026-11-06 권한 매트릭스: 서비스운영팀장도 본인 부문 서류 평가를 하고, 동아리원·권한 관리 행은 팀마다 다르다', () => {
+test('2026-11-06 권한 매트릭스: 서비스운영팀장도 본인 부문 서류 평가와 최종 합불 조회를 하고, 동아리원·권한 관리 행은 팀마다 다르다', () => {
   const column = (key: string) =>
     BASE_SET_COLUMNS.filter((c) => isInBaseSet(permissionOf(key), c.key))
       .map((c) => c.key)
@@ -90,6 +90,12 @@ test('2026-11-06 권한 매트릭스: 서비스운영팀장도 본인 부문 서
     'master,president,nextPresident,serviceTeam,opsTeam',
   );
   assert.equal(column('CLUB_MEMBER_ACTIVE_WRITE'), 'master,serviceTeam,opsTeam');
+  // 서비스운영팀장은 최종 합불을 바꾸지는 못하지만 조회는 한다(HOST만 X).
+  assert.equal(column('FINAL_DECISION_WRITE'), 'president,nextPresident');
+  assert.equal(
+    column('FINAL_DECISION_READ'),
+    'master,president,nextPresident,serviceTeam,opsTeam,otherTeam',
+  );
   assert.equal(
     column('PERMISSION_MANAGE_READ'),
     'master,president,nextPresident,serviceTeam,opsTeam',

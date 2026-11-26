@@ -214,7 +214,7 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
         base: 'XXOXXXX',
       },
       { key: 'FINAL_DECISION_WRITE', label: '최종 합불 CUD', base: 'XOOXXXX' },
-      { key: 'FINAL_DECISION_READ', label: '최종 합불 조회', base: 'XOOOOOX' },
+      { key: 'FINAL_DECISION_READ', label: '최종 합불 조회', base: 'OOOOOOX' },
     ],
   },
 ];

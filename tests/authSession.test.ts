@@ -314,7 +314,7 @@ test('감사 기록 어디에도 비밀번호가 남지 않는다(로그인·계
     role: 'TEAM',
     teamName: '기획팀',
   });
-  call('PATCH', '/api/v1/admin/accounts/7/password', { newPassword: 'Changed!2027' });
+  call('PATCH', '/api/v1/admin/accounts/7/password', { new_password: 'Changed!2027' });
   // HOST 계정 발급(adv_t9 팀장 u_28_25는 계정이 없다)
   call('POST', '/api/v1/hosts', {
     teamId: 'adv_t9',

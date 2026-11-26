@@ -73,7 +73,7 @@ src/shared/ui/
 | 버튼 | `CreateButton.tsx`, `systemStyles.ts`의 `MODAL_CONFIRM_BTN`·`MODAL_CANCEL_BTN`·`ICON_BTN`·`FIELD_TEXT_BTN` | 5 / 10 / 8 / 2 / 5 | `button/` | 대기 |
 | 입력칸 | `systemStyles.ts`의 `FIELD_INPUT`, `DateTextInput.tsx`, `DatePickerField.tsx` | 8 / 2 / 1 | `field/` | 대기 |
 | 드롭다운 | `SelectDropdown.tsx`, `FilterDropdown.tsx` | 6 / 4 | `dropdown/` | 대기 |
-| 팝업 바탕 | `modalStyles.ts`의 `MODAL_SURFACE`·`MODAL_PRIMARY_BTN`, `shared/lib/useDialogKeyboard.ts` | 10 / 1 / 9 | `dialog/` | 대기. 확인·안내 창은 4절 |
+| 팝업 바탕 | `dialog/Dialog.tsx`·`dialog/dialogStyles.ts`(2026-11-23 추가), `modalStyles.ts`의 `MODAL_SURFACE`·`MODAL_PRIMARY_BTN`, `shared/lib/useDialogKeyboard.ts` | 1 / 10 / 1 / 9 | `dialog/` | 일부 완료. `Dialog` 추가, 내 계정 창과 로그인 창(로그인한 채 다시 여는 창)에 적용(#92). 나머지 팝업은 고칠 때 바꿈(04-code-style 기존 위반 목록). 확인·안내 창은 4절 |
 | 여러 개 고르기(체크박스 그룹) | `CheckListPopover.tsx` (Radix Popover + Checkbox) | 1 (반기 관리 휴강) | `checklist/` | 정함: 여러 개 고르는 목록은 이 조각만 씀 |
 | 말풍선 | `Tooltip.tsx` | 14 | `tooltip/` | 대기 |
 | 분할 화면 | `SplitView.tsx` | 4 | `split-view/` | 대기 |

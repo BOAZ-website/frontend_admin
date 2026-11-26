@@ -4,6 +4,7 @@
  */
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { api } from '@/shared/api/client';
+import { DEV_DEFAULT_ACCOUNT_ID } from '@/shared/config/devAccounts';
 
 import type { AuthSession, LoginRequest } from '../model/types';
 
@@ -32,6 +33,3 @@ export function restoreSession(username: string): Promise<AuthSession> {
 export function openDevDefaultSession(): Promise<AdminAccount> {
   return api.put('/api/v1/mock/admin-session', { accountId: DEV_DEFAULT_ACCOUNT_ID });
 }
-
-/** 개발 모드에서 처음 열 때 들어가는 운영진 계정 id(시드의 서비스운영팀장). */
-const DEV_DEFAULT_ACCOUNT_ID = 1;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { TRACK_IMAGE_BY_CODE } from '@/entities/user/model/trackImage';
 import boazLogo from '@/shared/assets/boaz-logo.png';
 import { registerLeaveGuard } from '@/shared/lib/leaveGuard';
 import { Toast, type ToastMessage } from '@/shared/ui/Toast';
@@ -34,7 +35,6 @@ import { ApplicantReviewDetail, type ReviewDetailTab } from './ApplicantReviewDe
 import { ApplicantsOverview } from './ApplicantsOverview';
 import { MemberRegistrationList } from './MemberRegistrationList';
 import { MyEvaluationList } from './MyEvaluationList';
-import { TRACK_IMAGE } from './trackImages';
 
 /** 제목은 사이드바 메뉴 이름(PAGE_LABELS)과 같다. */
 const MAIN_TAB_TITLES: Record<EvaluationTab, string> = {
@@ -363,7 +363,7 @@ export function EvaluationManagePage({
         <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900">
           {/* 서류 평가는 부문 캐릭터, 전체 지원 현황·합격자 부원 등록은 BOAZ 로고를 제목 앞에 둔다. */}
           <img
-            src={mainTab === 'my' ? TRACK_IMAGE[track] : boazLogo}
+            src={mainTab === 'my' ? TRACK_IMAGE_BY_CODE[track] : boazLogo}
             alt=""
             width={28}
             height={28}

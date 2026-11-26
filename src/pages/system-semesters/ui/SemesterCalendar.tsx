@@ -3,9 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import type { SemesterActivity } from '@/entities/cohort/model/dto';
 import type { UserTrack } from '@/entities/user/model/types';
-import trackAnalysis from '@/shared/assets/tracks/track-analysis.png';
-import trackEngineering from '@/shared/assets/tracks/track-engineering.png';
-import trackVisualization from '@/shared/assets/tracks/track-visualization.png';
+import { TRACK_IMAGE } from '@/entities/user/model/trackImage';
 import { calendarDaysOf, isoOfLocalDate } from '@/shared/lib/calendar';
 import { Tooltip } from '@/shared/ui/Tooltip';
 
@@ -25,12 +23,7 @@ const ACTIVITY_LABEL: Record<SemesterActivity, string> = {
   STUDY_TERM: '학기 스터디',
 };
 
-/** 트랙 세션은 트랙 캐릭터로 보인다. BASE와 ADV는 같은 캐릭터이고 뒤의 둥근 네모 바탕색으로 가른다. */
-const TRACK_IMAGE: Record<UserTrack, string> = {
-  분석: trackAnalysis,
-  시각화: trackVisualization,
-  엔지니어링: trackEngineering,
-};
+/* 트랙 세션은 트랙 캐릭터(TRACK_IMAGE)로 보인다. BASE와 ADV는 같은 캐릭터이고 뒤의 둥근 네모 바탕색으로 가른다. */
 /** 스터디는 아이콘 없이 월요일 칸 바탕색으로 보인다. 방학은 하늘, 학기는 분홍. */
 const STUDY_CELL_BG: Partial<Record<SemesterActivity, string>> = {
   STUDY_VACATION: 'bg-sky-100',

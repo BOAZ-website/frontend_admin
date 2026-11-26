@@ -196,18 +196,28 @@ test('본인 비밀번호는 현재 비밀번호가 맞아야 바뀐다', async 
   expectApiError(
     () =>
       call('PATCH', '/api/v1/admin/accounts/7/password', {
-        currentPassword: 'wrong',
-        newPassword: 'Boaz!2030',
+        current_password: 'wrong',
+        new_password: 'Boaz!2030',
       }),
-    400,
+    401,
     'INVALID_CURRENT_PASSWORD',
   );
-  call('PATCH', '/api/v1/admin/accounts/7/password', {
-    currentPassword: 'Boaz!2026',
-    newPassword: 'Boaz!2030',
-  });
+  // 본인 변경인데 현재 비밀번호가 없으면 백엔드 ADMIN-06처럼 400 INVALID_INPUT_VALUE다.
   expectApiError(
-    () => call('PATCH', '/api/v1/admin/accounts/6/password', { newPassword: 'Boaz!2030' }),
+    () => call('PATCH', '/api/v1/admin/accounts/7/password', { new_password: 'Boaz!2030' }),
+    400,
+    'INVALID_INPUT_VALUE',
+  );
+  // 성공 응답은 백엔드 ADMIN-06처럼 { status: 200, data: null }이다.
+  assert.deepEqual(
+    call('PATCH', '/api/v1/admin/accounts/7/password', {
+      current_password: 'Boaz!2026',
+      new_password: 'Boaz!2030',
+    }),
+    { status: 200, data: null },
+  );
+  expectApiError(
+    () => call('PATCH', '/api/v1/admin/accounts/6/password', { new_password: 'Boaz!2030' }),
     403,
   );
 });
@@ -317,12 +327,12 @@ test('계정 수정·비밀번호 재설정으로도 다른 계정이 MASTER를 
     'CANNOT_MOVE_MASTER',
   );
   expectApiError(
-    () => call('PATCH', '/api/v1/admin/accounts/1/password', { newPassword: 'Changed!1' }),
+    () => call('PATCH', '/api/v1/admin/accounts/1/password', { new_password: 'Changed!1' }),
     400,
     'CANNOT_MODIFY_MASTER_CREDENTIALS',
   );
   // 다른 계정의 비밀번호 재설정은 그대로 된다.
-  call('PATCH', '/api/v1/admin/accounts/5/password', { newPassword: 'Changed!1' });
+  call('PATCH', '/api/v1/admin/accounts/5/password', { new_password: 'Changed!1' });
 });
 
 test('탈동한 동아리원은 운영진 지정·운영진 추가 모두 409 MEMBER_WITHDRAWN이다', async () => {
@@ -479,7 +489,7 @@ test('수정·비밀번호 변경은 권한을 먼저 확인해, 권한이 없�
     'FORBIDDEN',
   );
   expectApiError(
-    () => call('PATCH', '/api/v1/admin/accounts/9999/password', { newPassword: 'x' }),
+    () => call('PATCH', '/api/v1/admin/accounts/9999/password', { new_password: 'x' }),
     403,
     'FORBIDDEN',
   );

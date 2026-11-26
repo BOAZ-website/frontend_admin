@@ -3,6 +3,7 @@ import { KeyRound, ShieldCheck, Trash2 } from 'lucide-react';
 
 import { TEAMS_WITHOUT_LEAD } from '@/entities/admin-account/model/teams';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
+import { trackLabelOf } from '@/entities/user/model/trackLabel';
 import { Tooltip } from '@/shared/ui/Tooltip';
 import { ICON_BTN, ID_CHIP, TABLE_BOX, TD_CLASS, TH_CLASS } from '@/shared/ui/systemStyles';
 
@@ -174,7 +175,9 @@ export function OperatorRosterTable({
                         <td className={`${TD_CLASS} tabular-nums text-slate-600`}>
                           {account.term}기
                         </td>
-                        <td className={`${TD_CLASS} text-slate-600`}>{account.track || '-'}</td>
+                        <td className={`${TD_CLASS} text-slate-600`}>
+                          {trackLabelOf(account.track) ?? '-'}
+                        </td>
                         <td className={TD_CLASS}>
                           <span className={ID_CHIP}>{account.username}</span>
                         </td>

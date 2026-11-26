@@ -12,10 +12,13 @@ export interface OperatorAssignRequest {
   isTeamLead?: boolean;
 }
 
-/** 비밀번호 변경(PATCH .../password). 본인 계정이면 현재 비밀번호가 필요하다. */
+/**
+ * 비밀번호 변경(PATCH .../password, 백엔드 ADMIN-06). 필드 이름은 백엔드 명세 그대로(snake_case)다.
+ * 본인 계정이면 현재 비밀번호가 필요하다(없으면 400, 틀리면 401 INVALID_CURRENT_PASSWORD).
+ */
 export interface AdminPasswordRequest {
-  newPassword: string;
-  currentPassword?: string;
+  new_password: string;
+  current_password?: string;
 }
 
 /** 계정별 권한 저장(PUT .../permissions). 체크된 최종 집합을 보내고 기본 세트와의 차이는 서버가 계산한다. */
