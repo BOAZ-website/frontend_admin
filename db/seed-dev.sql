@@ -8,7 +8,7 @@ VALUES ('u_dev_full_access', 'test_user', '27','엔지니어링', 'OPERATOR');
 INSERT INTO admin (id, user_id, username, password, role, team_name, created_by, created_at, updated_at)
 VALUES (41, 'u_dev_full_access','boaz_dev_all','Boaz!2026', 'MASTER', '서비스운영팀', 1, datetime('now'), datetime('now'));
 
---3. MASTER 기본 권한에 없는 4개 권한 추가
+--3. 서류 평가·최종 합불 권한 추가. MASTER 기본 권한에 없는 것은 다른 부문 평가·최종 합불 변경 둘이고, 본인 부문 평가·최종 합불 조회는 기본에도 있다
 INSERT INTO admin_permission_override(admin_id, permission, effect, granted_by, created_at)
 VALUES
   (41, 'EVALUATION_OWN_TRACK_WRITE', 'GRANT', 1, datetime('now')),
