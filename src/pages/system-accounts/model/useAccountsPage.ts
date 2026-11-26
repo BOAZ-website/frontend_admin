@@ -7,7 +7,6 @@ import {
   saveAccountPermissions,
 } from '@/entities/admin-account/api/adminAccountApi';
 import { can } from '@/entities/admin-account/model/can';
-import type { AdminPasswordRequest } from '@/entities/admin-account/model/dto';
 import type { AccountHolder, AdminAccount } from '@/entities/admin-account/model/types';
 import type { ClubMember } from '@/entities/club-member/model/types';
 import { buildAccountDelivery } from '@/features/account-delivery/model/accountDeliveryMessages';
@@ -50,12 +49,10 @@ export interface AccountsPageDerived {
   permissionHolder: AccountHolder | null;
   /** 그룹 리더 계정 표의 사람(이름순). */
   groupLeaders: AccountHolder[];
-  canWriteSelf: boolean;
   canManagePermissions: boolean;
   canIssueAccounts: boolean;
   isSelf: (account: AdminAccount) => boolean;
   handleOpenPermissions: (account: AdminAccount) => void;
-  handleSubmitOwnPassword: (request: AdminPasswordRequest) => Promise<boolean>;
   handleResetOthersPassword: (newPassword: string) => Promise<void>;
   handleIssueCredentials: (
     member: ClubMember,
@@ -131,19 +128,17 @@ export function useAccountsPage(): AccountsPageState {
     const { me, accounts, holders } = loaded;
     const isSelf = (account: AdminAccount) => account.id === me.id;
     const canWriteOthers = can(me, 'ADMIN_ACCOUNT_WRITE');
-    const canWriteSelf = canWriteOthers || can(me, 'ADMIN_ACCOUNT_SELF_WRITE');
     const canManagePermissions = can(me, 'ADMIN_PERMISSION_WRITE');
     const canIssueAccounts = can(me, 'ADMIN_ACCOUNT_CREATE_DELETE');
-    const canChangePassword = (account: AdminAccount) =>
-      isSelf(account) ? canWriteSelf : canWriteOthers;
     const actions: AccountActions = {
       passwordResetBlockReason: (account) => {
+        // 본인 비밀번호는 화면 위 프로필의 내 계정 창에서만 바꾼다(#92). 이 화면은 다른 운영진 재설정만 한다.
+        if (isSelf(account)) return '본인 비밀번호는 화면 위 내 계정에서 바꿔 주세요.';
         // 서버도 400 CANNOT_MODIFY_MASTER_CREDENTIALS로 막는다. 비밀번호를 입력하기 전에 버튼에서 알린다.
-        if (account.role === 'MASTER' && !isSelf(account)) {
+        if (account.role === 'MASTER') {
           return '서비스운영팀장(MASTER) 계정의 비밀번호는 본인만 바꿀 수 있습니다.';
         }
-        if (!canChangePassword(account))
-          return '다른 운영진의 비밀번호를 재설정할 권한이 없습니다.';
+        if (!canWriteOthers) return '다른 운영진의 비밀번호를 재설정할 권한이 없습니다.';
         return null;
       },
       deleteBlockReason: (account) => {
@@ -190,12 +185,6 @@ export function useAccountsPage(): AccountsPageState {
       return true;
     };
 
-    /** 본인 비밀번호 변경. 현재 비밀번호를 확인하고, 끝나면 알림만 띄운다. */
-    const handleSubmitOwnPassword = (request: AdminPasswordRequest) =>
-      passwordTarget
-        ? run(() => changeAdminPassword(passwordTarget.id, request), '비밀번호를 변경했습니다.')
-        : Promise.resolve(false);
-
     /**
      * 다른 계정의 비밀번호 재설정. 출결의 그룹 계정 관리와 같은 흐름이다:
      * 새 비밀번호 입력 → 한 번 더 확인 → 재설정 → 본인에게 보낼 전달문 창.
@@ -206,7 +195,9 @@ export function useAccountsPage(): AccountsPageState {
       const target = passwordTarget;
       const message = `${target.name}님 계정의 비밀번호를 재설정할까요?\n기존 로그인이 모두 해제되고, 계정·권한은 그대로 남습니다.`;
       if (!window.confirm(message)) return;
-      const isReset = await run(() => changeAdminPassword(target.id, { newPassword }));
+      const isReset = await run(() =>
+        changeAdminPassword(target.id, { new_password: newPassword }),
+      );
       if (!isReset) return;
       setPasswordTarget(null);
       setDelivery(
@@ -299,12 +290,10 @@ export function useAccountsPage(): AccountsPageState {
       pageTitle,
       permissionHolder,
       groupLeaders,
-      canWriteSelf,
       canManagePermissions,
       canIssueAccounts,
       isSelf,
       handleOpenPermissions,
-      handleSubmitOwnPassword,
       handleResetOthersPassword,
       handleIssueCredentials,
       handleChangeOperator,

@@ -4,7 +4,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { changeAdminPassword } from '@/entities/admin-account/api/adminAccountApi';
+import { changeAdminPassword, fetchMyAccount } from '@/entities/admin-account/api/adminAccountApi';
+import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { fetchGroupLeaderAccounts, issueHostAccount } from '@/entities/host-account/api/hostApi';
 import type { HostIssueRequest } from '@/entities/host-account/model/dto';
 import type { GroupLeaderAccount } from '@/entities/host-account/model/types';
@@ -16,6 +17,8 @@ import { fetchUsers } from '@/entities/user/api/usersApi';
 import type { UserProfile } from '@/entities/user/model/types';
 
 interface HostsPageSource {
+  /** 로그인한 계정. 비밀번호 재설정 버튼을 권한으로 막는 데 쓴다. 읽지 못하면 null(서버가 판정). */
+  me: AdminAccount | null;
   leaders: GroupLeaderAccount[];
   advTeams: TeamListItemDto[];
   studyTeams: TeamListItemDto[];
@@ -25,6 +28,8 @@ interface HostsPageSource {
 export interface HostsPageData {
   status: 'loading' | 'ready' | 'error';
   error: Error | null;
+  /** 로그인한 계정. 읽지 못했으면 null. */
+  me: AdminAccount | null;
   /** 진행 중인 그룹마다 현재 팀장과 그 계정(표의 행). */
   leaders: GroupLeaderAccount[];
   advTeams: StudyTeamInfo[];
@@ -36,7 +41,13 @@ export interface HostsPageData {
   resetPassword: (accountId: number, password: string) => Promise<void>;
 }
 
-const EMPTY_SOURCE: HostsPageSource = { leaders: [], advTeams: [], studyTeams: [], users: [] };
+const EMPTY_SOURCE: HostsPageSource = {
+  me: null,
+  leaders: [],
+  advTeams: [],
+  studyTeams: [],
+  users: [],
+};
 
 /** @param onChanged 발급·초기화가 끝난 뒤 다른 화면 데이터도 다시 읽게 할 때 쓴다. */
 export function useHostsPageData(onChanged?: () => void): HostsPageData {
@@ -60,11 +71,13 @@ export function useHostsPageData(onChanged?: () => void): HostsPageData {
       // 표에 어떤 팀을 보일지는 계정 API(진행 중인 그룹)가 정하므로 두 기간을 모두 읽어 둔다.
       fetchTeams('STUDY', { period: 'all' }),
       fetchUsers(),
+      // 내 권한은 버튼을 미리 막는 데만 쓴다. 못 읽어도 화면은 열고 재설정 가능 여부는 서버가 판정한다.
+      fetchMyAccount().catch(() => null),
     ])
-      .then(([leaders, adv, study, users]) => {
+      .then(([leaders, adv, study, users, me]) => {
         if (!isCancelled) {
           setState({
-            source: { leaders, advTeams: adv.teams, studyTeams: study.teams, users },
+            source: { me, leaders, advTeams: adv.teams, studyTeams: study.teams, users },
             status: 'ready',
             error: null,
           });
@@ -108,7 +121,7 @@ export function useHostsPageData(onChanged?: () => void): HostsPageData {
 
   const resetPassword = useCallback(
     async (accountId: number, password: string) => {
-      await changeAdminPassword(accountId, { newPassword: password });
+      await changeAdminPassword(accountId, { new_password: password });
       reload();
     },
     [reload],
@@ -117,6 +130,7 @@ export function useHostsPageData(onChanged?: () => void): HostsPageData {
   return {
     status: state.status,
     error: state.error,
+    me: source.me,
     leaders: source.leaders,
     users: source.users,
     ...view,

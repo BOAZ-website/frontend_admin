@@ -542,13 +542,13 @@ test('비밀번호 변경 기록의 requestBody는 새 비밀번호·현재 비�
     'SELECT id FROM admin WHERE username IS NOT NULL AND id <> 1 LIMIT 1',
   )[0].id;
   call('PATCH', `/api/v1/admin/accounts/${accountId}/password`, {
-    newPassword: 'New!Pass2027',
-    currentPassword: 'Old!Pass2026',
+    new_password: 'New!Pass2027',
+    current_password: 'Old!Pass2026',
   });
   const entry = latest();
 
   assert.equal(entry.action, 'ADMIN_PASSWORD_RESET');
-  assert.deepEqual(entry.requestBody, { newPassword: '(비공개)', currentPassword: '(비공개)' });
+  assert.deepEqual(entry.requestBody, { new_password: '(비공개)', current_password: '(비공개)' });
   assert.ok(!JSON.stringify(entry).includes('New!Pass2027'));
   assert.ok(!JSON.stringify(entry).includes('Old!Pass2026'));
 });

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { ChevronRight, PanelLeft, User, X } from 'lucide-react';
+import { ChevronRight, Lock, LogOut, PanelLeft, User } from 'lucide-react';
 
 import { EventAttendanceContainer } from '@/pages/attendance-events/ui/EventAttendanceContainer';
 import { HostsPage } from '@/pages/attendance-hosts/ui/HostsPage';
@@ -19,16 +18,23 @@ import { AuditLogPage } from '@/pages/system-audit/ui/AuditLogPage';
 import { SystemAccountsPage } from '@/pages/system-accounts/ui/SystemAccountsPage';
 import { SemesterManagementPage } from '@/pages/system-semesters/ui/SemesterManagementPage';
 import { LoginModal } from '@/widgets/login-modal/ui/LoginModal';
-import { useDialogKeyboard } from '@/shared/lib/useDialogKeyboard';
+import { LoginScreen } from '@/widgets/login-modal/ui/LoginScreen';
 import { DataLoadFailedNotice } from '@/shared/ui/DataLoadFailedNotice';
+import { Dialog } from '@/shared/ui/dialog/Dialog';
+import { ClearFieldButton } from '@/shared/ui/field/ClearFieldButton';
+import { PasswordVisibilityButton } from '@/shared/ui/field/PasswordVisibilityButton';
 
 import { Sidebar } from '@/widgets/sidebar/ui/Sidebar';
 import boazLogo from '@/shared/assets/boaz-logo.png';
 import { useAttendanceMeta } from '@/entities/attendance/model/useAttendanceMeta';
 import { useCurrentTeams } from '@/entities/study-team/model/useCurrentTeams';
-import { changeAdminPassword } from '@/entities/admin-account/api/adminAccountApi';
+import { changeAdminPassword, fetchMyAccount } from '@/entities/admin-account/api/adminAccountApi';
 import type { AdminAccount } from '@/entities/admin-account/model/types';
 import { SERVICE_OPERATIONS_TEAM } from '@/entities/admin-account/model/teams';
+import { trackButtonClassOf } from '@/entities/user/model/trackAccent';
+import { trackImageOf } from '@/entities/user/model/trackImage';
+import { trackLabelOf } from '@/entities/user/model/trackLabel';
+import { roleTitleOf } from '@/entities/admin-account/model/roleTitle';
 import { logout, openDevDefaultSession, restoreSession } from '@/entities/auth/api/authApi';
 import type { AuthSession } from '@/entities/auth/model/types';
 import type { SemesterDto } from '@/entities/cohort/model/dto';
@@ -38,11 +44,22 @@ import type { StudyTeamInfo } from '@/entities/study-team/model/types';
 import type { UserRole, UserTrack } from '@/entities/user/model/types';
 import type { ActivePage } from '@/shared/config/activePage';
 import { isActivePage, PAGE_LABELS } from '@/shared/config/pageLabels';
+import { IS_DEV_ACCOUNTS_ENABLED } from '@/shared/config/devAccounts';
 import { confirmLeave } from '@/shared/lib/leaveGuard';
 
 const NO_TEAMS: StudyTeamInfo[] = [];
 const NO_SEMESTERS: SemesterDto[] = [];
 const NO_TRACKS: UserTrack[] = [];
+
+/** 내 계정 창의 메뉴 줄(비밀번호 변경, 로그아웃). 위에 구분선을 긋고 줄 전체를 누를 수 있다. */
+const MY_ACCOUNT_MENU_ROW =
+  'flex w-full cursor-pointer items-center gap-3 border-t border-slate-100 py-3 text-sm font-medium text-slate-700 transition-colors hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-600';
+/** 내 계정 창의 비밀번호 입력칸. 테두리는 세 칸을 묶은 상자가 그린다. */
+const MY_PW_INPUT =
+  'h-10 w-full bg-transparent py-0 pr-20 pl-3 text-sm text-slate-900 outline-none placeholder:text-slate-400';
+/** 내 계정 창의 소속 배지(팀, 부문). */
+const MY_ACCOUNT_BADGE =
+  'shrink-0 rounded-full border border-slate-200 px-1.5 text-[11px] leading-[18px] font-medium text-slate-500';
 const NO_WEEKS: WeekInfo[] = [];
 
 /**
@@ -81,33 +98,6 @@ function userRoleOf(session: AuthSession): UserRole {
   if (session.role === 'TEAM')
     return session.teamName === SERVICE_OPERATIONS_TEAM ? 'CONTENT_ADMIN' : 'TEAM';
   return 'SUPER';
-}
-
-/**
- * 내 계정 창의 판. 열리면 첫 입력칸(없으면 닫기 버튼)으로 포커스를 옮기고, 닫히면 열기 전 요소로 되돌린다.
- * Escape는 창 안 어디서든 받고, Tab 포커스는 창 안에서만 돈다(useDialogKeyboard).
- */
-function MyProfilePanel({ onEscape, children }: { onEscape: () => void; children: ReactNode }) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  useDialogKeyboard(panelRef, onEscape);
-  useEffect(() => {
-    const previous = document.activeElement;
-    panelRef.current?.querySelector<HTMLElement>('input, button')?.focus();
-    return () => {
-      if (previous instanceof HTMLElement) previous.focus();
-    };
-  }, []);
-  return (
-    <div
-      ref={panelRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="my-profile-title"
-      className="w-full max-w-sm rounded-lg bg-white shadow-lg"
-    >
-      {children}
-    </div>
-  );
 }
 
 /** 개발 모드에서 저장한 아이디 없이 처음 열었을 때 받은 첫 운영진 계정을 로그인 세션 모양으로 바꾼다. */
@@ -258,7 +248,7 @@ export default function App() {
   // 그래서 개발 모드에서만 남긴 아이디(없으면 첫 운영진 계정)로 되살리고, 배포 빌드는 다시 로그인하게 한다.
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isRestoringSession, setIsRestoringSession] = useState<boolean>(() => {
-    if (!import.meta.env.DEV) return false;
+    if (!IS_DEV_ACCOUNTS_ENABLED) return false;
     try {
       return localStorage.getItem('boaz_is_logged_in') !== 'false';
     } catch {
@@ -312,6 +302,11 @@ export default function App() {
 
   async function handleLogout() {
     if (!window.confirm('로그아웃 하시겠습니까?')) return;
+    await signOut();
+  }
+
+  /** 세션을 닫고 로그인 창으로 돌아간다. 확인 창 없이 쓰는 곳(비밀번호 변경 뒤)도 있어 handleLogout과 나눈다. */
+  async function signOut() {
     try {
       await logout();
     } catch {
@@ -329,8 +324,51 @@ export default function App() {
   const [myCurrentPw, setMyCurrentPw] = useState('');
   const [myNewPw, setMyNewPw] = useState('');
   const [myConfirmPw, setMyConfirmPw] = useState('');
+  /** 글자로 보이게 켠 비밀번호 칸의 id. 칸마다 따로 켜고 끈다. */
+  const [visibleMyPwIds, setVisibleMyPwIds] = useState<string[]>([]);
   const [myPwError, setMyPwError] = useState('');
   const [isSavingMyPw, setIsSavingMyPw] = useState(false);
+  /** 내 계정 창의 비밀번호 변경 칸을 펼쳤는지. 처음에는 접어 두고 "비밀번호 변경" 글자 버튼으로 연다. */
+  const [isMyPwOpen, setIsMyPwOpen] = useState(false);
+  /** 비밀번호 변경 펼침 버튼. 취소로 접으면 포커스를 이 버튼으로 돌린다. */
+  const myPwToggleRef = useRef<HTMLButtonElement>(null);
+  /**
+   * 내 계정 창을 열 때 읽는 내 계정(GET /api/v1/admin/accounts/me). 읽는 중이면 undefined, 못 읽으면 null.
+   * 권한과 부문(프로필 그림)을 여기서 얻는다. 임시 API는 HOST 세션의 /me를 403으로 답하므로 HOST 계정은 null이 된다.
+   * 창을 닫을 때 undefined로 되돌려, 다른 계정으로 다시 로그인해 열어도 이전 계정의 값이 보이지 않게 한다.
+   */
+  const [myAccount, setMyAccount] = useState<AdminAccount | null | undefined>(undefined);
+  const myPermissions =
+    myAccount === undefined ? undefined : (myAccount?.effectivePermissions ?? null);
+  const myTrackImage = trackImageOf(myAccount?.track);
+  /** 비밀번호 "변경" 버튼 색. 프로필 캐릭터처럼 부문마다 다르다. */
+  const myTrackButtonClass = trackButtonClassOf(myAccount?.track);
+  /** 이름 옆 소속(서비스운영팀, 기획팀, 그룹 리더 등). 등급 코드 대신 보인다. */
+  const myTitle = session ? roleTitleOf(session) : null;
+  useEffect(() => {
+    if (!showMyProfileModal) return;
+    let isCancelled = false;
+    fetchMyAccount()
+      .then((me) => {
+        if (!isCancelled) setMyAccount(me);
+      })
+      .catch(() => {
+        // 권한을 못 읽으면 계정 정보는 숨기고, 비밀번호 변경 가능 여부는 서버 판정에 맡긴다.
+        if (!isCancelled) setMyAccount(null);
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [showMyProfileModal]);
+  /**
+   * 본인 비밀번호 변경은 "본인 계정 정보 수정" 또는 "타 계정 정보 수정" 권한(백엔드 ADMIN-06).
+   * 읽는 중에는 칸을 숨기고, 권한을 못 읽었으면 칸을 보이고 서버 판정에 맡긴다.
+   */
+  const canWriteSelf =
+    myPermissions !== undefined &&
+    (myPermissions === null ||
+      myPermissions.includes('ADMIN_ACCOUNT_SELF_WRITE') ||
+      myPermissions.includes('ADMIN_ACCOUNT_WRITE'));
 
   /** 팀 id 또는 팀 이름(호스트 계정에 적힌 값)으로 팀 id를 찾는다. 이름은 부문이 다르면 겹칠 수 있어 처음 일치하는 팀을 쓴다. */
   function resolveTeamId(idOrName?: string): string {
@@ -370,15 +408,32 @@ export default function App() {
     }
   }
 
-  function closeMyProfile() {
-    setShowMyProfileModal(false);
+  /** 비밀번호 변경 칸을 접고 입력을 비운다(내 계정 창의 "비밀번호 변경" 접기·취소). */
+  function collapseMyPassword() {
+    setIsMyPwOpen(false);
     setMyCurrentPw('');
     setMyNewPw('');
     setMyConfirmPw('');
     setMyPwError('');
+    setVisibleMyPwIds([]);
   }
 
-  /** 본인 비밀번호를 바꾼다(운영진·HOST 계정). 현재 비밀번호는 서버가 확인한다. */
+  /** 바닥글의 취소: 비밀번호 칸을 접고, 키보드 사용자가 제자리에 있도록 펼침 버튼으로 포커스를 돌린다. */
+  function cancelMyPassword() {
+    collapseMyPassword();
+    window.setTimeout(() => myPwToggleRef.current?.focus());
+  }
+
+  function closeMyProfile() {
+    setShowMyProfileModal(false);
+    setMyAccount(undefined);
+    collapseMyPassword();
+  }
+
+  /**
+   * 본인 비밀번호를 바꾼다(운영진·HOST 계정). 현재 비밀번호는 서버가 확인한다.
+   * 바꾸면 백엔드가 그 계정의 로그인(리프레시 토큰)을 지우므로(ADMIN-06), 알린 뒤 로그아웃해 다시 로그인하게 한다.
+   */
   async function handleSaveMyPassword() {
     setMyPwError('');
     if (!session) return;
@@ -393,15 +448,18 @@ export default function App() {
     setIsSavingMyPw(true);
     try {
       await changeAdminPassword(session.accountId, {
-        currentPassword: myCurrentPw,
-        newPassword: myNewPw,
+        current_password: myCurrentPw,
+        new_password: myNewPw,
       });
-      closeMyProfile();
     } catch (error) {
       setMyPwError(error instanceof Error ? error.message : '비밀번호를 바꾸지 못했습니다.');
-    } finally {
       setIsSavingMyPw(false);
+      return;
     }
+    setIsSavingMyPw(false);
+    closeMyProfile();
+    window.alert('비밀번호를 바꿨습니다. 새 비밀번호로 다시 로그인해 주세요.');
+    await signOut();
   }
 
   const isRecruiting = Boolean(activePage?.startsWith('recruiting'));
@@ -417,14 +475,8 @@ export default function App() {
     );
   }
 
-  // 로그인 전·로그아웃 뒤에는 어떤 화면도 열지 않고 로그인 창만 둔다(닫을 수 없다).
-  if (!session) {
-    return (
-      <div className="h-screen bg-[#f8fafc]">
-        <LoginModal onLoginSuccess={handleLoginSuccess} />
-      </div>
-    );
-  }
+  // 로그인 전·로그아웃 뒤에는 어떤 화면도 열지 않고 로그인 화면만 둔다.
+  if (!session) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   const currentRole = userRoleOf(session);
 
   return (
@@ -703,116 +755,217 @@ export default function App() {
 
       {/* 내 계정 정보와 비밀번호 변경 */}
       {showMyProfileModal && session && (
-        <div
-          className="fixed inset-0 z-90 flex items-center justify-center bg-slate-900/40 p-4"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeMyProfile();
-          }}
+        <Dialog
+          // 제목 "내 계정"은 화면에 보이지 않게 두고 창 이름(화면 읽기 프로그램)으로만 쓴다. 계정 정보가 창 맨 위에 온다.
+          title={<span className="sr-only">내 계정</span>}
+          width="md"
+          headerDivider={false}
+          onClose={closeMyProfile}
+          closeLabel="내 계정 창 닫기"
         >
-          <MyProfilePanel onEscape={closeMyProfile}>
-            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
-              <div>
-                <h3 id="my-profile-title" className="text-base font-bold text-slate-900">
-                  내 계정
-                </h3>
-                <p className="mt-1 text-xs text-slate-500">
-                  {session.name} · {session.username}
+          {/* 위에 누구인지(사진·이름·아이디·소속 배지), 아래에 메뉴 줄(비밀번호 변경·로그아웃). */}
+          {/* 보이는 제목이 없어 빈 머리글 줄(닫기 버튼 높이)만큼 위로 당긴다. 오른쪽은 닫기 버튼 자리를 비운다. */}
+          <div className="-mt-14">
+            <div className="flex items-center gap-4 pr-10 pb-4">
+              {/* 부문이 있으면 무조건 그 부문 캐릭터(분석·시각화·엔지니어링, trackImage.ts), 부문을 모르면(HOST 등) 이름 첫 글자. 장식이라 alt를 비운다. */}
+              {myTrackImage ? (
+                <img
+                  src={myTrackImage}
+                  alt=""
+                  width={56}
+                  height={56}
+                  className="size-14 shrink-0 rounded-full border border-slate-200 bg-white object-contain p-2"
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="flex size-14 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg font-semibold text-slate-600"
+                >
+                  {/* 계정을 읽는 동안은 비워 둔다. 부문이 있으면 곧 캐릭터로 바뀌므로 첫 글자를 잠깐 보이지 않게 한다. */}
+                  {myAccount !== undefined && session.name.slice(0, 1)}
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                {/* 첫 줄은 이름과 소속 배지(팀·부문), 둘째 줄은 아이디. */}
+                <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                  <span className="mr-1.5 truncate text-lg font-bold text-slate-900">
+                    {session.name}
+                  </span>
+                  {myTitle && <span className={MY_ACCOUNT_BADGE}>{myTitle}</span>}
+                  {myAccount?.track && (
+                    <span className={MY_ACCOUNT_BADGE}>{trackLabelOf(myAccount.track)}</span>
+                  )}
                 </p>
+                <p className="mt-1 truncate text-xs text-slate-500">{session.username}</p>
               </div>
+            </div>
+
+            {/* 메뉴 줄. 줄마다 위에 구분선을 긋는다. */}
+            {/* HOST 계정도 admin 표에 있어 운영진 계정과 같은 API로 본인 비밀번호를 바꾼다. */}
+            {!canWriteSelf && myPermissions !== undefined && (
+              <p className="flex items-center gap-3 border-t border-slate-100 py-3 text-sm text-slate-400">
+                <Lock size={16} aria-hidden="true" />
+                본인 비밀번호를 바꿀 권한이 없습니다.
+              </p>
+            )}
+            {canWriteSelf && (
               <button
+                ref={myPwToggleRef}
                 type="button"
-                onClick={closeMyProfile}
-                aria-label="닫기"
-                className="cursor-pointer rounded-sm p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                onClick={() => (isMyPwOpen ? cancelMyPassword() : setIsMyPwOpen(true))}
+                aria-expanded={isMyPwOpen}
+                aria-controls="my-password-form"
+                className={MY_ACCOUNT_MENU_ROW}
               >
-                <X size={16} aria-hidden="true" />
+                <Lock size={16} aria-hidden="true" className="text-slate-500" />
+                <span className="flex-1 text-left">비밀번호 변경</span>
+                {/* 펼치면 화살표가 아래를 향한다. */}
+                <ChevronRight
+                  size={16}
+                  aria-hidden="true"
+                  className={`text-slate-400 transition-transform ${isMyPwOpen ? 'rotate-90' : ''}`}
+                />
               </button>
-            </div>
-
-            <div className="space-y-4 px-6 py-4">
-              <dl className="space-y-2 text-sm">
-                <div className="flex gap-4">
-                  <dt className="w-20 shrink-0 text-xs leading-5 text-slate-500">등급</dt>
-                  <dd className="leading-5 text-slate-900">{session.role}</dd>
-                </div>
-                {session.teamName && (
-                  <div className="flex gap-4">
-                    <dt className="w-20 shrink-0 text-xs leading-5 text-slate-500">팀</dt>
-                    <dd className="leading-5 text-slate-900">{session.teamName}</dd>
+            )}
+            {isMyPwOpen && (
+              // 펼친 입력칸은 "비밀번호 변경" 글자 시작에 맞춰 들여 써서 그 줄에 딸린 것으로 보이게 한다.
+              <div className="ml-7 pb-4">
+                <form
+                  id="my-password-form"
+                  className="space-y-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void handleSaveMyPassword();
+                  }}
+                >
+                  {/* 세 칸을 테두리 하나로 묶고 가로선으로 나눈다. 칸 이름은 안내 글자(placeholder)로 보이고, 화면 읽기용 라벨은 숨긴다. */}
+                  <div className="divide-y divide-slate-200 overflow-hidden rounded-sm border border-slate-300 bg-white transition-colors focus-within:border-slate-400">
+                    {[
+                      {
+                        id: 'my-current-pw',
+                        label: '현재 비밀번호',
+                        value: myCurrentPw,
+                        onChange: setMyCurrentPw,
+                        autoComplete: 'current-password',
+                        hint: false,
+                      },
+                      {
+                        id: 'my-new-pw',
+                        label: '새 비밀번호',
+                        value: myNewPw,
+                        onChange: setMyNewPw,
+                        // 'new-password'면 크롬이 누르자마자 비밀번호 생성을 띄운다. 끄려고 off를 쓴다.
+                        autoComplete: 'off',
+                        // 백엔드 ADMIN-06의 비밀번호 규칙 안내(상자 아래 문구)를 이 칸에 연결한다. 검사는 #94에서 붙인다.
+                        hint: true,
+                      },
+                      {
+                        id: 'my-confirm-pw',
+                        label: '새 비밀번호 확인',
+                        value: myConfirmPw,
+                        onChange: setMyConfirmPw,
+                        autoComplete: 'off',
+                        hint: false,
+                      },
+                    ].map((field) => (
+                      // 칸마다 오른쪽 끝에 보기·지우기 버튼을 둔다(로그인 창과 같다).
+                      // 오류가 났을 때 비어 있는 칸은 옅은 빨간 바탕으로 표시한다.
+                      <div
+                        key={field.id}
+                        className={`relative ${myPwError && !field.value.trim() ? 'bg-red-50' : ''}`}
+                      >
+                        <label htmlFor={field.id} className="sr-only">
+                          {field.label}
+                        </label>
+                        <input
+                          id={field.id}
+                          type={visibleMyPwIds.includes(field.id) ? 'text' : 'password'}
+                          autoComplete={field.autoComplete}
+                          value={field.value}
+                          onChange={(event) => {
+                            field.onChange(event.target.value);
+                            // 다시 입력하기 시작하면 오류 표시를 지운다.
+                            setMyPwError('');
+                          }}
+                          // 칸을 누르기만 해도 오류 표시를 지운다(고치러 들어왔다는 뜻이다).
+                          onFocus={() => setMyPwError('')}
+                          aria-invalid={myPwError !== '' && !field.value.trim()}
+                          placeholder={field.label}
+                          aria-describedby={field.hint ? 'my-new-pw-hint' : undefined}
+                          // 펼치자마자 현재 비밀번호를 입력하게 첫 칸에 포커스를 둔다.
+                          autoFocus={field.id === 'my-current-pw'}
+                          className={MY_PW_INPUT}
+                        />
+                        <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center">
+                          <PasswordVisibilityButton
+                            isVisible={visibleMyPwIds.includes(field.id)}
+                            onToggle={() =>
+                              setVisibleMyPwIds((ids) =>
+                                ids.includes(field.id)
+                                  ? ids.filter((id) => id !== field.id)
+                                  : [...ids, field.id],
+                              )
+                            }
+                            controls={field.id}
+                          />
+                          {field.value && (
+                            <ClearFieldButton
+                              label={`${field.label} 지우기`}
+                              onClear={() => {
+                                field.onChange('');
+                                document.getElementById(field.id)?.focus();
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </dl>
-
-              {/* HOST 계정도 admin 표에 있어 운영진 계정과 같은 API로 본인 비밀번호를 바꾼다. */}
-              <form
-                className="space-y-3 border-t border-slate-200 pt-4"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void handleSaveMyPassword();
-                }}
-              >
-                {[
-                  {
-                    id: 'my-current-pw',
-                    label: '현재 비밀번호',
-                    value: myCurrentPw,
-                    onChange: setMyCurrentPw,
-                    autoComplete: 'current-password',
-                  },
-                  {
-                    id: 'my-new-pw',
-                    label: '새 비밀번호',
-                    value: myNewPw,
-                    onChange: setMyNewPw,
-                    autoComplete: 'new-password',
-                  },
-                  {
-                    id: 'my-confirm-pw',
-                    label: '새 비밀번호 확인',
-                    value: myConfirmPw,
-                    onChange: setMyConfirmPw,
-                    autoComplete: 'new-password',
-                  },
-                ].map((field) => (
-                  <div key={field.id}>
-                    <label htmlFor={field.id} className="mb-1 block text-xs text-slate-500">
-                      {field.label}
-                    </label>
-                    <input
-                      id={field.id}
-                      type="password"
-                      autoComplete={field.autoComplete}
-                      value={field.value}
-                      onChange={(event) => field.onChange(event.target.value)}
-                      className="h-10 w-full rounded-sm border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none hover:border-slate-300 focus:border-slate-400"
-                    />
+                  {/* 상자 아래 한 줄. 평소에는 백엔드 ADMIN-06의 비밀번호 규칙을, 오류가 나면 같은 자리에 오류 문구를 보인다.
+                      줄이 늘지 않아 오류가 나도 아래 버튼이 밀리지 않는다. */}
+                  {myPwError ? (
+                    <p role="alert" className="text-[11px] leading-4 break-keep text-red-600">
+                      {myPwError}
+                    </p>
+                  ) : (
+                    <p
+                      id="my-new-pw-hint"
+                      className="text-[11px] leading-4 break-keep text-slate-400"
+                    >
+                      새 비밀번호는 8자 이상, 영문·숫자·특수문자(!@#$%^&*) 포함
+                    </p>
+                  )}
+                  {/* 취소·변경 두 버튼이 위 묶음 상자와 같은 폭을 반씩 나눈다. */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={cancelMyPassword}
+                      className="h-10 cursor-pointer rounded-sm bg-slate-100 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-200 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-slate-400"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingMyPw}
+                      className={`h-10 cursor-pointer rounded-sm text-sm font-bold transition-colors ${myTrackButtonClass} focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-slate-400 disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      변경
+                    </button>
                   </div>
-                ))}
-                {myPwError && (
-                  <p role="alert" className="text-xs text-red-600">
-                    {myPwError}
-                  </p>
-                )}
-                <div className="flex justify-end gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={closeMyProfile}
-                    className="h-9 cursor-pointer rounded-sm px-4 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                  >
-                    취소
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSavingMyPw}
-                    className="h-9 cursor-pointer rounded-sm bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    비밀번호 변경
-                  </button>
-                </div>
-              </form>
-            </div>
-          </MyProfilePanel>
-        </div>
+                </form>
+              </div>
+            )}
+            {/* 로그아웃(POST /api/v1/auth/logout, 백엔드는 /api/v1/auth/admin/logout). 화면 위 로그아웃과 같다. */}
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className={MY_ACCOUNT_MENU_ROW}
+            >
+              <LogOut size={16} aria-hidden="true" className="text-slate-500" />
+              <span className="flex-1 text-left">로그아웃</span>
+            </button>
+          </div>
+        </Dialog>
       )}
 
       {/* Login Modal */}

@@ -1,5 +1,6 @@
 import { compareTeamNames } from '@/entities/admin-account/model/teams';
 import { CLUB_MEMBER_TRACKS } from '@/entities/club-member/model/types';
+import { trackLabelOf } from '@/entities/user/model/trackLabel';
 
 /**
  * 권한 관리 화면의 팀·사람 순서. 팀 이름 규칙(고정 팀)은 entities의 teams.ts를,
@@ -10,7 +11,7 @@ import { CLUB_MEMBER_TRACKS } from '@/entities/club-member/model/types';
 
 /** 목록에 없으면 맨 뒤로 보내는 부문 순위. */
 const trackRankOf = (track: string): number => {
-  const index = (CLUB_MEMBER_TRACKS as readonly string[]).indexOf(track);
+  const index = (CLUB_MEMBER_TRACKS as readonly string[]).indexOf(trackLabelOf(track) ?? '');
   return index === -1 ? CLUB_MEMBER_TRACKS.length : index;
 };
 

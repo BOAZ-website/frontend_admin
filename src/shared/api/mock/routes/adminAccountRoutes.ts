@@ -547,19 +547,27 @@ export const adminAccountRoutes: MockRoute[] = [
     handler: ({ db, params, body }) => {
       const { isSelf, target } = requirePasswordWrite(db, params.accountId);
 
+      // 백엔드 ADMIN-06과 같은 snake_case 본문을 받는다.
       const data = readBody(body);
-      const newPassword = requiredString(data, 'newPassword');
+      const newPassword = requiredString(data, 'new_password');
       if (!isSelf && target.role === 'MASTER') {
         throw badRequest(
           'CANNOT_MODIFY_MASTER_CREDENTIALS',
           '서비스운영팀장(MASTER) 계정의 비밀번호는 본인만 바꿀 수 있습니다.',
         );
       }
-      if (isSelf && optionalString(data, 'currentPassword') !== target.password) {
-        throw badRequest('INVALID_CURRENT_PASSWORD', '현재 비밀번호가 맞지 않습니다.');
+      if (isSelf) {
+        const currentPassword = optionalString(data, 'current_password');
+        if (!currentPassword) {
+          throw badRequest('INVALID_INPUT_VALUE', '현재 비밀번호를 입력해 주세요.');
+        }
+        // 백엔드처럼 401로 답한다. 토큰 문제가 아니므로 실제 API 연결 때 error_code로 구분한다(PLT-CLIENT).
+        if (currentPassword !== target.password) {
+          throw new ApiError(401, 'INVALID_CURRENT_PASSWORD', '현재 비밀번호가 올바르지 않습니다.');
+        }
       }
       updateAdminPassword(db, target.id, newPassword);
-      return undefined;
+      return { status: 200, data: null };
     },
   },
   {

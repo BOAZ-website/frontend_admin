@@ -9,7 +9,6 @@ import { AccountPermissionDialog } from './AccountPermissionDialog';
 import { AccountsTab } from './AccountsTab';
 import { CredentialIssueModal } from './CredentialIssueModal';
 import { MyAccountCard } from './MyAccountCard';
-import { PasswordModal } from './PasswordModal';
 
 /**
  * 권한 관리 화면. 운영진 표에서 이름이나 권한 버튼을, 그룹 리더 계정 표에서 이름을 누르면 그 사람의 권한 창이 열린다.
@@ -63,15 +62,7 @@ export function SystemAccountsPage() {
 
   const { me, catalog, accounts } = data;
   const page = view.derive(data);
-  const {
-    actions,
-    pageTitle,
-    permissionHolder,
-    groupLeaders,
-    canWriteSelf,
-    canManagePermissions,
-    isSelf,
-  } = page;
+  const { actions, pageTitle, permissionHolder, groupLeaders, canManagePermissions } = page;
 
   return (
     <div className="space-y-6">
@@ -120,12 +111,7 @@ export function SystemAccountsPage() {
           onOpenHolder={(holder) => view.setPermissionTargetKey(holder.key)}
         />
       ) : (
-        <MyAccountCard
-          catalog={catalog}
-          me={me}
-          canEditSelf={canWriteSelf}
-          onChangePassword={() => view.setPasswordTarget(me)}
-        />
+        <MyAccountCard catalog={catalog} me={me} />
       )}
 
       {permissionHolder && accounts && (
@@ -144,20 +130,13 @@ export function SystemAccountsPage() {
         />
       )}
 
-      {view.passwordTarget &&
-        (isSelf(view.passwordTarget) ? (
-          <PasswordModal
-            account={view.passwordTarget}
-            isSelf
-            onClose={() => view.setPasswordTarget(null)}
-            onSubmit={page.handleSubmitOwnPassword}
-          />
-        ) : (
-          <PasswordResetDialog
-            onClose={() => view.setPasswordTarget(null)}
-            onSubmit={(newPassword) => void page.handleResetOthersPassword(newPassword)}
-          />
-        ))}
+      {/* 다른 운영진의 비밀번호 재설정. 본인 비밀번호는 화면 위 내 계정 창에서 바꾼다. */}
+      {view.passwordTarget && (
+        <PasswordResetDialog
+          onClose={() => view.setPasswordTarget(null)}
+          onSubmit={(newPassword) => void page.handleResetOthersPassword(newPassword)}
+        />
+      )}
 
       {view.isIssueOpen && accounts && (
         <CredentialIssueModal

@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronRight, Copy, KeyRound, X } from 'lucide-reac
 import type { LeaderAccount } from '@/entities/host-account/model/types';
 import { studyDisplayName } from '@/entities/study-team/model/db';
 import type { StudyTeamInfo } from '@/entities/study-team/model/types';
+import { passwordResetBlockReasonOf } from '@/pages/attendance-hosts/model/passwordResetBlock';
 import { useHostsPageData } from '@/pages/attendance-hosts/model/useHostsPageData';
 import { buildAccountDelivery } from '@/features/account-delivery/model/accountDeliveryMessages';
 import { alertApiError } from '@/shared/lib/alertApiError';
@@ -39,6 +40,37 @@ interface LeaderRow {
   account: LeaderAccount | null;
 }
 
+/**
+ * 표의 비밀번호 재설정 버튼. 권한이 없거나 본인 계정이면 흐리게 두고 이유를 말풍선으로 보인다(R11-2).
+ * 권한 관리 화면의 관리 칸 버튼과 같은 방식이다.
+ */
+function PasswordResetButton({
+  name,
+  blockReason,
+  onClick,
+}: {
+  name: string;
+  blockReason: string | null;
+  onClick: () => void;
+}) {
+  const isBlocked = blockReason !== null;
+  return (
+    <Tooltip label={blockReason ?? '비밀번호 재설정'} isBlocked={isBlocked}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={isBlocked}
+        aria-label={
+          isBlocked ? `${name} 비밀번호 재설정: ${blockReason}` : `${name} 비밀번호 재설정`
+        }
+        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors enabled:hover:bg-slate-100 enabled:hover:text-slate-800 disabled:cursor-not-allowed disabled:text-slate-300"
+      >
+        <KeyRound size={14} aria-hidden="true" />
+      </button>
+    </Tooltip>
+  );
+}
+
 /** 스터디 유형 표시: 멘멘 스터디인지 일반 스터디인지. */
 const studyKindLabel = (kind: StudyTeamInfo['studyKind']): string =>
   kind === 'MENTORING' ? '멘멘 스터디' : '일반 스터디';
@@ -57,6 +89,7 @@ export function HostsPage({
   const {
     status: dataStatus,
     error: dataError,
+    me,
     leaders,
     advTeams,
     studyTeams,
@@ -584,16 +617,11 @@ export function HostsPage({
                                 </div>
                               </td>
                               <td className="px-2 py-2 text-center whitespace-nowrap">
-                                <Tooltip label="비밀번호 재설정">
-                                  <button
-                                    type="button"
-                                    onClick={() => openPasswordReset(row)}
-                                    aria-label={`${row.name} 비밀번호 재설정`}
-                                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-800"
-                                  >
-                                    <KeyRound size={14} aria-hidden="true" />
-                                  </button>
-                                </Tooltip>
+                                <PasswordResetButton
+                                  name={row.name}
+                                  blockReason={passwordResetBlockReasonOf(me, row.account)}
+                                  onClick={() => openPasswordReset(row)}
+                                />
                               </td>
                             </>
                           ) : (

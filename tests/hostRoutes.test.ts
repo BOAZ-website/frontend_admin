@@ -255,7 +255,7 @@ test('반기 전환: 지난 반기 그룹만 맡던 HOST 계정은 지우고, �
 test('비밀번호 초기화: 운영지원팀은 HOST 계정만 초기화하고, 운영진 계정이면 403이다', async () => {
   const { call } = await setup();
 
-  call('PATCH', '/api/v1/admin/accounts/101/password', { newPassword: 'Reset!2027' });
+  call('PATCH', '/api/v1/admin/accounts/101/password', { new_password: 'Reset!2027' });
   const session = call<{ accountId: number }>('POST', '/api/v1/auth/login', {
     username: 'host_c',
     password: 'Reset!2027',
@@ -264,7 +264,7 @@ test('비밀번호 초기화: 운영지원팀은 HOST 계정만 초기화하고,
 
   call('PUT', '/api/v1/mock/admin-session', { accountId: OPS_ID });
   expectApiError(
-    () => call('PATCH', `/api/v1/admin/accounts/${PLANNER_ID}/password`, { newPassword: 'x' }),
+    () => call('PATCH', `/api/v1/admin/accounts/${PLANNER_ID}/password`, { new_password: 'x' }),
     403,
   );
 });
@@ -273,7 +273,7 @@ test('비밀번호 초기화: 운영지원팀에게는 없는 계정도 운영�
   const { call } = await setup();
 
   expectApiError(
-    () => call('PATCH', '/api/v1/admin/accounts/9999/password', { newPassword: 'x' }),
+    () => call('PATCH', '/api/v1/admin/accounts/9999/password', { new_password: 'x' }),
     403,
     'FORBIDDEN',
   );
@@ -295,7 +295,7 @@ test('비밀번호 초기화: 두 권한이 모두 없으면 HOST 계정도 403�
   actAs(PLANNER_ID);
 
   expectApiError(
-    () => call('PATCH', '/api/v1/admin/accounts/101/password', { newPassword: 'x' }),
+    () => call('PATCH', '/api/v1/admin/accounts/101/password', { new_password: 'x' }),
     403,
   );
 });
